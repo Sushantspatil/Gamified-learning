@@ -1,0 +1,1 @@
+enum ChestType { daily, ad }
