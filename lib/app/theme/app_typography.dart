@@ -6,45 +6,74 @@ import 'app_theme_colors.dart';
 class AppTypography {
   AppTypography._();
 
-  static TextStyle get displayLarge => GoogleFonts.outfit(
-        fontSize: 32,
-        fontWeight: FontWeight.bold,
-      );
+  static TextStyle get display => GoogleFonts.plusJakartaSans(
+    fontSize: 32,
+    fontWeight: FontWeight.w700,
+    height: 1.16,
+  );
 
-  static TextStyle get displayMedium => GoogleFonts.outfit(
-        fontSize: 28,
-        fontWeight: FontWeight.bold,
-      );
+  static TextStyle get headingLarge => GoogleFonts.plusJakartaSans(
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
+    height: 1.18,
+  );
 
-  static TextStyle get titleLarge => GoogleFonts.outfit(
-        fontSize: 22,
-        fontWeight: FontWeight.w600,
-      );
+  static TextStyle get headingMedium => GoogleFonts.plusJakartaSans(
+    fontSize: 24,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+  );
 
-  static TextStyle get titleMedium => GoogleFonts.inter(
-        fontSize: 18,
-        fontWeight: FontWeight.w600,
-      );
+  static TextStyle get headingSmall => GoogleFonts.plusJakartaSans(
+    fontSize: 22,
+    fontWeight: FontWeight.w600,
+    height: 1.24,
+  );
 
-  static TextStyle get bodyLarge => GoogleFonts.inter(
-        fontSize: 16,
-        fontWeight: FontWeight.normal,
-      );
+  static TextStyle get title => GoogleFonts.plusJakartaSans(
+    fontSize: 18,
+    fontWeight: FontWeight.w600,
+    height: 1.32,
+  );
 
-  static TextStyle get bodyMedium => GoogleFonts.inter(
-        fontSize: 14,
-        fontWeight: FontWeight.normal,
-      );
+  static TextStyle get body => GoogleFonts.plusJakartaSans(
+    fontSize: 16,
+    fontWeight: FontWeight.w500,
+    height: 1.5,
+  );
 
-  static TextStyle get labelLarge => GoogleFonts.inter(
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-      );
+  static TextStyle get bodySmall => GoogleFonts.plusJakartaSans(
+    fontSize: 14,
+    fontWeight: FontWeight.w500,
+    height: 1.45,
+  );
 
-  static TextStyle get labelSmall => GoogleFonts.inter(
-        fontSize: 11,
-        fontWeight: FontWeight.w500,
-      );
+  static TextStyle get caption => GoogleFonts.plusJakartaSans(
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    height: 1.35,
+  );
+
+  static TextStyle get button => GoogleFonts.plusJakartaSans(
+    fontSize: 14,
+    fontWeight: FontWeight.w700,
+    height: 1.25,
+  );
+
+  static TextStyle get badge => GoogleFonts.plusJakartaSans(
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    height: 1.2,
+  );
+
+  static TextStyle get displayLarge => display;
+  static TextStyle get displayMedium => headingLarge;
+  static TextStyle get titleLarge => headingSmall;
+  static TextStyle get titleMedium => title;
+  static TextStyle get bodyLarge => body;
+  static TextStyle get bodyMedium => bodySmall;
+  static TextStyle get labelLarge => button;
+  static TextStyle get labelSmall => caption;
 }
 
 class AppTextStyles {
@@ -52,14 +81,34 @@ class AppTextStyles {
 
   const AppTextStyles(this.colors);
 
-  TextStyle get displayLarge => AppTypography.displayLarge.copyWith(color: colors.textPrimary);
-  TextStyle get displayMedium => AppTypography.displayMedium.copyWith(color: colors.textPrimary);
-  TextStyle get titleLarge => AppTypography.titleLarge.copyWith(color: colors.textPrimary);
-  TextStyle get titleMedium => AppTypography.titleMedium.copyWith(color: colors.textPrimary);
-  TextStyle get bodyLarge => AppTypography.bodyLarge.copyWith(color: colors.textPrimary);
-  TextStyle get bodyMedium => AppTypography.bodyMedium.copyWith(color: colors.textSecondary);
-  TextStyle get labelLarge => AppTypography.labelLarge.copyWith(color: colors.textPrimary);
-  TextStyle get labelSmall => AppTypography.labelSmall.copyWith(color: colors.textMuted);
+  TextStyle get display =>
+      AppTypography.display.copyWith(color: colors.textPrimary);
+  TextStyle get headingLarge =>
+      AppTypography.headingLarge.copyWith(color: colors.textPrimary);
+  TextStyle get headingMedium =>
+      AppTypography.headingMedium.copyWith(color: colors.textPrimary);
+  TextStyle get headingSmall =>
+      AppTypography.headingSmall.copyWith(color: colors.textPrimary);
+  TextStyle get title =>
+      AppTypography.title.copyWith(color: colors.textPrimary);
+  TextStyle get body => AppTypography.body.copyWith(color: colors.textPrimary);
+  TextStyle get bodySmall =>
+      AppTypography.bodySmall.copyWith(color: colors.textSecondary);
+  TextStyle get caption =>
+      AppTypography.caption.copyWith(color: colors.textMuted);
+  TextStyle get button =>
+      AppTypography.button.copyWith(color: colors.textPrimary);
+  TextStyle get badge =>
+      AppTypography.badge.copyWith(color: colors.textPrimary);
+
+  TextStyle get displayLarge => display;
+  TextStyle get displayMedium => headingLarge;
+  TextStyle get titleLarge => headingSmall;
+  TextStyle get titleMedium => title;
+  TextStyle get bodyLarge => body;
+  TextStyle get bodyMedium => bodySmall;
+  TextStyle get labelLarge => button;
+  TextStyle get labelSmall => caption;
 }
 
 extension AppTextStylesX on BuildContext {

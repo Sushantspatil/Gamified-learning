@@ -29,12 +29,11 @@ class AppTheme {
       onSurface: colors.textPrimary,
     );
 
-    final baseTextTheme = GoogleFonts.interTextTheme(
-      brightness == Brightness.dark ? ThemeData.dark().textTheme : ThemeData.light().textTheme,
-    ).apply(
-      bodyColor: colors.textPrimary,
-      displayColor: colors.textPrimary,
-    );
+    final baseTextTheme = GoogleFonts.plusJakartaSansTextTheme(
+      brightness == Brightness.dark
+          ? ThemeData.dark().textTheme
+          : ThemeData.light().textTheme,
+    ).apply(bodyColor: colors.textPrimary, displayColor: colors.textPrimary);
 
     return ThemeData(
       useMaterial3: true,
@@ -61,7 +60,9 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: AppTypography.titleLarge.copyWith(color: colors.textPrimary),
+        titleTextStyle: AppTypography.titleLarge.copyWith(
+          color: colors.textPrimary,
+        ),
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -71,24 +72,26 @@ class AppTheme {
           disabledForegroundColor: colors.textMuted,
           foregroundColor: colors.primaryForeground,
           minimumSize: const Size.fromHeight(AppDimensions.buttonHeight),
-          shape: RoundedRectangleBorder(
-            borderRadius: AppDimensions.radiusMd,
-          ),
-          textStyle: AppTypography.labelLarge,
+          shape: RoundedRectangleBorder(borderRadius: AppDimensions.radiusMd),
+          textStyle: AppTypography.button,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: colors.primary,
-          textStyle: AppTypography.labelLarge,
+          textStyle: AppTypography.button,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: colors.inputBackground,
-        labelStyle: AppTypography.bodyMedium.copyWith(color: colors.textSecondary),
-        hintStyle: AppTypography.bodyMedium.copyWith(color: colors.inputPlaceholder),
-        errorStyle: AppTypography.labelSmall.copyWith(color: colors.error),
+        labelStyle: AppTypography.bodySmall.copyWith(
+          color: colors.textSecondary,
+        ),
+        hintStyle: AppTypography.bodySmall.copyWith(
+          color: colors.inputPlaceholder,
+        ),
+        errorStyle: AppTypography.caption.copyWith(color: colors.error),
         enabledBorder: OutlineInputBorder(
           borderRadius: AppDimensions.radiusMd,
           borderSide: BorderSide(color: colors.inputBorder),
@@ -108,15 +111,21 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: colors.surfaceElevated,
-        contentTextStyle: AppTypography.bodyMedium.copyWith(color: colors.textPrimary),
+        contentTextStyle: AppTypography.bodyMedium.copyWith(
+          color: colors.textPrimary,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: AppDimensions.radiusSm),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
-        titleTextStyle: AppTypography.titleLarge.copyWith(color: colors.textPrimary),
-        contentTextStyle: AppTypography.bodyMedium.copyWith(color: colors.textSecondary),
+        titleTextStyle: AppTypography.titleLarge.copyWith(
+          color: colors.textPrimary,
+        ),
+        contentTextStyle: AppTypography.bodyMedium.copyWith(
+          color: colors.textSecondary,
+        ),
         shape: RoundedRectangleBorder(borderRadius: AppDimensions.radiusMd),
       ),
       listTileTheme: ListTileThemeData(
