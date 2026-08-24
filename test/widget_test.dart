@@ -9,7 +9,10 @@ import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/features/shop/presentation/widgets/shop_item_card.dart';
 
 Finder _buyButtonFor(String itemTitle) {
-  final card = find.ancestor(of: find.text(itemTitle), matching: find.byType(ShopItemCard));
+  final card = find.ancestor(
+    of: find.text(itemTitle),
+    matching: find.byType(ShopItemCard),
+  );
   return find.descendant(of: card, matching: find.byType(FilledButton));
 }
 
@@ -45,10 +48,22 @@ Future<void> _signUp(WidgetTester tester) async {
   await tester.tap(find.text("Don't have an account? Sign up"));
   await tester.pumpAndSettle();
 
-  await tester.enterText(find.widgetWithText(TextFormField, 'Display name'), 'Ada');
-  await tester.enterText(find.widgetWithText(TextFormField, 'Email'), 'ada@example.com');
-  await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'password123');
-  await tester.enterText(find.widgetWithText(TextFormField, 'Confirm password'), 'password123');
+  await tester.enterText(
+    find.widgetWithText(TextFormField, 'Display name'),
+    'Ada',
+  );
+  await tester.enterText(
+    find.widgetWithText(TextFormField, 'Email'),
+    'ada@example.com',
+  );
+  await tester.enterText(
+    find.widgetWithText(TextFormField, 'Password'),
+    'password123',
+  );
+  await tester.enterText(
+    find.widgetWithText(TextFormField, 'Confirm password'),
+    'password123',
+  );
   await tester.tap(find.text('Sign Up'));
   await tester.pumpAndSettle();
 }
@@ -108,108 +123,131 @@ Future<void> _startQuizAndAnswerFirstThreeQuestions(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('unauthenticated user is routed to the login screen', (tester) async {
+  testWidgets('unauthenticated user is routed to the login screen', (
+    tester,
+  ) async {
     await _pumpApp(tester);
 
     expect(find.text('Welcome back'), findsOneWidget);
     expect(find.text('Log In'), findsOneWidget);
   });
 
-  testWidgets('signing up navigates to the learning path selection screen', (tester) async {
+  testWidgets('signing up navigates to the learning path selection screen', (
+    tester,
+  ) async {
     await _pumpApp(tester);
     await _signUp(tester);
 
     expect(find.text('Choose Your Path'), findsOneWidget);
   });
 
-  testWidgets('selecting a learning path navigates to the dashboard', (tester) async {
+  testWidgets('selecting a learning path navigates to the dashboard', (
+    tester,
+  ) async {
     await _pumpApp(tester);
     await _signUp(tester);
 
     expect(find.text('Web Development'), findsOneWidget);
     await _completeOnboarding(tester);
 
-    expect(find.text('Dashboard'), findsWidgets);
-    expect(find.text('Current Learning Path'), findsOneWidget);
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('CONTINUE LEARNING'), findsOneWidget);
     expect(find.text('Web Development'), findsOneWidget);
-    expect(find.text('HTML Foundations'), findsOneWidget);
+    expect(find.textContaining('HTML Foundations'), findsOneWidget);
   });
 
-  testWidgets('shop lets you earn gems, buy a powerup, and open the daily chest', (tester) async {
-    await _pumpApp(tester);
-    await _signUp(tester);
-    await _completeOnboarding(tester);
+  testWidgets(
+    'shop lets you earn gems, buy a powerup, and open the daily chest',
+    (tester) async {
+      await _pumpApp(tester);
+      await _signUp(tester);
+      await _completeOnboarding(tester);
 
-    await tester.tap(find.byTooltip('Shop'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Shop'));
+      await tester.pumpAndSettle();
 
-    await _scrollShopDown(tester);
+      await _scrollShopDown(tester);
 
-    // Not enough gems yet for the 20-gem Streak Freeze powerup.
-    await tester.tap(_buyButtonFor('Streak Freeze'));
-    await tester.pumpAndSettle();
-    expect(find.text('Not enough gems.'), findsOneWidget);
+      // Not enough gems yet for the 20-gem Streak Freeze powerup.
+      await tester.tap(_buyButtonFor('Streak Freeze'));
+      await tester.pumpAndSettle();
+      expect(find.text('Not enough gems.'), findsOneWidget);
 
-    // Watch two simulated ads to earn 20 gems (10 each).
-    await tester.tap(_buyButtonFor('Watch an Ad'));
-    await tester.pumpAndSettle();
-    expect(find.text('You received 10 Gems!'), findsOneWidget);
-    await tester.tap(_buyButtonFor('Watch an Ad'));
-    await tester.pumpAndSettle();
+      // Watch two simulated ads to earn 20 gems (10 each).
+      await tester.tap(_buyButtonFor('Watch an Ad'));
+      await tester.pumpAndSettle();
+      expect(find.text('You received 10 Gems!'), findsOneWidget);
+      await tester.tap(_buyButtonFor('Watch an Ad'));
+      await tester.pumpAndSettle();
 
-    await tester.tap(_buyButtonFor('Streak Freeze'));
-    await tester.pumpAndSettle();
-    expect(find.text('Streak Freeze purchased!'), findsOneWidget);
+      await tester.tap(_buyButtonFor('Streak Freeze'));
+      await tester.pumpAndSettle();
+      expect(find.text('Streak Freeze purchased!'), findsOneWidget);
 
-    // Gem packs (in the first, already-visible section) are demo
-    // purchases behind a confirmation dialog.
-    await _scrollShopUp(tester);
-    await tester.tap(_buyButtonFor('50 Gems'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('demo purchase'), findsOneWidget);
-    await tester.tap(
-      find.descendant(of: find.byType(AlertDialog), matching: find.widgetWithText(FilledButton, 'Buy')),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('You received 50 Gems!'), findsOneWidget);
+      // Gem packs (in the first, already-visible section) are demo
+      // purchases behind a confirmation dialog.
+      await _scrollShopUp(tester);
+      await tester.tap(_buyButtonFor('50 Gems'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('demo purchase'), findsOneWidget);
+      await tester.tap(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.widgetWithText(FilledButton, 'Buy'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('You received 50 Gems!'), findsOneWidget);
 
-    await _scrollShopDown(tester);
-    await tester.tap(find.text('Daily Chest'));
-    await tester.pumpAndSettle();
+      await _scrollShopDown(tester);
+      await tester.tap(find.text('Daily Chest'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Open Chest'), findsOneWidget);
-    await tester.tap(find.text('Open Chest'));
-    await tester.pumpAndSettle();
+      expect(find.text('Open Chest'), findsOneWidget);
+      await tester.tap(find.text('Open Chest'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Chest Opened!'), findsOneWidget);
-    await tester.tap(find.text('Nice!'));
-    await tester.pumpAndSettle();
+      expect(find.text('Chest Opened!'), findsOneWidget);
+      await tester.tap(find.text('Nice!'));
+      await tester.pumpAndSettle();
 
-    // The daily chest is once-per-day; opening it again today is blocked.
-    expect(find.text('Come back tomorrow for your next daily chest.'), findsOneWidget);
-  });
+      // The daily chest is once-per-day; opening it again today is blocked.
+      expect(
+        find.text('Come back tomorrow for your next daily chest.'),
+        findsOneWidget,
+      );
+    },
+  );
 
-  testWidgets('spin wheel reveals a winning segment and blocks a second spin today', (tester) async {
-    await _pumpApp(tester);
-    await _signUp(tester);
-    await _completeOnboarding(tester);
+  testWidgets(
+    'spin wheel reveals a winning segment and blocks a second spin today',
+    (tester) async {
+      await _pumpApp(tester);
+      await _signUp(tester);
+      await _completeOnboarding(tester);
 
-    await tester.tap(find.byTooltip('Shop'));
-    await tester.pumpAndSettle();
-    await _scrollShopDown(tester);
-    await tester.tap(find.text('Spin Wheel'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Shop'));
+      await tester.pumpAndSettle();
+      await _scrollShopDown(tester);
+      await tester.tap(find.text('Spin Wheel'));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Spin'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Spin'));
+      await tester.pumpAndSettle();
 
-    expect(find.textContaining('You won'), findsOneWidget);
+      expect(find.textContaining('You won'), findsOneWidget);
 
-    // Today's spin is used; spinning again is blocked until it resets.
-    expect(find.text('Come back tomorrow for your next spin.'), findsOneWidget);
-  });
+      // Today's spin is used; spinning again is blocked until it resets.
+      expect(
+        find.text('Come back tomorrow for your next spin.'),
+        findsOneWidget,
+      );
+    },
+  );
 
-  testWidgets('a cosmetic can be purchased with coins and then equipped', (tester) async {
+  testWidgets('a cosmetic can be purchased with coins and then equipped', (
+    tester,
+  ) async {
     await _pumpApp(tester);
     await _signUp(tester);
     await _completeOnboarding(tester);
@@ -221,7 +259,10 @@ void main() {
     await tester.tap(_buyButtonFor('200 Coins'));
     await tester.pumpAndSettle();
     await tester.tap(
-      find.descendant(of: find.byType(AlertDialog), matching: find.widgetWithText(FilledButton, 'Buy')),
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.widgetWithText(FilledButton, 'Buy'),
+      ),
     );
     await tester.pumpAndSettle();
     expect(find.text('You received 200 Coins!'), findsOneWidget);
@@ -235,19 +276,34 @@ void main() {
     await tester.pumpAndSettle();
 
     final goldFrameCard = find.byKey(const ValueKey('cosmetic-frame-gold'));
-    expect(find.descendant(of: goldFrameCard, matching: find.text('100 Coins')), findsOneWidget);
+    expect(
+      find.descendant(of: goldFrameCard, matching: find.text('100 Coins')),
+      findsOneWidget,
+    );
 
-    await tester.tap(find.descendant(of: goldFrameCard, matching: find.byType(FilledButton)));
+    await tester.tap(
+      find.descendant(of: goldFrameCard, matching: find.byType(FilledButton)),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.descendant(of: goldFrameCard, matching: find.text('Equip')), findsOneWidget);
-    await tester.tap(find.descendant(of: goldFrameCard, matching: find.byType(FilledButton)));
+    expect(
+      find.descendant(of: goldFrameCard, matching: find.text('Equip')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.descendant(of: goldFrameCard, matching: find.byType(FilledButton)),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.descendant(of: goldFrameCard, matching: find.text('Equipped')), findsOneWidget);
+    expect(
+      find.descendant(of: goldFrameCard, matching: find.text('Equipped')),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('leaderboard shows global rankings and coming-soon tabs', (tester) async {
+  testWidgets('leaderboard shows global rankings and coming-soon tabs', (
+    tester,
+  ) async {
     await _pumpApp(tester);
     await _signUp(tester);
     await _completeOnboarding(tester);
@@ -271,28 +327,33 @@ void main() {
     expect(find.text('School leaderboard is coming soon.'), findsOneWidget);
   });
 
-  testWidgets('dashboard shows the streak, a daily mission, and a claimable reward', (tester) async {
-    await _pumpApp(tester);
-    await _signUp(tester);
-    await _completeOnboarding(tester);
-    await _scrollDashboardToBottom(tester);
+  testWidgets(
+    'dashboard shows the streak, a daily mission, and a claimable reward',
+    (tester) async {
+      await _pumpApp(tester);
+      await _signUp(tester);
+      await _completeOnboarding(tester);
 
-    expect(find.text('1 day'), findsOneWidget);
-    expect(find.text('0/1'), findsOneWidget);
-    expect(find.text('+10'), findsOneWidget);
+      expect(find.text('1 day'), findsOneWidget);
+      expect(find.text('0 of 1'), findsOneWidget);
 
-    await tester.tap(find.text('+10'));
-    await tester.pumpAndSettle();
+      await _scrollDashboardToBottom(tester);
 
-    expect(find.text('Claimed'), findsOneWidget);
+      expect(find.text('+10'), findsOneWidget);
 
-    await tester.dragFrom(const Offset(200, 300), const Offset(0, 600));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('compact_profile_header')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('+10'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('10 Coins'), findsOneWidget);
-  });
+      expect(find.text('Claimed'), findsOneWidget);
+
+      await tester.dragFrom(const Offset(200, 300), const Offset(0, 600));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('compact_profile_header')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('10 Coins'), findsOneWidget);
+    },
+  );
 
   testWidgets('drilling into a chapter shows its topics', (tester) async {
     await _pumpApp(tester);
@@ -306,52 +367,59 @@ void main() {
     expect(find.text('Tags & Elements'), findsOneWidget);
   });
 
-  testWidgets('completing a quiz with all correct answers shows Quiz Complete', (tester) async {
-    await _pumpApp(tester);
-    await _signUp(tester);
-    await _completeOnboarding(tester);
-    await _startQuizAndAnswerFirstThreeQuestions(tester);
+  testWidgets(
+    'completing a quiz with all correct answers shows Quiz Complete',
+    (tester) async {
+      await _pumpApp(tester);
+      await _signUp(tester);
+      await _completeOnboarding(tester);
+      await _startQuizAndAnswerFirstThreeQuestions(tester);
 
-    await tester.tap(find.text('Choice X'));
-    await tester.pump();
-    await tester.tap(find.text('Submit'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Choice X'));
+      await tester.pump();
+      await tester.tap(find.text('Submit'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Quiz Complete!'), findsOneWidget);
-    // MCQ 10 + Match 15 (all correct) + Sort 0 (submitted unreordered) +
-    // Sudden Death 20 = 45 points -> 45 XP, round(45/2) = 23 coins.
-    expect(find.text('+45 XP'), findsOneWidget);
-    expect(find.text('+23 Coins'), findsOneWidget);
+      expect(find.text('Quiz Complete!'), findsOneWidget);
+      // MCQ 10 + Match 15 (all correct) + Sort 0 (submitted unreordered) +
+      // Sudden Death 20 = 45 points -> 45 XP, round(45/2) = 23 coins.
+      expect(find.text('+45 XP'), findsOneWidget);
+      expect(find.text('+23 Coins'), findsOneWidget);
 
-    await tester.tap(find.text('Done'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Chapter Summary'), findsOneWidget);
+      expect(find.text('Chapter Summary'), findsOneWidget);
 
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await _scrollDashboardToBottom(tester);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
 
-    expect(find.text('1/1'), findsOneWidget); // "Complete 1 quiz today" mission now done
+      expect(
+        find.text('1 of 1'),
+        findsOneWidget,
+      ); // "Complete 1 quiz today" mission now done
 
-    await tester.dragFrom(const Offset(200, 300), const Offset(0, 600));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('compact_profile_header')));
-    await tester.pumpAndSettle();
+      await tester.dragFrom(const Offset(200, 300), const Offset(0, 600));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('compact_profile_header')));
+      await tester.pumpAndSettle();
 
-    // 23 coins from the quiz reward + 20 from the "Complete 1 quiz today"
-    // mission, which this first quiz of the day also completes.
-    expect(find.text('43 Coins'), findsOneWidget);
-    expect(find.text('Level 1 • 45 XP'), findsOneWidget);
+      // 23 coins from the quiz reward + 20 from the "Complete 1 quiz today"
+      // mission, which this first quiz of the day also completes.
+      expect(find.text('43 Coins'), findsOneWidget);
+      expect(find.text('Level 1 • 45 XP'), findsOneWidget);
 
-    await tester.tap(find.text('43 Coins'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('43 Coins'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Quiz reward'), findsOneWidget);
-    expect(find.textContaining('Mission:'), findsOneWidget);
-  });
+      expect(find.text('Quiz reward'), findsOneWidget);
+      expect(find.textContaining('Mission:'), findsOneWidget);
+    },
+  );
 
-  testWidgets('a wrong Sudden Death answer ends the quiz early', (tester) async {
+  testWidgets('a wrong Sudden Death answer ends the quiz early', (
+    tester,
+  ) async {
     await _pumpApp(tester);
     await _signUp(tester);
     await _completeOnboarding(tester);
@@ -365,37 +433,48 @@ void main() {
     expect(find.text('Sudden Death — Quiz Ended'), findsOneWidget);
   });
 
-  testWidgets('viewing and editing the profile updates the displayed name and avatar', (tester) async {
-    await _pumpApp(tester);
-    await _signUp(tester);
-    await _completeOnboarding(tester);
+  testWidgets(
+    'viewing and editing the profile updates the displayed name and avatar',
+    (tester) async {
+      await _pumpApp(tester);
+      await _signUp(tester);
+      await _completeOnboarding(tester);
 
-    await tester.tap(find.byKey(const Key('compact_profile_header')));
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('compact_profile_header')));
+      await tester.pumpAndSettle();
 
-    // The Dashboard stays mounted underneath (this is a push, not a
-    // redirect) and reactively shows the same auth/profile state, so
-    // widgets backed by global providers may legitimately match more than
-    // once here — assert presence, not an exact count.
-    expect(find.text('Ada'), findsWidgets);
-    expect(find.text('ada@example.com'), findsOneWidget);
-    expect(find.text('0 Coins'), findsOneWidget);
+      // The Dashboard stays mounted underneath (this is a push, not a
+      // redirect) and reactively shows the same auth/profile state, so
+      // widgets backed by global providers may legitimately match more than
+      // once here — assert presence, not an exact count.
+      expect(find.text('Ada'), findsWidgets);
+      expect(find.text('ada@example.com'), findsOneWidget);
+      expect(find.text('0 Coins'), findsOneWidget);
 
-    await tester.tap(find.text('Edit Profile'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('Edit Profile'));
+      await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(TextFormField, 'Display name'), findsOneWidget);
+      expect(
+        find.widgetWithText(TextFormField, 'Display name'),
+        findsOneWidget,
+      );
 
-    await tester.enterText(find.widgetWithText(TextFormField, 'Display name'), 'Ada Lovelace');
-    await tester.tap(find.byIcon(Icons.smart_toy).first);
-    await tester.tap(find.text('Save'));
-    await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Display name'),
+        'Ada Lovelace',
+      );
+      await tester.tap(find.byIcon(Icons.smart_toy).first);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Ada Lovelace'), findsWidgets);
-    expect(find.byIcon(Icons.smart_toy), findsWidgets);
-  });
+      expect(find.text('Ada Lovelace'), findsWidgets);
+      expect(find.byIcon(Icons.smart_toy), findsWidgets);
+    },
+  );
 
-  testWidgets('logging out from profile returns to the login screen', (tester) async {
+  testWidgets('logging out from profile returns to the login screen', (
+    tester,
+  ) async {
     await _pumpApp(tester);
     await _signUp(tester);
     await _completeOnboarding(tester);
