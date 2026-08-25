@@ -79,7 +79,7 @@ Future<void> _completeOnboarding(WidgetTester tester) async {
 /// the streak/missions/reward row at the bottom isn't in the widget tree
 /// until scrolled into view.
 Future<void> _scrollDashboardToBottom(WidgetTester tester) async {
-  await tester.dragFrom(const Offset(200, 500), const Offset(0, -600));
+  await tester.dragFrom(const Offset(200, 500), const Offset(0, -900));
   await tester.pumpAndSettle();
 }
 
@@ -99,7 +99,8 @@ Future<void> _startQuizAndAnswerFirstThreeQuestions(WidgetTester tester) async {
   await tester.tap(find.text('Submit'));
   await tester.pumpAndSettle();
 
-  expect(find.text('Question 2 of 4'), findsOneWidget);
+  expect(find.byKey(const Key('match_it_view')), findsOneWidget);
+  expect(find.text('Match each concept'), findsOneWidget);
   await tester.tap(find.text('Term 1'));
   await tester.pump();
   await tester.tap(find.text('Definition 1'));
@@ -112,6 +113,8 @@ Future<void> _startQuizAndAnswerFirstThreeQuestions(WidgetTester tester) async {
   await tester.pump();
   await tester.tap(find.text('Definition 3'));
   await tester.pump();
+  await tester.ensureVisible(find.text('Submit'));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('Submit'));
   await tester.pumpAndSettle();
 
@@ -346,7 +349,7 @@ void main() {
 
       expect(find.text('Claimed'), findsOneWidget);
 
-      await tester.dragFrom(const Offset(200, 300), const Offset(0, 600));
+      await tester.dragFrom(const Offset(200, 300), const Offset(0, 900));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('compact_profile_header')));
       await tester.pumpAndSettle();
@@ -399,7 +402,7 @@ void main() {
         findsOneWidget,
       ); // "Complete 1 quiz today" mission now done
 
-      await tester.dragFrom(const Offset(200, 300), const Offset(0, 600));
+      await tester.dragFrom(const Offset(200, 300), const Offset(0, 900));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('compact_profile_header')));
       await tester.pumpAndSettle();

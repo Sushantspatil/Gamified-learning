@@ -22,12 +22,13 @@ class QuizScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionAsync = ref.watch(quizControllerProvider(topicId));
+    final currentQuestion = sessionAsync.valueOrNull?.currentQuestion;
+    final isMatchQuestion = currentQuestion is MatchTheFollowingQuestion;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quiz'),
-        actions: const [ThemeModeMenu()],
-      ),
+      appBar: isMatchQuestion
+          ? null
+          : AppBar(title: const Text('Quiz'), actions: const [ThemeModeMenu()]),
       body: SafeArea(
         child: sessionAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -37,11 +38,15 @@ class QuizScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Could not load this quiz.', style: context.appTextStyles.bodyLarge),
+                  Text(
+                    'Could not load this quiz.',
+                    style: context.appTextStyles.bodyLarge,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   AppButton(
                     label: 'Retry',
-                    onPressed: () => ref.invalidate(quizControllerProvider(topicId)),
+                    onPressed: () =>
+                        ref.invalidate(quizControllerProvider(topicId)),
                   ),
                 ],
               ),
@@ -64,11 +69,26 @@ class QuizScreen extends ConsumerWidget {
 
             final question = session.currentQuestion;
             if (question == null) {
-              return Center(child: Text('No questions available.', style: context.appTextStyles.bodyLarge));
+              return Center(
+                child: Text(
+                  'No questions available.',
+                  style: context.appTextStyles.bodyLarge,
+                ),
+              );
             }
 
             void handleAnswer(Answer answer) {
-              ref.read(quizControllerProvider(topicId).notifier).submitAnswer(answer);
+              ref
+                  .read(quizControllerProvider(topicId).notifier)
+                  .submitAnswer(answer);
+            }
+
+            if (question is MatchTheFollowingQuestion) {
+              return MatchTheFollowingView(
+                question: question,
+                onSubmit: handleAnswer,
+                onExit: () => Navigator.of(context).maybePop(),
+              );
             }
 
             return Padding(
@@ -83,12 +103,21 @@ class QuizScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.sm),
                   Expanded(
                     child: switch (question) {
-                      McqQuestion q => McqQuestionView(question: q, onSubmit: handleAnswer),
-                      SuddenDeathQuestion q =>
-                        SuddenDeathQuestionView(question: q, onSubmit: handleAnswer),
-                      MatchTheFollowingQuestion q =>
-                        MatchTheFollowingView(question: q, onSubmit: handleAnswer),
-                      SortItRightQuestion q => SortItRightView(question: q, onSubmit: handleAnswer),
+                      McqQuestion q => McqQuestionView(
+                        question: q,
+                        onSubmit: handleAnswer,
+                      ),
+                      SuddenDeathQuestion q => SuddenDeathQuestionView(
+                        question: q,
+                        onSubmit: handleAnswer,
+                      ),
+                      SortItRightQuestion q => SortItRightView(
+                        question: q,
+                        onSubmit: handleAnswer,
+                      ),
+                      MatchTheFollowingQuestion() => throw StateError(
+                        'Match questions render above.',
+                      ),
                     },
                   ),
                 ],

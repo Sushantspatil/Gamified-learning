@@ -16,6 +16,7 @@ import '../../../../shared/widgets/app_badge.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
+import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../chapters/domain/entities/topic.dart';
 import '../../../chapters/presentation/providers/chapter_providers.dart';
@@ -52,7 +53,7 @@ class DashboardScreen extends ConsumerWidget {
             AppSpacing.screenPadding,
             AppSpacing.md,
             AppSpacing.screenPadding,
-            AppSpacing.xl,
+            96,
           ),
           children: [
             _ProfileHeader(
@@ -185,73 +186,87 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.themeColors;
 
-    return Row(
+    return Column(
       children: [
-        Expanded(
-          child: AppPressable(
-            key: const Key('compact_profile_header'),
-            onTap: onTap,
-            borderRadius: AppDimensions.radiusMd,
-            child: Row(
-              children: [
-                AppAvatar(
-                  fallbackIcon: AvatarCatalog.iconFor(avatarId),
-                  size: AppDimensions.avatarSizeMd,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
+        Row(
+          children: [
+            Expanded(
+              child: AppPressable(
+                key: const Key('compact_profile_header'),
+                onTap: onTap,
+                borderRadius: AppDimensions.radiusMd,
+                child: Row(
+                  children: [
+                    AppAvatar(
+                      fallbackIcon: AvatarCatalog.iconFor(avatarId),
+                      size: AppDimensions.avatarSizeMd,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Flexible(
-                            child: Text(
-                              displayName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: context.appTextStyles.titleLarge,
-                            ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  displayName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: context.appTextStyles.titleLarge,
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              Icon(
+                                Icons.waving_hand_outlined,
+                                color: colors.warning,
+                                size: 18,
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Icon(
-                            Icons.waving_hand_outlined,
-                            color: colors.warning,
-                            size: 18,
+                          const SizedBox(height: AppSpacing.xs),
+                          AppBadge(
+                            label: 'Level $level learner',
+                            variant: AppBadgeVariant.primary,
                           ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      AppBadge(
-                        label: 'Level $level learner',
-                        variant: AppBadgeVariant.primary,
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
+            const SizedBox(width: AppSpacing.sm),
+            const ThemeModeMenu(),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MetricPill(
+                icon: Icons.local_fire_department,
+                iconColor: AppColors.streakFire,
+                value: streak,
+                semanticLabel: 'Current streak',
+                tooltip: 'Leaderboard',
+                onTap: () => context.push(RouteNames.leaderboard),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              _MetricPill(
+                icon: Icons.diamond,
+                iconColor: AppColors.gemCyan,
+                value: gems,
+                semanticLabel: 'Gems',
+                tooltip: 'Shop',
+                onTap: () => context.push(RouteNames.shop),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        _MetricPill(
-          icon: Icons.local_fire_department,
-          iconColor: AppColors.streakFire,
-          value: streak,
-          semanticLabel: 'Current streak',
-          tooltip: 'Leaderboard',
-          onTap: () => context.push(RouteNames.leaderboard),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        _MetricPill(
-          icon: Icons.diamond,
-          iconColor: AppColors.gemCyan,
-          value: gems,
-          semanticLabel: 'Gems',
-          tooltip: 'Shop',
-          onTap: () => context.push(RouteNames.shop),
         ),
       ],
     );

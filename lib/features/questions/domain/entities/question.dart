@@ -16,11 +16,17 @@ class MatchPair extends Equatable {
   final String id;
   final String left;
   final String right;
+  final String? hint;
 
-  const MatchPair({required this.id, required this.left, required this.right});
+  const MatchPair({
+    required this.id,
+    required this.left,
+    required this.right,
+    this.hint,
+  });
 
   @override
-  List<Object?> get props => [id, left, right];
+  List<Object?> get props => [id, left, right, hint];
 }
 
 /// Sealed so every consumer (scoring, UI dispatch) gets exhaustiveness
@@ -59,7 +65,14 @@ class McqQuestion extends Question {
   QuestionType get type => QuestionType.mcq;
 
   @override
-  List<Object?> get props => [id, topicId, prompt, points, options, correctOptionId];
+  List<Object?> get props => [
+    id,
+    topicId,
+    prompt,
+    points,
+    options,
+    correctOptionId,
+  ];
 }
 
 class MatchTheFollowingQuestion extends Question {
@@ -118,5 +131,12 @@ class SuddenDeathQuestion extends Question {
   QuestionType get type => QuestionType.suddenDeath;
 
   @override
-  List<Object?> get props => [id, topicId, prompt, points, options, correctOptionId];
+  List<Object?> get props => [
+    id,
+    topicId,
+    prompt,
+    points,
+    options,
+    correctOptionId,
+  ];
 }

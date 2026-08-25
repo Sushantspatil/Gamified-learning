@@ -28,9 +28,24 @@ class QuestionMockDatasource implements QuestionDatasource {
         prompt: 'Match each term with its correct definition.',
         points: 15,
         pairs: const [
-          MatchPair(id: 'p1', left: 'Term 1', right: 'Definition 1'),
-          MatchPair(id: 'p2', left: 'Term 2', right: 'Definition 2'),
-          MatchPair(id: 'p3', left: 'Term 3', right: 'Definition 3'),
+          MatchPair(
+            id: 'p1',
+            left: 'Term 1',
+            right: 'Definition 1',
+            hint: 'Look for the definition that directly explains Term 1.',
+          ),
+          MatchPair(
+            id: 'p2',
+            left: 'Term 2',
+            right: 'Definition 2',
+            hint: 'This concept is paired with the second definition.',
+          ),
+          MatchPair(
+            id: 'p3',
+            left: 'Term 3',
+            right: 'Definition 3',
+            hint: 'Think about the definition that completes the third pair.',
+          ),
         ],
       ),
       SortItRightQuestion(
