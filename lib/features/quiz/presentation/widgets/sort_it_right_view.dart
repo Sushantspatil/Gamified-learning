@@ -15,7 +15,11 @@ class SortItRightView extends StatefulWidget {
   final SortItRightQuestion question;
   final void Function(Answer answer) onSubmit;
 
-  const SortItRightView({super.key, required this.question, required this.onSubmit});
+  const SortItRightView({
+    super.key,
+    required this.question,
+    required this.onSubmit,
+  });
 
   @override
   State<SortItRightView> createState() => _SortItRightViewState();
@@ -30,7 +34,9 @@ class _SortItRightViewState extends State<SortItRightView> {
     // Rotate by one so the initial order is never already correct (for
     // lists longer than one item), without needing real randomness.
     final items = widget.question.itemsInOrder;
-    _order = items.length > 1 ? [...items.skip(1), items.first] : List.of(items);
+    _order = items.length > 1
+        ? [...items.skip(1), items.first]
+        : List.of(items);
   }
 
   void _moveUp(int index) {
@@ -61,7 +67,8 @@ class _SortItRightViewState extends State<SortItRightView> {
         Expanded(
           child: ListView.separated(
             itemCount: _order.length,
-            separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+            separatorBuilder: (context, index) =>
+                const SizedBox(height: AppSpacing.sm),
             itemBuilder: (context, index) {
               return Container(
                 padding: AppSpacing.paddingSm,
@@ -72,14 +79,21 @@ class _SortItRightViewState extends State<SortItRightView> {
                 ),
                 child: Row(
                   children: [
-                    Expanded(child: Text(_order[index], style: context.appTextStyles.bodyMedium)),
+                    Expanded(
+                      child: Text(
+                        _order[index],
+                        style: context.appTextStyles.bodyMedium,
+                      ),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.keyboard_arrow_up),
                       onPressed: index == 0 ? null : () => _moveUp(index),
                     ),
                     IconButton(
                       icon: const Icon(Icons.keyboard_arrow_down),
-                      onPressed: index == _order.length - 1 ? null : () => _moveDown(index),
+                      onPressed: index == _order.length - 1
+                          ? null
+                          : () => _moveDown(index),
                     ),
                   ],
                 ),
@@ -91,7 +105,10 @@ class _SortItRightViewState extends State<SortItRightView> {
         AppButton(
           label: 'Submit',
           onPressed: () => widget.onSubmit(
-            SortAnswer(questionId: widget.question.id, orderedItems: List.of(_order)),
+            SortAnswer(
+              questionId: widget.question.id,
+              orderedItems: List.of(_order),
+            ),
           ),
         ),
       ],

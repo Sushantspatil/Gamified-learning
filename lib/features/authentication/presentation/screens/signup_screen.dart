@@ -35,7 +35,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    ref.read(authControllerProvider.notifier).signUp(
+    ref
+        .read(authControllerProvider.notifier)
+        .signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           displayName: _nameController.text.trim(),
@@ -49,9 +51,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     ref.listen(authControllerProvider, (previous, next) {
       if (next.hasError && !next.isLoading) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.error.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.error.toString())));
       }
     });
 
@@ -75,7 +77,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text('Create your account', style: context.appTextStyles.displayMedium),
+                        Text(
+                          'Create your account',
+                          style: context.appTextStyles.displayMedium,
+                        ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           'Start learning and earning XP.',
@@ -129,7 +134,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           },
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        AppButton(label: 'Sign Up', isLoading: isLoading, onPressed: _submit),
+                        AppButton(
+                          label: 'Sign Up',
+                          isLoading: isLoading,
+                          onPressed: _submit,
+                        ),
                         const SizedBox(height: AppSpacing.md),
                         TextButton(
                           onPressed: () => context.go(RouteNames.login),

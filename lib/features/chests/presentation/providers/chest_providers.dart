@@ -35,8 +35,12 @@ class ChestController extends FamilyAsyncNotifier<bool, ChestType> {
     final user = ref.read(authControllerProvider).valueOrNull;
     if (user == null) return null;
 
-    final result = await ref.read(chestRepositoryProvider).openChest(user.id, type);
-    await ref.read(walletControllerProvider.notifier).credit(
+    final result = await ref
+        .read(chestRepositoryProvider)
+        .openChest(user.id, type);
+    await ref
+        .read(walletControllerProvider.notifier)
+        .credit(
           currency: result.currency,
           amount: result.amount,
           reason: type == ChestType.daily ? 'Daily chest' : 'Ad chest',
@@ -49,6 +53,7 @@ class ChestController extends FamilyAsyncNotifier<bool, ChestType> {
   }
 }
 
-final chestControllerProvider = AsyncNotifierProvider.family<ChestController, bool, ChestType>(
-  ChestController.new,
-);
+final chestControllerProvider =
+    AsyncNotifierProvider.family<ChestController, bool, ChestType>(
+      ChestController.new,
+    );

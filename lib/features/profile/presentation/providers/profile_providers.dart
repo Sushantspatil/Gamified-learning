@@ -31,7 +31,9 @@ class ProfileController extends AsyncNotifier<UserProfile?> {
 
     state = const AsyncValue<UserProfile?>.loading().copyWithPrevious(state);
     state = await AsyncValue.guard(
-      () => ref.read(profileRepositoryProvider).updateAvatar(userId: user.id, avatarId: avatarId),
+      () => ref
+          .read(profileRepositoryProvider)
+          .updateAvatar(userId: user.id, avatarId: avatarId),
     );
   }
 
@@ -50,6 +52,7 @@ class ProfileController extends AsyncNotifier<UserProfile?> {
   }
 }
 
-final profileControllerProvider = AsyncNotifierProvider<ProfileController, UserProfile?>(
-  ProfileController.new,
-);
+final profileControllerProvider =
+    AsyncNotifierProvider<ProfileController, UserProfile?>(
+      ProfileController.new,
+    );

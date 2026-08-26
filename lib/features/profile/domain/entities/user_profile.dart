@@ -14,7 +14,11 @@ class UserProfile extends Equatable {
     required this.level,
   });
 
-  static const defaultProfile = UserProfile(avatarId: 'default', xp: 0, level: 1);
+  static const defaultProfile = UserProfile(
+    avatarId: 'default',
+    xp: 0,
+    level: 1,
+  );
 
   @override
   List<Object?> get props => [avatarId, xp, level];

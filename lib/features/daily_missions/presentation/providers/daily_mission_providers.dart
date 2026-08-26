@@ -36,23 +36,28 @@ class DailyMissionsController extends AsyncNotifier<List<DailyMission>> {
     final before = state.valueOrNull ?? const [];
     final wasCompleted = {for (final m in before) m.id: m.isCompleted};
 
-    final updatedMission =
-        await ref.read(dailyMissionRepositoryProvider).recordQuizCompleted(user.id);
+    final updatedMission = await ref
+        .read(dailyMissionRepositoryProvider)
+        .recordQuizCompleted(user.id);
 
     if (updatedMission.isCompleted && wasCompleted[updatedMission.id] != true) {
-      await ref.read(walletControllerProvider.notifier).credit(
+      await ref
+          .read(walletControllerProvider.notifier)
+          .credit(
             currency: CurrencyType.coins,
             amount: updatedMission.coinReward,
             reason: 'Mission: ${updatedMission.title}',
           );
     }
 
-    final refreshed = await ref.read(dailyMissionRepositoryProvider).getTodayMissions(user.id);
+    final refreshed = await ref
+        .read(dailyMissionRepositoryProvider)
+        .getTodayMissions(user.id);
     state = AsyncValue.data(refreshed);
   }
 }
 
 final dailyMissionsControllerProvider =
     AsyncNotifierProvider<DailyMissionsController, List<DailyMission>>(
-  DailyMissionsController.new,
-);
+      DailyMissionsController.new,
+    );

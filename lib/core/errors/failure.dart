@@ -20,7 +20,10 @@ class CacheFailure extends Failure {
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure([super.message = 'Network connection failure', super.code]);
+  const NetworkFailure([
+    super.message = 'Network connection failure',
+    super.code,
+  ]);
 }
 
 class AuthFailure extends Failure {

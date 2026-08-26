@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/motion/app_motion.dart';
 import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
@@ -64,7 +63,7 @@ class DashboardScreen extends ConsumerWidget {
               level: profile?.level ?? 1,
               streak: streakAsync.valueOrNull?.currentStreak ?? 0,
               gems: wallet?.gems ?? 0,
-              onTap: () => context.push(RouteNames.profile),
+              onTap: () => context.go(RouteNames.profile),
             ),
             const SizedBox(height: AppSpacing.md),
             _SelectedPathDashboardSections(
@@ -87,7 +86,6 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const _DashboardBottomNavigation(),
     );
   }
 }
@@ -125,14 +123,14 @@ class _SelectedPathDashboardSections extends ConsumerWidget {
             subtitle: path.description,
             completedTopics: 0,
             totalTopics: path.topicCount,
-            onTap: () => context.push(RouteNames.learningPath),
+            onTap: () => context.go(RouteNames.learningPath),
           ),
           error: (error, stackTrace) => _ContinueLearningCard(
             title: path.title,
             subtitle: path.description,
             completedTopics: 0,
             totalTopics: path.topicCount,
-            onTap: () => context.push(RouteNames.learningPath),
+            onTap: () => context.go(RouteNames.learningPath),
           ),
           data: (chapters) {
             final chapter = chapters.isEmpty ? null : chapters.first;
@@ -142,7 +140,7 @@ class _SelectedPathDashboardSections extends ConsumerWidget {
                 subtitle: path.description,
                 completedTopics: 0,
                 totalTopics: path.topicCount,
-                onTap: () => context.push(RouteNames.learningPath),
+                onTap: () => context.go(RouteNames.learningPath),
               );
             }
 
@@ -256,7 +254,7 @@ class _ProfileHeader extends StatelessWidget {
                 value: streak,
                 semanticLabel: 'Current streak',
                 tooltip: 'Leaderboard',
-                onTap: () => context.push(RouteNames.leaderboard),
+                onTap: () => context.go(RouteNames.leaderboard),
               ),
               const SizedBox(width: AppSpacing.sm),
               _MetricPill(
@@ -770,7 +768,7 @@ class _SubjectsSection extends ConsumerWidget {
         _SectionHeader(
           title: 'Your subjects',
           trailing: TextButton(
-            onPressed: () => context.push(RouteNames.learningPath),
+            onPressed: () => context.go(RouteNames.learningPath),
             child: const Text('See all'),
           ),
         ),
@@ -798,7 +796,7 @@ class _SubjectsSection extends ConsumerWidget {
                     path: path,
                     accent: accent,
                     isSelected: path.id == selectedPathId,
-                    onTap: () => context.push(RouteNames.learningPath),
+                    onTap: () => context.go(RouteNames.learningPath),
                   );
                 },
               ),
@@ -968,7 +966,9 @@ class _QuickPracticeCards extends ConsumerWidget {
                     title: '10 question\nquiz',
                     onTap: topic == null
                         ? null
-                        : () => context.push(RouteNames.quizPath(topic.id)),
+                        : () => context.push(
+                            RouteNames.topicPracticePath(chapter.id, topic.id),
+                          ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.ms),
@@ -1131,189 +1131,6 @@ class _DailyRewardCard extends ConsumerWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _DashboardBottomNavigation extends ConsumerWidget {
-  const _DashboardBottomNavigation();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final selectedPathId = ref
-        .watch(selectedLearningPathControllerProvider)
-        .valueOrNull;
-
-    return SafeArea(
-      top: false,
-      child: Container(
-        height: 72,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              context.themeColors.surface,
-              context.themeColors.surfaceElevated,
-            ],
-          ),
-          border: Border(
-            top: BorderSide(color: context.themeColors.borderStrong),
-          ),
-          boxShadow: AppElevation.shadows(context.themeColors, 2),
-        ),
-        child: Row(
-          children: [
-            _BottomNavItem(
-              icon: Icons.home_rounded,
-              label: 'Home',
-              isActive: true,
-              onTap: () => context.go(RouteNames.dashboard),
-            ),
-            _BottomNavItem(
-              icon: Icons.menu_book_outlined,
-              label: 'Learn',
-              onTap: () => context.go(RouteNames.learningPath),
-            ),
-            _PlayNavItem(
-              onTap: () => _openPractice(context, ref, selectedPathId),
-            ),
-            _BottomNavItem(
-              icon: Icons.leaderboard_outlined,
-              label: 'Rank',
-              onTap: () => context.go(RouteNames.leaderboard),
-            ),
-            _BottomNavItem(
-              icon: Icons.person_outline,
-              label: 'Profile',
-              onTap: () => context.go(RouteNames.profile),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _openPractice(
-    BuildContext context,
-    WidgetRef ref,
-    String? selectedPathId,
-  ) async {
-    if (selectedPathId == null) {
-      context.go(RouteNames.learningPath);
-      return;
-    }
-
-    final chapters = await ref.read(chaptersProvider(selectedPathId).future);
-    if (!context.mounted || chapters.isEmpty) return;
-
-    final chapterId = chapters.first.id;
-    final topics = await ref.read(topicsProvider(chapterId).future);
-    if (!context.mounted) return;
-
-    if (topics.isEmpty) {
-      context.go(RouteNames.chapterPath(chapterId));
-      return;
-    }
-
-    final topic = _firstIncompleteTopic(topics) ?? topics.first;
-    context.go(RouteNames.quizPath(topic.id));
-  }
-}
-
-class _BottomNavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _BottomNavItem({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.isActive = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-    final color = isActive ? colors.primary : colors.textSecondary;
-
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox.expand(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedContainer(
-                duration: AppMotion.duration(context, AppMotion.fast),
-                curve: AppMotion.easeOut,
-                width: 42,
-                height: 30,
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? colors.primary.withValues(alpha: 0.12)
-                      : Colors.transparent,
-                  borderRadius: AppDimensions.radiusCircular,
-                ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.appTextStyles.labelSmall.copyWith(
-                  color: color,
-                  fontWeight: isActive ? FontWeight.w800 : FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PlayNavItem extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _PlayNavItem({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return Expanded(
-      child: Center(
-        child: AppPressable(
-          onTap: onTap,
-          borderRadius: AppDimensions.radiusCircular,
-          child: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [colors.primary, colors.violet],
-              ),
-              boxShadow: AppElevation.shadows(colors, 2),
-              border: Border.all(
-                color: colors.primaryForeground.withValues(alpha: 0.24),
-              ),
-            ),
-            child: Icon(
-              Icons.sports_esports,
-              color: colors.primaryForeground,
-              size: 26,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

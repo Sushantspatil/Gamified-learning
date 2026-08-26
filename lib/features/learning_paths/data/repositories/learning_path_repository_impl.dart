@@ -11,7 +11,8 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
   LearningPathRepositoryImpl(this._datasource, this._storage);
 
   @override
-  Future<List<LearningPath>> getLearningPaths() => _datasource.getLearningPaths();
+  Future<List<LearningPath>> getLearningPaths() =>
+      _datasource.getLearningPaths();
 
   @override
   Future<String?> getSelectedLearningPathId() async {

@@ -29,15 +29,25 @@ class DailyRewardMockDatasource implements DailyRewardDatasource {
   }
 
   @override
-  Future<DailyRewardModel> claimTodayReward(String userId, int streakDay) async {
+  Future<DailyRewardModel> claimTodayReward(
+    String userId,
+    int streakDay,
+  ) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final today = dateKey(DateTime.now());
 
     if (_claimedDateKeyByUser[userId] == today) {
-      throw const ValidationException("Today's reward has already been claimed.", 'already-claimed');
+      throw const ValidationException(
+        "Today's reward has already been claimed.",
+        'already-claimed',
+      );
     }
 
     _claimedDateKeyByUser[userId] = today;
-    return DailyRewardModel(cycleDay: streakDay, coins: _coinsForCycleDay(streakDay), claimedToday: true);
+    return DailyRewardModel(
+      cycleDay: streakDay,
+      coins: _coinsForCycleDay(streakDay),
+      claimedToday: true,
+    );
   }
 }

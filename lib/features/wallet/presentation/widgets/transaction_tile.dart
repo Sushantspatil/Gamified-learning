@@ -16,7 +16,9 @@ class TransactionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final isCredit = transaction.direction == TransactionDirection.credit;
     final colors = context.themeColors;
-    final currencyLabel = transaction.currency == CurrencyType.coins ? 'Coins' : 'Gems';
+    final currencyLabel = transaction.currency == CurrencyType.coins
+        ? 'Coins'
+        : 'Gems';
     final sign = isCredit ? '+' : '-';
 
     return Container(
@@ -38,7 +40,10 @@ class TransactionTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(transaction.reason, style: context.appTextStyles.bodyLarge),
+                Text(
+                  transaction.reason,
+                  style: context.appTextStyles.bodyLarge,
+                ),
                 Text(
                   '${transaction.createdAt.year}-${transaction.createdAt.month.toString().padLeft(2, '0')}-${transaction.createdAt.day.toString().padLeft(2, '0')}',
                   style: context.appTextStyles.labelSmall,

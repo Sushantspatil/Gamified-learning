@@ -7,15 +7,16 @@ class UserProfileModel extends UserProfile {
     required super.level,
   });
 
-  factory UserProfileModel.fromJson(Map<String, dynamic> json) => UserProfileModel(
+  factory UserProfileModel.fromJson(Map<String, dynamic> json) =>
+      UserProfileModel(
         avatarId: json['avatarId'] as String,
         xp: json['xp'] as int,
         level: json['level'] as int,
       );
 
   Map<String, dynamic> toJson() => {
-        'avatarId': avatarId,
-        'xp': xp,
-        'level': level,
-      };
+    'avatarId': avatarId,
+    'xp': xp,
+    'level': level,
+  };
 }

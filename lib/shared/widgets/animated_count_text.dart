@@ -27,7 +27,11 @@ class AnimatedCountText extends StatelessWidget {
       duration: AppMotion.normal,
       curve: AppMotion.easeOut,
       builder: (context, animatedValue, _) {
-        return Text('$animatedValue$suffix', style: style, textAlign: textAlign);
+        return Text(
+          '$animatedValue$suffix',
+          style: style,
+          textAlign: textAlign,
+        );
       },
     );
   }

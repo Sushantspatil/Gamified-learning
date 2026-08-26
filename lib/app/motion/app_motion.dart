@@ -17,7 +17,8 @@ class AppMotion {
 
   static bool reduceMotion(BuildContext context) {
     final mediaQuery = MediaQuery.maybeOf(context);
-    return (mediaQuery?.disableAnimations ?? false) || (mediaQuery?.accessibleNavigation ?? false);
+    return (mediaQuery?.disableAnimations ?? false) ||
+        (mediaQuery?.accessibleNavigation ?? false);
   }
 
   static Duration duration(BuildContext context, Duration duration) {

@@ -18,5 +18,11 @@ class DailyMission extends Equatable {
   bool get isCompleted => progressCount >= targetCount;
 
   @override
-  List<Object?> get props => [id, title, targetCount, progressCount, coinReward];
+  List<Object?> get props => [
+    id,
+    title,
+    targetCount,
+    progressCount,
+    coinReward,
+  ];
 }

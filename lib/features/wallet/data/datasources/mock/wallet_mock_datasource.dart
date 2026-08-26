@@ -38,7 +38,9 @@ class WalletMockDatasource implements WalletDatasource {
         : WalletBalanceModel(coins: current.coins, gems: current.gems + amount);
     _balances[userId] = updated;
 
-    final balanceAfter = currency == CurrencyType.coins ? updated.coins : updated.gems;
+    final balanceAfter = currency == CurrencyType.coins
+        ? updated.coins
+        : updated.gems;
     return _appendLedgerEntry(
       userId: userId,
       currency: currency,
@@ -58,7 +60,9 @@ class WalletMockDatasource implements WalletDatasource {
   }) async {
     await Future.delayed(const Duration(milliseconds: 200));
     final current = _balanceFor(userId);
-    final currentAmount = currency == CurrencyType.coins ? current.coins : current.gems;
+    final currentAmount = currency == CurrencyType.coins
+        ? current.coins
+        : current.gems;
 
     if (currentAmount < amount) {
       final label = currency == CurrencyType.coins ? 'coins' : 'gems';
@@ -70,7 +74,9 @@ class WalletMockDatasource implements WalletDatasource {
         : WalletBalanceModel(coins: current.coins, gems: current.gems - amount);
     _balances[userId] = updated;
 
-    final balanceAfter = currency == CurrencyType.coins ? updated.coins : updated.gems;
+    final balanceAfter = currency == CurrencyType.coins
+        ? updated.coins
+        : updated.gems;
     return _appendLedgerEntry(
       userId: userId,
       currency: currency,
@@ -104,7 +110,9 @@ class WalletMockDatasource implements WalletDatasource {
   }
 
   @override
-  Future<List<WalletTransactionModel>> getTransactionHistory(String userId) async {
+  Future<List<WalletTransactionModel>> getTransactionHistory(
+    String userId,
+  ) async {
     await Future.delayed(const Duration(milliseconds: 200));
     final entries = _ledger[userId] ?? const [];
     return entries.reversed.toList();

@@ -6,7 +6,7 @@ import '../../features/learning_paths/presentation/providers/learning_path_provi
 import 'route_names.dart';
 
 final splashMinimumDurationProvider = FutureProvider<void>((ref) {
-  return Future<void>.delayed(const Duration(seconds: 5));
+  return Future<void>.delayed(const Duration(seconds: 3));
 });
 
 class RouteGuards {

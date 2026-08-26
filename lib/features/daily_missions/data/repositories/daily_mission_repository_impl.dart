@@ -8,8 +8,10 @@ class DailyMissionRepositoryImpl implements DailyMissionRepository {
   DailyMissionRepositoryImpl(this._datasource);
 
   @override
-  Future<List<DailyMission>> getTodayMissions(String userId) => _datasource.getTodayMissions(userId);
+  Future<List<DailyMission>> getTodayMissions(String userId) =>
+      _datasource.getTodayMissions(userId);
 
   @override
-  Future<DailyMission> recordQuizCompleted(String userId) => _datasource.recordQuizCompleted(userId);
+  Future<DailyMission> recordQuizCompleted(String userId) =>
+      _datasource.recordQuizCompleted(userId);
 }

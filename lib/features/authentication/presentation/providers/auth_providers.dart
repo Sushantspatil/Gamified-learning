@@ -29,7 +29,9 @@ class AuthController extends AsyncNotifier<AppUser?> {
   Future<void> login({required String email, required String password}) async {
     state = const AsyncValue<AppUser?>.loading().copyWithPrevious(state);
     state = await AsyncValue.guard(
-      () => ref.read(authRepositoryProvider).login(email: email, password: password),
+      () => ref
+          .read(authRepositoryProvider)
+          .login(email: email, password: password),
     );
   }
 
@@ -40,11 +42,9 @@ class AuthController extends AsyncNotifier<AppUser?> {
   }) async {
     state = const AsyncValue<AppUser?>.loading().copyWithPrevious(state);
     state = await AsyncValue.guard(
-      () => ref.read(authRepositoryProvider).signUp(
-            email: email,
-            password: password,
-            displayName: displayName,
-          ),
+      () => ref
+          .read(authRepositoryProvider)
+          .signUp(email: email, password: password, displayName: displayName),
     );
   }
 
@@ -61,4 +61,6 @@ class AuthController extends AsyncNotifier<AppUser?> {
   }
 }
 
-final authControllerProvider = AsyncNotifierProvider<AuthController, AppUser?>(AuthController.new);
+final authControllerProvider = AsyncNotifierProvider<AuthController, AppUser?>(
+  AuthController.new,
+);

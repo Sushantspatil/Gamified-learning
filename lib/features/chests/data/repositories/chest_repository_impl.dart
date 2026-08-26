@@ -9,8 +9,10 @@ class ChestRepositoryImpl implements ChestRepository {
   ChestRepositoryImpl(this._datasource);
 
   @override
-  Future<bool> isDailyChestAvailable(String userId) => _datasource.isDailyChestAvailable(userId);
+  Future<bool> isDailyChestAvailable(String userId) =>
+      _datasource.isDailyChestAvailable(userId);
 
   @override
-  Future<ChestResult> openChest(String userId, ChestType type) => _datasource.openChest(userId, type);
+  Future<ChestResult> openChest(String userId, ChestType type) =>
+      _datasource.openChest(userId, type);
 }

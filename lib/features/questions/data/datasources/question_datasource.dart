@@ -4,4 +4,9 @@ import '../../domain/entities/question.dart';
 /// implementation (questions collection) later.
 abstract class QuestionDatasource {
   Future<List<Question>> getQuestionsForTopic(String topicId);
+
+  Future<List<Question>> getQuestionsForTopicAndType(
+    String topicId,
+    QuestionType questionType,
+  );
 }

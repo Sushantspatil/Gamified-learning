@@ -4,10 +4,30 @@ import '../cosmetics_datasource.dart';
 
 /// Placeholder catalog — not specified by the product requirements.
 const List<CosmeticItemModel> _catalog = [
-  CosmeticItemModel(id: 'frame-gold', name: 'Gold Frame', colorKey: 'gold', costCoins: 100),
-  CosmeticItemModel(id: 'frame-cyan', name: 'Cyan Frame', colorKey: 'cyan', costCoins: 100),
-  CosmeticItemModel(id: 'frame-fire', name: 'Fire Frame', colorKey: 'fire', costCoins: 150),
-  CosmeticItemModel(id: 'frame-royal', name: 'Royal Frame', colorKey: 'royal', costCoins: 200),
+  CosmeticItemModel(
+    id: 'frame-gold',
+    name: 'Gold Frame',
+    colorKey: 'gold',
+    costCoins: 100,
+  ),
+  CosmeticItemModel(
+    id: 'frame-cyan',
+    name: 'Cyan Frame',
+    colorKey: 'cyan',
+    costCoins: 100,
+  ),
+  CosmeticItemModel(
+    id: 'frame-fire',
+    name: 'Fire Frame',
+    colorKey: 'fire',
+    costCoins: 150,
+  ),
+  CosmeticItemModel(
+    id: 'frame-royal',
+    name: 'Royal Frame',
+    colorKey: 'royal',
+    costCoins: 200,
+  ),
 ];
 
 /// MOCK DATA — replace the binding in cosmetics_providers.dart with a
@@ -45,7 +65,10 @@ class CosmeticsMockDatasource implements CosmeticsDatasource {
     await Future.delayed(const Duration(milliseconds: 150));
     final owned = _ownedByUser[userId] ?? const {};
     if (!owned.contains(cosmeticId)) {
-      throw const ValidationException('You do not own this cosmetic yet.', 'not-owned');
+      throw const ValidationException(
+        'You do not own this cosmetic yet.',
+        'not-owned',
+      );
     }
     _equippedByUser[userId] = cosmeticId;
   }

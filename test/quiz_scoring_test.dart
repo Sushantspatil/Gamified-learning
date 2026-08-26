@@ -15,7 +15,10 @@ void main() {
       topicId: 't1',
       prompt: 'p',
       points: 10,
-      options: [QuestionOption(id: 'a', text: 'A'), QuestionOption(id: 'b', text: 'B')],
+      options: [
+        QuestionOption(id: 'a', text: 'A'),
+        QuestionOption(id: 'b', text: 'B'),
+      ],
       correctOptionId: 'b',
     );
 
@@ -94,53 +97,68 @@ void main() {
       expect(evaluation.pointsEarned, 10);
     });
 
-    test('wrong order earns zero points', () async {
+    test('partial correct positions earn proportional points', () async {
       final evaluation = await datasource.evaluateAnswer(
         question,
         const SortAnswer(questionId: 'q3', orderedItems: ['B', 'A', 'C']),
       );
       expect(evaluation.isCorrect, isFalse);
-      expect(evaluation.pointsEarned, 0);
+      expect(evaluation.pointsEarned, 3); // 1/3 of 10, rounded
     });
   });
 
-  test('submitSession aggregates earned/max points and correct count', () async {
-    const mcq = McqQuestion(
-      id: 'q1',
-      topicId: 't1',
-      prompt: 'p',
-      points: 10,
-      options: [QuestionOption(id: 'a', text: 'A'), QuestionOption(id: 'b', text: 'B')],
-      correctOptionId: 'b',
-    );
-    const sort = SortItRightQuestion(
-      id: 'q3',
-      topicId: 't1',
-      prompt: 'p',
-      points: 5,
-      itemsInOrder: ['A', 'B'],
-    );
+  test(
+    'submitSession aggregates earned/max points and correct count',
+    () async {
+      const mcq = McqQuestion(
+        id: 'q1',
+        topicId: 't1',
+        prompt: 'p',
+        points: 10,
+        options: [
+          QuestionOption(id: 'a', text: 'A'),
+          QuestionOption(id: 'b', text: 'B'),
+        ],
+        correctOptionId: 'b',
+      );
+      const sort = SortItRightQuestion(
+        id: 'q3',
+        topicId: 't1',
+        prompt: 'p',
+        points: 5,
+        itemsInOrder: ['A', 'B'],
+      );
 
-    final session = QuizSession(
-      id: 'session-1',
-      topicId: 't1',
-      questions: const [mcq, sort],
-      answeredRecords: [
-        QuestionAnswerRecord(
-          question: mcq,
-          answer: const McqAnswer(questionId: 'q1', selectedOptionId: 'b'),
-          evaluation: const AnswerEvaluation(isCorrect: true, pointsEarned: 10),
-        ),
-      ],
-      endedEarly: true,
-    );
+      final session = QuizSession(
+        id: 'session-1',
+        topicId: 't1',
+        quizType: QuestionType.mcq,
+        questions: const [mcq, sort],
+        answeredRecords: [
+          QuestionAnswerRecord(
+            question: mcq,
+            answer: const McqAnswer(questionId: 'q1', selectedOptionId: 'b'),
+            evaluation: const AnswerEvaluation(
+              isCorrect: true,
+              pointsEarned: 10,
+            ),
+          ),
+        ],
+        endedEarly: true,
+        startedAt: DateTime(2026),
+        completedAt: DateTime(2026, 1, 1, 0, 1),
+      );
 
-    final result = await datasource.submitSession(session);
+      final result = await datasource.submitSession(session);
 
-    expect(result.score.earnedPoints, 10);
-    expect(result.score.maxPoints, 15); // includes the un-answered sort question's points
-    expect(result.score.correctCount, 1);
-    expect(result.score.totalCount, 2);
-    expect(result.endedEarly, isTrue);
-  });
+      expect(result.score.earnedPoints, 10);
+      expect(
+        result.score.maxPoints,
+        15,
+      ); // includes the un-answered sort question's points
+      expect(result.score.correctCount, 1);
+      expect(result.score.totalCount, 2);
+      expect(result.endedEarly, isTrue);
+    },
+  );
 }

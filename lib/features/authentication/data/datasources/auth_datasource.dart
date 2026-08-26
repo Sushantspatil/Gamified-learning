@@ -13,5 +13,8 @@ abstract class AuthDatasource {
 
   Future<UserModel?> getUserById(String id);
 
-  Future<UserModel> updateDisplayName({required String userId, required String displayName});
+  Future<UserModel> updateDisplayName({
+    required String userId,
+    required String displayName,
+  });
 }

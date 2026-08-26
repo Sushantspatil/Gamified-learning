@@ -49,10 +49,7 @@ class ThemeModeMenu extends ConsumerWidget {
             ),
           );
         },
-        child: Icon(
-          selectedPreference.icon,
-          key: ValueKey(selectedPreference),
-        ),
+        child: Icon(selectedPreference.icon, key: ValueKey(selectedPreference)),
       ),
     );
   }

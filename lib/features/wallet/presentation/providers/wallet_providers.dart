@@ -27,13 +27,19 @@ class WalletController extends AsyncNotifier<WalletBalance> {
     return ref.watch(walletRepositoryProvider).getBalance(user.id);
   }
 
-  Future<void> credit({required CurrencyType currency, required int amount, required String reason}) async {
+  Future<void> credit({
+    required CurrencyType currency,
+    required int amount,
+    required String reason,
+  }) async {
     final user = ref.read(authControllerProvider).valueOrNull;
     if (user == null) return;
 
     state = const AsyncValue<WalletBalance>.loading().copyWithPrevious(state);
     state = await AsyncValue.guard(() async {
-      await ref.read(walletRepositoryProvider).credit(
+      await ref
+          .read(walletRepositoryProvider)
+          .credit(
             userId: user.id,
             currency: currency,
             amount: amount,
@@ -46,29 +52,43 @@ class WalletController extends AsyncNotifier<WalletBalance> {
   /// Returns false (and leaves state/balance untouched) if the debit was
   /// rejected for insufficient funds, so callers (e.g. the shop) can show
   /// an error without needing to parse exception types themselves.
-  Future<bool> debit({required CurrencyType currency, required int amount, required String reason}) async {
+  Future<bool> debit({
+    required CurrencyType currency,
+    required int amount,
+    required String reason,
+  }) async {
     final user = ref.read(authControllerProvider).valueOrNull;
     if (user == null) return false;
 
     try {
       await ref
           .read(walletRepositoryProvider)
-          .debit(userId: user.id, currency: currency, amount: amount, reason: reason);
+          .debit(
+            userId: user.id,
+            currency: currency,
+            amount: amount,
+            reason: reason,
+          );
     } catch (_) {
       return false;
     }
 
     state = const AsyncValue<WalletBalance>.loading().copyWithPrevious(state);
-    state = await AsyncValue.guard(() => ref.read(walletRepositoryProvider).getBalance(user.id));
+    state = await AsyncValue.guard(
+      () => ref.read(walletRepositoryProvider).getBalance(user.id),
+    );
     return true;
   }
 }
 
-final walletControllerProvider = AsyncNotifierProvider<WalletController, WalletBalance>(
-  WalletController.new,
-);
+final walletControllerProvider =
+    AsyncNotifierProvider<WalletController, WalletBalance>(
+      WalletController.new,
+    );
 
-final transactionHistoryProvider = FutureProvider<List<WalletTransaction>>((ref) async {
+final transactionHistoryProvider = FutureProvider<List<WalletTransaction>>((
+  ref,
+) async {
   final user = await ref.watch(authControllerProvider.future);
   if (user == null) return const [];
   // Re-fetch whenever the balance changes so history stays in sync.

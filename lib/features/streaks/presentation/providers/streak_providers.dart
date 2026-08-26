@@ -29,6 +29,5 @@ class StreakController extends AsyncNotifier<Streak> {
   }
 }
 
-final streakControllerProvider = AsyncNotifierProvider<StreakController, Streak>(
-  StreakController.new,
-);
+final streakControllerProvider =
+    AsyncNotifierProvider<StreakController, Streak>(StreakController.new);

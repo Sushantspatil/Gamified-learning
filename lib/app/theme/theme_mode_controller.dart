@@ -45,17 +45,18 @@ class ThemeModeController extends Notifier<AppThemePreference> {
   @override
   AppThemePreference build() {
     final storage = ref.watch(localStorageServiceProvider);
-    return AppThemePreference.fromStorage(storage.getString(StorageKeys.themePreference));
+    return AppThemePreference.fromStorage(
+      storage.getString(StorageKeys.themePreference),
+    );
   }
 
   Future<void> setTheme(AppThemePreference preference) async {
     if (state == preference) return;
 
     state = preference;
-    await ref.read(localStorageServiceProvider).setString(
-          StorageKeys.themePreference,
-          preference.storageValue,
-        );
+    await ref
+        .read(localStorageServiceProvider)
+        .setString(StorageKeys.themePreference, preference.storageValue);
   }
 
   Future<void> toggleTheme() async {
@@ -67,4 +68,6 @@ class ThemeModeController extends Notifier<AppThemePreference> {
 }
 
 final themeModeControllerProvider =
-    NotifierProvider<ThemeModeController, AppThemePreference>(ThemeModeController.new);
+    NotifierProvider<ThemeModeController, AppThemePreference>(
+      ThemeModeController.new,
+    );

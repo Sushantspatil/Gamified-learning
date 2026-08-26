@@ -37,8 +37,14 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
             'configured, so no payment will actually be processed.',
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Buy')),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Buy'),
+            ),
           ],
         ),
       );
@@ -50,7 +56,9 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
 
   Future<void> _purchase(ShopItem item) async {
     setState(() => _purchasingItemId = item.id);
-    final result = await ref.read(shopPurchaseControllerProvider.notifier).purchase(item);
+    final result = await ref
+        .read(shopPurchaseControllerProvider.notifier)
+        .purchase(item);
     if (!mounted) return;
     setState(() => _purchasingItemId = null);
 
@@ -59,7 +67,8 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
         '${item.title} purchased!',
       PurchaseResult.success =>
         'You received ${item.grantsAmount} ${item.grantsCurrency == CurrencyType.coins ? 'Coins' : 'Gems'}!',
-      PurchaseResult.insufficientFunds => 'Not enough ${item.costCurrency == CurrencyType.coins ? 'coins' : 'gems'}.',
+      PurchaseResult.insufficientFunds =>
+        'Not enough ${item.costCurrency == CurrencyType.coins ? 'coins' : 'gems'}.',
     };
     if (result == PurchaseResult.success) {
       HapticFeedback.mediumImpact();
@@ -89,18 +98,32 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Could not load the shop.', style: context.appTextStyles.bodyLarge),
+                  Text(
+                    'Could not load the shop.',
+                    style: context.appTextStyles.bodyLarge,
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  AppButton(label: 'Retry', onPressed: () => ref.invalidate(shopItemsProvider)),
+                  AppButton(
+                    label: 'Retry',
+                    onPressed: () => ref.invalidate(shopItemsProvider),
+                  ),
                 ],
               ),
             ),
           ),
           data: (items) {
-            final gems = items.where((i) => i.category == ShopItemCategory.gems).toList();
-            final coins = items.where((i) => i.category == ShopItemCategory.coins).toList();
-            final adGems = items.where((i) => i.category == ShopItemCategory.adGems).toList();
-            final powerups = items.where((i) => i.category == ShopItemCategory.powerup).toList();
+            final gems = items
+                .where((i) => i.category == ShopItemCategory.gems)
+                .toList();
+            final coins = items
+                .where((i) => i.category == ShopItemCategory.coins)
+                .toList();
+            final adGems = items
+                .where((i) => i.category == ShopItemCategory.adGems)
+                .toList();
+            final powerups = items
+                .where((i) => i.category == ShopItemCategory.powerup)
+                .toList();
 
             return ListView(
               padding: AppSpacing.paddingMd,
@@ -185,7 +208,11 @@ class _NavTile extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
 
-  const _NavTile({required this.icon, required this.title, required this.onTap});
+  const _NavTile({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +233,9 @@ class _NavTile extends StatelessWidget {
           children: [
             Icon(icon, color: colors.primary),
             const SizedBox(width: AppSpacing.sm),
-            Expanded(child: Text(title, style: context.appTextStyles.bodyLarge)),
+            Expanded(
+              child: Text(title, style: context.appTextStyles.bodyLarge),
+            ),
             Icon(Icons.chevron_right, color: colors.textSecondary),
           ],
         ),

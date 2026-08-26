@@ -12,10 +12,15 @@ class SuddenDeathQuestionView extends StatefulWidget {
   final SuddenDeathQuestion question;
   final void Function(Answer answer) onSubmit;
 
-  const SuddenDeathQuestionView({super.key, required this.question, required this.onSubmit});
+  const SuddenDeathQuestionView({
+    super.key,
+    required this.question,
+    required this.onSubmit,
+  });
 
   @override
-  State<SuddenDeathQuestionView> createState() => _SuddenDeathQuestionViewState();
+  State<SuddenDeathQuestionView> createState() =>
+      _SuddenDeathQuestionViewState();
 }
 
 class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
@@ -55,7 +60,8 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
             onChanged: (value) => setState(() => _selectedOptionId = value),
             child: ListView.separated(
               itemCount: widget.question.options.length,
-              separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: AppSpacing.sm),
               itemBuilder: (context, index) {
                 final option = widget.question.options[index];
                 return RadioListTile<String>(
@@ -72,11 +78,11 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
           onPressed: _selectedOptionId == null
               ? null
               : () => widget.onSubmit(
-                    SuddenDeathAnswer(
-                      questionId: widget.question.id,
-                      selectedOptionId: _selectedOptionId!,
-                    ),
+                  SuddenDeathAnswer(
+                    questionId: widget.question.id,
+                    selectedOptionId: _selectedOptionId!,
                   ),
+                ),
         ),
       ],
     );

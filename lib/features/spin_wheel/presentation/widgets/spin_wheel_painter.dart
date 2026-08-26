@@ -31,19 +31,32 @@ class SpinWheelPainter extends CustomPainter {
     for (var i = 0; i < segments.length; i++) {
       final paint = Paint()..color = _colors[i % _colors.length];
       final startAngle = i * sweep - pi / 2;
-      canvas.drawArc(Rect.fromCircle(center: center, radius: radius), startAngle, sweep, true, paint);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweep,
+        true,
+        paint,
+      );
 
       if (segments[i].id == highlightedSegmentId) {
         final borderPaint = Paint()
           ..color = Colors.white
           ..style = PaintingStyle.stroke
           ..strokeWidth = 5;
-        canvas.drawArc(Rect.fromCircle(center: center, radius: radius - 2), startAngle, sweep, true, borderPaint);
+        canvas.drawArc(
+          Rect.fromCircle(center: center, radius: radius - 2),
+          startAngle,
+          sweep,
+          true,
+          borderPaint,
+        );
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant SpinWheelPainter oldDelegate) =>
-      oldDelegate.highlightedSegmentId != highlightedSegmentId || oldDelegate.segments != segments;
+      oldDelegate.highlightedSegmentId != highlightedSegmentId ||
+      oldDelegate.segments != segments;
 }

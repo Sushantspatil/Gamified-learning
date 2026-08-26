@@ -31,7 +31,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    ref.read(authControllerProvider.notifier).login(
+    ref
+        .read(authControllerProvider.notifier)
+        .login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
@@ -44,9 +46,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     ref.listen(authControllerProvider, (previous, next) {
       if (next.hasError && !next.isLoading) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.error.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.error.toString())));
       }
     });
 
@@ -70,7 +72,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text('Welcome back', style: context.appTextStyles.displayMedium),
+                        Text(
+                          'Welcome back',
+                          style: context.appTextStyles.displayMedium,
+                        ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
                           'Log in to continue your streak.',
@@ -101,7 +106,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           },
                         ),
                         const SizedBox(height: AppSpacing.lg),
-                        AppButton(label: 'Log In', isLoading: isLoading, onPressed: _submit),
+                        AppButton(
+                          label: 'Log In',
+                          isLoading: isLoading,
+                          onPressed: _submit,
+                        ),
                         const SizedBox(height: AppSpacing.md),
                         TextButton(
                           onPressed: () => context.go(RouteNames.signup),

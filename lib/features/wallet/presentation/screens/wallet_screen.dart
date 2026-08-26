@@ -32,8 +32,10 @@ class WalletScreen extends ConsumerWidget {
           children: [
             balanceAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stackTrace) =>
-                  Text('Could not load your balance.', style: context.appTextStyles.bodyLarge),
+              error: (error, stackTrace) => Text(
+                'Could not load your balance.',
+                style: context.appTextStyles.bodyLarge,
+              ),
               data: (balance) => Container(
                 width: double.infinity,
                 padding: AppSpacing.paddingLg,
@@ -61,14 +63,20 @@ class WalletScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            Text('Transaction History', style: context.appTextStyles.titleMedium),
+            Text(
+              'Transaction History',
+              style: context.appTextStyles.titleMedium,
+            ),
             const SizedBox(height: AppSpacing.sm),
             historyAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, stackTrace) => Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Could not load transaction history.', style: context.appTextStyles.bodyMedium),
+                  Text(
+                    'Could not load transaction history.',
+                    style: context.appTextStyles.bodyMedium,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   AppButton(
                     label: 'Retry',
@@ -78,7 +86,10 @@ class WalletScreen extends ConsumerWidget {
               ),
               data: (transactions) {
                 if (transactions.isEmpty) {
-                  return Text('No transactions yet.', style: context.appTextStyles.bodyMedium);
+                  return Text(
+                    'No transactions yet.',
+                    style: context.appTextStyles.bodyMedium,
+                  );
                 }
                 return Column(
                   children: [
@@ -114,7 +125,10 @@ class _BalanceStat extends StatelessWidget {
       children: [
         Icon(icon, color: color, size: 28),
         const SizedBox(height: AppSpacing.xs),
-        AnimatedCountText(value: value, style: context.appTextStyles.displayMedium),
+        AnimatedCountText(
+          value: value,
+          style: context.appTextStyles.displayMedium,
+        ),
         Text(label, style: context.appTextStyles.bodyMedium),
       ],
     );

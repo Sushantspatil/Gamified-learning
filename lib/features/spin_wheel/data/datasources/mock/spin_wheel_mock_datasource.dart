@@ -47,7 +47,10 @@ class SpinWheelMockDatasource implements SpinWheelDatasource {
 
     final today = dateKey(DateTime.now());
     if (_lastSpinDateKeyByUser[userId] == today) {
-      throw const ValidationException("Today's spin has already been used.", 'already-spun');
+      throw const ValidationException(
+        "Today's spin has already been used.",
+        'already-spun',
+      );
     }
     _lastSpinDateKeyByUser[userId] = today;
 

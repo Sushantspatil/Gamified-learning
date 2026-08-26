@@ -27,12 +27,18 @@ class AuthMockDatasource implements AuthDatasource {
   }
 
   @override
-  Future<UserModel> login({required String email, required String password}) async {
+  Future<UserModel> login({
+    required String email,
+    required String password,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 600));
 
     final storedPassword = _passwordsByEmail[email];
     if (storedPassword == null) {
-      throw const AuthException('No account found for this email.', 'user-not-found');
+      throw const AuthException(
+        'No account found for this email.',
+        'user-not-found',
+      );
     }
     if (storedPassword != password) {
       throw const AuthException('Incorrect password.', 'wrong-password');
@@ -49,7 +55,10 @@ class AuthMockDatasource implements AuthDatasource {
     await Future.delayed(const Duration(milliseconds: 600));
 
     if (_usersByEmail.containsKey(email)) {
-      throw const AuthException('An account already exists for this email.', 'email-in-use');
+      throw const AuthException(
+        'An account already exists for this email.',
+        'email-in-use',
+      );
     }
 
     final user = UserModel(
@@ -72,11 +81,20 @@ class AuthMockDatasource implements AuthDatasource {
   }
 
   @override
-  Future<UserModel> updateDisplayName({required String userId, required String displayName}) async {
+  Future<UserModel> updateDisplayName({
+    required String userId,
+    required String displayName,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 400));
 
-    final email = _usersByEmail.entries.firstWhere((entry) => entry.value.id == userId).key;
-    final updated = UserModel(id: userId, email: email, displayName: displayName);
+    final email = _usersByEmail.entries
+        .firstWhere((entry) => entry.value.id == userId)
+        .key;
+    final updated = UserModel(
+      id: userId,
+      email: email,
+      displayName: displayName,
+    );
     _usersByEmail[email] = updated;
     return updated;
   }

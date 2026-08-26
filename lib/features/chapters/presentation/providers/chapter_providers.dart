@@ -17,14 +17,23 @@ final chapterRepositoryProvider = Provider<ChapterRepository>((ref) {
   return ChapterRepositoryImpl(ref.watch(chapterDatasourceProvider));
 });
 
-final chaptersProvider = FutureProvider.family<List<Chapter>, String>((ref, learningPathId) {
+final chaptersProvider = FutureProvider.family<List<Chapter>, String>((
+  ref,
+  learningPathId,
+) {
   return ref.watch(chapterRepositoryProvider).getChapters(learningPathId);
 });
 
-final chapterByIdProvider = FutureProvider.family<Chapter?, String>((ref, chapterId) {
+final chapterByIdProvider = FutureProvider.family<Chapter?, String>((
+  ref,
+  chapterId,
+) {
   return ref.watch(chapterRepositoryProvider).getChapterById(chapterId);
 });
 
-final topicsProvider = FutureProvider.family<List<Topic>, String>((ref, chapterId) {
+final topicsProvider = FutureProvider.family<List<Topic>, String>((
+  ref,
+  chapterId,
+) {
   return ref.watch(chapterRepositoryProvider).getTopics(chapterId);
 });

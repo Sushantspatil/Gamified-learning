@@ -23,7 +23,11 @@ class CosmeticsScreen extends ConsumerStatefulWidget {
 class _CosmeticsScreenState extends ConsumerState<CosmeticsScreen> {
   String? _busyItemId;
 
-  Future<void> _handleTap(CosmeticItem item, bool isOwned, bool isEquipped) async {
+  Future<void> _handleTap(
+    CosmeticItem item,
+    bool isOwned,
+    bool isEquipped,
+  ) async {
     if (isEquipped) return;
     setState(() => _busyItemId = item.id);
 
@@ -31,7 +35,9 @@ class _CosmeticsScreenState extends ConsumerState<CosmeticsScreen> {
       await ref.read(cosmeticsControllerProvider.notifier).equip(item.id);
       HapticFeedback.selectionClick();
     } else {
-      final result = await ref.read(cosmeticsControllerProvider.notifier).purchase(item);
+      final result = await ref
+          .read(cosmeticsControllerProvider.notifier)
+          .purchase(item);
       if (mounted && result == CosmeticPurchaseResult.insufficientFunds) {
         HapticFeedback.heavyImpact();
         ScaffoldMessenger.of(context)
@@ -64,11 +70,15 @@ class _CosmeticsScreenState extends ConsumerState<CosmeticsScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Could not load cosmetics.', style: context.appTextStyles.bodyLarge),
+                  Text(
+                    'Could not load cosmetics.',
+                    style: context.appTextStyles.bodyLarge,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   AppButton(
                     label: 'Retry',
-                    onPressed: () => ref.invalidate(cosmeticsControllerProvider),
+                    onPressed: () =>
+                        ref.invalidate(cosmeticsControllerProvider),
                   ),
                 ],
               ),
@@ -76,7 +86,12 @@ class _CosmeticsScreenState extends ConsumerState<CosmeticsScreen> {
           ),
           data: (state) {
             if (state.catalog.isEmpty) {
-              return Center(child: Text('No cosmetics available yet.', style: context.appTextStyles.bodyLarge));
+              return Center(
+                child: Text(
+                  'No cosmetics available yet.',
+                  style: context.appTextStyles.bodyLarge,
+                ),
+              );
             }
 
             return ListView(
@@ -121,8 +136,11 @@ class _CosmeticCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final color = CosmeticColorCatalog.colorFor(item.colorKey) ?? AppColors.primary;
-    final label = isEquipped ? 'Equipped' : (isOwned ? 'Equip' : '${item.costCoins} Coins');
+    final color =
+        CosmeticColorCatalog.colorFor(item.colorKey) ?? AppColors.primary;
+    final label = isEquipped
+        ? 'Equipped'
+        : (isOwned ? 'Equip' : '${item.costCoins} Coins');
 
     return Container(
       key: ValueKey('cosmetic-${item.id}'),
@@ -137,11 +155,17 @@ class _CosmeticCard extends StatelessWidget {
         children: [
           CircleAvatar(radius: 18, backgroundColor: color),
           const SizedBox(width: AppSpacing.sm),
-          Expanded(child: Text(item.name, style: context.appTextStyles.titleMedium)),
+          Expanded(
+            child: Text(item.name, style: context.appTextStyles.titleMedium),
+          ),
           FilledButton(
             onPressed: isEquipped || isBusy ? null : onTap,
             child: isBusy
-                ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : Text(label),
           ),
         ],

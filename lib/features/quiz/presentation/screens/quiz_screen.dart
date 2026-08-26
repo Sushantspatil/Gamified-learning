@@ -19,19 +19,37 @@ import '../widgets/sudden_death_question_view.dart';
 
 class QuizScreen extends ConsumerWidget {
   final String topicId;
+  final QuestionType quizType;
+  final String? subjectId;
+  final String? chapterId;
 
-  const QuizScreen({super.key, required this.topicId});
+  const QuizScreen({
+    super.key,
+    required this.topicId,
+    required this.quizType,
+    this.subjectId,
+    this.chapterId,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sessionAsync = ref.watch(quizControllerProvider(topicId));
+    final request = QuizSessionRequest(
+      topicId: topicId,
+      quizType: quizType,
+      subjectId: subjectId,
+      chapterId: chapterId,
+    );
+    final sessionAsync = ref.watch(quizControllerProvider(request));
     final currentQuestion = sessionAsync.valueOrNull?.currentQuestion;
     final isMatchQuestion = currentQuestion is MatchTheFollowingQuestion;
 
     return GameScaffold(
       appBar: isMatchQuestion
           ? null
-          : AppBar(title: const Text('Quiz'), actions: const [ThemeModeMenu()]),
+          : AppBar(
+              title: Text(quizType.label),
+              actions: const [ThemeModeMenu()],
+            ),
       body: SafeArea(
         child: sessionAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -49,7 +67,7 @@ class QuizScreen extends ConsumerWidget {
                   AppButton(
                     label: 'Retry',
                     onPressed: () =>
-                        ref.invalidate(quizControllerProvider(topicId)),
+                        ref.invalidate(quizControllerProvider(request)),
                   ),
                 ],
               ),
@@ -73,16 +91,30 @@ class QuizScreen extends ConsumerWidget {
             final question = session.currentQuestion;
             if (question == null) {
               return Center(
-                child: Text(
-                  'No questions available.',
-                  style: context.appTextStyles.bodyLarge,
+                child: Padding(
+                  padding: AppSpacing.paddingLg,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        quizType.emptyStateLabel,
+                        textAlign: TextAlign.center,
+                        style: context.appTextStyles.bodyLarge,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      AppButton(
+                        label: 'Choose Another Mode',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                    ],
+                  ),
                 ),
               );
             }
 
             void handleAnswer(Answer answer) {
               ref
-                  .read(quizControllerProvider(topicId).notifier)
+                  .read(quizControllerProvider(request).notifier)
                   .submitAnswer(answer);
             }
 

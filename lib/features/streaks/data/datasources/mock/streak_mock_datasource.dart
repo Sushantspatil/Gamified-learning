@@ -10,7 +10,8 @@ class StreakMockDatasource implements StreakDatasource {
   @override
   Future<StreakModel> getStreak(String userId) async {
     await Future.delayed(const Duration(milliseconds: 200));
-    return _streaksByUserId[userId] ?? const StreakModel(currentStreak: 0, lastActiveDateKey: null);
+    return _streaksByUserId[userId] ??
+        const StreakModel(currentStreak: 0, lastActiveDateKey: null);
   }
 
   @override
@@ -25,9 +26,14 @@ class StreakMockDatasource implements StreakDatasource {
     }
 
     final yesterday = dateKey(DateTime.now().subtract(const Duration(days: 1)));
-    final newStreak = current.lastActiveDateKey == yesterday ? current.currentStreak + 1 : 1;
+    final newStreak = current.lastActiveDateKey == yesterday
+        ? current.currentStreak + 1
+        : 1;
 
-    final updated = StreakModel(currentStreak: newStreak, lastActiveDateKey: today);
+    final updated = StreakModel(
+      currentStreak: newStreak,
+      lastActiveDateKey: today,
+    );
     _streaksByUserId[userId] = updated;
     return updated;
   }

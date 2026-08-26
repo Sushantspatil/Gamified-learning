@@ -29,7 +29,11 @@ class DailyMissionsTile extends ConsumerWidget {
             children: [
               Icon(Icons.checklist, color: colors.textSecondary),
               const SizedBox(height: AppSpacing.xs),
-              Text('Missions', textAlign: TextAlign.center, style: context.appTextStyles.labelSmall),
+              Text(
+                'Missions',
+                textAlign: TextAlign.center,
+                style: context.appTextStyles.labelSmall,
+              ),
             ],
           ),
           data: (missions) {
@@ -50,7 +54,11 @@ class DailyMissionsTile extends ConsumerWidget {
                   textAlign: TextAlign.center,
                   style: context.appTextStyles.labelLarge,
                 ),
-                Text('Daily Missions', textAlign: TextAlign.center, style: context.appTextStyles.labelSmall),
+                Text(
+                  'Daily Missions',
+                  textAlign: TextAlign.center,
+                  style: context.appTextStyles.labelSmall,
+                ),
               ],
             );
           },

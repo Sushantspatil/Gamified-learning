@@ -6,6 +6,7 @@ import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
+import '../../../questions/domain/entities/question.dart';
 import '../../domain/entities/quiz_result.dart';
 
 class QuizResultView extends StatelessWidget {
@@ -81,6 +82,12 @@ class QuizResultView extends StatelessWidget {
                 '${score.correctCount} of ${score.totalCount} correct',
                 style: context.appTextStyles.bodyMedium,
               ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                _metricSummary(result),
+                textAlign: TextAlign.center,
+                style: context.appTextStyles.bodyMedium,
+              ),
               if (rewardXp != null && rewardCoins != null) ...[
                 const SizedBox(height: AppSpacing.lg),
                 Wrap(
@@ -117,6 +124,19 @@ class QuizResultView extends StatelessWidget {
       ),
     );
   }
+}
+
+String _metricSummary(QuizResult result) {
+  final accuracy = (result.accuracy * 100).round();
+  return switch (result.quizType) {
+    QuestionType.mcq => 'Accuracy $accuracy% · Wrong ${result.wrongCount}',
+    QuestionType.matchTheFollowing =>
+      'Pairs matched ${result.score.correctCount} · Accuracy $accuracy%',
+    QuestionType.suddenDeath =>
+      'Streak ${result.streakCount} · Questions survived ${result.streakCount}',
+    QuestionType.sortItRight =>
+      'Correct positions ${result.score.correctCount} · Accuracy $accuracy%',
+  };
 }
 
 class _RewardChip extends StatelessWidget {

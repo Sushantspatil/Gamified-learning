@@ -50,11 +50,12 @@ class ShopPurchaseController extends Notifier<void> {
           amount: item.costAmount!,
           reason: 'Purchased: ${item.title}',
         );
-        return succeeded ? PurchaseResult.success : PurchaseResult.insufficientFunds;
+        return succeeded
+            ? PurchaseResult.success
+            : PurchaseResult.insufficientFunds;
     }
   }
 }
 
-final shopPurchaseControllerProvider = NotifierProvider<ShopPurchaseController, void>(
-  ShopPurchaseController.new,
-);
+final shopPurchaseControllerProvider =
+    NotifierProvider<ShopPurchaseController, void>(ShopPurchaseController.new);

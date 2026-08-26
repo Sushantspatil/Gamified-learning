@@ -10,5 +10,6 @@ class LevelCalculator {
 
   static int xpIntoCurrentLevel(int totalXp) => totalXp % xpPerLevel;
 
-  static int xpNeededForNextLevel(int totalXp) => xpPerLevel - xpIntoCurrentLevel(totalXp);
+  static int xpNeededForNextLevel(int totalXp) =>
+      xpPerLevel - xpIntoCurrentLevel(totalXp);
 }

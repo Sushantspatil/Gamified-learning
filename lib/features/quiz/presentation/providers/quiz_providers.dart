@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/utils/reward_calculator.dart';
+import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../daily_missions/presentation/providers/daily_mission_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../questions/domain/entities/answer.dart';
@@ -30,17 +31,56 @@ final quizRepositoryProvider = Provider<QuizRepository>((ref) {
 /// answer's evaluation, enforces the Sudden Death early-exit rule, and
 /// submits the finished session for a final result. All scoring math is
 /// delegated to QuizRepository — this class only orchestrates progression.
-class QuizController extends FamilyAsyncNotifier<QuizSessionViewState, String> {
-  late final String _sessionId;
-  late final String _topicId;
+class QuizSessionRequest {
+  final String topicId;
+  final QuestionType quizType;
+  final String? subjectId;
+  final String? chapterId;
+
+  const QuizSessionRequest({
+    required this.topicId,
+    required this.quizType,
+    this.subjectId,
+    this.chapterId,
+  });
 
   @override
-  Future<QuizSessionViewState> build(String topicId) async {
-    _topicId = topicId;
-    _sessionId = 'session-$topicId-${DateTime.now().microsecondsSinceEpoch}';
-    final questions = await ref.watch(questionsForTopicProvider(topicId).future);
+  bool operator ==(Object other) {
+    return other is QuizSessionRequest &&
+        other.topicId == topicId &&
+        other.quizType == quizType &&
+        other.subjectId == subjectId &&
+        other.chapterId == chapterId;
+  }
+
+  @override
+  int get hashCode => Object.hash(topicId, quizType, subjectId, chapterId);
+}
+
+class QuizController
+    extends FamilyAsyncNotifier<QuizSessionViewState, QuizSessionRequest> {
+  late final String _sessionId;
+  late final QuizSessionRequest _request;
+  late final DateTime _startedAt;
+
+  @override
+  Future<QuizSessionViewState> build(QuizSessionRequest request) async {
+    _request = request;
+    _startedAt = DateTime.now();
+    _sessionId =
+        'session-${request.topicId}-${request.quizType.routeValue}-${_startedAt.microsecondsSinceEpoch}';
+    final questions = await ref.watch(
+      questionsForTopicAndTypeProvider(
+        QuestionsForTopicAndTypeRequest(
+          topicId: request.topicId,
+          questionType: request.quizType,
+        ),
+      ).future,
+    );
 
     return QuizSessionViewState(
+      topicId: request.topicId,
+      quizType: request.quizType,
       questions: questions,
       currentIndex: 0,
       records: const [],
@@ -56,41 +96,72 @@ class QuizController extends FamilyAsyncNotifier<QuizSessionViewState, String> {
     final question = current.currentQuestion;
     if (question == null) return;
 
-    final evaluation = await ref.read(quizRepositoryProvider).evaluateAnswer(question, answer);
-    final record = QuestionAnswerRecord(question: question, answer: answer, evaluation: evaluation);
+    final evaluation = await ref
+        .read(quizRepositoryProvider)
+        .evaluateAnswer(question, answer);
+    final record = QuestionAnswerRecord(
+      question: question,
+      answer: answer,
+      evaluation: evaluation,
+    );
     final updatedRecords = [...current.records, record];
 
-    final isSuddenDeathFailure = question is SuddenDeathQuestion && !evaluation.isCorrect;
+    final isSuddenDeathFailure =
+        question is SuddenDeathQuestion && !evaluation.isCorrect;
     final nextIndex = current.currentIndex + 1;
     final reachedEnd = nextIndex >= current.questions.length;
 
     if (isSuddenDeathFailure || reachedEnd) {
       state = AsyncValue.data(
-        current.copyWith(records: updatedRecords, currentIndex: nextIndex, isSubmittingResult: true),
+        current.copyWith(
+          records: updatedRecords,
+          currentIndex: nextIndex,
+          isSubmittingResult: true,
+        ),
       );
 
       final session = QuizSession(
         id: _sessionId,
-        topicId: _topicId,
+        userId: ref.read(authControllerProvider).valueOrNull?.id,
+        subjectId: _request.subjectId,
+        chapterId: _request.chapterId,
+        topicId: _request.topicId,
+        quizType: _request.quizType,
         questions: current.questions,
         answeredRecords: updatedRecords,
         endedEarly: isSuddenDeathFailure,
+        startedAt: _startedAt,
+        completedAt: DateTime.now(),
       );
-      final result = await ref.read(quizRepositoryProvider).submitSession(session);
+      final result = await ref
+          .read(quizRepositoryProvider)
+          .submitSession(session);
 
-      final previousLevel = ref.read(profileControllerProvider).valueOrNull?.level;
-      final reward = RewardCalculator.forEarnedPoints(result.score.earnedPoints);
-      final updatedProfile =
-          await ref.read(profileControllerProvider.notifier).addXp(reward.xp);
+      final previousLevel = ref
+          .read(profileControllerProvider)
+          .valueOrNull
+          ?.level;
+      final reward = RewardCalculator.forEarnedPoints(
+        result.score.earnedPoints,
+      );
+      final updatedProfile = await ref
+          .read(profileControllerProvider.notifier)
+          .addXp(reward.xp);
       final leveledUp =
-          previousLevel != null && updatedProfile != null && updatedProfile.level > previousLevel;
+          previousLevel != null &&
+          updatedProfile != null &&
+          updatedProfile.level > previousLevel;
 
-      await ref.read(walletControllerProvider.notifier).credit(
+      await ref
+          .read(walletControllerProvider.notifier)
+          .credit(
             currency: CurrencyType.coins,
             amount: reward.coins,
             reason: 'Quiz reward',
           );
-      await ref.read(dailyMissionsControllerProvider.notifier).recordQuizCompletion();
+      await ref
+          .read(dailyMissionsControllerProvider.notifier)
+          .recordQuizCompletion();
 
       state = AsyncValue.data(
         current.copyWith(
@@ -104,10 +175,16 @@ class QuizController extends FamilyAsyncNotifier<QuizSessionViewState, String> {
         ),
       );
     } else {
-      state = AsyncValue.data(current.copyWith(records: updatedRecords, currentIndex: nextIndex));
+      state = AsyncValue.data(
+        current.copyWith(records: updatedRecords, currentIndex: nextIndex),
+      );
     }
   }
 }
 
 final quizControllerProvider =
-    AsyncNotifierProvider.family<QuizController, QuizSessionViewState, String>(QuizController.new);
+    AsyncNotifierProvider.family<
+      QuizController,
+      QuizSessionViewState,
+      QuizSessionRequest
+    >(QuizController.new);
