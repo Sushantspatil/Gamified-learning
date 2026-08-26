@@ -27,7 +27,11 @@ import 'route_names.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = GoRouterRefreshNotifier(
     ref,
-    [authControllerProvider, selectedLearningPathControllerProvider],
+    [
+      authControllerProvider,
+      selectedLearningPathControllerProvider,
+      splashMinimumDurationProvider,
+    ],
   );
   ref.onDispose(refreshNotifier.dispose);
 

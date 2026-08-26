@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/motion/app_motion.dart';
 import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
@@ -16,6 +17,7 @@ import '../../../../shared/widgets/app_badge.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../chapters/domain/entities/topic.dart';
@@ -45,7 +47,7 @@ class DashboardScreen extends ConsumerWidget {
         .valueOrNull;
     final pathsAsync = ref.watch(learningPathsProvider);
 
-    return Scaffold(
+    return GameScaffold(
       body: SafeArea(
         bottom: false,
         child: ListView(
@@ -1147,9 +1149,18 @@ class _DashboardBottomNavigation extends ConsumerWidget {
       child: Container(
         height: 72,
         decoration: BoxDecoration(
-          color: context.themeColors.surface,
-          border: Border(top: BorderSide(color: context.themeColors.border)),
-          boxShadow: AppElevation.shadows(context.themeColors, 1),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              context.themeColors.surface,
+              context.themeColors.surfaceElevated,
+            ],
+          ),
+          border: Border(
+            top: BorderSide(color: context.themeColors.borderStrong),
+          ),
+          boxShadow: AppElevation.shadows(context.themeColors, 2),
         ),
         child: Row(
           children: [
@@ -1235,7 +1246,19 @@ class _BottomNavItem extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: color, size: 23),
+              AnimatedContainer(
+                duration: AppMotion.duration(context, AppMotion.fast),
+                curve: AppMotion.easeOut,
+                width: 42,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? colors.primary.withValues(alpha: 0.12)
+                      : Colors.transparent,
+                  borderRadius: AppDimensions.radiusCircular,
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 label,
@@ -1279,6 +1302,9 @@ class _PlayNavItem extends StatelessWidget {
                 colors: [colors.primary, colors.violet],
               ),
               boxShadow: AppElevation.shadows(colors, 2),
+              border: Border.all(
+                color: colors.primaryForeground.withValues(alpha: 0.24),
+              ),
             ),
             child: Icon(
               Icons.sports_esports,

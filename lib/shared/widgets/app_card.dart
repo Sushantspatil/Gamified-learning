@@ -33,6 +33,7 @@ class AppCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: _backgroundColor(colors),
+        gradient: _backgroundGradient(colors),
         borderRadius: resolvedRadius,
         border: Border.all(color: _borderColor(colors)),
         boxShadow: AppElevation.shadows(colors, elevationLevel),
@@ -43,11 +44,29 @@ class AppCard extends StatelessWidget {
 
   Color _backgroundColor(AppThemeColors colors) {
     return switch (variant) {
-      AppCardVariant.surface => colors.cardBackground,
-      AppCardVariant.outlined => colors.surface,
+      AppCardVariant.surface || AppCardVariant.outlined => Colors.transparent,
       AppCardVariant.tinted => (tintColor ?? colors.primary).withValues(
         alpha: 0.08,
       ),
+    };
+  }
+
+  Gradient? _backgroundGradient(AppThemeColors colors) {
+    return switch (variant) {
+      AppCardVariant.surface => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          colors.cardBackground,
+          colors.surfaceElevated.withValues(alpha: 0.86),
+        ],
+      ),
+      AppCardVariant.outlined => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [colors.surface, colors.cardBackground],
+      ),
+      AppCardVariant.tinted => null,
     };
   }
 

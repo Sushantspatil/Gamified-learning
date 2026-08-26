@@ -4,11 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_pressable.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../cosmetics/presentation/cosmetic_color_catalog.dart';
@@ -39,7 +42,7 @@ class ProfileScreen extends ConsumerWidget {
     }
     final equippedColor = CosmeticColorCatalog.colorFor(equippedColorKey);
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(
         title: const Text('Profile'),
         actions: const [ThemeModeMenu()],
@@ -53,7 +56,10 @@ class ProfileScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Could not load profile.', style: context.appTextStyles.bodyLarge),
+                  Text(
+                    'Could not load profile.',
+                    style: context.appTextStyles.bodyLarge,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   AppButton(
                     label: 'Retry',
@@ -66,7 +72,10 @@ class ProfileScreen extends ConsumerWidget {
           data: (profile) {
             if (user == null || profile == null) {
               return Center(
-                child: Text('No profile data available.', style: context.appTextStyles.bodyLarge),
+                child: Text(
+                  'No profile data available.',
+                  style: context.appTextStyles.bodyLarge,
+                ),
               );
             }
 
@@ -77,13 +86,27 @@ class ProfileScreen extends ConsumerWidget {
                 children: [
                   Center(
                     child: Container(
-                      padding: EdgeInsets.all(equippedColor == null ? 0 : 3),
-                      decoration: equippedColor == null
-                          ? null
-                          : BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: equippedColor, width: 3),
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            equippedColor ?? colors.primary,
+                            colors.secondary,
+                          ],
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (equippedColor ?? colors.primary).withValues(
+                              alpha: 0.24,
                             ),
+                            blurRadius: 24,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
                       child: CircleAvatar(
                         radius: 48,
                         backgroundColor: colors.surfaceElevated,
@@ -96,9 +119,19 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  Center(child: Text(user.displayName, style: context.appTextStyles.titleLarge)),
+                  Center(
+                    child: Text(
+                      user.displayName,
+                      style: context.appTextStyles.titleLarge,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.xs),
-                  Center(child: Text(user.email, style: context.appTextStyles.bodyMedium)),
+                  Center(
+                    child: Text(
+                      user.email,
+                      style: context.appTextStyles.bodyMedium,
+                    ),
+                  ),
                   const SizedBox(height: AppSpacing.lg),
                   Wrap(
                     alignment: WrapAlignment.center,
@@ -134,9 +167,12 @@ class ProfileScreen extends ConsumerWidget {
                     onPressed: () => context.push(RouteNames.editProfile),
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  _ComingSoonSection(title: 'Achievements'),
+                  const _ComingSoonSection(title: 'Achievements'),
                   const SizedBox(height: AppSpacing.md),
-                  _NavSection(title: 'Cosmetics', onTap: () => context.push(RouteNames.cosmetics)),
+                  _NavSection(
+                    title: 'Cosmetics',
+                    onTap: () => context.push(RouteNames.cosmetics),
+                  ),
                   const SizedBox(height: AppSpacing.xl),
                   AppButton(
                     label: 'Logout',
@@ -167,18 +203,16 @@ class _ComingSoonSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.themeColors;
 
-    return Container(
-      width: double.infinity,
+    return AppCard(
       padding: AppSpacing.paddingMd,
-      decoration: BoxDecoration(
-        color: colors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.border),
-      ),
       child: Row(
         children: [
-          Expanded(child: Text(title, style: context.appTextStyles.titleMedium)),
-          Text('Coming Soon', style: context.appTextStyles.labelSmall),
+          Expanded(
+            child: Text(title, style: context.appTextStyles.titleMedium),
+          ),
+          Icon(Icons.emoji_events_outlined, color: colors.warning, size: 18),
+          const SizedBox(width: AppSpacing.xs),
+          Text('Coming soon', style: context.appTextStyles.labelSmall),
         ],
       ),
     );
@@ -197,18 +231,16 @@ class _NavSection extends StatelessWidget {
 
     return AppPressable(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: double.infinity,
+      borderRadius: AppDimensions.radiusCard,
+      child: AppCard(
         padding: AppSpacing.paddingMd,
-        decoration: BoxDecoration(
-          color: colors.cardBackground,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.border),
-        ),
         child: Row(
           children: [
-            Expanded(child: Text(title, style: context.appTextStyles.titleMedium)),
+            Icon(Icons.auto_awesome, color: colors.violet, size: 20),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(title, style: context.appTextStyles.titleMedium),
+            ),
             Icon(Icons.chevron_right, color: colors.textSecondary),
           ],
         ),

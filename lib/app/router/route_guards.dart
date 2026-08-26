@@ -5,6 +5,10 @@ import '../../features/authentication/presentation/providers/auth_providers.dart
 import '../../features/learning_paths/presentation/providers/learning_path_providers.dart';
 import 'route_names.dart';
 
+final splashMinimumDurationProvider = FutureProvider<void>((ref) {
+  return Future<void>.delayed(const Duration(seconds: 5));
+});
+
 class RouteGuards {
   RouteGuards._();
 
@@ -14,9 +18,16 @@ class RouteGuards {
   static String? redirect(Ref ref, GoRouterState state) {
     final authState = ref.read(authControllerProvider);
     final location = state.matchedLocation;
-    final isAuthRoute = location == RouteNames.login || location == RouteNames.signup;
+    final isAuthRoute =
+        location == RouteNames.login || location == RouteNames.signup;
     final isSplash = location == RouteNames.splash;
     final isOnboarding = location == RouteNames.onboarding;
+    final splashMinimumDurationState = ref.read(splashMinimumDurationProvider);
+
+    if (splashMinimumDurationState.isLoading &&
+        !splashMinimumDurationState.hasValue) {
+      return isSplash ? null : RouteNames.splash;
+    }
 
     // Only force the splash screen while auth has genuinely never resolved
     // (no previous value at all). Controllers that mutate already-resolved

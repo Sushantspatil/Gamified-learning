@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_progress_bar.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
@@ -25,7 +28,7 @@ class QuizScreen extends ConsumerWidget {
     final currentQuestion = sessionAsync.valueOrNull?.currentQuestion;
     final isMatchQuestion = currentQuestion is MatchTheFollowingQuestion;
 
-    return Scaffold(
+    return GameScaffold(
       appBar: isMatchQuestion
           ? null
           : AppBar(title: const Text('Quiz'), actions: const [ThemeModeMenu()]),
@@ -96,11 +99,11 @@ class QuizScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'Question ${session.currentIndex + 1} of ${session.questions.length}',
-                    style: context.appTextStyles.labelSmall,
+                  _QuizProgressHeader(
+                    currentIndex: session.currentIndex,
+                    totalQuestions: session.questions.length,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.md),
                   Expanded(
                     child: switch (question) {
                       McqQuestion q => McqQuestionView(
@@ -124,6 +127,70 @@ class QuizScreen extends ConsumerWidget {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _QuizProgressHeader extends StatelessWidget {
+  final int currentIndex;
+  final int totalQuestions;
+
+  const _QuizProgressHeader({
+    required this.currentIndex,
+    required this.totalQuestions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    final progress = totalQuestions == 0
+        ? 0.0
+        : (currentIndex + 1) / totalQuestions;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.cardBackground,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.border),
+      ),
+      child: Padding(
+        padding: AppSpacing.paddingMd,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.sports_esports_rounded,
+                    color: colors.primary,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Question ${currentIndex + 1} of $totalQuestions',
+                    style: context.appTextStyles.labelLarge,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            AppProgressBar(
+              value: progress,
+              height: 7,
+              semanticLabel: 'Quiz progress',
+            ),
+          ],
         ),
       ),
     );
