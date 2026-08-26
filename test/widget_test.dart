@@ -105,7 +105,8 @@ Future<void> _startMcqQuiz(WidgetTester tester) async {
 
 Future<void> _startSuddenDeathQuiz(WidgetTester tester) async {
   await _openPracticeMode(tester, 'Sudden Death');
-  expect(find.text('Question 1 of 1'), findsOneWidget);
+  expect(find.text('Sudden Death'), findsOneWidget);
+  expect(find.text('1 / 1'), findsOneWidget);
 }
 
 Future<void> _startMatchQuiz(WidgetTester tester) async {

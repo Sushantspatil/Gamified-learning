@@ -42,9 +42,10 @@ class QuizScreen extends ConsumerWidget {
     final sessionAsync = ref.watch(quizControllerProvider(request));
     final currentQuestion = sessionAsync.valueOrNull?.currentQuestion;
     final isMatchQuestion = currentQuestion is MatchTheFollowingQuestion;
+    final isSuddenDeathQuestion = currentQuestion is SuddenDeathQuestion;
 
     return GameScaffold(
-      appBar: isMatchQuestion
+      appBar: isMatchQuestion || isSuddenDeathQuestion
           ? null
           : AppBar(
               title: Text(quizType.label),
@@ -126,6 +127,21 @@ class QuizScreen extends ConsumerWidget {
               );
             }
 
+            if (question is SuddenDeathQuestion) {
+              final currentStreak = session.records
+                  .where((record) => record.evaluation.isCorrect)
+                  .length;
+
+              return SuddenDeathQuestionView(
+                question: question,
+                currentIndex: session.currentIndex,
+                totalQuestions: session.questions.length,
+                currentStreak: currentStreak,
+                onExit: () => Navigator.of(context).maybePop(),
+                onSubmit: handleAnswer,
+              );
+            }
+
             return Padding(
               padding: AppSpacing.paddingMd,
               child: Column(
@@ -142,13 +158,12 @@ class QuizScreen extends ConsumerWidget {
                         question: q,
                         onSubmit: handleAnswer,
                       ),
-                      SuddenDeathQuestion q => SuddenDeathQuestionView(
-                        question: q,
-                        onSubmit: handleAnswer,
-                      ),
                       SortItRightQuestion q => SortItRightView(
                         question: q,
                         onSubmit: handleAnswer,
+                      ),
+                      SuddenDeathQuestion() => throw StateError(
+                        'Sudden Death questions render above.',
                       ),
                       MatchTheFollowingQuestion() => throw StateError(
                         'Match questions render above.',
