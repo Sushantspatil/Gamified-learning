@@ -16,6 +16,8 @@ import '../widgets/mcq_question_view.dart';
 import '../widgets/quiz_result_view.dart';
 import '../widgets/sort_it_right_view.dart';
 import '../widgets/sudden_death_question_view.dart';
+import '../../../streaks/presentation/providers/streak_providers.dart';
+import '../../../wallet/presentation/providers/wallet_providers.dart';
 
 class QuizScreen extends ConsumerWidget {
   final String topicId;
@@ -131,12 +133,25 @@ class QuizScreen extends ConsumerWidget {
               final currentStreak = session.records
                   .where((record) => record.evaluation.isCorrect)
                   .length;
+              final appStreak =
+                  ref
+                      .watch(streakControllerProvider)
+                      .valueOrNull
+                      ?.currentStreak ??
+                  0;
+              final wallet = ref.watch(walletControllerProvider).valueOrNull;
+              final bestStreak = appStreak > currentStreak
+                  ? appStreak
+                  : currentStreak;
 
               return SuddenDeathQuestionView(
                 question: question,
                 currentIndex: session.currentIndex,
                 totalQuestions: session.questions.length,
                 currentStreak: currentStreak,
+                bestStreak: bestStreak,
+                energy: wallet?.gems ?? 0,
+                coins: wallet?.coins ?? 0,
                 onExit: () => Navigator.of(context).maybePop(),
                 onSubmit: handleAnswer,
               );

@@ -107,6 +107,10 @@ Future<void> _startSuddenDeathQuiz(WidgetTester tester) async {
   await _openPracticeMode(tester, 'Sudden Death');
   expect(find.text('Sudden Death'), findsOneWidget);
   expect(find.text('1 / 1'), findsOneWidget);
+  expect(find.text('15'), findsOneWidget);
+  expect(find.text('+5 SEC'), findsOneWidget);
+  expect(find.text('50:50'), findsOneWidget);
+  expect(find.text('Skip'), findsOneWidget);
 }
 
 Future<void> _startMatchQuiz(WidgetTester tester) async {
@@ -414,9 +418,23 @@ void main() {
     await _completeOnboarding(tester);
     await _startSuddenDeathQuiz(tester);
 
+    await tester.ensureVisible(find.text('Choice Y'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Choice Y'));
     await tester.pump();
     await tester.tap(find.text('Submit'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sudden Death — Quiz Ended'), findsOneWidget);
+  });
+
+  testWidgets('Sudden Death timer expiry ends the quiz early', (tester) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
+    await _startSuddenDeathQuiz(tester);
+
+    await tester.pump(const Duration(seconds: 15));
     await tester.pumpAndSettle();
 
     expect(find.text('Sudden Death — Quiz Ended'), findsOneWidget);
