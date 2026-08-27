@@ -21,6 +21,7 @@ class GameScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
+    final isLight = Theme.of(context).brightness == Brightness.light;
 
     return Scaffold(
       appBar: appBar,
@@ -43,7 +44,7 @@ class GameScaffold extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(
-              child: CustomPaint(painter: _GameSparkPainter(colors)),
+              child: CustomPaint(painter: _GameSparkPainter(colors, isLight)),
             ),
             body,
           ],
@@ -55,11 +56,14 @@ class GameScaffold extends StatelessWidget {
 
 class _GameSparkPainter extends CustomPainter {
   final AppThemeColors colors;
+  final bool isLight;
 
-  const _GameSparkPainter(this.colors);
+  const _GameSparkPainter(this.colors, this.isLight);
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (isLight) return;
+
     final paint = Paint()
       ..color = colors.primary.withValues(alpha: 0.08)
       ..strokeWidth = 1.4
@@ -98,5 +102,5 @@ class _GameSparkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GameSparkPainter oldDelegate) =>
-      oldDelegate.colors != colors;
+      oldDelegate.colors != colors || oldDelegate.isLight != isLight;
 }

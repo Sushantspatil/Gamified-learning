@@ -28,37 +28,31 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
+    final isLight = Theme.of(context).brightness == Brightness.light;
     final resolvedRadius = borderRadius ?? AppDimensions.radiusCard;
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: _backgroundColor(colors),
-        gradient: _backgroundGradient(colors),
+        color: Colors.transparent,
+        gradient: _backgroundGradient(colors, isLight: isLight),
         borderRadius: resolvedRadius,
-        border: Border.all(color: _borderColor(colors)),
+        border: Border.all(color: _borderColor(colors, isLight: isLight)),
         boxShadow: AppElevation.shadows(colors, elevationLevel),
       ),
       child: Padding(padding: padding, child: child),
     );
   }
 
-  Color _backgroundColor(AppThemeColors colors) {
-    return switch (variant) {
-      AppCardVariant.surface || AppCardVariant.outlined => Colors.transparent,
-      AppCardVariant.tinted => (tintColor ?? colors.primary).withValues(
-        alpha: 0.08,
-      ),
-    };
-  }
+  Gradient _backgroundGradient(AppThemeColors colors, {required bool isLight}) {
+    final tint = tintColor ?? colors.primary;
 
-  Gradient? _backgroundGradient(AppThemeColors colors) {
     return switch (variant) {
       AppCardVariant.surface => LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
           colors.cardBackground,
-          colors.surfaceElevated.withValues(alpha: 0.86),
+          isLight ? colors.surface : colors.surfaceElevated,
         ],
       ),
       AppCardVariant.outlined => LinearGradient(
@@ -66,16 +60,29 @@ class AppCard extends StatelessWidget {
         end: Alignment.bottomRight,
         colors: [colors.surface, colors.cardBackground],
       ),
-      AppCardVariant.tinted => null,
+      AppCardVariant.tinted => LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color.alphaBlend(
+            tint.withValues(alpha: isLight ? 0.12 : 0.18),
+            colors.surface,
+          ),
+          Color.alphaBlend(
+            tint.withValues(alpha: isLight ? 0.04 : 0.10),
+            colors.surfaceElevated,
+          ),
+        ],
+      ),
     };
   }
 
-  Color _borderColor(AppThemeColors colors) {
+  Color _borderColor(AppThemeColors colors, {required bool isLight}) {
     return switch (variant) {
       AppCardVariant.surface => colors.border,
       AppCardVariant.outlined => colors.borderStrong,
       AppCardVariant.tinted => (tintColor ?? colors.primary).withValues(
-        alpha: 0.18,
+        alpha: isLight ? 0.30 : 0.22,
       ),
     };
   }
