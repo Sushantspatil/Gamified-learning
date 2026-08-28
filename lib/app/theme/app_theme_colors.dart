@@ -71,17 +71,17 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
   });
 
   static const AppThemeColors light = AppThemeColors(
-    background: Color(0xFFF7F8FC),
-    backgroundSecondary: Color(0xFFF1F3F9),
+    background: Color(0xFFFBFCFF),
+    backgroundSecondary: Color(0xFFF6F8FC),
     surface: Color(0xFFFFFFFF),
-    surfaceElevated: Color(0xFFF3F5FA),
-    surfaceHover: Color(0xFFEFF2F8),
+    surfaceElevated: Color(0xFFFFFFFF),
+    surfaceHover: Color(0xFFF5F7FB),
     textPrimary: Color(0xFF111827),
     textSecondary: Color(0xFF667085),
     textMuted: Color(0xFF7A8495),
     textInverse: Color(0xFFFFFFFF),
-    border: Color(0xFFE8EAF2),
-    borderStrong: Color(0xFFD3D8E6),
+    border: Color(0xFFEFF2F7),
+    borderStrong: Color(0xFFDDE3EE),
     primary: Color(0xFF4F46E5),
     primaryDark: Color(0xFF3730A3),
     primaryHover: Color(0xFF4338CA),
@@ -101,8 +101,8 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     inputPlaceholder: Color(0xFF667085),
     cardBackground: Color(0xFFFFFFFF),
     overlay: Color(0x990B1020),
-    shadow: Color(0x17111827),
-    divider: Color(0xFFE8EAF2),
+    shadow: Color(0x0F111827),
+    divider: Color(0xFFEFF2F7),
   );
 
   static const AppThemeColors dark = AppThemeColors(
