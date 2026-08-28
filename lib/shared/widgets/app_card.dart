@@ -33,8 +33,7 @@ class AppCard extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.transparent,
-        gradient: _backgroundGradient(colors, isLight: isLight),
+        color: _backgroundColor(colors, isLight: isLight),
         borderRadius: resolvedRadius,
         border: Border.all(color: _borderColor(colors, isLight: isLight)),
         boxShadow: AppElevation.shadows(colors, elevationLevel),
@@ -43,36 +42,15 @@ class AppCard extends StatelessWidget {
     );
   }
 
-  Gradient _backgroundGradient(AppThemeColors colors, {required bool isLight}) {
+  Color _backgroundColor(AppThemeColors colors, {required bool isLight}) {
     final tint = tintColor ?? colors.primary;
 
     return switch (variant) {
-      AppCardVariant.surface => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          colors.cardBackground,
-          isLight ? colors.surface : colors.surfaceElevated,
-        ],
-      ),
-      AppCardVariant.outlined => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [colors.surface, colors.cardBackground],
-      ),
-      AppCardVariant.tinted => LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color.alphaBlend(
-            tint.withValues(alpha: isLight ? 0.12 : 0.18),
-            colors.surface,
-          ),
-          Color.alphaBlend(
-            tint.withValues(alpha: isLight ? 0.04 : 0.10),
-            colors.surfaceElevated,
-          ),
-        ],
+      AppCardVariant.surface => colors.cardBackground,
+      AppCardVariant.outlined => colors.surface,
+      AppCardVariant.tinted => Color.alphaBlend(
+        tint.withValues(alpha: isLight ? 0.08 : 0.16),
+        colors.surface,
       ),
     };
   }

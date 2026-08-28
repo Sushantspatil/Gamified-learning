@@ -71,17 +71,17 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
   });
 
   static const AppThemeColors light = AppThemeColors(
-    background: Color(0xFFF8FAFF),
-    backgroundSecondary: Color(0xFFF1F5FF),
+    background: Color(0xFFFBFCFF),
+    backgroundSecondary: Color(0xFFF6F8FC),
     surface: Color(0xFFFFFFFF),
-    surfaceElevated: Color(0xFFF6F8FF),
-    surfaceHover: Color(0xFFEEF3FF),
+    surfaceElevated: Color(0xFFFFFFFF),
+    surfaceHover: Color(0xFFF5F7FB),
     textPrimary: Color(0xFF12152B),
     textSecondary: Color(0xFF4F5874),
     textMuted: Color(0xFF707A98),
     textInverse: Color(0xFFFFFFFF),
-    border: Color(0xFFE4EAF7),
-    borderStrong: Color(0xFFCBD6EA),
+    border: Color(0xFFEFF2F7),
+    borderStrong: Color(0xFFDDE3EE),
     primary: Color(0xFF6D5DFE),
     primaryDark: Color(0xFF4232C8),
     primaryHover: Color(0xFF5B4CF0),
@@ -97,12 +97,12 @@ class AppThemeColors extends ThemeExtension<AppThemeColors> {
     subjectBusinessStudies: Color(0xFFFFA726),
     subjectEconomics: Color(0xFF00B8D9),
     inputBackground: Color(0xFFFFFFFF),
-    inputBorder: Color(0xFFD5DEF2),
+    inputBorder: Color(0xFFE1E7F2),
     inputPlaceholder: Color(0xFF59637E),
     cardBackground: Color(0xFFFFFFFF),
     overlay: Color(0x9912152B),
-    shadow: Color(0x14182A4A),
-    divider: Color(0xFFE4EAF7),
+    shadow: Color(0x0A111827),
+    divider: Color(0xFFEFF2F7),
   );
 
   static const AppThemeColors dark = AppThemeColors(
