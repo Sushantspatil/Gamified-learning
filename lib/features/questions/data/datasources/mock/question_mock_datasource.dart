@@ -28,14 +28,16 @@ class QuestionMockDatasource implements QuestionDatasource {
       McqQuestion(
         id: '$topicId-mcq',
         topicId: topicId,
-        prompt: 'Which of the following best applies to this topic?',
+        prompt:
+            "Which of the following is the main source of energy for earth's climate system?",
         points: 10,
         options: const [
-          QuestionOption(id: 'a', text: 'Option A'),
-          QuestionOption(id: 'b', text: 'Option B'),
-          QuestionOption(id: 'c', text: 'Option C'),
+          QuestionOption(id: 'a', text: 'Solar energy'),
+          QuestionOption(id: 'b', text: 'Wind energy'),
+          QuestionOption(id: 'c', text: 'Geothermal energy'),
+          QuestionOption(id: 'd', text: 'Tidal energy'),
         ],
-        correctOptionId: 'b',
+        correctOptionId: 'a',
       ),
       MatchTheFollowingQuestion(
         id: '$topicId-match',
@@ -66,9 +68,14 @@ class QuestionMockDatasource implements QuestionDatasource {
       SortItRightQuestion(
         id: '$topicId-sort',
         topicId: topicId,
-        prompt: 'Arrange these steps in the correct order.',
-        points: 15,
-        itemsInOrder: const ['Step 1', 'Step 2', 'Step 3', 'Step 4'],
+        prompt: 'Sort the following account entries into Debit and Credit.',
+        points: 10,
+        itemsInOrder: const [
+          'Purchase',
+          'Salary Paid',
+          'Discount Allowed',
+          'Cash Received',
+        ],
       ),
       SuddenDeathQuestion(
         id: '$topicId-sudden-death',

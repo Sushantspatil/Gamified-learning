@@ -45,9 +45,15 @@ class QuizScreen extends ConsumerWidget {
     final currentQuestion = sessionAsync.valueOrNull?.currentQuestion;
     final isMatchQuestion = currentQuestion is MatchTheFollowingQuestion;
     final isSuddenDeathQuestion = currentQuestion is SuddenDeathQuestion;
+    final isMcqQuiz = quizType == QuestionType.mcq;
+    final isSortItOutQuiz = quizType == QuestionType.sortItRight;
 
     return GameScaffold(
-      appBar: isMatchQuestion || isSuddenDeathQuestion
+      appBar:
+          isMcqQuiz ||
+              isSortItOutQuiz ||
+              isMatchQuestion ||
+              isSuddenDeathQuestion
           ? null
           : AppBar(
               title: Text(quizType.label),
@@ -121,6 +127,33 @@ class QuizScreen extends ConsumerWidget {
                   .submitAnswer(answer);
             }
 
+            if (question is McqQuestion) {
+              final currentStreak = session.records
+                  .where((record) => record.evaluation.isCorrect)
+                  .length;
+              final appStreak =
+                  ref
+                      .watch(streakControllerProvider)
+                      .valueOrNull
+                      ?.currentStreak ??
+                  0;
+              final wallet = ref.watch(walletControllerProvider).valueOrNull;
+              final bestStreak = appStreak > currentStreak
+                  ? appStreak
+                  : currentStreak;
+
+              return McqQuestionView(
+                question: question,
+                currentIndex: session.currentIndex,
+                totalQuestions: session.questions.length,
+                currentStreak: bestStreak,
+                coins: wallet?.coins ?? 0,
+                energy: wallet?.gems ?? 0,
+                onExit: () => Navigator.of(context).maybePop(),
+                onSubmit: handleAnswer,
+              );
+            }
+
             if (question is MatchTheFollowingQuestion) {
               return MatchTheFollowingView(
                 question: question,
@@ -157,6 +190,33 @@ class QuizScreen extends ConsumerWidget {
               );
             }
 
+            if (question is SortItRightQuestion) {
+              final currentStreak = session.records
+                  .where((record) => record.evaluation.isCorrect)
+                  .length;
+              final appStreak =
+                  ref
+                      .watch(streakControllerProvider)
+                      .valueOrNull
+                      ?.currentStreak ??
+                  0;
+              final wallet = ref.watch(walletControllerProvider).valueOrNull;
+              final bestStreak = appStreak > currentStreak
+                  ? appStreak
+                  : currentStreak;
+
+              return SortItRightView(
+                question: question,
+                currentIndex: session.currentIndex,
+                totalQuestions: session.questions.length,
+                currentStreak: bestStreak,
+                coins: wallet?.coins ?? 0,
+                energy: wallet?.gems ?? 0,
+                onExit: () => Navigator.of(context).maybePop(),
+                onSubmit: handleAnswer,
+              );
+            }
+
             return Padding(
               padding: AppSpacing.paddingMd,
               child: Column(
@@ -169,13 +229,11 @@ class QuizScreen extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.md),
                   Expanded(
                     child: switch (question) {
-                      McqQuestion q => McqQuestionView(
-                        question: q,
-                        onSubmit: handleAnswer,
+                      McqQuestion() => throw StateError(
+                        'MCQ questions render above.',
                       ),
-                      SortItRightQuestion q => SortItRightView(
-                        question: q,
-                        onSubmit: handleAnswer,
+                      SortItRightQuestion() => throw StateError(
+                        'Sort It Out questions render above.',
                       ),
                       SuddenDeathQuestion() => throw StateError(
                         'Sudden Death questions render above.',

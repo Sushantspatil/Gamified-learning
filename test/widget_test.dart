@@ -100,7 +100,8 @@ Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
 
 Future<void> _startMcqQuiz(WidgetTester tester) async {
   await _openPracticeMode(tester, 'MCQ Quiz');
-  expect(find.text('Question 1 of 1'), findsOneWidget);
+  expect(find.text('MCQ Quiz'), findsOneWidget);
+  expect(find.text('1 / 1'), findsOneWidget);
 }
 
 Future<void> _startSuddenDeathQuiz(WidgetTester tester) async {
@@ -119,11 +120,30 @@ Future<void> _startMatchQuiz(WidgetTester tester) async {
   expect(find.text('Match each concept'), findsOneWidget);
 }
 
+Future<void> _startSortItOutQuiz(WidgetTester tester) async {
+  await _openPracticeMode(tester, 'Sort It Out');
+  expect(find.text('Sort It Out'), findsOneWidget);
+  expect(find.text('1 / 1'), findsOneWidget);
+  expect(find.text('Debit'), findsOneWidget);
+  expect(find.text('Credit'), findsOneWidget);
+}
+
 Future<void> _answerMcqCorrectly(WidgetTester tester) async {
-  await tester.tap(find.text('Option B'));
+  await tester.tap(find.text('Solar energy'));
   await tester.pump();
-  await tester.tap(find.text('Submit'));
+  await tester.tap(find.text('Submit Answer'));
   await tester.pumpAndSettle();
+}
+
+Future<void> _sortEntry(
+  WidgetTester tester,
+  String entry,
+  String bucket,
+) async {
+  await tester.tap(find.text(entry).last);
+  await tester.pump();
+  await tester.tap(find.text(bucket));
+  await tester.pump();
 }
 
 void main() {
@@ -408,6 +428,31 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Start Quiz'), findsOneWidget);
+  });
+
+  testWidgets('completing a Sort It Out quiz shows Quiz Complete', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
+    await _startSortItOutQuiz(tester);
+
+    await _sortEntry(tester, 'Purchase', 'Debit');
+    await _sortEntry(tester, 'Salary Paid', 'Debit');
+    await _sortEntry(tester, 'Discount Allowed', 'Debit');
+    await _sortEntry(tester, 'Cash Received', 'Credit');
+    await tester.tap(find.text('Submit Sort'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quiz Complete!'), findsOneWidget);
+    expect(find.text('+10 XP'), findsOneWidget);
+    expect(find.text('+5 Coins'), findsOneWidget);
   });
 
   testWidgets('a wrong Sudden Death answer ends the quiz early', (
