@@ -3,6 +3,8 @@ import '../../domain/entities/question_answer_record.dart';
 import '../../domain/entities/quiz_result.dart';
 
 class QuizSessionViewState {
+  final String topicId;
+  final QuestionType quizType;
   final List<Question> questions;
   final int currentIndex;
   final List<QuestionAnswerRecord> records;
@@ -13,6 +15,8 @@ class QuizSessionViewState {
   final bool leveledUp;
 
   const QuizSessionViewState({
+    required this.topicId,
+    required this.quizType,
     required this.questions,
     required this.currentIndex,
     required this.records,
@@ -36,6 +40,8 @@ class QuizSessionViewState {
     bool? leveledUp,
   }) {
     return QuizSessionViewState(
+      topicId: topicId,
+      quizType: quizType,
       questions: questions,
       currentIndex: currentIndex ?? this.currentIndex,
       records: records ?? this.records,

@@ -30,7 +30,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.initState();
     final user = ref.read(authControllerProvider).valueOrNull;
     _nameController = TextEditingController(text: user?.displayName ?? '');
-    _selectedAvatarId = ref.read(profileControllerProvider).valueOrNull?.avatarId ?? 'default';
+    _selectedAvatarId =
+        ref.read(profileControllerProvider).valueOrNull?.avatarId ?? 'default';
   }
 
   @override
@@ -51,10 +52,15 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     // display name rebuilds it and invalidates any notifier reference taken
     // beforehand.
     if (currentUser != null && newName != currentUser.displayName) {
-      await ref.read(authControllerProvider.notifier).updateDisplayName(newName);
+      await ref
+          .read(authControllerProvider.notifier)
+          .updateDisplayName(newName);
     }
-    if (_selectedAvatarId != null && _selectedAvatarId != currentProfile?.avatarId) {
-      await ref.read(profileControllerProvider.notifier).updateAvatar(_selectedAvatarId!);
+    if (_selectedAvatarId != null &&
+        _selectedAvatarId != currentProfile?.avatarId) {
+      await ref
+          .read(profileControllerProvider.notifier)
+          .updateAvatar(_selectedAvatarId!);
     }
 
     if (mounted) Navigator.of(context).pop();
@@ -62,7 +68,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isSaving = ref.watch(authControllerProvider).isLoading ||
+    final isSaving =
+        ref.watch(authControllerProvider).isLoading ||
         ref.watch(profileControllerProvider).isLoading;
     final colors = context.themeColors;
 
@@ -90,7 +97,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   },
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                Text('Choose an avatar', style: context.appTextStyles.titleMedium),
+                Text(
+                  'Choose an avatar',
+                  style: context.appTextStyles.titleMedium,
+                ),
                 const SizedBox(height: AppSpacing.sm),
                 Wrap(
                   spacing: AppSpacing.sm,
@@ -98,14 +108,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                   children: AvatarCatalog.icons.entries.map((entry) {
                     final isSelected = _selectedAvatarId == entry.key;
                     return AppPressable(
-                      onTap: () => setState(() => _selectedAvatarId = entry.key),
-                      borderRadius: BorderRadius.circular(AppDimensions.borderRadiusCircular),
+                      onTap: () =>
+                          setState(() => _selectedAvatarId = entry.key),
+                      borderRadius: BorderRadius.circular(
+                        AppDimensions.borderRadiusCircular,
+                      ),
                       child: CircleAvatar(
                         radius: 28,
-                        backgroundColor: isSelected ? colors.primary : colors.surfaceElevated,
+                        backgroundColor: isSelected
+                            ? colors.primary
+                            : colors.surfaceElevated,
                         child: Icon(
                           entry.value,
-                          color: isSelected ? colors.primaryForeground : colors.textSecondary,
+                          color: isSelected
+                              ? colors.primaryForeground
+                              : colors.textSecondary,
                         ),
                       ),
                     );

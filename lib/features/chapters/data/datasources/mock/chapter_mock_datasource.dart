@@ -8,24 +8,77 @@ import '../chapter_datasource.dart';
 class ChapterMockDatasource implements ChapterDatasource {
   static final Map<String, List<String>> _chapterTitlesByPath = {
     'web-dev': ['HTML Foundations', 'CSS & Layout', 'JavaScript Essentials'],
-    'data-science': ['Statistics Basics', 'Python for Data', 'Data Visualization'],
+    'data-science': [
+      'Statistics Basics',
+      'Python for Data',
+      'Data Visualization',
+    ],
     'ai-ml': ['Linear Algebra', 'Neural Networks', 'Model Training'],
-    'cybersecurity': ['Network Fundamentals', 'Threats & Attacks', 'Cryptography Basics'],
+    'cybersecurity': [
+      'Network Fundamentals',
+      'Threats & Attacks',
+      'Cryptography Basics',
+    ],
   };
 
   static final Map<String, List<String>> _topicTitlesByChapter = {
-    'HTML Foundations': ['Tags & Elements', 'Forms', 'Semantic HTML', 'Accessibility'],
+    'HTML Foundations': [
+      'Tags & Elements',
+      'Forms',
+      'Semantic HTML',
+      'Accessibility',
+    ],
     'CSS & Layout': ['Selectors', 'Flexbox', 'Grid', 'Responsive Design'],
-    'JavaScript Essentials': ['Variables & Types', 'Functions', 'DOM Manipulation', 'Async/Await'],
-    'Statistics Basics': ['Mean & Median', 'Distributions', 'Correlation', 'Hypothesis Testing'],
-    'Python for Data': ['NumPy Arrays', 'Pandas DataFrames', 'Data Cleaning', 'Aggregation'],
-    'Data Visualization': ['Chart Types', 'Matplotlib', 'Dashboards', 'Storytelling with Data'],
-    'Linear Algebra': ['Vectors', 'Matrices', 'Eigenvalues', 'Matrix Multiplication'],
-    'Neural Networks': ['Perceptrons', 'Activation Functions', 'Backpropagation', 'CNNs'],
-    'Model Training': ['Loss Functions', 'Optimizers', 'Overfitting', 'Deployment'],
+    'JavaScript Essentials': [
+      'Variables & Types',
+      'Functions',
+      'DOM Manipulation',
+      'Async/Await',
+    ],
+    'Statistics Basics': [
+      'Mean & Median',
+      'Distributions',
+      'Correlation',
+      'Hypothesis Testing',
+    ],
+    'Python for Data': [
+      'NumPy Arrays',
+      'Pandas DataFrames',
+      'Data Cleaning',
+      'Aggregation',
+    ],
+    'Data Visualization': [
+      'Chart Types',
+      'Matplotlib',
+      'Dashboards',
+      'Storytelling with Data',
+    ],
+    'Linear Algebra': [
+      'Vectors',
+      'Matrices',
+      'Eigenvalues',
+      'Matrix Multiplication',
+    ],
+    'Neural Networks': [
+      'Perceptrons',
+      'Activation Functions',
+      'Backpropagation',
+      'CNNs',
+    ],
+    'Model Training': [
+      'Loss Functions',
+      'Optimizers',
+      'Overfitting',
+      'Deployment',
+    ],
     'Network Fundamentals': ['OSI Model', 'TCP/IP', 'Firewalls', 'VPNs'],
     'Threats & Attacks': ['Phishing', 'Malware', 'DDoS', 'Social Engineering'],
-    'Cryptography Basics': ['Symmetric Keys', 'Asymmetric Keys', 'Hashing', 'Digital Signatures'],
+    'Cryptography Basics': [
+      'Symmetric Keys',
+      'Asymmetric Keys',
+      'Hashing',
+      'Digital Signatures',
+    ],
   };
 
   List<ChapterModel> _buildChapters(String learningPathId) {

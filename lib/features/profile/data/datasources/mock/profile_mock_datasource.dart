@@ -12,20 +12,31 @@ class ProfileMockDatasource implements ProfileDatasource {
   @override
   Future<UserProfileModel> getProfile(String userId) async {
     await Future.delayed(const Duration(milliseconds: 300));
-    return _profilesByUserId[userId] ?? const UserProfileModel(avatarId: 'default', xp: 0, level: 1);
+    return _profilesByUserId[userId] ??
+        const UserProfileModel(avatarId: 'default', xp: 0, level: 1);
   }
 
   @override
-  Future<UserProfileModel> updateAvatar({required String userId, required String avatarId}) async {
+  Future<UserProfileModel> updateAvatar({
+    required String userId,
+    required String avatarId,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final current = await getProfile(userId);
-    final updated = UserProfileModel(avatarId: avatarId, xp: current.xp, level: current.level);
+    final updated = UserProfileModel(
+      avatarId: avatarId,
+      xp: current.xp,
+      level: current.level,
+    );
     _profilesByUserId[userId] = updated;
     return updated;
   }
 
   @override
-  Future<UserProfileModel> addXp({required String userId, required int xp}) async {
+  Future<UserProfileModel> addXp({
+    required String userId,
+    required int xp,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final current = await getProfile(userId);
     final newXp = current.xp + xp;

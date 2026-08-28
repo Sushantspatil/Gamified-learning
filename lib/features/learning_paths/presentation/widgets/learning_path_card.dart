@@ -55,7 +55,10 @@ class LearningPathCard extends StatelessWidget {
                 children: [
                   Text(path.title, style: context.appTextStyles.titleMedium),
                   const SizedBox(height: AppSpacing.xs),
-                  Text(path.description, style: context.appTextStyles.bodyMedium),
+                  Text(
+                    path.description,
+                    style: context.appTextStyles.bodyMedium,
+                  ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     '$_difficultyLabel • ${path.topicCount} topics',

@@ -10,7 +10,11 @@ class McqQuestionView extends StatefulWidget {
   final McqQuestion question;
   final void Function(Answer answer) onSubmit;
 
-  const McqQuestionView({super.key, required this.question, required this.onSubmit});
+  const McqQuestionView({
+    super.key,
+    required this.question,
+    required this.onSubmit,
+  });
 
   @override
   State<McqQuestionView> createState() => _McqQuestionViewState();
@@ -32,7 +36,8 @@ class _McqQuestionViewState extends State<McqQuestionView> {
             onChanged: (value) => setState(() => _selectedOptionId = value),
             child: ListView.separated(
               itemCount: widget.question.options.length,
-              separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: AppSpacing.sm),
               itemBuilder: (context, index) {
                 final option = widget.question.options[index];
                 return RadioListTile<String>(
@@ -49,8 +54,11 @@ class _McqQuestionViewState extends State<McqQuestionView> {
           onPressed: _selectedOptionId == null
               ? null
               : () => widget.onSubmit(
-                    McqAnswer(questionId: widget.question.id, selectedOptionId: _selectedOptionId!),
+                  McqAnswer(
+                    questionId: widget.question.id,
+                    selectedOptionId: _selectedOptionId!,
                   ),
+                ),
         ),
       ],
     );

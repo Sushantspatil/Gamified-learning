@@ -8,7 +8,10 @@ import '../models/user_profile_model.dart';
 abstract class ProfileDatasource {
   Future<UserProfileModel> getProfile(String userId);
 
-  Future<UserProfileModel> updateAvatar({required String userId, required String avatarId});
+  Future<UserProfileModel> updateAvatar({
+    required String userId,
+    required String avatarId,
+  });
 
   Future<UserProfileModel> addXp({required String userId, required int xp});
 }

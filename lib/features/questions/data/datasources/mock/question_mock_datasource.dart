@@ -9,6 +9,21 @@ class QuestionMockDatasource implements QuestionDatasource {
   Future<List<Question>> getQuestionsForTopic(String topicId) async {
     await Future.delayed(const Duration(milliseconds: 400));
 
+    return _questionsForTopic(topicId);
+  }
+
+  @override
+  Future<List<Question>> getQuestionsForTopicAndType(
+    String topicId,
+    QuestionType questionType,
+  ) async {
+    final questions = await getQuestionsForTopic(topicId);
+    return questions
+        .where((question) => question.type == questionType)
+        .toList();
+  }
+
+  List<Question> _questionsForTopic(String topicId) {
     return [
       McqQuestion(
         id: '$topicId-mcq',

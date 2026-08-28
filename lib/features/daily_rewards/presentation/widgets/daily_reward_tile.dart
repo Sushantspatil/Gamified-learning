@@ -42,7 +42,11 @@ class DailyRewardTile extends ConsumerWidget {
               children: [
                 Icon(Icons.card_giftcard, color: colors.textSecondary),
                 const SizedBox(height: AppSpacing.xs),
-                Text('Daily Reward', textAlign: TextAlign.center, style: context.appTextStyles.labelSmall),
+                Text(
+                  'Daily Reward',
+                  textAlign: TextAlign.center,
+                  style: context.appTextStyles.labelSmall,
+                ),
               ],
             ),
             data: (reward) {
@@ -51,7 +55,11 @@ class DailyRewardTile extends ConsumerWidget {
                   children: [
                     Icon(Icons.card_giftcard, color: colors.textSecondary),
                     const SizedBox(height: AppSpacing.xs),
-                    Text('Daily Reward', textAlign: TextAlign.center, style: context.appTextStyles.labelSmall),
+                    Text(
+                      'Daily Reward',
+                      textAlign: TextAlign.center,
+                      style: context.appTextStyles.labelSmall,
+                    ),
                   ],
                 );
               }
@@ -61,8 +69,12 @@ class DailyRewardTile extends ConsumerWidget {
                   SuccessPop(
                     active: reward.claimedToday,
                     child: Icon(
-                      reward.claimedToday ? Icons.check_circle : Icons.card_giftcard,
-                      color: reward.claimedToday ? colors.success : AppColors.coinGold,
+                      reward.claimedToday
+                          ? Icons.check_circle
+                          : Icons.card_giftcard,
+                      color: reward.claimedToday
+                          ? colors.success
+                          : AppColors.coinGold,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -71,7 +83,11 @@ class DailyRewardTile extends ConsumerWidget {
                     textAlign: TextAlign.center,
                     style: context.appTextStyles.labelLarge,
                   ),
-                  Text('Daily Reward', textAlign: TextAlign.center, style: context.appTextStyles.labelSmall),
+                  Text(
+                    'Daily Reward',
+                    textAlign: TextAlign.center,
+                    style: context.appTextStyles.labelSmall,
+                  ),
                 ],
               );
             },

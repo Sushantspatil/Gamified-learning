@@ -2,6 +2,48 @@ import 'package:equatable/equatable.dart';
 
 enum QuestionType { mcq, matchTheFollowing, sortItRight, suddenDeath }
 
+extension QuestionTypeX on QuestionType {
+  String get routeValue {
+    return switch (this) {
+      QuestionType.mcq => 'mcq',
+      QuestionType.matchTheFollowing => 'matching',
+      QuestionType.sortItRight => 'sortItOut',
+      QuestionType.suddenDeath => 'suddenDeath',
+    };
+  }
+
+  String get label {
+    return switch (this) {
+      QuestionType.mcq => 'MCQ Quiz',
+      QuestionType.matchTheFollowing => 'Match the Following',
+      QuestionType.sortItRight => 'Sort It Out',
+      QuestionType.suddenDeath => 'Sudden Death',
+    };
+  }
+
+  String get emptyStateLabel {
+    return switch (this) {
+      QuestionType.mcq => 'No MCQ questions available for this topic yet.',
+      QuestionType.matchTheFollowing =>
+        'No Match the Following questions available for this topic yet.',
+      QuestionType.sortItRight =>
+        'No Sort It Out questions available for this topic yet.',
+      QuestionType.suddenDeath =>
+        'No Sudden Death questions available for this topic yet.',
+    };
+  }
+
+  static QuestionType? fromRouteValue(String value) {
+    return switch (value) {
+      'mcq' => QuestionType.mcq,
+      'matching' => QuestionType.matchTheFollowing,
+      'sortItOut' => QuestionType.sortItRight,
+      'suddenDeath' => QuestionType.suddenDeath,
+      _ => null,
+    };
+  }
+}
+
 class QuestionOption extends Equatable {
   final String id;
   final String text;

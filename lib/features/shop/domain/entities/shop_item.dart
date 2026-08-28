@@ -37,14 +37,14 @@ class ShopItem extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        title,
-        description,
-        category,
-        grantsCurrency,
-        grantsAmount,
-        priceLabel,
-        costCurrency,
-        costAmount,
-      ];
+    id,
+    title,
+    description,
+    category,
+    grantsCurrency,
+    grantsAmount,
+    priceLabel,
+    costCurrency,
+    costAmount,
+  ];
 }

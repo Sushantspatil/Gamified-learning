@@ -11,10 +11,12 @@ class CosmeticsRepositoryImpl implements CosmeticsRepository {
   Future<List<CosmeticItem>> getCatalog() => _datasource.getCatalog();
 
   @override
-  Future<Set<String>> getOwnedCosmeticIds(String userId) => _datasource.getOwnedCosmeticIds(userId);
+  Future<Set<String>> getOwnedCosmeticIds(String userId) =>
+      _datasource.getOwnedCosmeticIds(userId);
 
   @override
-  Future<String?> getEquippedCosmeticId(String userId) => _datasource.getEquippedCosmeticId(userId);
+  Future<String?> getEquippedCosmeticId(String userId) =>
+      _datasource.getEquippedCosmeticId(userId);
 
   @override
   Future<void> recordPurchase(String userId, String cosmeticId) =>

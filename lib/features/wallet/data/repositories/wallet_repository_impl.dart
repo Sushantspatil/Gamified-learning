@@ -10,7 +10,8 @@ class WalletRepositoryImpl implements WalletRepository {
   WalletRepositoryImpl(this._datasource);
 
   @override
-  Future<WalletBalance> getBalance(String userId) => _datasource.getBalance(userId);
+  Future<WalletBalance> getBalance(String userId) =>
+      _datasource.getBalance(userId);
 
   @override
   Future<WalletTransaction> credit({
@@ -19,7 +20,12 @@ class WalletRepositoryImpl implements WalletRepository {
     required int amount,
     required String reason,
   }) {
-    return _datasource.credit(userId: userId, currency: currency, amount: amount, reason: reason);
+    return _datasource.credit(
+      userId: userId,
+      currency: currency,
+      amount: amount,
+      reason: reason,
+    );
   }
 
   @override
@@ -29,7 +35,12 @@ class WalletRepositoryImpl implements WalletRepository {
     required int amount,
     required String reason,
   }) {
-    return _datasource.debit(userId: userId, currency: currency, amount: amount, reason: reason);
+    return _datasource.debit(
+      userId: userId,
+      currency: currency,
+      amount: amount,
+      reason: reason,
+    );
   }
 
   @override

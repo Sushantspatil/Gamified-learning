@@ -34,11 +34,17 @@ class ChapterCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Chapter ${chapter.order}', style: context.appTextStyles.labelSmall),
+                  Text(
+                    'Chapter ${chapter.order}',
+                    style: context.appTextStyles.labelSmall,
+                  ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(chapter.title, style: context.appTextStyles.titleMedium),
                   const SizedBox(height: AppSpacing.xs),
-                  Text('${chapter.topicCount} topics', style: context.appTextStyles.bodyMedium),
+                  Text(
+                    '${chapter.topicCount} topics',
+                    style: context.appTextStyles.bodyMedium,
+                  ),
                 ],
               ),
             ),

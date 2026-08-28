@@ -27,7 +27,12 @@ void main() {
 
   test('debit decreases balance when funds are sufficient', () async {
     final datasource = WalletMockDatasource();
-    await datasource.credit(userId: 'u1', currency: CurrencyType.gems, amount: 30, reason: 'Seed');
+    await datasource.credit(
+      userId: 'u1',
+      currency: CurrencyType.gems,
+      amount: 30,
+      reason: 'Seed',
+    );
 
     final txn = await datasource.debit(
       userId: 'u1',
@@ -40,24 +45,50 @@ void main() {
     expect(txn.balanceAfter, 10);
   });
 
-  test('debit throws and leaves balance untouched when funds are insufficient', () async {
-    final datasource = WalletMockDatasource();
-    await datasource.credit(userId: 'u1', currency: CurrencyType.coins, amount: 10, reason: 'Seed');
+  test(
+    'debit throws and leaves balance untouched when funds are insufficient',
+    () async {
+      final datasource = WalletMockDatasource();
+      await datasource.credit(
+        userId: 'u1',
+        currency: CurrencyType.coins,
+        amount: 10,
+        reason: 'Seed',
+      );
 
-    await expectLater(
-      datasource.debit(userId: 'u1', currency: CurrencyType.coins, amount: 100, reason: 'Too much'),
-      throwsA(anything),
-    );
+      await expectLater(
+        datasource.debit(
+          userId: 'u1',
+          currency: CurrencyType.coins,
+          amount: 100,
+          reason: 'Too much',
+        ),
+        throwsA(anything),
+      );
 
-    final balance = await datasource.getBalance('u1');
-    expect(balance.coins, 10); // unchanged
-    expect(await datasource.getTransactionHistory('u1'), hasLength(1)); // no debit entry recorded
-  });
+      final balance = await datasource.getBalance('u1');
+      expect(balance.coins, 10); // unchanged
+      expect(
+        await datasource.getTransactionHistory('u1'),
+        hasLength(1),
+      ); // no debit entry recorded
+    },
+  );
 
   test('transaction history is returned most-recent-first', () async {
     final datasource = WalletMockDatasource();
-    await datasource.credit(userId: 'u1', currency: CurrencyType.coins, amount: 10, reason: 'First');
-    await datasource.credit(userId: 'u1', currency: CurrencyType.coins, amount: 20, reason: 'Second');
+    await datasource.credit(
+      userId: 'u1',
+      currency: CurrencyType.coins,
+      amount: 10,
+      reason: 'First',
+    );
+    await datasource.credit(
+      userId: 'u1',
+      currency: CurrencyType.coins,
+      amount: 20,
+      reason: 'Second',
+    );
 
     final history = await datasource.getTransactionHistory('u1');
     expect(history.map((t) => t.reason), ['Second', 'First']);

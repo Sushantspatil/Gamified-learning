@@ -51,7 +51,10 @@ class ChestMockDatasource implements ChestDatasource {
     if (type == ChestType.daily) {
       final today = dateKey(DateTime.now());
       if (_lastDailyOpenDateKeyByUser[userId] == today) {
-        throw const ValidationException('The daily chest has already been opened today.', 'already-opened');
+        throw const ValidationException(
+          'The daily chest has already been opened today.',
+          'already-opened',
+        );
       }
       _lastDailyOpenDateKeyByUser[userId] = today;
     }
@@ -59,6 +62,10 @@ class ChestMockDatasource implements ChestDatasource {
     final pool = type == ChestType.daily ? _dailyChestRewards : _adChestRewards;
     final reward = pool[_random.nextInt(pool.length)];
 
-    return ChestResultModel(chestType: type, currency: reward.currency, amount: reward.amount);
+    return ChestResultModel(
+      chestType: type,
+      currency: reward.currency,
+      amount: reward.amount,
+    );
   }
 }

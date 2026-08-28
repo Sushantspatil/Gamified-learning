@@ -24,11 +24,14 @@ class ChestScreen extends ConsumerStatefulWidget {
 class _ChestScreenState extends ConsumerState<ChestScreen> {
   bool _isOpening = false;
 
-  String get _title => widget.type == ChestType.daily ? 'Daily Chest' : 'Ad Chest';
+  String get _title =>
+      widget.type == ChestType.daily ? 'Daily Chest' : 'Ad Chest';
 
   Future<void> _open() async {
     setState(() => _isOpening = true);
-    final result = await ref.read(chestControllerProvider(widget.type).notifier).open(widget.type);
+    final result = await ref
+        .read(chestControllerProvider(widget.type).notifier)
+        .open(widget.type);
     if (!mounted) return;
     setState(() => _isOpening = false);
 
@@ -44,8 +47,12 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
             SuccessPop(
               active: true,
               child: Icon(
-                result.currency == CurrencyType.coins ? Icons.monetization_on : Icons.diamond,
-                color: result.currency == CurrencyType.coins ? AppColors.coinGold : AppColors.gemCyan,
+                result.currency == CurrencyType.coins
+                    ? Icons.monetization_on
+                    : Icons.diamond,
+                color: result.currency == CurrencyType.coins
+                    ? AppColors.coinGold
+                    : AppColors.gemCyan,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -56,7 +63,10 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
           ],
         ),
         actions: [
-          FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Nice!')),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Nice!'),
+          ),
         ],
       ),
     );
@@ -67,10 +77,7 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
     final availableAsync = ref.watch(chestControllerProvider(widget.type));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_title),
-        actions: const [ThemeModeMenu()],
-      ),
+      appBar: AppBar(title: Text(_title), actions: const [ThemeModeMenu()]),
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -78,12 +85,18 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.card_giftcard, size: 96, color: AppColors.coinGold),
+                const Icon(
+                  Icons.card_giftcard,
+                  size: 96,
+                  color: AppColors.coinGold,
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 availableAsync.when(
                   loading: () => const CircularProgressIndicator(),
-                  error: (error, stackTrace) =>
-                      Text('Could not check chest availability.', style: context.appTextStyles.bodyLarge),
+                  error: (error, stackTrace) => Text(
+                    'Could not check chest availability.',
+                    style: context.appTextStyles.bodyLarge,
+                  ),
                   data: (isAvailable) {
                     if (!isAvailable) {
                       return Text(
@@ -95,7 +108,9 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
                       );
                     }
                     return AppButton(
-                      label: widget.type == ChestType.daily ? 'Open Chest' : 'Watch Ad to Open',
+                      label: widget.type == ChestType.daily
+                          ? 'Open Chest'
+                          : 'Watch Ad to Open',
                       isLoading: _isOpening,
                       onPressed: _open,
                     );

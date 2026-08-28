@@ -16,15 +16,37 @@ class LeaderboardTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
+    final isPodium = entry.rank <= 3;
+    final rankColor = switch (entry.rank) {
+      1 => AppColors.accentGold,
+      2 => colors.secondary,
+      3 => colors.violet,
+      _ => colors.textSecondary,
+    };
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: AppSpacing.paddingMd,
       decoration: BoxDecoration(
-        color: entry.isCurrentUser ? colors.surfaceElevated : colors.cardBackground,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            entry.isCurrentUser
+                ? colors.primary.withValues(alpha: 0.14)
+                : colors.cardBackground,
+            isPodium
+                ? rankColor.withValues(alpha: 0.12)
+                : colors.surfaceElevated.withValues(alpha: 0.70),
+          ],
+        ),
         borderRadius: AppDimensions.radiusMd,
         border: Border.all(
-          color: entry.isCurrentUser ? colors.primary : colors.border,
+          color: entry.isCurrentUser
+              ? colors.primary
+              : isPodium
+              ? rankColor.withValues(alpha: 0.40)
+              : colors.border,
           width: entry.isCurrentUser ? 2 : 1,
         ),
       ),
@@ -32,18 +54,29 @@ class LeaderboardTile extends StatelessWidget {
         children: [
           SizedBox(
             width: 28,
-            child: Text('#${entry.rank}', style: context.appTextStyles.labelLarge),
+            child: Text(
+              '#${entry.rank}',
+              style: context.appTextStyles.labelLarge.copyWith(
+                color: rankColor,
+              ),
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           CircleAvatar(
             radius: 18,
             backgroundColor: colors.surfaceElevated,
-            child: Icon(AvatarCatalog.iconFor(entry.avatarId), size: 18, color: colors.primary),
+            child: Icon(
+              AvatarCatalog.iconFor(entry.avatarId),
+              size: 18,
+              color: colors.primary,
+            ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
-              entry.isCurrentUser ? '${entry.displayName} (You)' : entry.displayName,
+              entry.isCurrentUser
+                  ? '${entry.displayName} (You)'
+                  : entry.displayName,
               style: context.appTextStyles.bodyLarge,
               overflow: TextOverflow.ellipsis,
             ),

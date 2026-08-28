@@ -40,7 +40,9 @@ class SpinWheelController extends AsyncNotifier<bool> {
     final result = await ref.read(spinWheelRepositoryProvider).spin(user.id);
     final winner = segments.firstWhere((s) => s.id == result.segmentId);
 
-    await ref.read(walletControllerProvider.notifier).credit(
+    await ref
+        .read(walletControllerProvider.notifier)
+        .credit(
           currency: winner.currency,
           amount: winner.amount,
           reason: 'Spin wheel',
@@ -51,6 +53,5 @@ class SpinWheelController extends AsyncNotifier<bool> {
   }
 }
 
-final spinWheelControllerProvider = AsyncNotifierProvider<SpinWheelController, bool>(
-  SpinWheelController.new,
-);
+final spinWheelControllerProvider =
+    AsyncNotifierProvider<SpinWheelController, bool>(SpinWheelController.new);

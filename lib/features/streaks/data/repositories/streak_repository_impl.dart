@@ -11,5 +11,6 @@ class StreakRepositoryImpl implements StreakRepository {
   Future<Streak> getStreak(String userId) => _datasource.getStreak(userId);
 
   @override
-  Future<Streak> recordAppOpen(String userId) => _datasource.recordAppOpen(userId);
+  Future<Streak> recordAppOpen(String userId) =>
+      _datasource.recordAppOpen(userId);
 }

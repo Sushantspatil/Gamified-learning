@@ -28,7 +28,9 @@ class DailyRewardController extends AsyncNotifier<DailyReward?> {
 
     final streak = await ref.watch(streakControllerProvider.future);
     final cycleDay = streak.currentStreak < 1 ? 1 : streak.currentStreak;
-    return ref.watch(dailyRewardRepositoryProvider).getTodayReward(user.id, cycleDay);
+    return ref
+        .watch(dailyRewardRepositoryProvider)
+        .getTodayReward(user.id, cycleDay);
   }
 
   Future<void> claim() async {
@@ -40,12 +42,16 @@ class DailyRewardController extends AsyncNotifier<DailyReward?> {
 
     state = const AsyncValue<DailyReward?>.loading().copyWithPrevious(state);
     state = await AsyncValue.guard(
-      () => ref.read(dailyRewardRepositoryProvider).claimTodayReward(user.id, cycleDay),
+      () => ref
+          .read(dailyRewardRepositoryProvider)
+          .claimTodayReward(user.id, cycleDay),
     );
 
     final claimed = state.valueOrNull;
     if (claimed != null) {
-      await ref.read(walletControllerProvider.notifier).credit(
+      await ref
+          .read(walletControllerProvider.notifier)
+          .credit(
             currency: CurrencyType.coins,
             amount: claimed.coins,
             reason: 'Daily reward',
@@ -54,6 +60,7 @@ class DailyRewardController extends AsyncNotifier<DailyReward?> {
   }
 }
 
-final dailyRewardControllerProvider = AsyncNotifierProvider<DailyRewardController, DailyReward?>(
-  DailyRewardController.new,
-);
+final dailyRewardControllerProvider =
+    AsyncNotifierProvider<DailyRewardController, DailyReward?>(
+      DailyRewardController.new,
+    );

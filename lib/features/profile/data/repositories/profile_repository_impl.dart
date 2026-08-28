@@ -8,10 +8,14 @@ class ProfileRepositoryImpl implements ProfileRepository {
   ProfileRepositoryImpl(this._datasource);
 
   @override
-  Future<UserProfile> getProfile(String userId) => _datasource.getProfile(userId);
+  Future<UserProfile> getProfile(String userId) =>
+      _datasource.getProfile(userId);
 
   @override
-  Future<UserProfile> updateAvatar({required String userId, required String avatarId}) {
+  Future<UserProfile> updateAvatar({
+    required String userId,
+    required String avatarId,
+  }) {
     return _datasource.updateAvatar(userId: userId, avatarId: avatarId);
   }
 

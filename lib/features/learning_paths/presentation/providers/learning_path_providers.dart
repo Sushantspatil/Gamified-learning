@@ -30,7 +30,9 @@ final learningPathsProvider = FutureProvider<List<LearningPath>>((ref) {
 class SelectedLearningPathController extends AsyncNotifier<String?> {
   @override
   Future<String?> build() {
-    return ref.watch(learningPathRepositoryProvider).getSelectedLearningPathId();
+    return ref
+        .watch(learningPathRepositoryProvider)
+        .getSelectedLearningPathId();
   }
 
   Future<void> select(String id) async {
@@ -44,5 +46,5 @@ class SelectedLearningPathController extends AsyncNotifier<String?> {
 
 final selectedLearningPathControllerProvider =
     AsyncNotifierProvider<SelectedLearningPathController, String?>(
-  SelectedLearningPathController.new,
-);
+      SelectedLearningPathController.new,
+    );

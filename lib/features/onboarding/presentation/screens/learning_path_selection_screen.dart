@@ -12,10 +12,12 @@ class LearningPathSelectionScreen extends ConsumerStatefulWidget {
   const LearningPathSelectionScreen({super.key});
 
   @override
-  ConsumerState<LearningPathSelectionScreen> createState() => _LearningPathSelectionScreenState();
+  ConsumerState<LearningPathSelectionScreen> createState() =>
+      _LearningPathSelectionScreenState();
 }
 
-class _LearningPathSelectionScreenState extends ConsumerState<LearningPathSelectionScreen> {
+class _LearningPathSelectionScreenState
+    extends ConsumerState<LearningPathSelectionScreen> {
   String? _selectedId;
 
   @override
@@ -26,9 +28,9 @@ class _LearningPathSelectionScreenState extends ConsumerState<LearningPathSelect
 
     ref.listen(selectedLearningPathControllerProvider, (previous, next) {
       if (next.hasError && !next.isLoading) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.error.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.error.toString())));
       }
     });
 
@@ -46,7 +48,10 @@ class _LearningPathSelectionScreenState extends ConsumerState<LearningPathSelect
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Could not load learning paths.', style: context.appTextStyles.bodyLarge),
+                  Text(
+                    'Could not load learning paths.',
+                    style: context.appTextStyles.bodyLarge,
+                  ),
                   const SizedBox(height: AppSpacing.md),
                   AppButton(
                     label: 'Retry',
@@ -59,7 +64,10 @@ class _LearningPathSelectionScreenState extends ConsumerState<LearningPathSelect
           data: (paths) {
             if (paths.isEmpty) {
               return Center(
-                child: Text('No learning paths available yet.', style: context.appTextStyles.bodyLarge),
+                child: Text(
+                  'No learning paths available yet.',
+                  style: context.appTextStyles.bodyLarge,
+                ),
               );
             }
 
@@ -76,7 +84,8 @@ class _LearningPathSelectionScreenState extends ConsumerState<LearningPathSelect
                   child: ListView.separated(
                     padding: AppSpacing.horizontalMd,
                     itemCount: paths.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: AppSpacing.sm),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: AppSpacing.sm),
                     itemBuilder: (context, index) {
                       final path = paths[index];
                       return LearningPathCard(
@@ -95,8 +104,10 @@ class _LearningPathSelectionScreenState extends ConsumerState<LearningPathSelect
                     onPressed: _selectedId == null
                         ? null
                         : () => ref
-                            .read(selectedLearningPathControllerProvider.notifier)
-                            .select(_selectedId!),
+                              .read(
+                                selectedLearningPathControllerProvider.notifier,
+                              )
+                              .select(_selectedId!),
                   ),
                 ),
               ],

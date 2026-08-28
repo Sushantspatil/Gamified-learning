@@ -51,7 +51,10 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen> {
         child: segmentsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => Center(
-            child: Text('Could not load the spin wheel.', style: context.appTextStyles.bodyLarge),
+            child: Text(
+              'Could not load the spin wheel.',
+              style: context.appTextStyles.bodyLarge,
+            ),
           ),
           data: (segments) {
             SpinWheelSegment? winner;
@@ -72,7 +75,10 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen> {
                       height: 200,
                       width: 200,
                       child: CustomPaint(
-                        painter: SpinWheelPainter(segments: segments, highlightedSegmentId: winner?.id),
+                        painter: SpinWheelPainter(
+                          segments: segments,
+                          highlightedSegmentId: winner?.id,
+                        ),
                       ),
                     ),
                   ),
@@ -93,24 +99,35 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen> {
                           color: colors.cardBackground,
                           borderRadius: AppDimensions.radiusLg,
                           border: Border.all(
-                            color: winner?.id == segment.id ? colors.primary : colors.border,
+                            color: winner?.id == segment.id
+                                ? colors.primary
+                                : colors.border,
                             width: winner?.id == segment.id ? 2 : 1,
                           ),
                         ),
-                        child: Text(segment.label, style: context.appTextStyles.labelLarge),
+                        child: Text(
+                          segment.label,
+                          style: context.appTextStyles.labelLarge,
+                        ),
                       ),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 if (winner != null)
                   Center(
-                    child: Text('You won ${winner.label}!', style: context.appTextStyles.titleLarge),
+                    child: Text(
+                      'You won ${winner.label}!',
+                      style: context.appTextStyles.titleLarge,
+                    ),
                   ),
                 const SizedBox(height: AppSpacing.lg),
                 availableAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (error, stackTrace) =>
-                      Text('Could not check spin availability.', style: context.appTextStyles.bodyLarge),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stackTrace) => Text(
+                    'Could not check spin availability.',
+                    style: context.appTextStyles.bodyLarge,
+                  ),
                   data: (isAvailable) {
                     if (!isAvailable) {
                       return Center(
@@ -121,7 +138,11 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen> {
                         ),
                       );
                     }
-                    return AppButton(label: 'Spin', isLoading: _isSpinning, onPressed: _spin);
+                    return AppButton(
+                      label: 'Spin',
+                      isLoading: _isSpinning,
+                      onPressed: _spin,
+                    );
                   },
                 ),
               ],

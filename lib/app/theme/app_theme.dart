@@ -46,16 +46,16 @@ class AppTheme {
       textTheme: baseTextTheme,
       cardTheme: CardThemeData(
         color: colors.cardBackground,
-        elevation: brightness == Brightness.dark ? 0 : 1,
+        elevation: 0,
         shadowColor: colors.shadow,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: AppDimensions.radiusMd,
+          borderRadius: AppDimensions.radiusCard,
           side: BorderSide(color: colors.border),
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: colors.background,
+        backgroundColor: colors.background.withValues(alpha: 0.94),
         foregroundColor: colors.textPrimary,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -65,13 +65,33 @@ class AppTheme {
         ),
         iconTheme: IconThemeData(color: colors.textPrimary),
       ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: colors.primary,
+        unselectedLabelColor: colors.textSecondary,
+        dividerColor: colors.border,
+        indicatorColor: colors.primary,
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelStyle: AppTypography.button,
+        unselectedLabelStyle: AppTypography.button,
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: colors.primary,
           disabledBackgroundColor: colors.surfaceElevated,
           disabledForegroundColor: colors.textMuted,
           foregroundColor: colors.primaryForeground,
-          minimumSize: const Size.fromHeight(AppDimensions.buttonHeight),
+          minimumSize: const Size(0, AppDimensions.buttonHeight),
+          shape: RoundedRectangleBorder(borderRadius: AppDimensions.radiusMd),
+          textStyle: AppTypography.button,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: colors.primary,
+          disabledBackgroundColor: colors.surfaceElevated,
+          disabledForegroundColor: colors.textMuted,
+          foregroundColor: colors.primaryForeground,
+          minimumSize: const Size(0, AppDimensions.buttonHeight),
           shape: RoundedRectangleBorder(borderRadius: AppDimensions.radiusMd),
           textStyle: AppTypography.button,
         ),
@@ -131,6 +151,7 @@ class AppTheme {
       listTileTheme: ListTileThemeData(
         iconColor: colors.textSecondary,
         textColor: colors.textPrimary,
+        shape: RoundedRectangleBorder(borderRadius: AppDimensions.radiusMd),
       ),
       radioTheme: RadioThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {

@@ -31,12 +31,19 @@ class StreakTile extends ConsumerWidget {
             children: [
               Icon(Icons.local_fire_department, color: colors.textSecondary),
               const SizedBox(height: AppSpacing.xs),
-              Text('Streak', textAlign: TextAlign.center, style: context.appTextStyles.labelSmall),
+              Text(
+                'Streak',
+                textAlign: TextAlign.center,
+                style: context.appTextStyles.labelSmall,
+              ),
             ],
           ),
           data: (streak) => Column(
             children: [
-              const Icon(Icons.local_fire_department, color: AppColors.streakFire),
+              const Icon(
+                Icons.local_fire_department,
+                color: AppColors.streakFire,
+              ),
               const SizedBox(height: AppSpacing.xs),
               AnimatedCountText(
                 value: streak.currentStreak,
@@ -44,7 +51,11 @@ class StreakTile extends ConsumerWidget {
                 textAlign: TextAlign.center,
                 style: context.appTextStyles.labelLarge,
               ),
-              Text('Streak', textAlign: TextAlign.center, style: context.appTextStyles.labelSmall),
+              Text(
+                'Streak',
+                textAlign: TextAlign.center,
+                style: context.appTextStyles.labelSmall,
+              ),
             ],
           ),
         ),

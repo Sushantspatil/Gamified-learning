@@ -9,7 +9,8 @@ sealed class Answer extends Equatable {
 class McqAnswer extends Answer {
   final String selectedOptionId;
 
-  const McqAnswer({required String questionId, required this.selectedOptionId}) : super(questionId);
+  const McqAnswer({required String questionId, required this.selectedOptionId})
+    : super(questionId);
 
   @override
   List<Object?> get props => [questionId, selectedOptionId];
@@ -20,8 +21,10 @@ class McqAnswer extends Answer {
 class MatchTheFollowingAnswer extends Answer {
   final Map<String, String> matchedPairIds;
 
-  const MatchTheFollowingAnswer({required String questionId, required this.matchedPairIds})
-      : super(questionId);
+  const MatchTheFollowingAnswer({
+    required String questionId,
+    required this.matchedPairIds,
+  }) : super(questionId);
 
   @override
   List<Object?> get props => [questionId, matchedPairIds];
@@ -30,7 +33,8 @@ class MatchTheFollowingAnswer extends Answer {
 class SortAnswer extends Answer {
   final List<String> orderedItems;
 
-  const SortAnswer({required String questionId, required this.orderedItems}) : super(questionId);
+  const SortAnswer({required String questionId, required this.orderedItems})
+    : super(questionId);
 
   @override
   List<Object?> get props => [questionId, orderedItems];
@@ -39,8 +43,10 @@ class SortAnswer extends Answer {
 class SuddenDeathAnswer extends Answer {
   final String selectedOptionId;
 
-  const SuddenDeathAnswer({required String questionId, required this.selectedOptionId})
-      : super(questionId);
+  const SuddenDeathAnswer({
+    required String questionId,
+    required this.selectedOptionId,
+  }) : super(questionId);
 
   @override
   List<Object?> get props => [questionId, selectedOptionId];

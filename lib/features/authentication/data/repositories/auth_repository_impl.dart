@@ -19,7 +19,10 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AppUser> login({required String email, required String password}) async {
+  Future<AppUser> login({
+    required String email,
+    required String password,
+  }) async {
     final user = await _datasource.login(email: email, password: password);
     await _storage.setString(StorageKeys.currentUserId, user.id);
     return user;
@@ -49,7 +52,10 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<AppUser> updateDisplayName(String displayName) async {
     final id = _storage.getString(StorageKeys.currentUserId);
     if (id == null) {
-      throw const AuthException('No user is currently logged in.', 'no-current-user');
+      throw const AuthException(
+        'No user is currently logged in.',
+        'no-current-user',
+      );
     }
     return _datasource.updateDisplayName(userId: id, displayName: displayName);
   }

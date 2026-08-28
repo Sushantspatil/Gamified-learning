@@ -7,9 +7,14 @@ class SpinWheelSegment extends Equatable {
   final CurrencyType currency;
   final int amount;
 
-  const SpinWheelSegment({required this.id, required this.currency, required this.amount});
+  const SpinWheelSegment({
+    required this.id,
+    required this.currency,
+    required this.amount,
+  });
 
-  String get label => '$amount ${currency == CurrencyType.coins ? 'Coins' : 'Gems'}';
+  String get label =>
+      '$amount ${currency == CurrencyType.coins ? 'Coins' : 'Gems'}';
 
   @override
   List<Object?> get props => [id, currency, amount];

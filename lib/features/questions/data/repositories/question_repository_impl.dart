@@ -11,4 +11,12 @@ class QuestionRepositoryImpl implements QuestionRepository {
   Future<List<Question>> getQuestionsForTopic(String topicId) {
     return _datasource.getQuestionsForTopic(topicId);
   }
+
+  @override
+  Future<List<Question>> getQuestionsForTopicAndType(
+    String topicId,
+    QuestionType questionType,
+  ) {
+    return _datasource.getQuestionsForTopicAndType(topicId, questionType);
+  }
 }

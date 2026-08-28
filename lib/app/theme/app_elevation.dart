@@ -16,22 +16,22 @@ class AppElevation {
       1 => [
         BoxShadow(
           color: colors.shadow,
-          blurRadius: 8,
+          blurRadius: 6,
           offset: const Offset(0, 2),
         ),
       ],
       2 => [
         BoxShadow(
           color: colors.shadow.withValues(alpha: 0.12),
-          blurRadius: 12,
+          blurRadius: 10,
           offset: const Offset(0, 4),
         ),
       ],
       _ => [
         BoxShadow(
           color: colors.shadow.withValues(alpha: 0.16),
-          blurRadius: 20,
-          offset: const Offset(0, 10),
+          blurRadius: 14,
+          offset: const Offset(0, 8),
         ),
       ],
     };

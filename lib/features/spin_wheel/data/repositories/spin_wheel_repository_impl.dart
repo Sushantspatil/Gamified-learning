@@ -12,7 +12,8 @@ class SpinWheelRepositoryImpl implements SpinWheelRepository {
   Future<List<SpinWheelSegment>> getSegments() => _datasource.getSegments();
 
   @override
-  Future<bool> isSpinAvailable(String userId) => _datasource.isSpinAvailable(userId);
+  Future<bool> isSpinAvailable(String userId) =>
+      _datasource.isSpinAvailable(userId);
 
   @override
   Future<SpinResult> spin(String userId) => _datasource.spin(userId);

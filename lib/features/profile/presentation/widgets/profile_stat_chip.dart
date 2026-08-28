@@ -22,7 +22,10 @@ class ProfileStatChip extends StatelessWidget {
     final colors = context.themeColors;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: colors.surfaceElevated,
         borderRadius: AppDimensions.radiusLg,

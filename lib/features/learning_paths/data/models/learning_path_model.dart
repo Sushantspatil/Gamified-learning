@@ -9,19 +9,22 @@ class LearningPathModel extends LearningPath {
     required super.topicCount,
   });
 
-  factory LearningPathModel.fromJson(Map<String, dynamic> json) => LearningPathModel(
+  factory LearningPathModel.fromJson(Map<String, dynamic> json) =>
+      LearningPathModel(
         id: json['id'] as String,
         title: json['title'] as String,
         description: json['description'] as String,
-        difficulty: LearningPathDifficulty.values.byName(json['difficulty'] as String),
+        difficulty: LearningPathDifficulty.values.byName(
+          json['difficulty'] as String,
+        ),
         topicCount: json['topicCount'] as int,
       );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'description': description,
-        'difficulty': difficulty.name,
-        'topicCount': topicCount,
-      };
+    'id': id,
+    'title': title,
+    'description': description,
+    'difficulty': difficulty.name,
+    'topicCount': topicCount,
+  };
 }

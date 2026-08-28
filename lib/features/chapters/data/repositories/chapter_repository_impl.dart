@@ -9,11 +9,14 @@ class ChapterRepositoryImpl implements ChapterRepository {
   ChapterRepositoryImpl(this._datasource);
 
   @override
-  Future<List<Chapter>> getChapters(String learningPathId) => _datasource.getChapters(learningPathId);
+  Future<List<Chapter>> getChapters(String learningPathId) =>
+      _datasource.getChapters(learningPathId);
 
   @override
-  Future<Chapter?> getChapterById(String chapterId) => _datasource.getChapterById(chapterId);
+  Future<Chapter?> getChapterById(String chapterId) =>
+      _datasource.getChapterById(chapterId);
 
   @override
-  Future<List<Topic>> getTopics(String chapterId) => _datasource.getTopics(chapterId);
+  Future<List<Topic>> getTopics(String chapterId) =>
+      _datasource.getTopics(chapterId);
 }

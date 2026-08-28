@@ -12,7 +12,11 @@ class ChestResult extends Equatable {
   final CurrencyType currency;
   final int amount;
 
-  const ChestResult({required this.chestType, required this.currency, required this.amount});
+  const ChestResult({
+    required this.chestType,
+    required this.currency,
+    required this.amount,
+  });
 
   @override
   List<Object?> get props => [chestType, currency, amount];

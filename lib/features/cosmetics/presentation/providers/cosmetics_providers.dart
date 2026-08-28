@@ -16,7 +16,11 @@ class CosmeticsState {
   final Set<String> ownedIds;
   final String? equippedId;
 
-  const CosmeticsState({required this.catalog, required this.ownedIds, required this.equippedId});
+  const CosmeticsState({
+    required this.catalog,
+    required this.ownedIds,
+    required this.equippedId,
+  });
 }
 
 /// MOCK BINDING — swap for a Firestore-backed CosmeticsDatasource
@@ -37,26 +41,38 @@ class CosmeticsController extends AsyncNotifier<CosmeticsState> {
     final catalog = await repository.getCatalog();
 
     if (user == null) {
-      return CosmeticsState(catalog: catalog, ownedIds: const {}, equippedId: null);
+      return CosmeticsState(
+        catalog: catalog,
+        ownedIds: const {},
+        equippedId: null,
+      );
     }
 
     final owned = await repository.getOwnedCosmeticIds(user.id);
     final equipped = await repository.getEquippedCosmeticId(user.id);
-    return CosmeticsState(catalog: catalog, ownedIds: owned, equippedId: equipped);
+    return CosmeticsState(
+      catalog: catalog,
+      ownedIds: owned,
+      equippedId: equipped,
+    );
   }
 
   Future<CosmeticPurchaseResult> purchase(CosmeticItem item) async {
     final user = ref.read(authControllerProvider).valueOrNull;
     if (user == null) return CosmeticPurchaseResult.insufficientFunds;
 
-    final succeeded = await ref.read(walletControllerProvider.notifier).debit(
+    final succeeded = await ref
+        .read(walletControllerProvider.notifier)
+        .debit(
           currency: CurrencyType.coins,
           amount: item.costCoins,
           reason: 'Cosmetic: ${item.name}',
         );
     if (!succeeded) return CosmeticPurchaseResult.insufficientFunds;
 
-    await ref.read(cosmeticsRepositoryProvider).recordPurchase(user.id, item.id);
+    await ref
+        .read(cosmeticsRepositoryProvider)
+        .recordPurchase(user.id, item.id);
     ref.invalidateSelf();
     await future;
     return CosmeticPurchaseResult.success;
@@ -66,12 +82,15 @@ class CosmeticsController extends AsyncNotifier<CosmeticsState> {
     final user = ref.read(authControllerProvider).valueOrNull;
     if (user == null) return;
 
-    await ref.read(cosmeticsRepositoryProvider).setEquipped(user.id, cosmeticId);
+    await ref
+        .read(cosmeticsRepositoryProvider)
+        .setEquipped(user.id, cosmeticId);
     ref.invalidateSelf();
     await future;
   }
 }
 
-final cosmeticsControllerProvider = AsyncNotifierProvider<CosmeticsController, CosmeticsState>(
-  CosmeticsController.new,
-);
+final cosmeticsControllerProvider =
+    AsyncNotifierProvider<CosmeticsController, CosmeticsState>(
+      CosmeticsController.new,
+    );

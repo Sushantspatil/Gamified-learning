@@ -32,11 +32,19 @@ class ChapterSummaryScreen extends ConsumerWidget {
         child: chapterAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => Center(
-            child: Text('Could not load this chapter.', style: context.appTextStyles.bodyLarge),
+            child: Text(
+              'Could not load this chapter.',
+              style: context.appTextStyles.bodyLarge,
+            ),
           ),
           data: (chapter) {
             if (chapter == null) {
-              return Center(child: Text('Chapter not found.', style: context.appTextStyles.bodyLarge));
+              return Center(
+                child: Text(
+                  'Chapter not found.',
+                  style: context.appTextStyles.bodyLarge,
+                ),
+              );
             }
 
             return ListView(
@@ -44,24 +52,35 @@ class ChapterSummaryScreen extends ConsumerWidget {
               children: [
                 Text(chapter.title, style: context.appTextStyles.displayMedium),
                 const SizedBox(height: AppSpacing.sm),
-                Text(chapter.description, style: context.appTextStyles.bodyMedium),
+                Text(
+                  chapter.description,
+                  style: context.appTextStyles.bodyMedium,
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 Text('Topics', style: context.appTextStyles.titleMedium),
                 const SizedBox(height: AppSpacing.sm),
                 topicsAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (error, stackTrace) =>
-                      Text('Could not load topics.', style: context.appTextStyles.bodyMedium),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, stackTrace) => Text(
+                    'Could not load topics.',
+                    style: context.appTextStyles.bodyMedium,
+                  ),
                   data: (topics) {
                     if (topics.isEmpty) {
-                      return Text('No topics yet.', style: context.appTextStyles.bodyMedium);
+                      return Text(
+                        'No topics yet.',
+                        style: context.appTextStyles.bodyMedium,
+                      );
                     }
 
                     return Column(
                       children: [
                         for (final topic in topics)
                           Container(
-                            margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                            margin: const EdgeInsets.only(
+                              bottom: AppSpacing.sm,
+                            ),
                             padding: AppSpacing.paddingMd,
                             decoration: BoxDecoration(
                               color: colors.cardBackground,
@@ -71,14 +90,25 @@ class ChapterSummaryScreen extends ConsumerWidget {
                             child: Row(
                               children: [
                                 Icon(
-                                  topic.isCompleted ? Icons.check_circle : Icons.circle_outlined,
-                                  color: topic.isCompleted ? colors.success : colors.textSecondary,
+                                  topic.isCompleted
+                                      ? Icons.check_circle
+                                      : Icons.circle_outlined,
+                                  color: topic.isCompleted
+                                      ? colors.success
+                                      : colors.textSecondary,
                                 ),
                                 const SizedBox(width: AppSpacing.sm),
-                                Expanded(child: Text(topic.title, style: context.appTextStyles.bodyLarge)),
+                                Expanded(
+                                  child: Text(
+                                    topic.title,
+                                    style: context.appTextStyles.bodyLarge,
+                                  ),
+                                ),
                                 TextButton(
-                                  onPressed: () => context.push(RouteNames.quizPath(topic.id)),
-                                  child: const Text('Start Quiz'),
+                                  onPressed: () => context.push(
+                                    RouteNames.topicPath(chapterId, topic.id),
+                                  ),
+                                  child: const Text('Study'),
                                 ),
                               ],
                             ),

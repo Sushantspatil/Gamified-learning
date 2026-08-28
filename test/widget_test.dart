@@ -83,46 +83,47 @@ Future<void> _scrollDashboardToBottom(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// Navigates from the dashboard into the first topic's quiz and answers the
-/// MCQ, Match the Following, and Sort It Right questions, leaving the test
-/// positioned at question 4 of 4 (Sudden Death) so callers can exercise
-/// either the pass or fail path.
-Future<void> _startQuizAndAnswerFirstThreeQuestions(WidgetTester tester) async {
+Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
+  await tester.tap(find.byTooltip('Practice'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(modeLabel));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Web Development'));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('HTML Foundations'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Tags & Elements'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Start Quiz').first);
   await tester.pumpAndSettle();
+}
 
-  expect(find.text('Question 1 of 4'), findsOneWidget);
+Future<void> _startMcqQuiz(WidgetTester tester) async {
+  await _openPracticeMode(tester, 'MCQ Quiz');
+  expect(find.text('Question 1 of 1'), findsOneWidget);
+}
+
+Future<void> _startSuddenDeathQuiz(WidgetTester tester) async {
+  await _openPracticeMode(tester, 'Sudden Death');
+  expect(find.text('Sudden Death'), findsOneWidget);
+  expect(find.text('1 / 1'), findsOneWidget);
+  expect(find.text('15'), findsOneWidget);
+  expect(find.text('+5 SEC'), findsOneWidget);
+  expect(find.text('50:50'), findsOneWidget);
+  expect(find.text('Skip'), findsOneWidget);
+}
+
+Future<void> _startMatchQuiz(WidgetTester tester) async {
+  await _openPracticeMode(tester, 'Match the Following');
+  expect(find.byKey(const Key('match_it_view')), findsOneWidget);
+  expect(find.text('Match each concept'), findsOneWidget);
+}
+
+Future<void> _answerMcqCorrectly(WidgetTester tester) async {
   await tester.tap(find.text('Option B'));
   await tester.pump();
   await tester.tap(find.text('Submit'));
   await tester.pumpAndSettle();
-
-  expect(find.byKey(const Key('match_it_view')), findsOneWidget);
-  expect(find.text('Match each concept'), findsOneWidget);
-  await tester.tap(find.text('Term 1'));
-  await tester.pump();
-  await tester.tap(find.text('Definition 1'));
-  await tester.pump();
-  await tester.tap(find.text('Term 2'));
-  await tester.pump();
-  await tester.tap(find.text('Definition 2'));
-  await tester.pump();
-  await tester.tap(find.text('Term 3'));
-  await tester.pump();
-  await tester.tap(find.text('Definition 3'));
-  await tester.pump();
-  await tester.ensureVisible(find.text('Submit'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Submit'));
-  await tester.pumpAndSettle();
-
-  expect(find.text('Question 3 of 4'), findsOneWidget);
-  await tester.tap(find.text('Submit'));
-  await tester.pumpAndSettle();
-
-  expect(find.text('Question 4 of 4'), findsOneWidget);
 }
 
 void main() {
@@ -275,6 +276,8 @@ void main() {
     await tester.tap(find.byKey(const Key('compact_profile_header')));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(find.text('Cosmetics'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Cosmetics'));
     await tester.pumpAndSettle();
 
@@ -311,13 +314,17 @@ void main() {
     await _signUp(tester);
     await _completeOnboarding(tester);
 
-    await tester.tap(find.byTooltip('Leaderboard'));
+    await tester.tap(find.byTooltip('Rank'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Filters'), findsOneWidget);
+
+    await tester.dragFrom(const Offset(200, 400), const Offset(0, -400));
+    await tester.pumpAndSettle();
     expect(find.text('Grace H.'), findsOneWidget);
 
     // Ada starts at 0 XP, so she sorts to the bottom of the list.
-    await tester.dragFrom(const Offset(200, 400), const Offset(0, -400));
+    await tester.dragFrom(const Offset(200, 400), const Offset(0, -500));
     await tester.pumpAndSettle();
     expect(find.text('Ada (You)'), findsOneWidget);
 
@@ -349,9 +356,7 @@ void main() {
 
       expect(find.text('Claimed'), findsOneWidget);
 
-      await tester.dragFrom(const Offset(200, 300), const Offset(0, 900));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('compact_profile_header')));
+      await tester.tap(find.byTooltip('Profile'));
       await tester.pumpAndSettle();
 
       expect(find.text('10 Coins'), findsOneWidget);
@@ -370,55 +375,40 @@ void main() {
     expect(find.text('Tags & Elements'), findsOneWidget);
   });
 
-  testWidgets(
-    'completing a quiz with all correct answers shows Quiz Complete',
-    (tester) async {
-      await _pumpApp(tester);
-      await _signUp(tester);
-      await _completeOnboarding(tester);
-      await _startQuizAndAnswerFirstThreeQuestions(tester);
+  testWidgets('practice hub exposes the four quiz modes and opens Match It', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
 
-      await tester.tap(find.text('Choice X'));
-      await tester.pump();
-      await tester.tap(find.text('Submit'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Practice'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Quiz Complete!'), findsOneWidget);
-      // MCQ 10 + Match 15 (all correct) + Sort 0 (submitted unreordered) +
-      // Sudden Death 20 = 45 points -> 45 XP, round(45/2) = 23 coins.
-      expect(find.text('+45 XP'), findsOneWidget);
-      expect(find.text('+23 Coins'), findsOneWidget);
+    expect(find.text('MCQ Quiz'), findsOneWidget);
+    expect(find.text('Match the Following'), findsOneWidget);
+    expect(find.text('Sudden Death'), findsOneWidget);
+    expect(find.text('Sort It Out'), findsOneWidget);
 
-      await tester.tap(find.text('Done'));
-      await tester.pumpAndSettle();
+    await _startMatchQuiz(tester);
+  });
 
-      expect(find.text('Chapter Summary'), findsOneWidget);
+  testWidgets('completing an MCQ quiz shows Quiz Complete', (tester) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
+    await _startMcqQuiz(tester);
+    await _answerMcqCorrectly(tester);
 
-      await tester.pageBack();
-      await tester.pumpAndSettle();
+    expect(find.text('Quiz Complete!'), findsOneWidget);
+    expect(find.text('+10 XP'), findsOneWidget);
+    expect(find.text('+5 Coins'), findsOneWidget);
 
-      expect(
-        find.text('1 of 1'),
-        findsOneWidget,
-      ); // "Complete 1 quiz today" mission now done
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
 
-      await tester.dragFrom(const Offset(200, 300), const Offset(0, 900));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('compact_profile_header')));
-      await tester.pumpAndSettle();
-
-      // 23 coins from the quiz reward + 20 from the "Complete 1 quiz today"
-      // mission, which this first quiz of the day also completes.
-      expect(find.text('43 Coins'), findsOneWidget);
-      expect(find.text('Level 1 • 45 XP'), findsOneWidget);
-
-      await tester.tap(find.text('43 Coins'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Quiz reward'), findsOneWidget);
-      expect(find.textContaining('Mission:'), findsOneWidget);
-    },
-  );
+    expect(find.text('Start Quiz'), findsOneWidget);
+  });
 
   testWidgets('a wrong Sudden Death answer ends the quiz early', (
     tester,
@@ -426,11 +416,25 @@ void main() {
     await _pumpApp(tester);
     await _signUp(tester);
     await _completeOnboarding(tester);
-    await _startQuizAndAnswerFirstThreeQuestions(tester);
+    await _startSuddenDeathQuiz(tester);
 
+    await tester.ensureVisible(find.text('Choice Y'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Choice Y'));
     await tester.pump();
     await tester.tap(find.text('Submit'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sudden Death — Quiz Ended'), findsOneWidget);
+  });
+
+  testWidgets('Sudden Death timer expiry ends the quiz early', (tester) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
+    await _startSuddenDeathQuiz(tester);
+
+    await tester.pump(const Duration(seconds: 15));
     await tester.pumpAndSettle();
 
     expect(find.text('Sudden Death — Quiz Ended'), findsOneWidget);
