@@ -75,6 +75,7 @@ class QuestionMockDatasource implements QuestionDatasource {
           'Salary Paid',
           'Discount Allowed',
           'Cash Received',
+          'Sales Revenue',
         ],
       ),
       SuddenDeathQuestion(

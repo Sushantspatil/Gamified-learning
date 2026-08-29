@@ -444,6 +444,7 @@ void main() {
     await _swipeCurrentSortCard(tester, const Offset(-220, 0));
     await _swipeCurrentSortCard(tester, const Offset(-220, 0));
     await _swipeCurrentSortCard(tester, const Offset(220, 0));
+    await _swipeCurrentSortCard(tester, const Offset(220, 0));
     await tester.tap(find.text('Submit Sort'));
     await tester.pumpAndSettle();
 
