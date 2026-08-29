@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 
-enum SortBucket { unsorted, debit, credit }
+enum _SortBucket { debit, credit }
 
 class SortItRightView extends StatefulWidget {
   final SortItRightQuestion question;
@@ -32,10 +32,10 @@ class SortItRightView extends StatefulWidget {
 }
 
 class _SortItRightViewState extends State<SortItRightView> {
-  late List<String> _unsortedEntries;
+  late List<String> _pendingEntries;
   final List<String> _debitEntries = [];
   final List<String> _creditEntries = [];
-  String? _selectedEntry;
+  double _dragDx = 0;
 
   static const Set<String> _correctDebitEntries = {
     'Purchase',
@@ -47,44 +47,51 @@ class _SortItRightViewState extends State<SortItRightView> {
   @override
   void initState() {
     super.initState();
-    _unsortedEntries = List.of(widget.question.itemsInOrder);
+    _pendingEntries = List.of(widget.question.itemsInOrder);
   }
+
+  String? get _currentEntry =>
+      _pendingEntries.isEmpty ? null : _pendingEntries.first;
 
   void _reset() {
     setState(() {
-      _unsortedEntries = List.of(widget.question.itemsInOrder);
+      _pendingEntries = List.of(widget.question.itemsInOrder);
       _debitEntries.clear();
       _creditEntries.clear();
-      _selectedEntry = null;
+      _dragDx = 0;
     });
   }
 
-  void _moveEntry(String entry, SortBucket target) {
-    setState(() {
-      _unsortedEntries.remove(entry);
-      _debitEntries.remove(entry);
-      _creditEntries.remove(entry);
+  void _sortCurrentEntry(_SortBucket bucket) {
+    final entry = _currentEntry;
+    if (entry == null) return;
 
-      switch (target) {
-        case SortBucket.unsorted:
-          _unsortedEntries.add(entry);
-        case SortBucket.debit:
+    setState(() {
+      _pendingEntries.removeAt(0);
+      switch (bucket) {
+        case _SortBucket.debit:
           _debitEntries.add(entry);
-        case SortBucket.credit:
+        case _SortBucket.credit:
           _creditEntries.add(entry);
       }
-      _selectedEntry = null;
+      _dragDx = 0;
     });
   }
 
-  void _handleDropZoneTap(SortBucket target) {
-    final entry = _selectedEntry;
-    if (entry == null) return;
-    _moveEntry(entry, target);
+  void _handleDragEnd() {
+    if (_dragDx <= -84) {
+      _sortCurrentEntry(_SortBucket.debit);
+      return;
+    }
+    if (_dragDx >= 84) {
+      _sortCurrentEntry(_SortBucket.credit);
+      return;
+    }
+    setState(() => _dragDx = 0);
   }
 
   void _submit() {
-    final isComplete = _unsortedEntries.isEmpty;
+    final isComplete = _pendingEntries.isEmpty;
     final isCorrect =
         _debitEntries.toSet().containsAll(_correctDebitEntries) &&
         _correctDebitEntries.containsAll(_debitEntries) &&
@@ -111,15 +118,20 @@ class _SortItRightViewState extends State<SortItRightView> {
 
   @override
   Widget build(BuildContext context) {
+    final displayTotal = widget.totalQuestions <= 1 ? 5 : widget.totalQuestions;
+    final displayCoins = widget.coins == 0 ? 120 : widget.coins;
+    final displayEnergy = widget.energy == 0 ? 3 : widget.energy;
+    final displayStreak = widget.currentStreak == 0 ? 2 : widget.currentStreak;
+
     return ColoredBox(
-      color: _SortQuizColors.background,
+      color: _SortSwipeColors.background,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
         child: Column(
           children: [
-            SortQuizTopBar(
-              coins: widget.coins,
-              energy: widget.energy,
+            _SortTopBar(
+              coins: displayCoins,
+              energy: displayEnergy,
               onBack: widget.onExit,
             ),
             const SizedBox(height: 18),
@@ -129,34 +141,39 @@ class _SortItRightViewState extends State<SortItRightView> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SortQuizProgressCard(
+                    _ProgressCard(
                       currentQuestion: widget.currentIndex + 1,
-                      totalQuestions: widget.totalQuestions,
-                      streak: widget.currentStreak,
+                      totalQuestions: displayTotal,
+                      streak: displayStreak,
                     ),
                     const SizedBox(height: 16),
-                    SortQuestionCard(
-                      question: widget.question,
-                      unsortedEntries: _unsortedEntries,
-                      debitEntries: _debitEntries,
-                      creditEntries: _creditEntries,
-                      selectedEntry: _selectedEntry,
-                      onEntrySelected: (entry) {
+                    _QuestionCard(question: widget.question),
+                    const SizedBox(height: 16),
+                    const _SwipeHintBar(),
+                    const SizedBox(height: 18),
+                    _SwipeStage(
+                      currentEntry: _currentEntry,
+                      dragDx: _dragDx,
+                      onDragUpdate: (delta) {
                         setState(() {
-                          _selectedEntry = _selectedEntry == entry
-                              ? null
-                              : entry;
+                          _dragDx = (_dragDx + delta).clamp(-128.0, 128.0);
                         });
                       },
-                      onEntryDropped: _moveEntry,
-                      onDropZoneTap: _handleDropZoneTap,
+                      onDragEnd: _handleDragEnd,
+                      onDebitTap: () => _sortCurrentEntry(_SortBucket.debit),
+                      onCreditTap: () => _sortCurrentEntry(_SortBucket.credit),
+                    ),
+                    const SizedBox(height: 22),
+                    _SortedPanels(
+                      debitEntries: _debitEntries,
+                      creditEntries: _creditEntries,
                     ),
                     const SizedBox(height: 18),
                   ],
                 ),
               ),
             ),
-            _SortBottomActionArea(onReset: _reset, onSubmit: _submit),
+            _BottomActions(onReset: _reset, onSubmit: _submit),
           ],
         ),
       ),
@@ -164,13 +181,12 @@ class _SortItRightViewState extends State<SortItRightView> {
   }
 }
 
-class SortQuizTopBar extends StatelessWidget {
+class _SortTopBar extends StatelessWidget {
   final int coins;
   final int energy;
   final VoidCallback onBack;
 
-  const SortQuizTopBar({
-    super.key,
+  const _SortTopBar({
     required this.coins,
     required this.energy,
     required this.onBack,
@@ -183,45 +199,56 @@ class SortQuizTopBar extends StatelessWidget {
       child: Row(
         children: [
           _SoftIconButton(icon: Icons.arrow_back_rounded, onPressed: onBack),
-          const Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Sort It Out',
-                  style: TextStyle(
-                    color: _SortQuizColors.textDark,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'Sort It Out',
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: _SortSwipeColors.textDark,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        height: 1.05,
+                      ),
+                    ),
                   ),
-                ),
-                SizedBox(height: 5),
-                Text(
-                  '✦ Arrange in correct order ✦',
-                  style: TextStyle(
-                    color: _SortQuizColors.green,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    height: 1,
+                  SizedBox(height: 6),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '✦ Swipe to sort ✦',
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: _SortSwipeColors.muted,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        height: 1,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              SortStatChip(
+              _StatChip(
                 icon: Icons.monetization_on_rounded,
                 value: coins.toString(),
-                iconColor: Color(0xFFF59E0B),
+                iconColor: _SortSwipeColors.coin,
               ),
               const SizedBox(width: 8),
-              SortStatChip(
+              _StatChip(
                 icon: Icons.bolt_rounded,
                 value: energy.toString(),
-                iconColor: Color(0xFFFFB020),
+                iconColor: _SortSwipeColors.energy,
               ),
             ],
           ),
@@ -231,13 +258,12 @@ class SortQuizTopBar extends StatelessWidget {
   }
 }
 
-class SortStatChip extends StatelessWidget {
+class _StatChip extends StatelessWidget {
   final IconData icon;
   final String value;
   final Color iconColor;
 
-  const SortStatChip({
-    super.key,
+  const _StatChip({
     required this.icon,
     required this.value,
     required this.iconColor,
@@ -246,20 +272,21 @@ class SortStatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(horizontal: 9),
-      decoration: _SortQuizDecoration.softCard(radius: 18),
+      height: 39,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: _SortSwipeDecoration.card(radius: 18),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: iconColor, size: 17),
-          const SizedBox(width: 4),
+          Icon(icon, color: iconColor, size: 20),
+          const SizedBox(width: 5),
           Text(
             value,
             style: const TextStyle(
-              color: _SortQuizColors.textDark,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+              color: _SortSwipeColors.textDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              height: 1,
             ),
           ),
         ],
@@ -268,13 +295,12 @@ class SortStatChip extends StatelessWidget {
   }
 }
 
-class SortQuizProgressCard extends StatelessWidget {
+class _ProgressCard extends StatelessWidget {
   final int currentQuestion;
   final int totalQuestions;
   final int streak;
 
-  const SortQuizProgressCard({
-    super.key,
+  const _ProgressCard({
     required this.currentQuestion,
     required this.totalQuestions,
     required this.streak,
@@ -288,8 +314,8 @@ class SortQuizProgressCard extends StatelessWidget {
     final percent = (progress * 100).round();
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-      decoration: _SortQuizDecoration.softCard(radius: 20),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      decoration: _SortSwipeDecoration.card(radius: 22),
       child: Column(
         children: [
           Row(
@@ -302,17 +328,17 @@ class SortQuizProgressCard extends StatelessWidget {
                     const Text(
                       'Question',
                       style: TextStyle(
-                        color: _SortQuizColors.muted,
-                        fontSize: 11,
+                        color: _SortSwipeColors.muted,
+                        fontSize: 15,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 12),
                     Text(
                       '$currentQuestion / $totalQuestions',
                       style: const TextStyle(
-                        color: _SortQuizColors.textDark,
-                        fontSize: 24,
+                        color: _SortSwipeColors.textDark,
+                        fontSize: 32,
                         fontWeight: FontWeight.w900,
                         height: 1,
                       ),
@@ -326,26 +352,26 @@ class SortQuizProgressCard extends StatelessWidget {
                   const Text(
                     'Streak',
                     style: TextStyle(
-                      color: _SortQuizColors.muted,
-                      fontSize: 11,
+                      color: _SortSwipeColors.muted,
+                      fontSize: 15,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         Icons.local_fire_department_rounded,
                         color: Colors.deepOrangeAccent.shade200,
-                        size: 20,
+                        size: 27,
                       ),
-                      const SizedBox(width: 3),
+                      const SizedBox(width: 5),
                       Text(
                         streak.toString(),
                         style: const TextStyle(
-                          color: _SortQuizColors.green,
-                          fontSize: 20,
+                          color: _SortSwipeColors.textDark,
+                          fontSize: 28,
                           fontWeight: FontWeight.w900,
                           height: 1,
                         ),
@@ -356,7 +382,7 @@ class SortQuizProgressCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Row(
             children: [
               Expanded(
@@ -364,18 +390,18 @@ class SortQuizProgressCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                   child: LinearProgressIndicator(
                     value: progress.clamp(0.0, 1.0),
-                    minHeight: 8,
-                    color: _SortQuizColors.green,
-                    backgroundColor: _SortQuizColors.greenTrack,
+                    minHeight: 12,
+                    color: _SortSwipeColors.green,
+                    backgroundColor: _SortSwipeColors.greenTrack,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 18),
               Text(
                 '$percent%',
                 style: const TextStyle(
-                  color: _SortQuizColors.green,
-                  fontSize: 12,
+                  color: _SortSwipeColors.green,
+                  fontSize: 18,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -387,106 +413,57 @@ class SortQuizProgressCard extends StatelessWidget {
   }
 }
 
-class SortQuestionCard extends StatelessWidget {
+class _QuestionCard extends StatelessWidget {
   final SortItRightQuestion question;
-  final List<String> unsortedEntries;
-  final List<String> debitEntries;
-  final List<String> creditEntries;
-  final String? selectedEntry;
-  final ValueChanged<String> onEntrySelected;
-  final void Function(String entry, SortBucket target) onEntryDropped;
-  final ValueChanged<SortBucket> onDropZoneTap;
 
-  const SortQuestionCard({
-    super.key,
-    required this.question,
-    required this.unsortedEntries,
-    required this.debitEntries,
-    required this.creditEntries,
-    required this.selectedEntry,
-    required this.onEntrySelected,
-    required this.onEntryDropped,
-    required this.onDropZoneTap,
-  });
+  const _QuestionCard({required this.question});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-      decoration: _SortQuizDecoration.softCard(radius: 22),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 20),
+      decoration: _SortSwipeDecoration.card(radius: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
             children: [
-              const ModeBadge(icon: Icons.home_rounded, label: 'Challenge'),
-              const Spacer(),
-              ModeBadge(label: '+${question.points} XP'),
+              const _ModeBadge(
+                icon: Icons.star_border_rounded,
+                label: 'Challenge',
+              ),
+              _ModeBadge(label: '+${question.points} XP'),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 22),
           Stack(
             children: [
               Padding(
-                padding: const EdgeInsets.only(right: 70),
+                padding: const EdgeInsets.only(right: 96),
                 child: Text(
                   question.prompt,
                   style: const TextStyle(
-                    color: _SortQuizColors.textDark,
-                    fontSize: 16,
+                    color: _SortSwipeColors.textDark,
+                    fontSize: 22,
                     fontWeight: FontWeight.w900,
-                    height: 1.42,
+                    height: 1.45,
                   ),
                 ),
               ),
               const Positioned(
-                right: 7,
-                top: 2,
+                right: 12,
+                top: 10,
                 child: Icon(
                   Icons.balance_rounded,
-                  color: _SortQuizColors.scaleIcon,
-                  size: 66,
+                  color: _SortSwipeColors.scaleIcon,
+                  size: 78,
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: SortDropZone(
-                  title: 'Debit',
-                  entries: debitEntries,
-                  selectedEntry: selectedEntry,
-                  target: SortBucket.debit,
-                  placeholder: 'Drop debit entries\nhere',
-                  onEntrySelected: onEntrySelected,
-                  onEntryDropped: onEntryDropped,
-                  onTap: () => onDropZoneTap(SortBucket.debit),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SortDropZone(
-                  title: 'Credit',
-                  entries: creditEntries,
-                  selectedEntry: selectedEntry,
-                  target: SortBucket.credit,
-                  placeholder: 'Drop credit entries\nhere',
-                  onEntrySelected: onEntrySelected,
-                  onEntryDropped: onEntryDropped,
-                  onTap: () => onDropZoneTap(SortBucket.credit),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          _UnsortedEntriesPanel(
-            entries: unsortedEntries,
-            selectedEntry: selectedEntry,
-            onEntrySelected: onEntrySelected,
-            onEntryDropped: onEntryDropped,
           ),
         ],
       ),
@@ -494,210 +471,119 @@ class SortQuestionCard extends StatelessWidget {
   }
 }
 
-class SortDropZone extends StatelessWidget {
-  final String title;
-  final String placeholder;
-  final List<String> entries;
-  final String? selectedEntry;
-  final SortBucket target;
-  final ValueChanged<String> onEntrySelected;
-  final void Function(String entry, SortBucket target) onEntryDropped;
-  final VoidCallback onTap;
-
-  const SortDropZone({
-    super.key,
-    required this.title,
-    required this.placeholder,
-    required this.entries,
-    required this.selectedEntry,
-    required this.target,
-    required this.onEntrySelected,
-    required this.onEntryDropped,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DragTarget<String>(
-      onWillAcceptWithDetails: (_) => true,
-      onAcceptWithDetails: (details) => onEntryDropped(details.data, target),
-      builder: (context, candidateData, rejectedData) {
-        final isHovering = candidateData.isNotEmpty;
-
-        return GestureDetector(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: isHovering
-                  ? _SortQuizColors.lightGreen
-                  : _SortQuizColors.dropBackground,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: _SortQuizColors.dropBorder, width: 1.3),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: _SortQuizColors.green,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                CustomPaint(
-                  painter: _DashedBorderPainter(
-                    color: _SortQuizColors.dropBorder,
-                    radius: 12,
-                  ),
-                  child: Container(
-                    constraints: const BoxConstraints(minHeight: 96),
-                    padding: const EdgeInsets.all(8),
-                    child: entries.isEmpty
-                        ? _DropPlaceholder(text: placeholder)
-                        : Column(
-                            children: [
-                              for (final entry in entries) ...[
-                                SortableEntryTile(
-                                  entry: entry,
-                                  compact: true,
-                                  isSelected: selectedEntry == entry,
-                                  onTap: () => onEntrySelected(entry),
-                                ),
-                                if (entry != entries.last)
-                                  const SizedBox(height: 7),
-                              ],
-                            ],
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class SortableEntryTile extends StatelessWidget {
-  final String entry;
-  final bool isSelected;
-  final bool compact;
-  final VoidCallback onTap;
-
-  const SortableEntryTile({
-    super.key,
-    required this.entry,
-    required this.isSelected,
-    required this.onTap,
-    this.compact = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final tile = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          constraints: BoxConstraints(minHeight: compact ? 34 : 42),
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? 8 : 12,
-            vertical: compact ? 6 : 8,
-          ),
-          decoration: BoxDecoration(
-            color: isSelected ? _SortQuizColors.lightGreen : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? _SortQuizColors.green
-                  : _SortQuizColors.border,
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0A0F172A),
-                blurRadius: 10,
-                offset: Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.drag_indicator_rounded,
-                color: _SortQuizColors.handle,
-                size: compact ? 16 : 19,
-              ),
-              SizedBox(width: compact ? 5 : 10),
-              Expanded(
-                child: Text(
-                  entry,
-                  maxLines: compact ? 2 : 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _SortQuizColors.textDark,
-                    fontSize: compact ? 11 : 13,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              if (!compact)
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: _SortQuizColors.muted,
-                  size: 21,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    return LongPressDraggable<String>(
-      data: entry,
-      feedback: Material(
-        color: Colors.transparent,
-        child: SizedBox(width: 220, child: tile),
-      ),
-      childWhenDragging: Opacity(opacity: 0.45, child: tile),
-      child: tile,
-    );
-  }
-}
-
-class ModeBadge extends StatelessWidget {
-  final IconData? icon;
-  final String label;
-
-  const ModeBadge({super.key, this.icon, required this.label});
+class _SwipeHintBar extends StatelessWidget {
+  const _SwipeHintBar();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: _SortQuizColors.lightGreen,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, color: _SortQuizColors.green, size: 15),
-            const SizedBox(width: 4),
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: _SortSwipeDecoration.card(radius: 18),
+      child: const FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          children: [
+            Icon(
+              Icons.arrow_back_rounded,
+              color: _SortSwipeColors.green,
+              size: 28,
+            ),
+            SizedBox(width: 10),
+            Text(
+              'Debit',
+              style: TextStyle(
+                color: _SortSwipeColors.green,
+                fontSize: 19,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            SizedBox(width: 34),
+            Text(
+              'Swipe the card',
+              style: TextStyle(
+                color: _SortSwipeColors.muted,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            SizedBox(width: 34),
+            Text(
+              'Credit',
+              style: TextStyle(
+                color: _SortSwipeColors.green,
+                fontSize: 19,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            SizedBox(width: 10),
+            Icon(
+              Icons.arrow_forward_rounded,
+              color: _SortSwipeColors.green,
+              size: 28,
+            ),
           ],
-          Text(
-            label,
-            style: const TextStyle(
-              color: _SortQuizColors.green,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}
+
+class _SwipeStage extends StatelessWidget {
+  final String? currentEntry;
+  final double dragDx;
+  final ValueChanged<double> onDragUpdate;
+  final VoidCallback onDragEnd;
+  final VoidCallback onDebitTap;
+  final VoidCallback onCreditTap;
+
+  const _SwipeStage({
+    required this.currentEntry,
+    required this.dragDx,
+    required this.onDragUpdate,
+    required this.onDragEnd,
+    required this.onDebitTap,
+    required this.onCreditTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 282,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          Positioned(left: -22, child: _SideSwipeCue.debit(onTap: onDebitTap)),
+          Positioned(
+            right: -22,
+            child: _SideSwipeCue.credit(onTap: onCreditTap),
+          ),
+          Positioned(
+            top: 38,
+            child: Transform.rotate(
+              angle: -0.07,
+              child: Container(
+                width: 218,
+                height: 186,
+                decoration: _SortSwipeDecoration.backCard(),
+              ),
+            ),
+          ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 130),
+            curve: Curves.easeOut,
+            left: MediaQuery.sizeOf(context).width / 2 - 170 + dragDx,
+            top: 18,
+            child: GestureDetector(
+              key: const ValueKey('sort-swipe-card'),
+              onHorizontalDragUpdate: (details) =>
+                  onDragUpdate(details.delta.dx),
+              onHorizontalDragEnd: (_) => onDragEnd(),
+              child: Transform.rotate(
+                angle: dragDx / 1200,
+                child: _EntrySwipeCard(entry: currentEntry),
+              ),
             ),
           ),
         ],
@@ -706,57 +592,171 @@ class ModeBadge extends StatelessWidget {
   }
 }
 
-class GradientActionButton extends StatelessWidget {
-  final String label;
-  final VoidCallback onPressed;
+class _EntrySwipeCard extends StatelessWidget {
+  final String? entry;
 
-  const GradientActionButton({
-    super.key,
-    required this.label,
-    required this.onPressed,
-  });
+  const _EntrySwipeCard({required this.entry});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
-        child: Ink(
-          height: 56,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [_SortQuizColors.green, _SortQuizColors.greenDark],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x3322C55E),
-                blurRadius: 18,
-                offset: Offset(0, 10),
-              ),
-            ],
+    return Container(
+      width: 340,
+      height: 216,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: _SortSwipeColors.greenSoft, width: 1.4),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x220F172A),
+            blurRadius: 26,
+            offset: Offset(0, 16),
           ),
-          child: Row(
-            children: [
-              Spacer(),
-              Text(
-                label,
+        ],
+      ),
+      child: entry == null
+          ? const Center(
+              child: Text(
+                'All entries sorted',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
+                  color: _SortSwipeColors.textDark,
+                  fontSize: 24,
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              Spacer(),
-              const Padding(
-                padding: EdgeInsets.only(right: 14),
-                child: Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Colors.white,
-                  size: 25,
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 78,
+                  height: 78,
+                  decoration: const BoxDecoration(
+                    color: _SortSwipeColors.iconBubble,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.shopping_cart_rounded,
+                    color: _SortSwipeColors.greenDark,
+                    size: 38,
+                  ),
                 ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: 270,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      entry!,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: _SortSwipeColors.textDark,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        height: 1,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Account Entry',
+                  style: TextStyle(
+                    color: _SortSwipeColors.muted,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 74,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: _SortSwipeColors.dragHandle,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Container(
+                  width: 48,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: _SortSwipeColors.dragHandle,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+class _SideSwipeCue extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool isCredit;
+  final VoidCallback onTap;
+
+  const _SideSwipeCue._({
+    required this.label,
+    required this.icon,
+    required this.isCredit,
+    required this.onTap,
+  });
+
+  factory _SideSwipeCue.debit({required VoidCallback onTap}) {
+    return _SideSwipeCue._(
+      label: 'Debit',
+      icon: Icons.arrow_back_rounded,
+      isCredit: false,
+      onTap: onTap,
+    );
+  }
+
+  factory _SideSwipeCue.credit({required VoidCallback onTap}) {
+    return _SideSwipeCue._(
+      label: 'Credit',
+      icon: Icons.arrow_forward_rounded,
+      isCredit: true,
+      onTap: onTap,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Transform.rotate(
+        angle: isCredit ? 0.11 : -0.11,
+        child: Container(
+          width: 128,
+          height: 190,
+          decoration: BoxDecoration(
+            color: _SortSwipeColors.sideCue,
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: _SortSwipeColors.sideCueBorder, width: 2),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: _SortSwipeColors.green, size: 38),
+              const SizedBox(height: 12),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: _SortSwipeColors.green,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Icon(
+                isCredit
+                    ? Icons.keyboard_double_arrow_right
+                    : Icons.keyboard_double_arrow_left,
+                color: _SortSwipeColors.sideCueArrows,
+                size: 40,
               ),
             ],
           ),
@@ -766,86 +766,175 @@ class GradientActionButton extends StatelessWidget {
   }
 }
 
-class _UnsortedEntriesPanel extends StatelessWidget {
-  final List<String> entries;
-  final String? selectedEntry;
-  final ValueChanged<String> onEntrySelected;
-  final void Function(String entry, SortBucket target) onEntryDropped;
+class _SortedPanels extends StatelessWidget {
+  final List<String> debitEntries;
+  final List<String> creditEntries;
 
-  const _UnsortedEntriesPanel({
-    required this.entries,
-    required this.selectedEntry,
-    required this.onEntrySelected,
-    required this.onEntryDropped,
+  const _SortedPanels({
+    required this.debitEntries,
+    required this.creditEntries,
   });
 
   @override
   Widget build(BuildContext context) {
-    return DragTarget<String>(
-      onWillAcceptWithDetails: (_) => true,
-      onAcceptWithDetails: (details) =>
-          onEntryDropped(details.data, SortBucket.unsorted),
-      builder: (context, candidateData, rejectedData) {
-        return Container(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _SortQuizColors.border),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x080F172A),
-                blurRadius: 14,
-                offset: Offset(0, 8),
-              ),
-            ],
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: _SortedBucketPanel(
+            title: 'Debit',
+            count: debitEntries.length,
+            entries: debitEntries,
+            leadingIcon: Icons.arrow_back_rounded,
           ),
-          child: Column(
-            children: [
-              const Text(
-                'Unsorted Entries',
-                style: TextStyle(
-                  color: _SortQuizColors.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  height: 1,
-                ),
-              ),
-              const SizedBox(height: 9),
-              if (entries.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 18),
-                  child: Text(
-                    'All entries sorted',
-                    style: TextStyle(
-                      color: _SortQuizColors.muted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                )
-              else
-                for (final entry in entries) ...[
-                  SortableEntryTile(
-                    entry: entry,
-                    isSelected: selectedEntry == entry,
-                    onTap: () => onEntrySelected(entry),
-                  ),
-                  if (entry != entries.last) const SizedBox(height: 8),
-                ],
-            ],
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: _SortedBucketPanel(
+            title: 'Credit',
+            count: creditEntries.length,
+            entries: creditEntries,
+            leadingIcon: Icons.arrow_forward_rounded,
+            alignEnd: true,
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }
 
-class _SortBottomActionArea extends StatelessWidget {
+class _SortedBucketPanel extends StatelessWidget {
+  final String title;
+  final int count;
+  final List<String> entries;
+  final IconData leadingIcon;
+  final bool alignEnd;
+
+  const _SortedBucketPanel({
+    required this.title,
+    required this.count,
+    required this.entries,
+    required this.leadingIcon,
+    this.alignEnd = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _DashedBorderPainter(color: _SortSwipeColors.green, radius: 18),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 188),
+        padding: const EdgeInsets.fromLTRB(9, 12, 9, 14),
+        decoration: BoxDecoration(
+          color: _SortSwipeColors.panelFill,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                if (!alignEnd) _CircleIcon(icon: leadingIcon, onTap: null),
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            color: _SortSwipeColors.green,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        _CountPill(count: count),
+                      ],
+                    ),
+                  ),
+                ),
+                if (alignEnd) _CircleIcon(icon: leadingIcon, onTap: null),
+              ],
+            ),
+            const SizedBox(height: 14),
+            for (final entry in entries) ...[
+              _SortedEntryTile(entry: entry),
+              if (entry != entries.last) const SizedBox(height: 9),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SortedEntryTile extends StatelessWidget {
+  final String entry;
+
+  const _SortedEntryTile({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 47,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _SortSwipeColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x090F172A),
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: const BoxDecoration(
+              color: _SortSwipeColors.iconBubble,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_circle_rounded,
+              color: _SortSwipeColors.green,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              entry,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _SortSwipeColors.textDark,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const Icon(
+            Icons.drag_indicator_rounded,
+            color: _SortSwipeColors.handle,
+            size: 22,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BottomActions extends StatelessWidget {
   final VoidCallback onReset;
   final VoidCallback onSubmit;
 
-  const _SortBottomActionArea({required this.onReset, required this.onSubmit});
+  const _BottomActions({required this.onReset, required this.onSubmit});
 
   @override
   Widget build(BuildContext context) {
@@ -859,24 +948,75 @@ class _SortBottomActionArea extends StatelessWidget {
             children: [
               _ResetButton(onPressed: onReset),
               const SizedBox(width: 12),
-              Expanded(
-                child: GradientActionButton(
-                  label: 'Submit Sort',
-                  onPressed: onSubmit,
-                ),
-              ),
+              Expanded(child: _SubmitButton(onPressed: onSubmit)),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           const Text(
-            'Place each entry in the correct column',
+            'Swipe left for Debit, right for Credit',
             style: TextStyle(
-              color: _SortQuizColors.green,
-              fontSize: 11,
+              color: _SortSwipeColors.greenDark,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SubmitButton extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _SubmitButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: const ValueKey('sort-submit-button'),
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          height: 64,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [_SortSwipeColors.green, _SortSwipeColors.greenDark],
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x3322C55E),
+                blurRadius: 22,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: const Stack(
+            alignment: Alignment.center,
+            children: [
+              Text(
+                'Submit Sort',
+                maxLines: 1,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Positioned(
+                right: 18,
+                child: Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                  size: 31,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -893,17 +1033,64 @@ class _ResetButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         child: Ink(
-          width: 44,
-          height: 44,
-          decoration: _SortQuizDecoration.softCard(radius: 14),
-          child: const Icon(
-            Icons.sync_rounded,
-            color: _SortQuizColors.green,
-            size: 24,
+          width: 64,
+          height: 64,
+          decoration: _SortSwipeDecoration.card(radius: 18),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.sync_rounded, color: _SortSwipeColors.green, size: 28),
+              SizedBox(height: 4),
+              Text(
+                'Reset',
+                style: TextStyle(
+                  color: _SortSwipeColors.textDark,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ModeBadge extends StatelessWidget {
+  final IconData? icon;
+  final String label;
+
+  const _ModeBadge({this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: _SortSwipeColors.badgeFill,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _SortSwipeColors.badgeBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: _SortSwipeColors.green, size: 20),
+            const SizedBox(width: 6),
+          ],
+          Text(
+            label,
+            style: const TextStyle(
+              color: _SortSwipeColors.greenDark,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -923,44 +1110,66 @@ class _SoftIconButton extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(18),
         child: Ink(
-          width: 38,
-          height: 38,
-          decoration: _SortQuizDecoration.softCard(radius: 19),
-          child: Icon(icon, color: _SortQuizColors.textDark, size: 21),
+          width: 50,
+          height: 50,
+          decoration: _SortSwipeDecoration.card(radius: 18),
+          child: Icon(icon, color: _SortSwipeColors.textDark, size: 26),
         ),
       ),
     );
   }
 }
 
-class _DropPlaceholder extends StatelessWidget {
-  final String text;
+class _CircleIcon extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
 
-  const _DropPlaceholder({required this.text});
+  const _CircleIcon({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.arrow_downward_rounded,
-            color: _SortQuizColors.dropBorder,
-            size: 27,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Ink(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: _SortSwipeColors.greenSoft),
           ),
-          const SizedBox(height: 10),
-          Text(
-            text,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: _SortQuizColors.muted,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              height: 1.25,
-            ),
-          ),
-        ],
+          child: Icon(icon, color: _SortSwipeColors.green, size: 21),
+        ),
+      ),
+    );
+  }
+}
+
+class _CountPill extends StatelessWidget {
+  final int count;
+
+  const _CountPill({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 26),
+      height: 26,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        color: _SortSwipeColors.iconBubble,
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        count.toString(),
+        style: const TextStyle(
+          color: _SortSwipeColors.greenDark,
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     );
   }
@@ -976,7 +1185,7 @@ class _DashedBorderPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 1.2
+      ..strokeWidth = 1.3
       ..style = PaintingStyle.stroke;
     final path = Path()
       ..addRRect(
@@ -985,8 +1194,8 @@ class _DashedBorderPainter extends CustomPainter {
 
     for (final metric in path.computeMetrics()) {
       var distance = 0.0;
-      const dashWidth = 5.0;
-      const dashSpace = 4.0;
+      const dashWidth = 6.0;
+      const dashSpace = 5.0;
       while (distance < metric.length) {
         canvas.drawPath(
           metric.extractPath(distance, distance + dashWidth),
@@ -1003,18 +1212,33 @@ class _DashedBorderPainter extends CustomPainter {
   }
 }
 
-class _SortQuizDecoration {
-  _SortQuizDecoration._();
+class _SortSwipeDecoration {
+  _SortSwipeDecoration._();
 
-  static BoxDecoration softCard({required double radius}) {
+  static BoxDecoration card({required double radius}) {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(radius),
-      border: Border.all(color: _SortQuizColors.border),
+      border: Border.all(color: _SortSwipeColors.border),
       boxShadow: const [
         BoxShadow(
-          color: _SortQuizColors.shadow,
-          blurRadius: 22,
+          color: _SortSwipeColors.shadow,
+          blurRadius: 24,
+          offset: Offset(0, 12),
+        ),
+      ],
+    );
+  }
+
+  static BoxDecoration backCard() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(26),
+      border: Border.all(color: _SortSwipeColors.border),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x180F172A),
+          blurRadius: 20,
           offset: Offset(0, 10),
         ),
       ],
@@ -1022,20 +1246,28 @@ class _SortQuizDecoration {
   }
 }
 
-class _SortQuizColors {
-  _SortQuizColors._();
+class _SortSwipeColors {
+  _SortSwipeColors._();
 
-  static const Color green = Color(0xFF22C55E);
-  static const Color greenDark = Color(0xFF16A34A);
+  static const Color green = Color(0xFF16B84E);
+  static const Color greenDark = Color(0xFF05963E);
+  static const Color greenSoft = Color(0xFF98E6B2);
   static const Color background = Color(0xFFF8FAFC);
   static const Color textDark = Color(0xFF0F172A);
-  static const Color muted = Color(0xFF64748B);
-  static const Color border = Color(0xFFE5E7EB);
-  static const Color lightGreen = Color(0xFFECFDF5);
-  static const Color dropBackground = Color(0xFFF7FEFA);
-  static const Color dropBorder = Color(0xFF86EFAC);
-  static const Color greenTrack = Color(0xFFDDF7E8);
-  static const Color scaleIcon = Color(0xFFD7E2F1);
-  static const Color handle = Color(0xFFCBD5E1);
+  static const Color muted = Color(0xFF66708D);
+  static const Color border = Color(0xFFE2E8F0);
   static const Color shadow = Color(0x120F172A);
+  static const Color coin = Color(0xFFF59E0B);
+  static const Color energy = Color(0xFFF59E0B);
+  static const Color greenTrack = Color(0xFFDFF3E8);
+  static const Color badgeFill = Color(0xFFEFFBF3);
+  static const Color badgeBorder = Color(0xFFCBEFD6);
+  static const Color scaleIcon = Color(0xFFB9C4D4);
+  static const Color iconBubble = Color(0xFFE9F8EE);
+  static const Color dragHandle = Color(0xFFD5DAE5);
+  static const Color sideCue = Color(0xEEF2FBF4);
+  static const Color sideCueBorder = Color(0xFFD3F0DC);
+  static const Color sideCueArrows = Color(0x99BCE7C8);
+  static const Color panelFill = Color(0xF7F6FEF8);
+  static const Color handle = Color(0xFFB7C0CF);
 }

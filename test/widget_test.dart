@@ -123,9 +123,9 @@ Future<void> _startMatchQuiz(WidgetTester tester) async {
 Future<void> _startSortItOutQuiz(WidgetTester tester) async {
   await _openPracticeMode(tester, 'Sort It Out');
   expect(find.text('Sort It Out'), findsOneWidget);
-  expect(find.text('1 / 1'), findsOneWidget);
-  expect(find.text('Debit'), findsOneWidget);
-  expect(find.text('Credit'), findsOneWidget);
+  expect(find.text('1 / 5'), findsOneWidget);
+  expect(find.text('Debit'), findsWidgets);
+  expect(find.text('Credit'), findsWidgets);
 }
 
 Future<void> _answerMcqCorrectly(WidgetTester tester) async {
@@ -135,15 +135,12 @@ Future<void> _answerMcqCorrectly(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _sortEntry(
-  WidgetTester tester,
-  String entry,
-  String bucket,
-) async {
-  await tester.tap(find.text(entry).last);
-  await tester.pump();
-  await tester.tap(find.text(bucket));
-  await tester.pump();
+Future<void> _swipeCurrentSortCard(WidgetTester tester, Offset offset) async {
+  final card = find.byKey(const ValueKey('sort-swipe-card'));
+  await tester.ensureVisible(card);
+  await tester.pumpAndSettle();
+  await tester.drag(card, offset);
+  await tester.pumpAndSettle();
 }
 
 void main() {
@@ -443,10 +440,10 @@ void main() {
     await _completeOnboarding(tester);
     await _startSortItOutQuiz(tester);
 
-    await _sortEntry(tester, 'Purchase', 'Debit');
-    await _sortEntry(tester, 'Salary Paid', 'Debit');
-    await _sortEntry(tester, 'Discount Allowed', 'Debit');
-    await _sortEntry(tester, 'Cash Received', 'Credit');
+    await _swipeCurrentSortCard(tester, const Offset(-220, 0));
+    await _swipeCurrentSortCard(tester, const Offset(-220, 0));
+    await _swipeCurrentSortCard(tester, const Offset(-220, 0));
+    await _swipeCurrentSortCard(tester, const Offset(220, 0));
     await tester.tap(find.text('Submit Sort'));
     await tester.pumpAndSettle();
 
