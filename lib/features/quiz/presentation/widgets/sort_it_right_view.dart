@@ -38,13 +38,18 @@ class SortItRightView extends StatefulWidget {
   State<SortItRightView> createState() => _SortItRightViewState();
 }
 
-class _SortItRightViewState extends State<SortItRightView> {
+class _SortItRightViewState extends State<SortItRightView>
+    with SingleTickerProviderStateMixin {
   late List<String> _pendingEntries;
   final List<String> _debitEntries = [];
   final List<String> _creditEntries = [];
   final List<_SortMove> _moveHistory = [];
+  late final AnimationController _swipeController;
+  Animation<double> _swipeAnimation = const AlwaysStoppedAnimation(0);
   double _dragDx = 0;
   bool _isAnimating = false;
+  bool _isDragging = false;
+  _SortBucket? _activeBucket;
 
   static const Set<String> _correctDebitEntries = {
     'Purchase',
@@ -60,12 +65,28 @@ class _SortItRightViewState extends State<SortItRightView> {
   void initState() {
     super.initState();
     _pendingEntries = List.of(widget.question.itemsInOrder);
+    _swipeController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 260),
+        )..addListener(() {
+          if (mounted) {
+            setState(() => _dragDx = _swipeAnimation.value);
+          }
+        });
+  }
+
+  @override
+  void dispose() {
+    _swipeController.dispose();
+    super.dispose();
   }
 
   String? get _currentEntry =>
       _pendingEntries.isEmpty ? null : _pendingEntries.first;
 
   void _reset() {
+    _swipeController.stop();
     setState(() {
       _pendingEntries = List.of(widget.question.itemsInOrder);
       _debitEntries.clear();
@@ -73,17 +94,45 @@ class _SortItRightViewState extends State<SortItRightView> {
       _moveHistory.clear();
       _dragDx = 0;
       _isAnimating = false;
+      _isDragging = false;
+      _activeBucket = null;
     });
   }
 
-  void _sortCurrentEntry(_SortBucket bucket) {
+  Future<void> _animateCardTo(
+    double targetDx, {
+    required Duration duration,
+    required Curve curve,
+  }) async {
+    _swipeAnimation = Tween<double>(
+      begin: _dragDx,
+      end: targetDx,
+    ).animate(CurvedAnimation(parent: _swipeController, curve: curve));
+    _swipeController
+      ..duration = duration
+      ..reset();
+    await _swipeController.forward();
+  }
+
+  Future<void> _sortCurrentEntry(_SortBucket bucket, double exitDx) async {
     if (_isAnimating) return;
     final entry = _currentEntry;
     if (entry == null) return;
 
     setState(() {
       _isAnimating = true;
-      _pendingEntries.removeAt(0);
+      _isDragging = false;
+      _activeBucket = bucket;
+    });
+
+    await _animateCardTo(
+      exitDx,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInCubic,
+    );
+    if (!mounted) return;
+
+    setState(() {
       switch (bucket) {
         case _SortBucket.debit:
           _debitEntries.add(entry);
@@ -91,11 +140,15 @@ class _SortItRightViewState extends State<SortItRightView> {
           _creditEntries.add(entry);
       }
       _moveHistory.add(_SortMove(entry: entry, bucket: bucket));
+      _pendingEntries.removeAt(0);
       _dragDx = 0;
     });
 
-    Future<void>.delayed(const Duration(milliseconds: 120), () {
-      if (mounted) setState(() => _isAnimating = false);
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (!mounted) return;
+    setState(() {
+      _isAnimating = false;
+      _activeBucket = null;
     });
   }
 
@@ -114,16 +167,22 @@ class _SortItRightViewState extends State<SortItRightView> {
     });
   }
 
-  void _handleDragEnd() {
-    if (_dragDx <= -100) {
-      _sortCurrentEntry(_SortBucket.debit);
+  Future<void> _handleDragEnd(_SortBucket? bucket, double exitDx) async {
+    if (_isAnimating) return;
+    if (bucket != null) {
+      await _sortCurrentEntry(bucket, exitDx);
       return;
     }
-    if (_dragDx >= 100) {
-      _sortCurrentEntry(_SortBucket.credit);
-      return;
-    }
-    setState(() => _dragDx = 0);
+
+    setState(() {
+      _isDragging = false;
+      _activeBucket = null;
+    });
+    await _animateCardTo(
+      0,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutBack,
+    );
   }
 
   void _submit() {
@@ -204,15 +263,25 @@ class _SortItRightViewState extends State<SortItRightView> {
               child: _SwipeStage(
                 currentEntry: _currentEntry,
                 dragDx: _dragDx,
-                onDragUpdate: (delta) {
+                isAnimating: _isAnimating,
+                isDragging: _isDragging,
+                activeBucket: _activeBucket,
+                onDragUpdate: (delta, maxDragDx) {
                   if (_isAnimating) return;
                   setState(() {
-                    _dragDx = (_dragDx + delta).clamp(-132.0, 132.0);
+                    final nextDx = _dragDx + delta;
+                    _isDragging = true;
+                    _activeBucket = nextDx < 0
+                        ? _SortBucket.debit
+                        : nextDx > 0
+                        ? _SortBucket.credit
+                        : null;
+                    _dragDx = nextDx.clamp(-maxDragDx, maxDragDx);
                   });
                 },
                 onDragEnd: _handleDragEnd,
-                onDebitTap: () => _sortCurrentEntry(_SortBucket.debit),
-                onCreditTap: () => _sortCurrentEntry(_SortBucket.credit),
+                onBucketTap: (bucket, exitDx) =>
+                    _sortCurrentEntry(bucket, exitDx),
               ),
             ),
             SizedBox(height: isCompact ? 6 : 8),
@@ -600,18 +669,22 @@ class _SwipeHintBar extends StatelessWidget {
 class _SwipeStage extends StatelessWidget {
   final String? currentEntry;
   final double dragDx;
-  final ValueChanged<double> onDragUpdate;
-  final VoidCallback onDragEnd;
-  final VoidCallback onDebitTap;
-  final VoidCallback onCreditTap;
+  final bool isAnimating;
+  final bool isDragging;
+  final _SortBucket? activeBucket;
+  final void Function(double delta, double maxDragDx) onDragUpdate;
+  final void Function(_SortBucket? bucket, double exitDx) onDragEnd;
+  final void Function(_SortBucket bucket, double exitDx) onBucketTap;
 
   const _SwipeStage({
     required this.currentEntry,
     required this.dragDx,
+    required this.isAnimating,
+    required this.isDragging,
+    required this.activeBucket,
     required this.onDragUpdate,
     required this.onDragEnd,
-    required this.onDebitTap,
-    required this.onCreditTap,
+    required this.onBucketTap,
   });
 
   @override
@@ -619,10 +692,22 @@ class _SwipeStage extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final stageHeight = constraints.maxHeight;
-        final cardHeight = (stageHeight * 0.72).clamp(156.0, 210.0);
-        final cardWidth = (constraints.maxWidth * 0.86).clamp(280.0, 340.0);
-        final top = ((stageHeight - cardHeight) / 2).clamp(0.0, 24.0);
-        final sideOpacity = (dragDx.abs() / 100).clamp(0.0, 1.0);
+        final cardHeight = (stageHeight * 0.58).clamp(132.0, 170.0);
+        final cardWidth = (constraints.maxWidth * 0.78).clamp(250.0, 320.0);
+        final top = ((stageHeight - cardHeight) / 2).clamp(6.0, 22.0);
+        final threshold = constraints.maxWidth * 0.28;
+        final maxDragDx = constraints.maxWidth * 0.48;
+        final exitDx = constraints.maxWidth + cardWidth;
+        final progress = (dragDx.abs() / threshold).clamp(0.0, 1.0);
+        final acceptedBucket = dragDx <= -threshold
+            ? _SortBucket.debit
+            : dragDx >= threshold
+            ? _SortBucket.credit
+            : null;
+        final cardScale = isAnimating && activeBucket != null ? 0.90 : 1.0;
+        final nextCardScale = isAnimating && activeBucket != null ? 0.98 : 0.94;
+        final nextCardOpacity = currentEntry == null ? 0.0 : 0.55;
+        final rotation = (dragDx / constraints.maxWidth).clamp(-0.11, 0.11);
 
         return Stack(
           clipBehavior: Clip.none,
@@ -634,8 +719,11 @@ class _SwipeStage extends StatelessWidget {
               child: _DirectionHint(
                 label: 'Debit',
                 icon: Icons.arrow_back_rounded,
-                opacity: dragDx < 0 ? sideOpacity : 0.20,
-                onTap: onDebitTap,
+                progress: dragDx < 0 || activeBucket == _SortBucket.debit
+                    ? progress
+                    : 0,
+                isPulsing: isAnimating && activeBucket == _SortBucket.debit,
+                onTap: () => onBucketTap(_SortBucket.debit, -exitDx),
               ),
             ),
             Positioned(
@@ -644,37 +732,84 @@ class _SwipeStage extends StatelessWidget {
               child: _DirectionHint(
                 label: 'Credit',
                 icon: Icons.arrow_forward_rounded,
-                opacity: dragDx > 0 ? sideOpacity : 0.20,
-                onTap: onCreditTap,
+                progress: dragDx > 0 || activeBucket == _SortBucket.credit
+                    ? progress
+                    : 0,
+                isPulsing: isAnimating && activeBucket == _SortBucket.credit,
+                onTap: () => onBucketTap(_SortBucket.credit, exitDx),
               ),
             ),
             Positioned(
-              top: top + 14,
-              child: Transform.rotate(
-                angle: -0.05,
-                child: Container(
-                  width: cardWidth * 0.82,
-                  height: cardHeight * 0.86,
-                  decoration: _SortSwipeDecoration.backCard(),
+              top: top + 13,
+              child: AnimatedScale(
+                scale: nextCardScale,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                child: AnimatedOpacity(
+                  opacity: nextCardOpacity,
+                  duration: const Duration(milliseconds: 140),
+                  child: Transform.rotate(
+                    angle: -0.035,
+                    child: Container(
+                      width: cardWidth * 0.92,
+                      height: cardHeight * 0.90,
+                      decoration: _SortSwipeDecoration.backCard(),
+                    ),
+                  ),
                 ),
               ),
             ),
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 130),
-              curve: Curves.easeOut,
-              left: (constraints.maxWidth - cardWidth) / 2 + dragDx,
+            Positioned(
+              left: (constraints.maxWidth - cardWidth) / 2,
               top: top,
-              child: GestureDetector(
-                key: const ValueKey('sort-swipe-card'),
-                onHorizontalDragUpdate: (details) =>
-                    onDragUpdate(details.delta.dx),
-                onHorizontalDragEnd: (_) => onDragEnd(),
-                child: Transform.rotate(
-                  angle: dragDx / 1200,
-                  child: _EntrySwipeCard(
-                    entry: currentEntry,
-                    width: cardWidth,
-                    height: cardHeight,
+              child: Transform.translate(
+                offset: Offset(dragDx, 0),
+                child: AnimatedScale(
+                  scale: cardScale,
+                  duration: const Duration(milliseconds: 150),
+                  curve: Curves.easeOut,
+                  child: GestureDetector(
+                    key: const ValueKey('sort-swipe-card'),
+                    behavior: HitTestBehavior.opaque,
+                    onHorizontalDragUpdate: currentEntry == null || isAnimating
+                        ? null
+                        : (details) =>
+                              onDragUpdate(details.delta.dx, maxDragDx),
+                    onHorizontalDragEnd: currentEntry == null || isAnimating
+                        ? null
+                        : (_) => onDragEnd(
+                            acceptedBucket,
+                            acceptedBucket == _SortBucket.debit
+                                ? -exitDx
+                                : exitDx,
+                          ),
+                    child: Transform.rotate(
+                      angle: rotation,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        switchInCurve: Curves.easeOutBack,
+                        switchOutCurve: Curves.easeOut,
+                        transitionBuilder: (child, animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: ScaleTransition(
+                              scale: Tween<double>(
+                                begin: 0.94,
+                                end: 1,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: _EntrySwipeCard(
+                          key: ValueKey(currentEntry ?? 'complete-card'),
+                          entry: currentEntry,
+                          width: cardWidth,
+                          height: cardHeight,
+                          isActive: isDragging || isAnimating,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -690,27 +825,34 @@ class _EntrySwipeCard extends StatelessWidget {
   final String? entry;
   final double width;
   final double height;
+  final bool isActive;
 
   const _EntrySwipeCard({
+    super.key,
     required this.entry,
     required this.width,
     required this.height,
+    required this.isActive,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: width,
-      height: height,
+      constraints: BoxConstraints(minHeight: height * 0.86, maxHeight: height),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: _SortSwipeColors.greenSoft, width: 1.4),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isActive ? _SortSwipeColors.green : _SortSwipeColors.greenSoft,
+          width: isActive ? 1.7 : 1.3,
+        ),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x220F172A),
-            blurRadius: 26,
-            offset: Offset(0, 16),
+            color: const Color(0x220F172A),
+            blurRadius: isActive ? 30 : 22,
+            offset: Offset(0, isActive ? 18 : 12),
           ),
         ],
       ),
@@ -727,10 +869,11 @@ class _EntrySwipeCard extends StatelessWidget {
             )
           : Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: height < 180 ? 58 : 70,
-                  height: height < 180 ? 58 : 70,
+                  width: height < 150 ? 50 : 58,
+                  height: height < 150 ? 50 : 58,
                   decoration: const BoxDecoration(
                     color: _SortSwipeColors.iconBubble,
                     shape: BoxShape.circle,
@@ -738,49 +881,47 @@ class _EntrySwipeCard extends StatelessWidget {
                   child: Icon(
                     Icons.shopping_cart_rounded,
                     color: _SortSwipeColors.greenDark,
-                    size: height < 180 ? 30 : 36,
+                    size: height < 150 ? 27 : 31,
                   ),
                 ),
-                SizedBox(height: height < 180 ? 12 : 16),
+                SizedBox(height: height < 150 ? 9 : 12),
                 SizedBox(
-                  width: width * 0.78,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      entry!,
-                      maxLines: 1,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _SortSwipeColors.textDark,
-                        fontSize: height < 180 ? 22 : 26,
-                        fontWeight: FontWeight.w900,
-                        height: 1,
-                      ),
+                  width: width * 0.82,
+                  child: Text(
+                    entry!,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _SortSwipeColors.textDark,
+                      fontSize: height < 150 ? 20 : 23,
+                      fontWeight: FontWeight.w900,
+                      height: 1.08,
                     ),
                   ),
                 ),
-                SizedBox(height: height < 180 ? 8 : 12),
+                SizedBox(height: height < 150 ? 6 : 8),
                 Text(
                   'Account Entry',
                   style: TextStyle(
                     color: _SortSwipeColors.muted,
-                    fontSize: height < 180 ? 14 : 16,
+                    fontSize: height < 150 ? 13 : 14,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: height < 180 ? 14 : 18),
+                SizedBox(height: height < 150 ? 10 : 12),
                 Container(
-                  width: 74,
-                  height: 5,
+                  width: 64,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: _SortSwipeColors.dragHandle,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(height: 6),
                 Container(
-                  width: 48,
-                  height: 4,
+                  width: 42,
+                  height: 3,
                   decoration: BoxDecoration(
                     color: _SortSwipeColors.dragHandle,
                     borderRadius: BorderRadius.circular(999),
@@ -795,45 +936,67 @@ class _EntrySwipeCard extends StatelessWidget {
 class _DirectionHint extends StatelessWidget {
   final String label;
   final IconData icon;
-  final double opacity;
+  final double progress;
+  final bool isPulsing;
   final VoidCallback onTap;
 
   const _DirectionHint({
     required this.label,
     required this.icon,
-    required this.opacity,
+    required this.progress,
+    required this.isPulsing,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final intensity = progress.clamp(0.0, 1.0);
+    final scale = isPulsing ? 1.12 : 1 + (intensity * 0.08);
+    final opacity = 0.22 + (intensity * 0.78);
+
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 140),
-        opacity: opacity,
-        child: Container(
-          width: 78,
-          height: 70,
-          decoration: BoxDecoration(
-            color: _SortSwipeColors.badgeFill,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: _SortSwipeColors.badgeBorder),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, color: _SortSwipeColors.green, size: 27),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: _SortSwipeColors.greenDark,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                ),
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 160),
+        curve: isPulsing ? Curves.elasticOut : Curves.easeOut,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 120),
+          opacity: opacity,
+          child: Container(
+            width: 78,
+            height: 70,
+            decoration: BoxDecoration(
+              color: Color.lerp(
+                _SortSwipeColors.badgeFill,
+                _SortSwipeColors.bucketActiveFill,
+                intensity,
               ),
-            ],
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: Color.lerp(
+                  _SortSwipeColors.badgeBorder,
+                  _SortSwipeColors.green,
+                  intensity,
+                )!,
+                width: 1.2 + intensity * 0.8,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: _SortSwipeColors.green, size: 27),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: _SortSwipeColors.greenDark,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1423,6 +1586,7 @@ class _SortSwipeColors {
   static const Color disabledDark = Color(0xFF94A3B8);
   static const Color badgeFill = Color(0xFFEFFBF3);
   static const Color badgeBorder = Color(0xFFCBEFD6);
+  static const Color bucketActiveFill = Color(0xFFDDF8E7);
   static const Color scaleIcon = Color(0xFFB9C4D4);
   static const Color iconBubble = Color(0xFFE9F8EE);
   static const Color dragHandle = Color(0xFFD5DAE5);
