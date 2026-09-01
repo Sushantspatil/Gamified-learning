@@ -100,7 +100,8 @@ Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
 
 Future<void> _startMcqQuiz(WidgetTester tester) async {
   await _openPracticeMode(tester, 'MCQ Quiz');
-  expect(find.text('Question 1 of 1'), findsOneWidget);
+  expect(find.text('MCQ Quiz'), findsOneWidget);
+  expect(find.text('1 / 1'), findsOneWidget);
 }
 
 Future<void> _startSuddenDeathQuiz(WidgetTester tester) async {
@@ -119,10 +120,26 @@ Future<void> _startMatchQuiz(WidgetTester tester) async {
   expect(find.text('Match each concept'), findsOneWidget);
 }
 
+Future<void> _startSortItOutQuiz(WidgetTester tester) async {
+  await _openPracticeMode(tester, 'Sort It Out');
+  expect(find.text('Sort It Out'), findsOneWidget);
+  expect(find.text('1 / 5'), findsOneWidget);
+  expect(find.text('Debit'), findsWidgets);
+  expect(find.text('Credit'), findsWidgets);
+}
+
 Future<void> _answerMcqCorrectly(WidgetTester tester) async {
-  await tester.tap(find.text('Option B'));
+  await tester.tap(find.text('Solar energy'));
   await tester.pump();
-  await tester.tap(find.text('Submit'));
+  await tester.tap(find.text('Submit Answer'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _swipeCurrentSortCard(WidgetTester tester, Offset offset) async {
+  final card = find.byKey(const ValueKey('sort-swipe-card'));
+  await tester.ensureVisible(card);
+  await tester.pumpAndSettle();
+  await tester.drag(card, offset);
   await tester.pumpAndSettle();
 }
 
@@ -408,6 +425,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Start Quiz'), findsOneWidget);
+  });
+
+  testWidgets('completing a Sort It Out quiz shows Quiz Complete', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(393, 852);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
+    await _startSortItOutQuiz(tester);
+
+    await _swipeCurrentSortCard(tester, const Offset(-220, 0));
+    await _swipeCurrentSortCard(tester, const Offset(-220, 0));
+    await _swipeCurrentSortCard(tester, const Offset(-220, 0));
+    await _swipeCurrentSortCard(tester, const Offset(220, 0));
+    await _swipeCurrentSortCard(tester, const Offset(220, 0));
+    await tester.tap(find.text('Submit Sort'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Quiz Complete!'), findsOneWidget);
+    expect(find.text('+10 XP'), findsOneWidget);
+    expect(find.text('+5 Coins'), findsOneWidget);
   });
 
   testWidgets('a wrong Sudden Death answer ends the quiz early', (

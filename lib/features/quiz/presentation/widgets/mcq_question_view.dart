@@ -11,11 +11,23 @@ import '../../../questions/domain/entities/question.dart';
 
 class McqQuestionView extends StatefulWidget {
   final McqQuestion question;
+  final int currentIndex;
+  final int totalQuestions;
+  final int currentStreak;
+  final int coins;
+  final int energy;
+  final VoidCallback onExit;
   final void Function(Answer answer) onSubmit;
 
   const McqQuestionView({
     super.key,
     required this.question,
+    required this.currentIndex,
+    required this.totalQuestions,
+    required this.currentStreak,
+    required this.coins,
+    required this.energy,
+    required this.onExit,
     required this.onSubmit,
   });
 
