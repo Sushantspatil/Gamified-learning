@@ -93,6 +93,7 @@ sealed class Question extends Equatable {
 class McqQuestion extends Question {
   final List<QuestionOption> options;
   final String correctOptionId;
+  final String? hint;
 
   const McqQuestion({
     required super.id,
@@ -101,6 +102,7 @@ class McqQuestion extends Question {
     required super.points,
     required this.options,
     required this.correctOptionId,
+    this.hint,
   });
 
   @override
@@ -114,6 +116,7 @@ class McqQuestion extends Question {
     points,
     options,
     correctOptionId,
+    hint,
   ];
 }
 

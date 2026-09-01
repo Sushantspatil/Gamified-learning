@@ -36,6 +36,7 @@ class QuestionMockDatasource implements QuestionDatasource {
           QuestionOption(id: 'c', text: 'Option C'),
         ],
         correctOptionId: 'b',
+        hint: 'Eliminate choices that do not match the topic wording.',
       ),
       MatchTheFollowingQuestion(
         id: '$topicId-match',

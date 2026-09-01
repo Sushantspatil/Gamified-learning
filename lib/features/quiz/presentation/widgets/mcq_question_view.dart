@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_card.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 
@@ -22,6 +25,52 @@ class McqQuestionView extends StatefulWidget {
 
 class _McqQuestionViewState extends State<McqQuestionView> {
   String? _selectedOptionId;
+  final Set<String> _hiddenOptionIds = {};
+  bool _isFiftyFiftyUsed = false;
+  bool _isHintVisible = false;
+  bool _isSubmitted = false;
+
+  void _useFiftyFifty() {
+    if (_isSubmitted || _isFiftyFiftyUsed) return;
+
+    final incorrectOptions =
+        widget.question.options
+            .where((option) => option.id != widget.question.correctOptionId)
+            .toList()
+          ..sort((a, b) => a.id.compareTo(b.id));
+    final removeCount = incorrectOptions.length < 2
+        ? incorrectOptions.length
+        : 2;
+
+    setState(() {
+      _isFiftyFiftyUsed = true;
+      _hiddenOptionIds.addAll(
+        incorrectOptions.take(removeCount).map((option) => option.id),
+      );
+      if (_selectedOptionId != null &&
+          _hiddenOptionIds.contains(_selectedOptionId)) {
+        _selectedOptionId = null;
+      }
+    });
+  }
+
+  void _showHint() {
+    if (_isSubmitted) return;
+    setState(() => _isHintVisible = true);
+  }
+
+  void _submitSelectedAnswer() {
+    final selectedOptionId = _selectedOptionId;
+    if (selectedOptionId == null || _isSubmitted) return;
+
+    setState(() => _isSubmitted = true);
+    widget.onSubmit(
+      McqAnswer(
+        questionId: widget.question.id,
+        selectedOptionId: selectedOptionId,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,19 +79,39 @@ class _McqQuestionViewState extends State<McqQuestionView> {
       children: [
         Text(widget.question.prompt, style: context.appTextStyles.titleLarge),
         const SizedBox(height: AppSpacing.lg),
+        _McqAssistanceCard(
+          isFiftyFiftyUsed: _isFiftyFiftyUsed,
+          isHintVisible: _isHintVisible,
+          hintText:
+              widget.question.hint ??
+              'Read the question carefully and eliminate choices that do not fit.',
+          onFiftyFifty: _useFiftyFifty,
+          onHint: _showHint,
+          isDisabled: _isSubmitted,
+        ),
+        const SizedBox(height: AppSpacing.lg),
         Expanded(
           child: RadioGroup<String>(
             groupValue: _selectedOptionId,
-            onChanged: (value) => setState(() => _selectedOptionId = value),
+            onChanged: (value) {
+              if (_isSubmitted ||
+                  value == null ||
+                  _hiddenOptionIds.contains(value)) {
+                return;
+              }
+              setState(() => _selectedOptionId = value);
+            },
             child: ListView.separated(
               itemCount: widget.question.options.length,
               separatorBuilder: (context, index) =>
                   const SizedBox(height: AppSpacing.sm),
               itemBuilder: (context, index) {
                 final option = widget.question.options[index];
+                final isHidden = _hiddenOptionIds.contains(option.id);
                 return RadioListTile<String>(
                   value: option.id,
-                  title: Text(option.text),
+                  enabled: !isHidden && !_isSubmitted,
+                  title: Text(isHidden ? 'Removed by 50:50' : option.text),
                 );
               },
             ),
@@ -51,16 +120,89 @@ class _McqQuestionViewState extends State<McqQuestionView> {
         const SizedBox(height: AppSpacing.md),
         AppButton(
           label: 'Submit',
-          onPressed: _selectedOptionId == null
+          onPressed: _selectedOptionId == null || _isSubmitted
               ? null
-              : () => widget.onSubmit(
-                  McqAnswer(
-                    questionId: widget.question.id,
-                    selectedOptionId: _selectedOptionId!,
-                  ),
-                ),
+              : _submitSelectedAnswer,
         ),
       ],
+    );
+  }
+}
+
+class _McqAssistanceCard extends StatelessWidget {
+  final bool isFiftyFiftyUsed;
+  final bool isHintVisible;
+  final String hintText;
+  final VoidCallback onFiftyFifty;
+  final VoidCallback onHint;
+  final bool isDisabled;
+
+  const _McqAssistanceCard({
+    required this.isFiftyFiftyUsed,
+    required this.isHintVisible,
+    required this.hintText,
+    required this.onFiftyFifty,
+    required this.onHint,
+    required this.isDisabled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+
+    return AppCard(
+      variant: AppCardVariant.tinted,
+      tintColor: colors.primary,
+      borderRadius: AppDimensions.radiusLg,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: AppButton(
+                  label: '50:50',
+                  variant: AppButtonVariant.secondary,
+                  leadingIcon: const Icon(Icons.filter_2),
+                  onPressed: isDisabled || isFiftyFiftyUsed
+                      ? null
+                      : onFiftyFifty,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: AppButton(
+                  label: 'Hint',
+                  variant: AppButtonVariant.secondary,
+                  leadingIcon: const Icon(Icons.lightbulb_outline),
+                  onPressed: isDisabled || isHintVisible ? null : onHint,
+                ),
+              ),
+            ],
+          ),
+          if (isHintVisible) ...[
+            const SizedBox(height: AppSpacing.sm),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.primary.withValues(alpha: 0.08),
+                borderRadius: AppDimensions.radiusMd,
+                border: Border.all(
+                  color: colors.primary.withValues(alpha: 0.18),
+                ),
+              ),
+              child: Padding(
+                padding: AppSpacing.paddingSm,
+                child: Text(
+                  hintText,
+                  style: context.appTextStyles.bodyMedium.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
