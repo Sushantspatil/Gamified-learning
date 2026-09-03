@@ -10,6 +10,7 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
+import 'game_power_up_bar.dart';
 
 class SuddenDeathConfig {
   SuddenDeathConfig._();
@@ -57,6 +58,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
   bool _extraTimeUsed = false;
   bool _fiftyFiftyUsed = false;
   bool _skipUsed = false;
+  bool _hintUsed = false;
 
   @override
   void initState() {
@@ -74,6 +76,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
       _extraTimeUsed = false;
       _fiftyFiftyUsed = false;
       _skipUsed = false;
+      _hintUsed = false;
       _remainingTime = SuddenDeathConfig.questionTimeLimit;
       _startTimer();
     }
@@ -165,6 +168,11 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
     );
   }
 
+  void _showHint() {
+    if (_hasSubmitted || _hintUsed) return;
+    setState(() => _hintUsed = true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
@@ -236,6 +244,13 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
                                       () => _selectedOptionId = optionId,
                                     ),
                             ),
+                            if (_hintUsed) ...[
+                              const SizedBox(height: AppSpacing.sm),
+                              const _SuddenDeathHint(
+                                text:
+                                    'Eliminate choices that do not match the strongest clue in the prompt.',
+                              ),
+                            ],
                             SizedBox(
                               height: isCompact ? AppSpacing.md : AppSpacing.lg,
                             ),
@@ -255,14 +270,49 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
                       ),
                       child: Column(
                         children: [
-                          _PowerUpDock(
-                            extraTimeUsed: _extraTimeUsed,
-                            fiftyFiftyUsed: _fiftyFiftyUsed,
-                            skipUsed: _skipUsed,
-                            disabled: _hasSubmitted,
-                            onAddTime: _addFiveSeconds,
-                            onFiftyFifty: _useFiftyFifty,
-                            onSkip: _skipQuestion,
+                          GamePowerUpBar(
+                            coinBalanceOverride: widget.coins,
+                            isDisabled: _hasSubmitted,
+                            actions: [
+                              GamePowerUpAction(
+                                id: 'sudden-time',
+                                label: '+5 SEC',
+                                description:
+                                    'Add five seconds to this question.',
+                                coinCost: 12,
+                                icon: Icons.timer_outlined,
+                                isUsed: _extraTimeUsed,
+                                onUse: _addFiveSeconds,
+                              ),
+                              GamePowerUpAction(
+                                id: 'sudden-50-50',
+                                label: '50:50',
+                                description: 'Remove one wrong answer.',
+                                coinCost: 25,
+                                icon: Icons.call_split_rounded,
+                                isUsed: _fiftyFiftyUsed,
+                                onUse: _useFiftyFifty,
+                              ),
+                              GamePowerUpAction(
+                                id: 'sudden-skip',
+                                label: 'Skip',
+                                description: 'Skip this question safely.',
+                                coinCost: 35,
+                                icon: Icons.fast_forward_rounded,
+                                isUsed: _skipUsed,
+                                onUse: _skipQuestion,
+                              ),
+                              GamePowerUpAction(
+                                id: 'sudden-hint',
+                                label: 'Hint',
+                                description:
+                                    'Show a clue without ending the run.',
+                                coinCost: 10,
+                                icon: Icons.lightbulb_outline,
+                                isUsed: _hintUsed,
+                                onUse: _showHint,
+                              ),
+                            ],
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           AppButton(
@@ -937,6 +987,42 @@ class _DangerBanner extends StatelessWidget {
   }
 }
 
+class _SuddenDeathHint extends StatelessWidget {
+  final String text;
+
+  const _SuddenDeathHint({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+
+    return Container(
+      padding: AppSpacing.paddingMd,
+      decoration: BoxDecoration(
+        color: colors.warning.withValues(alpha: 0.12),
+        borderRadius: AppDimensions.radiusCard,
+        border: Border.all(color: colors.warning.withValues(alpha: 0.34)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lightbulb_outline, color: colors.warning),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: context.appTextStyles.bodyMedium.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MascotCallout extends StatelessWidget {
   const _MascotCallout();
 
@@ -970,155 +1056,6 @@ class _MascotCallout extends StatelessWidget {
           child: CustomPaint(painter: _MascotPainter(colors)),
         ),
       ],
-    );
-  }
-}
-
-class _PowerUpDock extends StatelessWidget {
-  final bool extraTimeUsed;
-  final bool fiftyFiftyUsed;
-  final bool skipUsed;
-  final bool disabled;
-  final VoidCallback onAddTime;
-  final VoidCallback onFiftyFifty;
-  final VoidCallback onSkip;
-
-  const _PowerUpDock({
-    required this.extraTimeUsed,
-    required this.fiftyFiftyUsed,
-    required this.skipUsed,
-    required this.disabled,
-    required this.onAddTime,
-    required this.onFiftyFifty,
-    required this.onSkip,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _PowerUpButton(
-            label: '+5 SEC',
-            cost: 2,
-            icon: Icons.timer_outlined,
-            used: extraTimeUsed,
-            disabled: disabled,
-            onTap: onAddTime,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _PowerUpButton(
-            label: '50:50',
-            cost: 2,
-            icon: Icons.call_split_rounded,
-            used: fiftyFiftyUsed,
-            disabled: disabled,
-            onTap: onFiftyFifty,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _PowerUpButton(
-            label: 'Skip',
-            cost: 3,
-            icon: Icons.fast_forward_rounded,
-            used: skipUsed,
-            disabled: disabled,
-            onTap: onSkip,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PowerUpButton extends StatelessWidget {
-  final String label;
-  final int cost;
-  final IconData icon;
-  final bool used;
-  final bool disabled;
-  final VoidCallback onTap;
-
-  const _PowerUpButton({
-    required this.label,
-    required this.cost,
-    required this.icon,
-    required this.used,
-    required this.disabled,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-    final isDisabled = disabled || used;
-
-    return Tooltip(
-      message: used ? '$label used' : '$label power-up',
-      child: InkWell(
-        onTap: isDisabled ? null : onTap,
-        borderRadius: AppDimensions.radiusMd,
-        child: Ink(
-          height: 62,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-          decoration: BoxDecoration(
-            color: colors.primary.withValues(alpha: isDisabled ? 0.07 : 0.16),
-            borderRadius: AppDimensions.radiusMd,
-            border: Border.all(
-              color: colors.primary.withValues(alpha: isDisabled ? 0.16 : 0.42),
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    color: isDisabled ? colors.textMuted : colors.secondary,
-                    size: 18,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Flexible(
-                    child: Text(
-                      used ? 'Used' : label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.appTextStyles.labelLarge.copyWith(
-                        color: isDisabled
-                            ? colors.textMuted
-                            : colors.textPrimary,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.bolt_rounded,
-                    color: AppColors.coinGold,
-                    size: 16,
-                  ),
-                  Text(
-                    '$cost',
-                    style: context.appTextStyles.labelSmall.copyWith(
-                      color: AppColors.coinGold,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

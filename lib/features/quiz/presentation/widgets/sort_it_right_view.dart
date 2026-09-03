@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
+import 'game_power_up_bar.dart';
 
 enum _SortBucket { debit, credit }
 
@@ -49,6 +50,8 @@ class _SortItRightViewState extends State<SortItRightView>
   double _dragDx = 0;
   bool _isAnimating = false;
   bool _isDragging = false;
+  bool _hintUsed = false;
+  bool _revealSideUsed = false;
   _SortBucket? _activeBucket;
 
   static const Set<String> _correctDebitEntries = {
@@ -95,6 +98,8 @@ class _SortItRightViewState extends State<SortItRightView>
       _dragDx = 0;
       _isAnimating = false;
       _isDragging = false;
+      _hintUsed = false;
+      _revealSideUsed = false;
       _activeBucket = null;
     });
   }
@@ -167,6 +172,23 @@ class _SortItRightViewState extends State<SortItRightView>
     });
   }
 
+  void _showHint() {
+    if (_hintUsed) return;
+    setState(() => _hintUsed = true);
+  }
+
+  void _revealCurrentSide() {
+    if (_revealSideUsed) return;
+    final entry = _currentEntry;
+    if (entry == null) return;
+
+    final bucket = _correctDebitEntries.contains(entry) ? 'Debit' : 'Credit';
+    setState(() => _revealSideUsed = true);
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$entry belongs under $bucket.')));
+  }
+
   Future<void> _handleDragEnd(_SortBucket? bucket, double exitDx) async {
     if (_isAnimating) return;
     if (bucket != null) {
@@ -225,7 +247,7 @@ class _SortItRightViewState extends State<SortItRightView>
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
-    final isCompact = screenHeight < 760;
+    final isCompact = screenHeight < 900;
     final displayCoins = widget.coins == 0 ? 120 : widget.coins;
     final displayEnergy = widget.energy == 0 ? 3 : widget.energy;
     final sortedCount = _debitEntries.length + _creditEntries.length;
@@ -290,6 +312,62 @@ class _SortItRightViewState extends State<SortItRightView>
               creditEntries: _creditEntries,
               isCompact: isCompact,
             ),
+            SizedBox(height: isCompact ? 8 : 10),
+            GamePowerUpBar(
+              coinBalanceOverride: widget.coins,
+              isDense: true,
+              showWallet: false,
+              actions: [
+                GamePowerUpAction(
+                  id: 'sort-hint',
+                  label: 'Hint',
+                  description: 'Show a sorting strategy.',
+                  coinCost: 10,
+                  icon: Icons.lightbulb_outline,
+                  isUsed: _hintUsed,
+                  onUse: _showHint,
+                ),
+                GamePowerUpAction(
+                  id: 'sort-reveal',
+                  label: 'Reveal',
+                  description: 'Reveal the correct side for this card.',
+                  coinCost: 25,
+                  icon: Icons.visibility_outlined,
+                  isUsed: _revealSideUsed,
+                  isDisabled: _currentEntry == null,
+                  onUse: _revealCurrentSide,
+                ),
+                GamePowerUpAction(
+                  id: 'sort-undo',
+                  label: 'Undo',
+                  description: 'Undo the last sorted card.',
+                  coinCost: 10,
+                  icon: Icons.undo_rounded,
+                  isDisabled: _moveHistory.isEmpty,
+                  onUse: _undo,
+                ),
+              ],
+            ),
+            if (_hintUsed) ...[
+              SizedBox(height: isCompact ? 7 : 9),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: _SortSwipeColors.badgeFill,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: _SortSwipeColors.badgeBorder),
+                ),
+                child: const Text(
+                  'Assets and expenses usually increase on Debit. Income and cash received usually increase on Credit.',
+                  style: TextStyle(
+                    color: _SortSwipeColors.textDark,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
             SizedBox(height: isCompact ? 8 : 10),
             _BottomActions(
               canSubmit: canSubmit,
@@ -692,7 +770,7 @@ class _SwipeStage extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final stageHeight = constraints.maxHeight;
-        final cardHeight = (stageHeight * 0.58).clamp(132.0, 170.0);
+        final cardHeight = (stageHeight * 0.58).clamp(104.0, 170.0);
         final cardWidth = (constraints.maxWidth * 0.78).clamp(250.0, 320.0);
         final top = ((stageHeight - cardHeight) / 2).clamp(6.0, 22.0);
         final threshold = constraints.maxWidth * 0.28;
@@ -717,6 +795,7 @@ class _SwipeStage extends StatelessWidget {
               left: 0,
               top: top + cardHeight * 0.30,
               child: _DirectionHint(
+                key: const ValueKey('sort-bucket-debit'),
                 label: 'Debit',
                 icon: Icons.arrow_back_rounded,
                 progress: dragDx < 0 || activeBucket == _SortBucket.debit
@@ -730,6 +809,7 @@ class _SwipeStage extends StatelessWidget {
               right: 0,
               top: top + cardHeight * 0.30,
               child: _DirectionHint(
+                key: const ValueKey('sort-bucket-credit'),
                 label: 'Credit',
                 icon: Icons.arrow_forward_rounded,
                 progress: dragDx > 0 || activeBucket == _SortBucket.credit
@@ -840,7 +920,10 @@ class _EntrySwipeCard extends StatelessWidget {
     return Container(
       width: width,
       constraints: BoxConstraints(minHeight: height * 0.86, maxHeight: height),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      padding: EdgeInsets.symmetric(
+        horizontal: height < 150 ? 14 : 18,
+        vertical: height < 150 ? 8 : 14,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -867,13 +950,53 @@ class _EntrySwipeCard extends StatelessWidget {
                 ),
               ),
             )
+          : height < 120
+          ? Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: const BoxDecoration(
+                    color: _SortSwipeColors.iconBubble,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.shopping_cart_rounded,
+                    color: _SortSwipeColors.greenDark,
+                    size: 21,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    entry!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _SortSwipeColors.textDark,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  width: 4,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: _SortSwipeColors.dragHandle,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ],
+            )
           : Column(
               mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: height < 150 ? 50 : 58,
-                  height: height < 150 ? 50 : 58,
+                  width: height < 150 ? 40 : 58,
+                  height: height < 150 ? 40 : 58,
                   decoration: const BoxDecoration(
                     color: _SortSwipeColors.iconBubble,
                     shape: BoxShape.circle,
@@ -881,35 +1004,35 @@ class _EntrySwipeCard extends StatelessWidget {
                   child: Icon(
                     Icons.shopping_cart_rounded,
                     color: _SortSwipeColors.greenDark,
-                    size: height < 150 ? 27 : 31,
+                    size: height < 150 ? 22 : 31,
                   ),
                 ),
-                SizedBox(height: height < 150 ? 9 : 12),
+                SizedBox(height: height < 150 ? 5 : 12),
                 SizedBox(
                   width: width * 0.82,
                   child: Text(
                     entry!,
-                    maxLines: 2,
+                    maxLines: height < 150 ? 1 : 2,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: _SortSwipeColors.textDark,
-                      fontSize: height < 150 ? 20 : 23,
+                      fontSize: height < 150 ? 16 : 23,
                       fontWeight: FontWeight.w900,
                       height: 1.08,
                     ),
                   ),
                 ),
-                SizedBox(height: height < 150 ? 6 : 8),
+                SizedBox(height: height < 150 ? 3 : 8),
                 Text(
                   'Account Entry',
                   style: TextStyle(
                     color: _SortSwipeColors.muted,
-                    fontSize: height < 150 ? 13 : 14,
+                    fontSize: height < 150 ? 11 : 14,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: height < 150 ? 10 : 12),
+                SizedBox(height: height < 150 ? 5 : 12),
                 Container(
                   width: 64,
                   height: 4,
@@ -941,6 +1064,7 @@ class _DirectionHint extends StatelessWidget {
   final VoidCallback onTap;
 
   const _DirectionHint({
+    super.key,
     required this.label,
     required this.icon,
     required this.progress,
@@ -982,20 +1106,23 @@ class _DirectionHint extends StatelessWidget {
                 width: 1.2 + intensity * 0.8,
               ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: _SortSwipeColors.green, size: 27),
-                const SizedBox(height: 3),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: _SortSwipeColors.greenDark,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w900,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: _SortSwipeColors.green, size: 25),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      color: _SortSwipeColors.greenDark,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

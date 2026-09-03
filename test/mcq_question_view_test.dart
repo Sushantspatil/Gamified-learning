@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:skillverse_app/app/theme/app_theme.dart';
@@ -26,13 +27,21 @@ Future<void> _pumpMcqView(
   void Function(Answer answer)? onSubmit,
 }) async {
   await tester.pumpWidget(
-    MaterialApp(
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      home: Scaffold(
-        body: McqQuestionView(
-          question: _question,
-          onSubmit: onSubmit ?? (_) {},
+    ProviderScope(
+      child: MaterialApp(
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        home: Scaffold(
+          body: McqQuestionView(
+            question: _question,
+            currentIndex: 0,
+            totalQuestions: 1,
+            currentStreak: 0,
+            coins: 60,
+            energy: 0,
+            onExit: () {},
+            onSubmit: onSubmit ?? (_) {},
+          ),
         ),
       ),
     ),
@@ -55,6 +64,8 @@ void main() {
 
     await tester.tap(find.text('50:50'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Buy & use'));
+    await tester.pumpAndSettle();
 
     expect(find.text('Removed by 50:50'), findsNWidgets(2));
     expect(find.text('Inventory'), findsOneWidget);
@@ -64,6 +75,8 @@ void main() {
     await _pumpMcqView(tester);
 
     await tester.tap(find.text('Hint'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Buy & use'));
     await tester.pumpAndSettle();
 
     expect(
@@ -84,7 +97,7 @@ void main() {
 
     await tester.tap(find.text('Inventory'));
     await tester.pump();
-    await tester.tap(find.text('Submit'));
+    await tester.tap(find.text('Submit Answer'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('50:50'));
     await tester.tap(find.text('Hint'));

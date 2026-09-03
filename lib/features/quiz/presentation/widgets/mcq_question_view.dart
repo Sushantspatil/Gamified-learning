@@ -5,9 +5,9 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_card.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
+import 'game_power_up_bar.dart';
 
 class McqQuestionView extends StatefulWidget {
   final McqQuestion question;
@@ -89,18 +89,68 @@ class _McqQuestionViewState extends State<McqQuestionView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text('MCQ Quiz', style: context.appTextStyles.titleLarge),
+            ),
+            Text(
+              '${widget.currentIndex + 1} / ${widget.totalQuestions}',
+              style: context.appTextStyles.labelLarge.copyWith(
+                color: context.themeColors.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
         Text(widget.question.prompt, style: context.appTextStyles.titleLarge),
         const SizedBox(height: AppSpacing.lg),
-        _McqAssistanceCard(
-          isFiftyFiftyUsed: _isFiftyFiftyUsed,
-          isHintVisible: _isHintVisible,
-          hintText:
-              widget.question.hint ??
-              'Read the question carefully and eliminate choices that do not fit.',
-          onFiftyFifty: _useFiftyFifty,
-          onHint: _showHint,
+        GamePowerUpBar(
+          coinBalanceOverride: widget.coins,
           isDisabled: _isSubmitted,
+          actions: [
+            GamePowerUpAction(
+              id: '50-50',
+              label: '50:50',
+              description: 'Remove two wrong answers.',
+              coinCost: 20,
+              icon: Icons.filter_2,
+              isUsed: _isFiftyFiftyUsed,
+              onUse: _useFiftyFifty,
+            ),
+            GamePowerUpAction(
+              id: 'hint',
+              label: 'Hint',
+              description: 'Show a helpful clue without revealing the answer.',
+              coinCost: 10,
+              icon: Icons.lightbulb_outline,
+              isUsed: _isHintVisible,
+              onUse: _showHint,
+            ),
+          ],
         ),
+        if (_isHintVisible) ...[
+          const SizedBox(height: AppSpacing.sm),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: context.themeColors.primary.withValues(alpha: 0.08),
+              borderRadius: AppDimensions.radiusMd,
+              border: Border.all(
+                color: context.themeColors.primary.withValues(alpha: 0.18),
+              ),
+            ),
+            child: Padding(
+              padding: AppSpacing.paddingSm,
+              child: Text(
+                widget.question.hint ??
+                    'Read the question carefully and eliminate choices that do not fit.',
+                style: context.appTextStyles.bodyMedium.copyWith(
+                  color: context.themeColors.textPrimary,
+                ),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         Expanded(
           child: RadioGroup<String>(
@@ -131,90 +181,12 @@ class _McqQuestionViewState extends State<McqQuestionView> {
         ),
         const SizedBox(height: AppSpacing.md),
         AppButton(
-          label: 'Submit',
+          label: 'Submit Answer',
           onPressed: _selectedOptionId == null || _isSubmitted
               ? null
               : _submitSelectedAnswer,
         ),
       ],
-    );
-  }
-}
-
-class _McqAssistanceCard extends StatelessWidget {
-  final bool isFiftyFiftyUsed;
-  final bool isHintVisible;
-  final String hintText;
-  final VoidCallback onFiftyFifty;
-  final VoidCallback onHint;
-  final bool isDisabled;
-
-  const _McqAssistanceCard({
-    required this.isFiftyFiftyUsed,
-    required this.isHintVisible,
-    required this.hintText,
-    required this.onFiftyFifty,
-    required this.onHint,
-    required this.isDisabled,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return AppCard(
-      variant: AppCardVariant.tinted,
-      tintColor: colors.primary,
-      borderRadius: AppDimensions.radiusLg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: AppButton(
-                  label: '50:50',
-                  variant: AppButtonVariant.secondary,
-                  leadingIcon: const Icon(Icons.filter_2),
-                  onPressed: isDisabled || isFiftyFiftyUsed
-                      ? null
-                      : onFiftyFifty,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: AppButton(
-                  label: 'Hint',
-                  variant: AppButtonVariant.secondary,
-                  leadingIcon: const Icon(Icons.lightbulb_outline),
-                  onPressed: isDisabled || isHintVisible ? null : onHint,
-                ),
-              ),
-            ],
-          ),
-          if (isHintVisible) ...[
-            const SizedBox(height: AppSpacing.sm),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: colors.primary.withValues(alpha: 0.08),
-                borderRadius: AppDimensions.radiusMd,
-                border: Border.all(
-                  color: colors.primary.withValues(alpha: 0.18),
-                ),
-              ),
-              child: Padding(
-                padding: AppSpacing.paddingSm,
-                child: Text(
-                  hintText,
-                  style: context.appTextStyles.bodyMedium.copyWith(
-                    color: colors.textPrimary,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 }

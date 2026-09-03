@@ -19,6 +19,7 @@ import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
+import 'game_power_up_bar.dart';
 
 class MatchTheFollowingView extends ConsumerStatefulWidget {
   final MatchTheFollowingQuestion question;
@@ -44,12 +45,15 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
   static const double _rowGap = 12;
   static const double _connectorGap = 64;
 
-  late final List<MatchPair> _shuffledRight;
+  late List<MatchPair> _shuffledRight;
 
   final Map<String, String> _matches = {};
 
   String? _selectedLeftPairId;
   _MatchFlowPhase _phase = _MatchFlowPhase.playing;
+  bool _isHintVisible = false;
+  bool _isAutoMatchUsed = false;
+  bool _isShuffleUsed = false;
 
   @override
   void initState() {
@@ -122,6 +126,44 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
     });
   }
 
+  void _showHint() {
+    if (_isLocked || _isHintVisible) return;
+    setState(() => _isHintVisible = true);
+  }
+
+  void _autoMatchOne() {
+    if (_isLocked || _isAutoMatchUsed) return;
+    MatchPair? pair;
+    for (final candidate in widget.question.pairs) {
+      if (_matches[candidate.id] != candidate.id) {
+        pair = candidate;
+        break;
+      }
+    }
+    if (pair == null) return;
+    final selectedPair = pair;
+
+    setState(() {
+      _isAutoMatchUsed = true;
+      _matches.removeWhere(
+        (leftPairId, rightPairId) =>
+            rightPairId == selectedPair.id && leftPairId != selectedPair.id,
+      );
+      _matches[selectedPair.id] = selectedPair.id;
+      _selectedLeftPairId = null;
+    });
+  }
+
+  void _shuffleAnswers() {
+    if (_isLocked || _isShuffleUsed) return;
+    setState(() {
+      _isShuffleUsed = true;
+      _shuffledRight.shuffle(
+        Random(widget.question.id.hashCode + _matches.length + 17),
+      );
+    });
+  }
+
   void _continueAfterAnalysis() {
     if (_phase != _MatchFlowPhase.analysis) return;
     setState(() => _phase = _MatchFlowPhase.submitting);
@@ -166,6 +208,54 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
               ),
               const SizedBox(height: AppSpacing.md),
               _ProgressHud(matchedCount: matchedCount, totalPairs: totalPairs),
+              const SizedBox(height: AppSpacing.lg),
+              GamePowerUpBar(
+                coinBalanceOverride: widget.coinBalanceOverride,
+                isDisabled: _isLocked,
+                actions: [
+                  GamePowerUpAction(
+                    id: 'match-hint',
+                    label: 'Hint',
+                    description: 'Show a pairing strategy for this board.',
+                    coinCost: 10,
+                    icon: Icons.lightbulb_outline,
+                    isUsed: _isHintVisible,
+                    onUse: _showHint,
+                  ),
+                  GamePowerUpAction(
+                    id: 'auto-match',
+                    label: 'Auto 1',
+                    description: 'Correctly match one remaining pair.',
+                    coinCost: 30,
+                    icon: Icons.auto_awesome_rounded,
+                    isUsed: _isAutoMatchUsed,
+                    onUse: _autoMatchOne,
+                  ),
+                  GamePowerUpAction(
+                    id: 'shuffle',
+                    label: 'Shuffle',
+                    description: 'Shuffle the answer side.',
+                    coinCost: 15,
+                    icon: Icons.shuffle_rounded,
+                    isUsed: _isShuffleUsed,
+                    onUse: _shuffleAnswers,
+                  ),
+                ],
+              ),
+              if (_isHintVisible) ...[
+                const SizedBox(height: AppSpacing.sm),
+                AppCard(
+                  variant: AppCardVariant.tinted,
+                  tintColor: colors.primary,
+                  borderRadius: AppDimensions.radiusLg,
+                  child: Text(
+                    'Start with the clearest concept, then remove any pair you are unsure about before final submit.',
+                    style: context.appTextStyles.bodyMedium.copyWith(
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               SizedBox(
                 height: boardHeight,

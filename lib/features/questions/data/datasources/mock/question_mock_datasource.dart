@@ -37,7 +37,7 @@ class QuestionMockDatasource implements QuestionDatasource {
           QuestionOption(id: 'c', text: 'Geothermal energy'),
           QuestionOption(id: 'd', text: 'Tidal energy'),
         ],
-        correctOptionId: 'b',
+        correctOptionId: 'a',
         hint: 'Eliminate choices that do not match the topic wording.',
       ),
       MatchTheFollowingQuestion(

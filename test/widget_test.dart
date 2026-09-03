@@ -135,11 +135,11 @@ Future<void> _answerMcqCorrectly(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _swipeCurrentSortCard(WidgetTester tester, Offset offset) async {
-  final card = find.byKey(const ValueKey('sort-swipe-card'));
-  await tester.ensureVisible(card);
+Future<void> _sortCurrentCardTo(WidgetTester tester, String bucket) async {
+  final target = find.byKey(ValueKey('sort-bucket-$bucket'));
+  await tester.ensureVisible(target);
   await tester.pumpAndSettle();
-  await tester.drag(card, offset);
+  await tester.tap(target);
   await tester.pumpAndSettle();
 }
 
@@ -392,6 +392,27 @@ void main() {
     expect(find.text('Tags & Elements'), findsOneWidget);
   });
 
+  testWidgets('learn subject opens a playable level map', (tester) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
+
+    await tester.tap(find.byTooltip('Learn'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Web Development'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Level map'), findsOneWidget);
+    expect(find.text('World 1'), findsOneWidget);
+    expect(find.text('Level 1'), findsOneWidget);
+    expect(find.text('Tags & Elements'), findsOneWidget);
+
+    await tester.tap(find.text('Tags & Elements'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start level'), findsOneWidget);
+  });
+
   testWidgets('practice hub exposes the four quiz modes and opens Match It', (
     tester,
   ) async {
@@ -440,11 +461,11 @@ void main() {
     await _completeOnboarding(tester);
     await _startSortItOutQuiz(tester);
 
-    await _swipeCurrentSortCard(tester, const Offset(-220, 0));
-    await _swipeCurrentSortCard(tester, const Offset(-220, 0));
-    await _swipeCurrentSortCard(tester, const Offset(-220, 0));
-    await _swipeCurrentSortCard(tester, const Offset(220, 0));
-    await _swipeCurrentSortCard(tester, const Offset(220, 0));
+    await _sortCurrentCardTo(tester, 'debit');
+    await _sortCurrentCardTo(tester, 'debit');
+    await _sortCurrentCardTo(tester, 'debit');
+    await _sortCurrentCardTo(tester, 'credit');
+    await _sortCurrentCardTo(tester, 'credit');
     await tester.tap(find.text('Submit Sort'));
     await tester.pumpAndSettle();
 
