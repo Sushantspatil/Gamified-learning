@@ -65,7 +65,7 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen> {
             }
 
             return ListView(
-              padding: AppSpacing.paddingLg,
+              padding: AppSpacing.paddingMd,
               children: [
                 SizedBox(
                   height: 220,

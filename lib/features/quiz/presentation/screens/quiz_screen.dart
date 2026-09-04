@@ -64,7 +64,7 @@ class QuizScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => Center(
             child: Padding(
-              padding: AppSpacing.paddingLg,
+              padding: AppSpacing.paddingMd,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -101,7 +101,7 @@ class QuizScreen extends ConsumerWidget {
             if (question == null) {
               return Center(
                 child: Padding(
-                  padding: AppSpacing.paddingLg,
+                  padding: AppSpacing.paddingMd,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -142,15 +142,18 @@ class QuizScreen extends ConsumerWidget {
                   ? appStreak
                   : currentStreak;
 
-              return McqQuestionView(
-                question: question,
-                currentIndex: session.currentIndex,
-                totalQuestions: session.questions.length,
-                currentStreak: bestStreak,
-                coins: wallet?.coins ?? 0,
-                energy: wallet?.gems ?? 0,
-                onExit: () => Navigator.of(context).maybePop(),
-                onSubmit: handleAnswer,
+              return Padding(
+                padding: AppSpacing.paddingMd,
+                child: McqQuestionView(
+                  question: question,
+                  currentIndex: session.currentIndex,
+                  totalQuestions: session.questions.length,
+                  currentStreak: bestStreak,
+                  coins: wallet?.coins ?? 0,
+                  energy: wallet?.gems ?? 0,
+                  onExit: () => Navigator.of(context).maybePop(),
+                  onSubmit: handleAnswer,
+                ),
               );
             }
 

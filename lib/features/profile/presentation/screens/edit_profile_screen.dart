@@ -80,7 +80,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: AppSpacing.paddingLg,
+          padding: AppSpacing.paddingMd,
           child: Form(
             key: _formKey,
             child: Column(

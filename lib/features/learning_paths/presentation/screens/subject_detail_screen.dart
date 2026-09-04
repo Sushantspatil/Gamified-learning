@@ -274,7 +274,7 @@ class _ModeChoiceCard extends StatelessWidget {
       child: AppCard(
         variant: AppCardVariant.tinted,
         tintColor: accent,
-        padding: AppSpacing.paddingLg,
+        padding: AppSpacing.paddingMd,
         child: Row(
           children: [
             Container(
@@ -440,7 +440,7 @@ class _ErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: AppSpacing.paddingLg,
+        padding: AppSpacing.paddingMd,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -463,7 +463,7 @@ class _MessageState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: AppSpacing.paddingLg,
+        padding: AppSpacing.paddingMd,
         child: Text(
           message,
           textAlign: TextAlign.center,

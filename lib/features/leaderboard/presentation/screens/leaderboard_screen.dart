@@ -72,7 +72,7 @@ class _GlobalLeaderboardTab extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(
           child: Padding(
-            padding: AppSpacing.paddingLg,
+            padding: AppSpacing.paddingMd,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -267,7 +267,7 @@ class _UnsupportedScopeMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: AppSpacing.paddingLg,
+        padding: AppSpacing.paddingMd,
         child: Text(
           message,
           textAlign: TextAlign.center,

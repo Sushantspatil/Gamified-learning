@@ -64,7 +64,7 @@ class _SplashScreenState extends State<SplashScreen>
               child: Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.lg,
+                    horizontal: AppSpacing.screenPadding,
                     vertical: AppSpacing.xl,
                   ),
                   child: ConstrainedBox(

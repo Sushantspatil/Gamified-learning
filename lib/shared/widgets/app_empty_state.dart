@@ -24,7 +24,7 @@ class AppEmptyState extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: AppSpacing.paddingLg,
+        padding: AppSpacing.paddingMd,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

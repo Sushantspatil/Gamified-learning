@@ -68,7 +68,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             ),
             Center(
               child: SingleChildScrollView(
-                padding: AppSpacing.paddingLg,
+                padding: AppSpacing.paddingMd,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 480),
                   child: Form(

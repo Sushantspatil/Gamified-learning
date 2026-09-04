@@ -52,7 +52,7 @@ class ProfileScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => Center(
             child: Padding(
-              padding: AppSpacing.paddingLg,
+              padding: AppSpacing.paddingMd,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -80,7 +80,7 @@ class ProfileScreen extends ConsumerWidget {
             }
 
             return SingleChildScrollView(
-              padding: AppSpacing.paddingLg,
+              padding: AppSpacing.paddingMd,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [

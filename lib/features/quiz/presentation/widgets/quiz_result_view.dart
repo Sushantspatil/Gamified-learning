@@ -33,7 +33,7 @@ class QuizResultView extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: AppSpacing.paddingLg,
+        padding: AppSpacing.paddingMd,
         child: AppCard(
           variant: AppCardVariant.tinted,
           tintColor: accent,

@@ -81,7 +81,7 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
       body: SafeArea(
         child: Center(
           child: Padding(
-            padding: AppSpacing.paddingLg,
+            padding: AppSpacing.paddingMd,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [

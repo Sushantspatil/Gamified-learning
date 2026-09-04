@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/theme/app_spacing.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import 'game_power_up_bar.dart';
@@ -258,7 +259,12 @@ class _SortItRightViewState extends State<SortItRightView>
     return ColoredBox(
       color: _SortSwipeColors.background,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(16, isCompact ? 6 : 8, 16, 0),
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.screenPadding,
+          isCompact ? 6 : 8,
+          AppSpacing.screenPadding,
+          0,
+        ),
         child: Column(
           children: [
             _SortTopBar(
@@ -925,7 +931,7 @@ class _EntrySwipeCard extends StatelessWidget {
         vertical: height < 150 ? 8 : 14,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _SortSwipeColors.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isActive ? _SortSwipeColors.green : _SortSwipeColors.greenSoft,
@@ -1269,7 +1275,7 @@ class _SortedEntryTile extends StatelessWidget {
       height: 36,
       padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _SortSwipeColors.surfaceElevated,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _SortSwipeColors.border),
         boxShadow: const [
@@ -1417,7 +1423,7 @@ class _SubmitButton extends StatelessWidget {
                 'Submit Sort',
                 maxLines: 1,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: _SortSwipeColors.buttonForeground,
                   fontSize: 16,
                   fontWeight: FontWeight.w900,
                 ),
@@ -1426,7 +1432,7 @@ class _SubmitButton extends StatelessWidget {
                 right: 16,
                 child: Icon(
                   Icons.arrow_forward_rounded,
-                  color: Colors.white,
+                  color: _SortSwipeColors.buttonForeground,
                   size: 26,
                 ),
               ),
@@ -1586,7 +1592,7 @@ class _CircleIcon extends StatelessWidget {
           width: 34,
           height: 34,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _SortSwipeColors.surface,
             shape: BoxShape.circle,
             border: Border.all(color: _SortSwipeColors.greenSoft),
           ),
@@ -1666,7 +1672,7 @@ class _SortSwipeDecoration {
 
   static BoxDecoration card({required double radius}) {
     return BoxDecoration(
-      color: Colors.white,
+      color: _SortSwipeColors.surface,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(color: _SortSwipeColors.border),
       boxShadow: const [
@@ -1681,7 +1687,7 @@ class _SortSwipeDecoration {
 
   static BoxDecoration backCard() {
     return BoxDecoration(
-      color: Colors.white,
+      color: _SortSwipeColors.surface,
       borderRadius: BorderRadius.circular(26),
       border: Border.all(color: _SortSwipeColors.border),
       boxShadow: const [
@@ -1698,25 +1704,28 @@ class _SortSwipeDecoration {
 class _SortSwipeColors {
   _SortSwipeColors._();
 
-  static const Color green = Color(0xFF16B84E);
-  static const Color greenDark = Color(0xFF05963E);
-  static const Color greenSoft = Color(0xFF98E6B2);
-  static const Color background = Color(0xFFF8FAFC);
-  static const Color textDark = Color(0xFF0F172A);
-  static const Color muted = Color(0xFF66708D);
-  static const Color border = Color(0xFFE2E8F0);
-  static const Color shadow = Color(0x120F172A);
-  static const Color coin = Color(0xFFF59E0B);
-  static const Color energy = Color(0xFFF59E0B);
-  static const Color greenTrack = Color(0xFFDFF3E8);
-  static const Color disabled = Color(0xFFCBD5E1);
-  static const Color disabledDark = Color(0xFF94A3B8);
-  static const Color badgeFill = Color(0xFFEFFBF3);
-  static const Color badgeBorder = Color(0xFFCBEFD6);
-  static const Color bucketActiveFill = Color(0xFFDDF8E7);
-  static const Color scaleIcon = Color(0xFFB9C4D4);
-  static const Color iconBubble = Color(0xFFE9F8EE);
-  static const Color dragHandle = Color(0xFFD5DAE5);
-  static const Color panelFill = Color(0xF7F6FEF8);
-  static const Color handle = Color(0xFFB7C0CF);
+  static const Color green = Color(0xFF5FE7FF);
+  static const Color greenDark = Color(0xFF9D8CFF);
+  static const Color greenSoft = Color(0xFF465078);
+  static const Color background = Color(0xFF090B18);
+  static const Color surface = Color(0xFF171B31);
+  static const Color surfaceElevated = Color(0xFF222845);
+  static const Color textDark = Color(0xFFF8FAFF);
+  static const Color muted = Color(0xFFC7CDE3);
+  static const Color border = Color(0xFF465078);
+  static const Color shadow = Color(0x66000000);
+  static const Color coin = Color(0xFFFFB82E);
+  static const Color energy = Color(0xFF21E6FF);
+  static const Color greenTrack = Color(0xFF2A3153);
+  static const Color disabled = Color(0xFF2A3153);
+  static const Color disabledDark = Color(0xFF465078);
+  static const Color badgeFill = Color(0xFF222845);
+  static const Color badgeBorder = Color(0xFF465078);
+  static const Color bucketActiveFill = Color(0xFF243F57);
+  static const Color scaleIcon = Color(0xFF9D8CFF);
+  static const Color iconBubble = Color(0xFF2A3153);
+  static const Color dragHandle = Color(0xFF5B668F);
+  static const Color panelFill = Color(0xFF11162B);
+  static const Color handle = Color(0xFF9AA3C0);
+  static const Color buttonForeground = Color(0xFF090B18);
 }
