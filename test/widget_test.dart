@@ -73,6 +73,8 @@ Future<void> _completeOnboarding(WidgetTester tester) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text('Continue'));
   await tester.pumpAndSettle();
+  await tester.pump(const Duration(seconds: 1));
+  await tester.pumpAndSettle();
 }
 
 /// The dashboard's ListView doesn't eagerly build off-screen children, so
@@ -84,18 +86,37 @@ Future<void> _scrollDashboardToBottom(WidgetTester tester) async {
 }
 
 Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
-  await tester.tap(find.byTooltip('Practice'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(modeLabel));
+  await tester.tap(find.byTooltip('Learn'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Web Development'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('HTML Foundations'));
+  await tester.tap(find.text('Play'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Tags & Elements'));
+  await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Start Quiz').first);
+  await tester.tap(find.text('HTML Foundations').last);
   await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('play-topic-dropdown')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Tags & Elements').last);
+  await tester.pumpAndSettle();
+  final modeCard = find.byKey(ValueKey('play-mode-${_routeValue(modeLabel)}'));
+  await tester.ensureVisible(modeCard);
+  await tester.pumpAndSettle();
+  await tester.tap(modeCard);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Start game'));
+  await tester.pumpAndSettle();
+}
+
+String _routeValue(String modeLabel) {
+  return switch (modeLabel) {
+    'MCQ Quiz' => 'mcq',
+    'Match the Following' => 'matching',
+    'Sort It Out' => 'sortItOut',
+    'Sudden Death' => 'suddenDeath',
+    _ => throw ArgumentError('Unknown mode: $modeLabel'),
+  };
 }
 
 Future<void> _startMcqQuiz(WidgetTester tester) async {
@@ -112,12 +133,6 @@ Future<void> _startSuddenDeathQuiz(WidgetTester tester) async {
   expect(find.text('+5 SEC'), findsOneWidget);
   expect(find.text('50:50'), findsOneWidget);
   expect(find.text('Skip'), findsOneWidget);
-}
-
-Future<void> _startMatchQuiz(WidgetTester tester) async {
-  await _openPracticeMode(tester, 'Match the Following');
-  expect(find.byKey(const Key('match_it_view')), findsOneWidget);
-  expect(find.text('Match each concept'), findsOneWidget);
 }
 
 Future<void> _startSortItOutQuiz(WidgetTester tester) async {
@@ -380,19 +395,25 @@ void main() {
     },
   );
 
-  testWidgets('drilling into a chapter shows its topics', (tester) async {
+  testWidgets('Learn opens chapter topics', (tester) async {
     await _pumpApp(tester);
     await _signUp(tester);
     await _completeOnboarding(tester);
 
+    await tester.tap(find.byTooltip('Learn'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Web Development'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('subject-learn-card')));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('HTML Foundations'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Chapter Summary'), findsOneWidget);
+    expect(find.text('Topics'), findsWidgets);
     expect(find.text('Tags & Elements'), findsOneWidget);
   });
 
-  testWidgets('learn subject opens a playable level map', (tester) async {
+  testWidgets('Subject screen separates Learn and Play', (tester) async {
     await _pumpApp(tester);
     await _signUp(tester);
     await _completeOnboarding(tester);
@@ -402,15 +423,82 @@ void main() {
     await tester.tap(find.text('Web Development'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Level map'), findsOneWidget);
-    expect(find.text('World 1'), findsOneWidget);
-    expect(find.text('Level 1'), findsOneWidget);
-    expect(find.text('Tags & Elements'), findsOneWidget);
+    expect(find.byKey(const Key('subject-learn-card')), findsOneWidget);
+    expect(find.byKey(const Key('subject-play-card')), findsOneWidget);
+    expect(find.text('Study concepts and learning material'), findsOneWidget);
+    expect(find.text('Practice concepts through game modes'), findsOneWidget);
+    expect(find.byKey(const Key('game_power_up_bar')), findsNothing);
+  });
 
+  testWidgets('Topic opens learning material without power-ups', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
+
+    await tester.tap(find.byTooltip('Learn'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Web Development'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('subject-learn-card')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('HTML Foundations'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Tags & Elements'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Start level'), findsOneWidget);
+    expect(find.text('Learning material'), findsOneWidget);
+    expect(find.text('Study content'), findsOneWidget);
+    expect(find.text('Examples'), findsOneWidget);
+    expect(find.byKey(const Key('game_power_up_bar')), findsNothing);
+    expect(find.text('Practice This Topic'), findsNothing);
+  });
+
+  testWidgets('Play setup filters topics and launches Match It', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
+
+    await tester.tap(find.byTooltip('Learn'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Web Development'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('subject-play-card')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Start game'));
+    await tester.pumpAndSettle();
+    final startButton = tester.widget<TextButton>(
+      find.ancestor(
+        of: find.text('Start game'),
+        matching: find.byType(TextButton),
+      ),
+    );
+    expect(startButton.onPressed, isNull);
+
+    await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('HTML Foundations').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('play-topic-dropdown')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Tags & Elements'), findsWidgets);
+    expect(find.text('Selectors'), findsNothing);
+
+    await tester.tap(find.text('Tags & Elements').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('play-mode-matching')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('play-mode-matching')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start game'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('match_it_view')), findsOneWidget);
   });
 
   testWidgets('practice hub exposes the four quiz modes and opens Match It', (
@@ -427,8 +515,6 @@ void main() {
     expect(find.text('Match the Following'), findsOneWidget);
     expect(find.text('Sudden Death'), findsOneWidget);
     expect(find.text('Sort It Out'), findsOneWidget);
-
-    await _startMatchQuiz(tester);
   });
 
   testWidgets('completing an MCQ quiz shows Quiz Complete', (tester) async {
@@ -445,7 +531,7 @@ void main() {
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Start Quiz'), findsOneWidget);
+    expect(find.text('Start game'), findsOneWidget);
   });
 
   testWidgets('completing a Sort It Out quiz shows Quiz Complete', (

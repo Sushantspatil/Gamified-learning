@@ -37,6 +37,11 @@ class RouteNames {
       '/practice/topic/$chapterId/$topicId';
   static const String subjectPattern = '/learn/:subjectId';
   static String subjectPath(String subjectId) => '/learn/$subjectId';
+  static const String subjectLearnPattern = '/learn/:subjectId/chapters';
+  static String subjectLearnPath(String subjectId) =>
+      '/learn/$subjectId/chapters';
+  static const String subjectPlayPattern = '/learn/:subjectId/play';
+  static String subjectPlayPath(String subjectId) => '/learn/$subjectId/play';
   static const String chapter = '/chapter';
   static const String chapterPattern = '/chapter/:chapterId';
   static String chapterPath(String chapterId) => '/chapter/$chapterId';

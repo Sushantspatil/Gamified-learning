@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
@@ -29,7 +27,7 @@ class TopicLearningScreen extends ConsumerWidget {
 
     return GameScaffold(
       appBar: AppBar(
-        title: const Text('Topic Learning'),
+        title: const Text('Learning material'),
         actions: const [ThemeModeMenu()],
       ),
       body: SafeArea(
@@ -88,15 +86,14 @@ class TopicLearningScreen extends ConsumerWidget {
                         'Practice examples will appear here when study-material data is available.',
                         style: context.appTextStyles.bodyMedium,
                       ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text('Summary', style: context.appTextStyles.titleMedium),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Use this section to revise the concept before moving into Play mode from the subject screen.',
+                        style: context.appTextStyles.bodyMedium,
+                      ),
                     ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                AppButton(
-                  label: 'Practice This Topic',
-                  leadingIcon: const Icon(Icons.sports_esports),
-                  onPressed: () => context.push(
-                    RouteNames.topicPracticePath(chapterId, topicId),
                   ),
                 ),
               ],

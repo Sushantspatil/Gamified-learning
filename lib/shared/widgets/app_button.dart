@@ -63,7 +63,9 @@ class _AppButtonState extends State<AppButton> {
         curve: AppMotion.easeOut,
         child: TextButton(
           style: _styleFor(colors, widget.variant),
-          onPressed: widget.isLoading ? null : _handlePressed,
+          onPressed: widget.isLoading || widget.onPressed == null
+              ? null
+              : _handlePressed,
           child: AnimatedSwitcher(
             duration: AppMotion.duration(context, AppMotion.fast),
             switchInCurve: AppMotion.easeOut,

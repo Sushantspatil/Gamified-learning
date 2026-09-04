@@ -93,6 +93,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             SubjectDetailScreen(subjectId: state.pathParameters['subjectId']!),
       ),
       GoRoute(
+        path: RouteNames.subjectLearnPattern,
+        builder: (context, state) => SubjectLearnChaptersScreen(
+          subjectId: state.pathParameters['subjectId']!,
+        ),
+      ),
+      GoRoute(
+        path: RouteNames.subjectPlayPattern,
+        builder: (context, state) =>
+            PlaySetupScreen(subjectId: state.pathParameters['subjectId']!),
+      ),
+      GoRoute(
         path: RouteNames.chapterPattern,
         builder: (context, state) =>
             ChapterSummaryScreen(chapterId: state.pathParameters['chapterId']!),

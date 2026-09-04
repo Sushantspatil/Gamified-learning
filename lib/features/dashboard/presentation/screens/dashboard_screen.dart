@@ -144,12 +144,40 @@ class _SelectedPathDashboardSections extends ConsumerWidget {
               );
             }
 
-            return _ContinueLearningCard(
-              title: path.title,
-              subtitle: chapter.title,
-              completedTopics: 0,
-              totalTopics: chapter.topicCount,
-              onTap: () => context.push(RouteNames.chapterPath(chapter.id)),
+            final topicsAsync = ref.watch(topicsProvider(chapter.id));
+            return topicsAsync.when(
+              loading: () => _ContinueLearningCard(
+                title: path.title,
+                subtitle: chapter.title,
+                completedTopics: 0,
+                totalTopics: chapter.topicCount,
+                onTap: () => context.push(RouteNames.subjectLearnPath(path.id)),
+              ),
+              error: (error, stackTrace) => _ContinueLearningCard(
+                title: path.title,
+                subtitle: chapter.title,
+                completedTopics: 0,
+                totalTopics: chapter.topicCount,
+                onTap: () => context.push(RouteNames.subjectLearnPath(path.id)),
+              ),
+              data: (topics) {
+                final topic =
+                    _firstIncompleteTopic(topics) ??
+                    (topics.isEmpty ? null : topics.first);
+                return _ContinueLearningCard(
+                  title: path.title,
+                  subtitle: topic == null
+                      ? chapter.title
+                      : '${chapter.title} - ${topic.title}',
+                  completedTopics: 0,
+                  totalTopics: chapter.topicCount,
+                  onTap: topic == null
+                      ? () => context.push(RouteNames.subjectLearnPath(path.id))
+                      : () => context.push(
+                          RouteNames.topicPath(chapter.id, topic.id),
+                        ),
+                );
+              },
             );
           },
         );
@@ -796,7 +824,7 @@ class _SubjectsSection extends ConsumerWidget {
                     path: path,
                     accent: accent,
                     isSelected: path.id == selectedPathId,
-                    onTap: () => context.go(RouteNames.learningPath),
+                    onTap: () => context.push(RouteNames.subjectPath(path.id)),
                   );
                 },
               ),
@@ -967,16 +995,20 @@ class _QuickPracticeCards extends ConsumerWidget {
                     onTap: topic == null
                         ? null
                         : () => context.push(
-                            RouteNames.topicPracticePath(chapter.id, topic.id),
+                            RouteNames.subjectPlayPath(selectedPathId!),
                           ),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.ms),
-                const Expanded(
+                Expanded(
                   child: _QuickPracticeCard(
                     icon: Icons.bolt,
                     title: 'Sudden\ndeath',
-                    onTap: null,
+                    onTap: topic == null
+                        ? null
+                        : () => context.push(
+                            RouteNames.subjectPlayPath(selectedPathId!),
+                          ),
                   ),
                 ),
               ],

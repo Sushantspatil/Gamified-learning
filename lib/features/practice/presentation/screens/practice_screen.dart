@@ -13,18 +13,447 @@ import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
+import '../../../chapters/domain/entities/chapter.dart';
 import '../../../chapters/domain/entities/topic.dart';
 import '../../../chapters/presentation/providers/chapter_providers.dart';
 import '../../../learning_paths/domain/entities/learning_path.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../questions/domain/entities/question.dart';
+import '../../../questions/presentation/providers/question_providers.dart';
 
 const _practiceModes = [
   QuestionType.mcq,
   QuestionType.matchTheFollowing,
-  QuestionType.suddenDeath,
   QuestionType.sortItRight,
+  QuestionType.suddenDeath,
 ];
+
+class PlaySetupScreen extends ConsumerStatefulWidget {
+  final String subjectId;
+
+  const PlaySetupScreen({super.key, required this.subjectId});
+
+  @override
+  ConsumerState<PlaySetupScreen> createState() => _PlaySetupScreenState();
+}
+
+class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
+  String? _selectedChapterId;
+  String? _selectedTopicId;
+  QuestionType? _selectedMode;
+
+  void _selectChapter(String? chapterId) {
+    if (chapterId == _selectedChapterId) return;
+    setState(() {
+      _selectedChapterId = chapterId;
+      _selectedTopicId = null;
+      _selectedMode = null;
+    });
+  }
+
+  void _selectTopic(String? topicId) {
+    if (topicId == _selectedTopicId) return;
+    setState(() {
+      _selectedTopicId = topicId;
+      _selectedMode = null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pathsAsync = ref.watch(learningPathsProvider);
+    final chaptersAsync = ref.watch(chaptersProvider(widget.subjectId));
+
+    return GameScaffold(
+      appBar: AppBar(
+        title: const Text('Play'),
+        actions: const [ThemeModeMenu()],
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: AppSpacing.paddingMd,
+        child: AppButton(
+          label: 'Start game',
+          leadingIcon: const Icon(Icons.play_arrow_rounded),
+          onPressed: _canStart
+              ? () => context.push(
+                  RouteNames.quizPath(
+                    _selectedTopicId!,
+                    _selectedMode!,
+                    subjectId: widget.subjectId,
+                    chapterId: _selectedChapterId,
+                  ),
+                )
+              : null,
+        ),
+      ),
+      body: SafeArea(
+        child: pathsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => _ErrorState(
+            message: 'Could not load this subject.',
+            onRetry: () => ref.invalidate(learningPathsProvider),
+          ),
+          data: (paths) {
+            final subject = _findSubject(paths, widget.subjectId);
+            if (subject == null) {
+              return const _MessageState(message: 'Subject not found.');
+            }
+
+            return chaptersAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, stackTrace) => _ErrorState(
+                message: 'Could not load chapters.',
+                onRetry: () =>
+                    ref.invalidate(chaptersProvider(widget.subjectId)),
+              ),
+              data: (chapters) {
+                if (chapters.isEmpty) {
+                  return const _MessageState(
+                    message: 'No playable questions are available yet.',
+                  );
+                }
+
+                final selectedChapter = _findChapter(
+                  chapters,
+                  _selectedChapterId,
+                );
+                final topicsAsync = selectedChapter == null
+                    ? null
+                    : ref.watch(topicsProvider(selectedChapter.id));
+
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenPadding,
+                    AppSpacing.md,
+                    AppSpacing.screenPadding,
+                    112,
+                  ),
+                  children: [
+                    Text(
+                      'Play ${subject.title}',
+                      style: context.appTextStyles.displayMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Choose what to practice and how to play.',
+                      style: context.appTextStyles.bodyMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _SetupSection(
+                      title: 'What do you want to practice?',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _ChapterDropdown(
+                            chapters: chapters,
+                            selectedChapterId: _selectedChapterId,
+                            onChanged: _selectChapter,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _TopicPicker(
+                            topicsAsync: topicsAsync,
+                            selectedChapter: selectedChapter,
+                            selectedTopicId: _selectedTopicId,
+                            onChanged: _selectTopic,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    _GameModePicker(
+                      selectedTopicId: _selectedTopicId,
+                      selectedMode: _selectedMode,
+                      onChanged: (mode) => setState(() {
+                        _selectedMode = mode;
+                      }),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  bool get _canStart =>
+      _selectedChapterId != null &&
+      _selectedTopicId != null &&
+      _selectedMode != null;
+}
+
+class _SetupSection extends StatelessWidget {
+  final String title;
+  final Widget child;
+
+  const _SetupSection({required this.title, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: AppSpacing.paddingMd,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(title, style: context.appTextStyles.titleMedium),
+          const SizedBox(height: AppSpacing.md),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _ChapterDropdown extends StatelessWidget {
+  final List<Chapter> chapters;
+  final String? selectedChapterId;
+  final ValueChanged<String?> onChanged;
+
+  const _ChapterDropdown({
+    required this.chapters,
+    required this.selectedChapterId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      key: const Key('play-chapter-dropdown'),
+      initialValue: selectedChapterId,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: 'Chapter'),
+      items: [
+        for (final chapter in chapters)
+          DropdownMenuItem(
+            value: chapter.id,
+            child: Text(
+              chapter.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _TopicPicker extends StatelessWidget {
+  final AsyncValue<List<Topic>>? topicsAsync;
+  final Chapter? selectedChapter;
+  final String? selectedTopicId;
+  final ValueChanged<String?> onChanged;
+
+  const _TopicPicker({
+    required this.topicsAsync,
+    required this.selectedChapter,
+    required this.selectedTopicId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedChapter = this.selectedChapter;
+    final topicsAsync = this.topicsAsync;
+    if (selectedChapter == null || topicsAsync == null) {
+      return DropdownButtonFormField<String>(
+        key: const Key('play-topic-dropdown'),
+        initialValue: null,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Topic'),
+        items: const [],
+        hint: const Text('Select a chapter first'),
+        onChanged: null,
+      );
+    }
+
+    return topicsAsync.when(
+      loading: () => const AppCard(
+        variant: AppCardVariant.outlined,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: AppSpacing.sm),
+            Text('Loading topics'),
+          ],
+        ),
+      ),
+      error: (error, stackTrace) => Text(
+        'Could not load topics.',
+        style: context.appTextStyles.bodyMedium,
+      ),
+      data: (topics) {
+        if (topics.isEmpty) {
+          return Text(
+            'No playable questions are available for this topic yet.',
+            style: context.appTextStyles.bodyMedium,
+          );
+        }
+
+        return DropdownButtonFormField<String>(
+          key: const Key('play-topic-dropdown'),
+          initialValue: selectedTopicId,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Topic'),
+          items: [
+            for (final topic in topics)
+              DropdownMenuItem(
+                value: topic.id,
+                child: Text(
+                  topic.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+          ],
+          onChanged: onChanged,
+        );
+      },
+    );
+  }
+}
+
+class _GameModePicker extends ConsumerWidget {
+  final String? selectedTopicId;
+  final QuestionType? selectedMode;
+  final ValueChanged<QuestionType> onChanged;
+
+  const _GameModePicker({
+    required this.selectedTopicId,
+    required this.selectedMode,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final topicId = selectedTopicId;
+    final questionsAsync = topicId == null
+        ? const AsyncValue<List<Question>>.data([])
+        : ref.watch(questionsForTopicProvider(topicId));
+
+    return _SetupSection(
+      title: 'Choose game mode',
+      child: questionsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Text(
+          'No playable questions are available for this topic yet.',
+          style: context.appTextStyles.bodyMedium,
+        ),
+        data: (questions) {
+          final availability = {
+            for (final mode in _practiceModes)
+              mode: _modeAvailability(mode, questions),
+          };
+
+          return GridView.count(
+            crossAxisCount: 2,
+            childAspectRatio: 1.22,
+            crossAxisSpacing: AppSpacing.sm,
+            mainAxisSpacing: AppSpacing.sm,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              for (final mode in _practiceModes)
+                _SelectableQuizModeCard(
+                  mode: mode,
+                  isSelected: mode == selectedMode,
+                  availability: availability[mode]!,
+                  onTap: () => onChanged(mode),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SelectableQuizModeCard extends StatelessWidget {
+  final QuestionType mode;
+  final bool isSelected;
+  final _ModeAvailability availability;
+  final VoidCallback onTap;
+
+  const _SelectableQuizModeCard({
+    required this.mode,
+    required this.isSelected,
+    required this.availability,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    final accent = _modeColor(colors, mode);
+    final enabled = availability.isEnabled;
+
+    return AppPressable(
+      key: Key('play-mode-${mode.routeValue}'),
+      onTap: enabled ? onTap : null,
+      borderRadius: AppDimensions.radiusCard,
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: enabled ? 1 : 0.58,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: isSelected
+                ? accent.withValues(alpha: 0.14)
+                : colors.cardBackground,
+            borderRadius: AppDimensions.radiusCard,
+            border: Border.all(
+              color: isSelected
+                  ? accent
+                  : enabled
+                  ? colors.border
+                  : colors.borderStrong,
+              width: isSelected ? 2 : 1,
+            ),
+          ),
+          child: Padding(
+            padding: AppSpacing.paddingMs,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(_modeIcon(mode), color: accent, size: 22),
+                    const Spacer(),
+                    if (isSelected)
+                      Icon(Icons.check_circle, color: accent, size: 18),
+                  ],
+                ),
+                const Spacer(),
+                Text(
+                  _modeShortName(mode),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.appTextStyles.labelLarge.copyWith(
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  availability.reason ?? _modeDescription(mode),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.appTextStyles.labelSmall.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class PracticeScreen extends StatelessWidget {
   const PracticeScreen({super.key});
@@ -529,6 +958,21 @@ Topic? _findTopic(List<Topic> topics, String topicId) {
   return null;
 }
 
+LearningPath? _findSubject(List<LearningPath> paths, String subjectId) {
+  for (final path in paths) {
+    if (path.id == subjectId) return path;
+  }
+  return null;
+}
+
+Chapter? _findChapter(List<Chapter> chapters, String? chapterId) {
+  if (chapterId == null) return null;
+  for (final chapter in chapters) {
+    if (chapter.id == chapterId) return chapter;
+  }
+  return null;
+}
+
 IconData _modeIcon(QuestionType mode) {
   return switch (mode) {
     QuestionType.mcq => Icons.quiz_outlined,
@@ -549,10 +993,69 @@ Color _modeColor(AppThemeColors colors, QuestionType mode) {
 
 String _modeDescription(QuestionType mode) {
   return switch (mode) {
-    QuestionType.mcq => 'Standard answer-selection challenge.',
-    QuestionType.matchTheFollowing => 'Pair concepts with their answers.',
-    QuestionType.suddenDeath =>
-      'Keep going until one wrong answer ends the run.',
-    QuestionType.sortItRight => 'Arrange items into the correct order.',
+    QuestionType.mcq => 'Choose the correct answer.',
+    QuestionType.matchTheFollowing => 'Connect the correct pairs.',
+    QuestionType.suddenDeath => 'Answer correctly before time runs out.',
+    QuestionType.sortItRight => 'Swipe answers into the right group.',
   };
+}
+
+String _modeShortName(QuestionType mode) {
+  return switch (mode) {
+    QuestionType.mcq => 'MCQ',
+    QuestionType.matchTheFollowing => 'Match',
+    QuestionType.sortItRight => 'Sort It Out',
+    QuestionType.suddenDeath => 'Sudden Death',
+  };
+}
+
+_ModeAvailability _modeAvailability(
+  QuestionType mode,
+  List<Question> questions,
+) {
+  final hasTopic = questions.isNotEmpty;
+  if (!hasTopic) {
+    return const _ModeAvailability(
+      isEnabled: false,
+      reason: 'Select a topic first',
+    );
+  }
+
+  final matching = questions.where((question) => question.type == mode);
+  final canRun = switch (mode) {
+    QuestionType.mcq => matching.any(
+      (question) => question is McqQuestion && question.options.length >= 2,
+    ),
+    QuestionType.matchTheFollowing => matching.any(
+      (question) =>
+          question is MatchTheFollowingQuestion && question.pairs.length >= 2,
+    ),
+    QuestionType.sortItRight => matching.any(
+      (question) =>
+          question is SortItRightQuestion && question.itemsInOrder.length >= 2,
+    ),
+    QuestionType.suddenDeath => matching.any(
+      (question) =>
+          question is SuddenDeathQuestion && question.options.length >= 2,
+    ),
+  };
+
+  if (canRun) return const _ModeAvailability(isEnabled: true);
+
+  return _ModeAvailability(
+    isEnabled: false,
+    reason: switch (mode) {
+      QuestionType.mcq => 'No MCQ questions yet',
+      QuestionType.matchTheFollowing => 'Not enough matching pairs yet',
+      QuestionType.sortItRight => 'Not enough sortable items yet',
+      QuestionType.suddenDeath => 'No timed questions yet',
+    },
+  );
+}
+
+class _ModeAvailability {
+  final bool isEnabled;
+  final String? reason;
+
+  const _ModeAvailability({required this.isEnabled, this.reason});
 }

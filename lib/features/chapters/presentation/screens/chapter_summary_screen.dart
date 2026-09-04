@@ -7,11 +7,13 @@ import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../../shared/widgets/app_card.dart';
+import '../../../../shared/widgets/app_pressable.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../providers/chapter_providers.dart';
 
-/// "Chapter summary" screen from the Dashboard requirements — shows a
-/// chapter's description and its topics, each launching the quiz engine.
+/// Learn-mode chapter view: shows study topics only.
 class ChapterSummaryScreen extends ConsumerWidget {
   final String chapterId;
 
@@ -21,11 +23,10 @@ class ChapterSummaryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final chapterAsync = ref.watch(chapterByIdProvider(chapterId));
     final topicsAsync = ref.watch(topicsProvider(chapterId));
-    final colors = context.themeColors;
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(
-        title: const Text('Chapter Summary'),
+        title: const Text('Topics'),
         actions: const [ThemeModeMenu()],
       ),
       body: SafeArea(
@@ -69,50 +70,24 @@ class ChapterSummaryScreen extends ConsumerWidget {
                   data: (topics) {
                     if (topics.isEmpty) {
                       return Text(
-                        'No topics yet.',
+                        'No learning material available yet.',
                         style: context.appTextStyles.bodyMedium,
                       );
                     }
 
                     return Column(
                       children: [
-                        for (final topic in topics)
-                          Container(
-                            margin: const EdgeInsets.only(
-                              bottom: AppSpacing.sm,
-                            ),
-                            padding: AppSpacing.paddingMd,
-                            decoration: BoxDecoration(
-                              color: colors.cardBackground,
-                              borderRadius: AppDimensions.radiusMd,
-                              border: Border.all(color: colors.border),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  topic.isCompleted
-                                      ? Icons.check_circle
-                                      : Icons.circle_outlined,
-                                  color: topic.isCompleted
-                                      ? colors.success
-                                      : colors.textSecondary,
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Expanded(
-                                  child: Text(
-                                    topic.title,
-                                    style: context.appTextStyles.bodyLarge,
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: () => context.push(
-                                    RouteNames.topicPath(chapterId, topic.id),
-                                  ),
-                                  child: const Text('Study'),
-                                ),
-                              ],
-                            ),
+                        for (var index = 0; index < topics.length; index++) ...[
+                          _TopicStudyCard(
+                            chapterId: chapterId,
+                            topicId: topics[index].id,
+                            topicTitle: topics[index].title,
+                            isCompleted: topics[index].isCompleted,
+                            number: index + 1,
                           ),
+                          if (index != topics.length - 1)
+                            const SizedBox(height: AppSpacing.sm),
+                        ],
                       ],
                     );
                   },
@@ -120,6 +95,73 @@ class ChapterSummaryScreen extends ConsumerWidget {
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _TopicStudyCard extends StatelessWidget {
+  final String chapterId;
+  final String topicId;
+  final String topicTitle;
+  final bool isCompleted;
+  final int number;
+
+  const _TopicStudyCard({
+    required this.chapterId,
+    required this.topicId,
+    required this.topicTitle,
+    required this.isCompleted,
+    required this.number,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+
+    return AppPressable(
+      onTap: () => context.push(RouteNames.topicPath(chapterId, topicId)),
+      borderRadius: AppDimensions.radiusCard,
+      child: AppCard(
+        padding: AppSpacing.paddingMd,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isCompleted
+                    ? colors.success.withValues(alpha: 0.12)
+                    : colors.primary.withValues(alpha: 0.10),
+                borderRadius: AppDimensions.radiusMd,
+              ),
+              child: isCompleted
+                  ? Icon(Icons.check_rounded, color: colors.success, size: 20)
+                  : Text(
+                      number.toString().padLeft(2, '0'),
+                      style: context.appTextStyles.labelLarge.copyWith(
+                        color: colors.primary,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(topicTitle, style: context.appTextStyles.titleMedium),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    isCompleted ? 'Completed' : 'Study material',
+                    style: context.appTextStyles.bodyMedium,
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: colors.textSecondary),
+          ],
         ),
       ),
     );
