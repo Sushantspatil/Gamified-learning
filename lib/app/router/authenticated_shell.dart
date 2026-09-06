@@ -54,8 +54,8 @@ class _AuthenticatedBottomNavigation extends StatelessWidget {
             ),
             _BottomNavItem(
               icon: Icons.menu_book_outlined,
-              label: 'Learn',
-              tooltip: 'Learn',
+              label: 'Subjects',
+              tooltip: 'Subjects',
               isActive: location == RouteNames.learningPath,
               onTap: () => context.go(RouteNames.learningPath),
             ),
@@ -65,8 +65,8 @@ class _AuthenticatedBottomNavigation extends StatelessWidget {
             ),
             _BottomNavItem(
               icon: Icons.leaderboard_outlined,
-              label: 'Rank',
-              tooltip: 'Rank',
+              label: 'Leaderboard',
+              tooltip: 'Leaderboard',
               isActive: location == RouteNames.leaderboard,
               onTap: () => context.go(RouteNames.leaderboard),
             ),
@@ -157,7 +157,7 @@ class _PracticeNavItem extends StatelessWidget {
     return Expanded(
       child: Center(
         child: Tooltip(
-          message: 'Practice',
+          message: 'Play',
           child: InkWell(
             borderRadius: AppDimensions.radiusCircular,
             onTap: onTap,

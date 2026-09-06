@@ -10,6 +10,21 @@ class RouteNames {
   static const String dashboard = '/dashboard';
   static const String learningPath = '/learning-path';
   static const String practice = '/practice';
+  static String playSetupPath({
+    String? subjectId,
+    String? chapterId,
+    String? topicId,
+    QuestionType? quizType,
+  }) {
+    final query = <String, String>{};
+    if (subjectId != null) query['subjectId'] = subjectId;
+    if (chapterId != null) query['chapterId'] = chapterId;
+    if (topicId != null) query['topicId'] = topicId;
+    if (quizType != null) query['quizType'] = quizType.routeValue;
+    if (query.isEmpty) return practice;
+    return Uri(path: practice, queryParameters: query).toString();
+  }
+
   static const String practiceTypePattern = '/practice/:quizType';
   static String practiceTypePath(QuestionType quizType) =>
       '/practice/${quizType.routeValue}';
@@ -41,7 +56,8 @@ class RouteNames {
   static String subjectLearnPath(String subjectId) =>
       '/learn/$subjectId/chapters';
   static const String subjectPlayPattern = '/learn/:subjectId/play';
-  static String subjectPlayPath(String subjectId) => '/learn/$subjectId/play';
+  static String subjectPlayPath(String subjectId) =>
+      playSetupPath(subjectId: subjectId);
   static const String chapter = '/chapter';
   static const String chapterPattern = '/chapter/:chapterId';
   static String chapterPath(String chapterId) => '/chapter/$chapterId';

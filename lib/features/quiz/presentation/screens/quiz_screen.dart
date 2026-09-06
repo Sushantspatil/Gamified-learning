@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -93,7 +95,16 @@ class QuizScreen extends ConsumerWidget {
                 rewardXp: session.rewardXp,
                 rewardCoins: session.rewardCoins,
                 leveledUp: session.leveledUp,
-                onDone: () => Navigator.of(context).pop(),
+                onPlayAgain: () =>
+                    ref.invalidate(quizControllerProvider(request)),
+                onChangeMode: () => context.go(
+                  RouteNames.playSetupPath(
+                    subjectId: subjectId,
+                    chapterId: chapterId,
+                    topicId: topicId,
+                  ),
+                ),
+                onBackToHome: () => context.go(RouteNames.dashboard),
               );
             }
 
@@ -112,8 +123,14 @@ class QuizScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSpacing.md),
                       AppButton(
-                        label: 'Choose Another Mode',
-                        onPressed: () => Navigator.of(context).maybePop(),
+                        label: 'Change Mode',
+                        onPressed: () => context.go(
+                          RouteNames.playSetupPath(
+                            subjectId: subjectId,
+                            chapterId: chapterId,
+                            topicId: topicId,
+                          ),
+                        ),
                       ),
                     ],
                   ),

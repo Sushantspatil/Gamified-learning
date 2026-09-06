@@ -14,12 +14,16 @@ class QuizResultView extends StatelessWidget {
   final int? rewardXp;
   final int? rewardCoins;
   final bool leveledUp;
-  final VoidCallback onDone;
+  final VoidCallback onPlayAgain;
+  final VoidCallback onChangeMode;
+  final VoidCallback onBackToHome;
 
   const QuizResultView({
     super.key,
     required this.result,
-    required this.onDone,
+    required this.onPlayAgain,
+    required this.onChangeMode,
+    required this.onBackToHome,
     this.rewardXp,
     this.rewardCoins,
     this.leveledUp = false,
@@ -31,9 +35,9 @@ class QuizResultView extends StatelessWidget {
     final colors = context.themeColors;
     final accent = result.endedEarly ? colors.error : colors.warning;
 
-    return Center(
-      child: Padding(
-        padding: AppSpacing.paddingMd,
+    return SingleChildScrollView(
+      padding: AppSpacing.paddingMd,
+      child: Center(
         child: AppCard(
           variant: AppCardVariant.tinted,
           tintColor: accent,
@@ -117,7 +121,25 @@ class QuizResultView extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.xl),
-              AppButton(label: 'Done', onPressed: onDone),
+              AppButton(
+                label: 'Play Again',
+                leadingIcon: const Icon(Icons.replay_rounded),
+                onPressed: onPlayAgain,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppButton(
+                label: 'Change Mode',
+                variant: AppButtonVariant.secondary,
+                leadingIcon: const Icon(Icons.tune_rounded),
+                onPressed: onChangeMode,
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              AppButton(
+                label: 'Back to Home',
+                variant: AppButtonVariant.text,
+                leadingIcon: const Icon(Icons.home_rounded),
+                onPressed: onBackToHome,
+              ),
             ],
           ),
         ),

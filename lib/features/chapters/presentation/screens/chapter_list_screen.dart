@@ -11,8 +11,8 @@ import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../learning_paths/presentation/widgets/learning_path_card.dart';
 
-/// Learn tab root: shows study subjects first. Chapter/topic drilling happens
-/// in pushed detail routes so Learn remains study-focused.
+/// Subjects tab root: shows study subjects first. Chapter/topic drilling
+/// happens in pushed detail routes so Subjects remains study-focused.
 class ChapterListScreen extends ConsumerWidget {
   const ChapterListScreen({super.key});
 
@@ -25,7 +25,7 @@ class ChapterListScreen extends ConsumerWidget {
 
     return GameScaffold(
       appBar: AppBar(
-        title: const Text('Learn'),
+        title: const Text('Subjects'),
         actions: const [ThemeModeMenu()],
       ),
       body: SafeArea(

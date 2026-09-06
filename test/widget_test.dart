@@ -86,11 +86,11 @@ Future<void> _scrollDashboardToBottom(WidgetTester tester) async {
 }
 
 Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
-  await tester.tap(find.byTooltip('Learn'));
+  await tester.tap(find.byTooltip('Play'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Web Development'));
+  await tester.tap(find.byKey(const Key('play-subject-dropdown')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Play'));
+  await tester.tap(find.text('Web Development').last);
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
   await tester.pumpAndSettle();
@@ -101,9 +101,9 @@ Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
   await tester.tap(find.text('Tags & Elements').last);
   await tester.pumpAndSettle();
   final modeCard = find.byKey(ValueKey('play-mode-${_routeValue(modeLabel)}'));
-  await tester.ensureVisible(modeCard);
+  await tester.ensureVisible(modeCard.first);
   await tester.pumpAndSettle();
-  await tester.tap(modeCard);
+  await tester.tap(modeCard.first);
   await tester.pumpAndSettle();
   await tester.tap(find.text('Start game'));
   await tester.pumpAndSettle();
@@ -346,7 +346,7 @@ void main() {
     await _signUp(tester);
     await _completeOnboarding(tester);
 
-    await tester.tap(find.byTooltip('Rank'));
+    await tester.tap(find.byTooltip('Leaderboard').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Filters'), findsOneWidget);
@@ -395,16 +395,14 @@ void main() {
     },
   );
 
-  testWidgets('Learn opens chapter topics', (tester) async {
+  testWidgets('Subjects opens chapter topics', (tester) async {
     await _pumpApp(tester);
     await _signUp(tester);
     await _completeOnboarding(tester);
 
-    await tester.tap(find.byTooltip('Learn'));
+    await tester.tap(find.byTooltip('Subjects'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Web Development'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('subject-learn-card')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('HTML Foundations'));
     await tester.pumpAndSettle();
@@ -413,20 +411,22 @@ void main() {
     expect(find.text('Tags & Elements'), findsOneWidget);
   });
 
-  testWidgets('Subject screen separates Learn and Play', (tester) async {
+  testWidgets('Subjects flow stays focused on learning', (tester) async {
     await _pumpApp(tester);
     await _signUp(tester);
     await _completeOnboarding(tester);
 
-    await tester.tap(find.byTooltip('Learn'));
+    await tester.tap(find.byTooltip('Subjects'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Web Development'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('subject-learn-card')), findsOneWidget);
-    expect(find.byKey(const Key('subject-play-card')), findsOneWidget);
-    expect(find.text('Study concepts and learning material'), findsOneWidget);
-    expect(find.text('Practice concepts through game modes'), findsOneWidget);
+    expect(find.text('Learn Web Development'), findsOneWidget);
+    expect(
+      find.text('Study chapters, concepts, and explanations.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('subject-play-card')), findsNothing);
     expect(find.byKey(const Key('game_power_up_bar')), findsNothing);
   });
 
@@ -437,11 +437,9 @@ void main() {
     await _signUp(tester);
     await _completeOnboarding(tester);
 
-    await tester.tap(find.byTooltip('Learn'));
+    await tester.tap(find.byTooltip('Subjects'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Web Development'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('subject-learn-card')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('HTML Foundations'));
     await tester.pumpAndSettle();
@@ -462,11 +460,11 @@ void main() {
     await _signUp(tester);
     await _completeOnboarding(tester);
 
-    await tester.tap(find.byTooltip('Learn'));
+    await tester.tap(find.byTooltip('Play'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Web Development'));
+    await tester.tap(find.byKey(const Key('play-subject-dropdown')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('subject-play-card')));
+    await tester.tap(find.text('Web Development').last);
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.text('Start game'));
@@ -491,9 +489,11 @@ void main() {
 
     await tester.tap(find.text('Tags & Elements').last);
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const Key('play-mode-matching')));
+    await tester.ensureVisible(
+      find.byKey(const Key('play-mode-matching')).first,
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('play-mode-matching')));
+    await tester.tap(find.byKey(const Key('play-mode-matching')).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Start game'));
     await tester.pumpAndSettle();
@@ -508,11 +508,15 @@ void main() {
     await _signUp(tester);
     await _completeOnboarding(tester);
 
-    await tester.tap(find.byTooltip('Practice'));
+    await tester.tap(find.byTooltip('Play'));
     await tester.pumpAndSettle();
 
-    expect(find.text('MCQ Quiz'), findsOneWidget);
-    expect(find.text('Match the Following'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('play-mode-mcq')).first);
+    expect(find.text('MCQ'), findsOneWidget);
+    await tester.ensureVisible(
+      find.byKey(const Key('play-mode-matching')).first,
+    );
+    expect(find.text('Match'), findsOneWidget);
     expect(find.text('Sudden Death'), findsOneWidget);
     expect(find.text('Sort It Out'), findsOneWidget);
   });
@@ -528,7 +532,9 @@ void main() {
     expect(find.text('+10 XP'), findsOneWidget);
     expect(find.text('+5 Coins'), findsOneWidget);
 
-    await tester.tap(find.text('Done'));
+    await tester.ensureVisible(find.text('Change Mode'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Change Mode'));
     await tester.pumpAndSettle();
 
     expect(find.text('Start game'), findsOneWidget);
