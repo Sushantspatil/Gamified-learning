@@ -159,13 +159,13 @@ String _routeValue(String modeLabel) {
 Future<void> _startMcqQuiz(WidgetTester tester) async {
   await _openPracticeMode(tester, 'MCQ Quiz');
   expect(find.text('MCQ Quiz'), findsOneWidget);
-  expect(find.text('1 / 1'), findsOneWidget);
+  expect(find.text('1 / 5'), findsOneWidget);
 }
 
 Future<void> _startSuddenDeathQuiz(WidgetTester tester) async {
   await _openPracticeMode(tester, 'Sudden Death');
   expect(find.text('Sudden Death'), findsOneWidget);
-  expect(find.text('1 / 1'), findsOneWidget);
+  expect(find.text('1 / 5'), findsOneWidget);
   expect(find.text('15'), findsOneWidget);
   expect(find.text('+5 SEC'), findsOneWidget);
   expect(find.text('50:50'), findsOneWidget);
@@ -180,11 +180,15 @@ Future<void> _startSortItOutQuiz(WidgetTester tester) async {
   expect(find.text('Credit'), findsWidgets);
 }
 
-Future<void> _answerMcqCorrectly(WidgetTester tester) async {
-  await tester.tap(find.text('Solar energy'));
-  await tester.pump();
-  await tester.tap(find.text('Submit Answer'));
-  await tester.pumpAndSettle();
+Future<void> _answerAllMcqCorrectly(WidgetTester tester) async {
+  const answers = ['Solar energy', '<h1>', 'color', 'A hyperlink', 'let'];
+  for (var index = 0; index < answers.length; index++) {
+    expect(find.text('${index + 1} / 5'), findsOneWidget);
+    await tester.tap(find.text(answers[index]));
+    await tester.pump();
+    await tester.tap(find.text('Submit Answer'));
+    await tester.pumpAndSettle();
+  }
 }
 
 Future<void> _sortCurrentCardTo(WidgetTester tester, String bucket) async {
@@ -666,11 +670,11 @@ void main() {
     await _signUp(tester);
     await _completeOnboarding(tester);
     await _startMcqQuiz(tester);
-    await _answerMcqCorrectly(tester);
+    await _answerAllMcqCorrectly(tester);
 
     expect(find.text('Quiz Complete!'), findsOneWidget);
-    expect(find.text('+10 XP'), findsOneWidget);
-    expect(find.text('+5 Coins'), findsOneWidget);
+    expect(find.text('+50 XP'), findsOneWidget);
+    expect(find.text('+25 Coins'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Change Mode'));
     await tester.pumpAndSettle();
@@ -714,14 +718,42 @@ void main() {
     await _completeOnboarding(tester);
     await _startSuddenDeathQuiz(tester);
 
-    await tester.ensureVisible(find.text('Choice Y'));
+    await tester.ensureVisible(find.text('<paragraph>'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Choice Y'));
+    await tester.tap(find.text('<paragraph>'));
     await tester.pump();
     await tester.tap(find.text('Submit'));
     await tester.pumpAndSettle();
 
     expect(find.text('Sudden Death — Quiz Ended'), findsOneWidget);
+  });
+
+  testWidgets('Sudden Death advances while answers are correct', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
+    await _startSuddenDeathQuiz(tester);
+
+    await tester.tap(find.text('<p>'));
+    await tester.pump();
+    await tester.tap(find.text('Submit'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2 / 5'), findsOneWidget);
+    expect(
+      find.text('Which CSS property controls background color?'),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(find.text('font-weight'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('font-weight'));
+    await tester.pump();
+    await tester.ensureVisible(find.text('Submit'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Submit'));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('Sudden Death timer expiry ends the quiz early', (tester) async {

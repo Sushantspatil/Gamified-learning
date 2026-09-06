@@ -162,6 +162,7 @@ class QuizScreen extends ConsumerWidget {
               return Padding(
                 padding: AppSpacing.paddingMd,
                 child: McqQuestionView(
+                  key: ValueKey(question.id),
                   question: question,
                   currentIndex: session.currentIndex,
                   totalQuestions: session.questions.length,
@@ -176,6 +177,7 @@ class QuizScreen extends ConsumerWidget {
 
             if (question is MatchTheFollowingQuestion) {
               return MatchTheFollowingView(
+                key: ValueKey(question.id),
                 question: question,
                 onSubmit: handleAnswer,
                 onExit: () => Navigator.of(context).maybePop(),
@@ -198,6 +200,7 @@ class QuizScreen extends ConsumerWidget {
                   : currentStreak;
 
               return SuddenDeathQuestionView(
+                key: ValueKey(question.id),
                 question: question,
                 currentIndex: session.currentIndex,
                 totalQuestions: session.questions.length,
@@ -226,6 +229,7 @@ class QuizScreen extends ConsumerWidget {
                   : currentStreak;
 
               return SortItRightView(
+                key: ValueKey(question.id),
                 question: question,
                 currentIndex: session.currentIndex,
                 totalQuestions: session.questions.length,
