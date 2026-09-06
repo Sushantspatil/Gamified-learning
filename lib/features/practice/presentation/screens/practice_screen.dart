@@ -18,6 +18,7 @@ import '../../../chapters/domain/entities/topic.dart';
 import '../../../chapters/presentation/providers/chapter_providers.dart';
 import '../../../learning_paths/domain/entities/learning_path.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
+import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
 
@@ -91,6 +92,9 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
   @override
   Widget build(BuildContext context) {
     final pathsAsync = ref.watch(learningPathsProvider);
+    final selectedSubjectIds =
+        ref.watch(profileControllerProvider).valueOrNull?.selectedSubjectIds ??
+        const [];
     final selectedSubjectId = _selectedSubjectId;
     final chaptersAsync = selectedSubjectId == null
         ? null
@@ -126,7 +130,12 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
             onRetry: () => ref.invalidate(learningPathsProvider),
           ),
           data: (paths) {
-            if (paths.isEmpty) {
+            final visiblePaths = selectedSubjectIds.isEmpty
+                ? paths
+                : paths
+                      .where((path) => selectedSubjectIds.contains(path.id))
+                      .toList();
+            if (visiblePaths.isEmpty) {
               return const _MessageState(
                 message: 'No playable subjects are available yet.',
               );
@@ -134,7 +143,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
 
             final subject = selectedSubjectId == null
                 ? null
-                : _findSubject(paths, selectedSubjectId);
+                : _findSubject(visiblePaths, selectedSubjectId);
             if (selectedSubjectId != null && subject == null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) _selectSubject(null);
@@ -143,7 +152,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
 
             if (chaptersAsync == null) {
               return _SetupContent(
-                paths: paths,
+                paths: visiblePaths,
                 selectedSubjectId: _selectedSubjectId,
                 selectedChapterId: _selectedChapterId,
                 selectedTopicId: _selectedTopicId,
@@ -177,7 +186,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
                     : ref.watch(topicsProvider(selectedChapter.id));
 
                 return _SetupContent(
-                  paths: paths,
+                  paths: visiblePaths,
                   selectedSubjectId: _selectedSubjectId,
                   selectedChapterId: _selectedChapterId,
                   selectedTopicId: _selectedTopicId,

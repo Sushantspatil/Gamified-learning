@@ -15,10 +15,12 @@ import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/leaderboard/presentation/screens/leaderboard_screen.dart';
 import '../../features/learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../features/learning_paths/presentation/screens/subject_detail_screen.dart';
-import '../../features/onboarding/presentation/screens/learning_path_selection_screen.dart';
+import '../../features/onboarding/presentation/screens/how_to_play_tutorial_screen.dart';
+import '../../features/onboarding/presentation/screens/profile_setup_screen.dart';
 import '../../features/practice/presentation/screens/practice_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../../features/questions/domain/entities/question.dart';
 import '../../features/quiz/presentation/screens/quiz_screen.dart';
 import '../../features/shop/presentation/screens/shop_screen.dart';
@@ -32,6 +34,7 @@ import 'route_names.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = GoRouterRefreshNotifier(ref, [
     authControllerProvider,
+    profileControllerProvider,
     selectedLearningPathControllerProvider,
     splashMinimumDurationProvider,
   ]);
@@ -56,7 +59,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.onboarding,
-        builder: (context, state) => const LearningPathSelectionScreen(),
+        builder: (context, state) => const ProfileSetupScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.tutorial,
+        builder: (context, state) => const HowToPlayTutorialScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => AuthenticatedShell(child: child),

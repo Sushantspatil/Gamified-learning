@@ -16,6 +16,8 @@ import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../cosmetics/presentation/cosmetic_color_catalog.dart';
 import '../../../cosmetics/presentation/providers/cosmetics_providers.dart';
+import '../../../learning_paths/domain/entities/learning_path.dart';
+import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../avatar_catalog.dart';
 import '../providers/profile_providers.dart';
@@ -29,6 +31,7 @@ class ProfileScreen extends ConsumerWidget {
     final user = ref.watch(authControllerProvider).valueOrNull;
     final profileAsync = ref.watch(profileControllerProvider);
     final wallet = ref.watch(walletControllerProvider).valueOrNull;
+    final paths = ref.watch(learningPathsProvider).valueOrNull ?? const [];
     final cosmeticsState = ref.watch(cosmeticsControllerProvider).valueOrNull;
     final colors = context.themeColors;
     String? equippedColorKey;
@@ -132,6 +135,32 @@ class ProfileScreen extends ConsumerWidget {
                       style: context.appTextStyles.bodyMedium,
                     ),
                   ),
+                  if (profile.classLevel != null || profile.board != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    AppCard(
+                      padding: AppSpacing.paddingMd,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            [
+                              if (profile.classLevel != null)
+                                'Class ${profile.classLevel}',
+                              if (profile.board != null) profile.board!,
+                            ].join(' - '),
+                            style: context.appTextStyles.titleMedium,
+                          ),
+                          if (profile.selectedSubjectIds.isNotEmpty) ...[
+                            const SizedBox(height: AppSpacing.xs),
+                            Text(
+                              _subjectNames(paths, profile.selectedSubjectIds),
+                              style: context.appTextStyles.bodyMedium,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: AppSpacing.lg),
                   Wrap(
                     alignment: WrapAlignment.center,
@@ -192,6 +221,16 @@ class ProfileScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+String _subjectNames(List<LearningPath> paths, List<String> selectedIds) {
+  final names = [
+    for (final path in paths)
+      if (selectedIds.contains(path.id)) path.title,
+  ];
+  return names.isEmpty
+      ? '${selectedIds.length} subjects selected'
+      : names.join(', ');
 }
 
 class _ComingSoonSection extends StatelessWidget {

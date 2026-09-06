@@ -60,6 +60,8 @@ class DashboardScreen extends ConsumerWidget {
             _ProfileHeader(
               displayName: user?.displayName ?? 'Learner',
               avatarId: profile?.avatarId ?? 'default',
+              classLevel: profile?.classLevel,
+              board: profile?.board,
               level: profile?.level ?? 1,
               streak: streakAsync.valueOrNull?.currentStreak ?? 0,
               gems: wallet?.gems ?? 0,
@@ -196,6 +198,8 @@ class _SelectedPathDashboardSections extends ConsumerWidget {
 class _ProfileHeader extends StatelessWidget {
   final String displayName;
   final String avatarId;
+  final String? classLevel;
+  final String? board;
   final int level;
   final int streak;
   final int gems;
@@ -204,6 +208,8 @@ class _ProfileHeader extends StatelessWidget {
   const _ProfileHeader({
     required this.displayName,
     required this.avatarId,
+    this.classLevel,
+    this.board,
     required this.level,
     required this.streak,
     required this.gems,
@@ -256,7 +262,7 @@ class _ProfileHeader extends StatelessWidget {
                           ),
                           const SizedBox(height: AppSpacing.xs),
                           AppBadge(
-                            label: 'Level $level learner',
+                            label: _subtitle,
                             variant: AppBadgeVariant.primary,
                           ),
                         ],
@@ -298,6 +304,12 @@ class _ProfileHeader extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String get _subtitle {
+    final details = [if (classLevel != null) 'Class $classLevel', ?board];
+    if (details.isEmpty) return 'Level $level learner';
+    return '${details.join(' - ')} - Level $level';
   }
 }
 

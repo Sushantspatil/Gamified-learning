@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -6,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skillverse_app/app/app.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
+import 'package:skillverse_app/shared/widgets/app_button.dart';
 import 'package:skillverse_app/features/shop/presentation/widgets/shop_item_card.dart';
 
 Finder _buyButtonFor(String itemTitle) {
@@ -30,7 +33,14 @@ Future<void> _scrollShopUp(WidgetTester tester) async {
 }
 
 Future<void> _pumpApp(WidgetTester tester) async {
-  SharedPreferences.setMockInitialValues({});
+  await _pumpAppWithInitialValues(tester, {});
+}
+
+Future<void> _pumpAppWithInitialValues(
+  WidgetTester tester,
+  Map<String, Object> values,
+) async {
+  SharedPreferences.setMockInitialValues(values);
   final storageService = await LocalStorageService.create();
 
   await tester.pumpWidget(
@@ -69,9 +79,36 @@ Future<void> _signUp(WidgetTester tester) async {
 }
 
 Future<void> _completeOnboarding(WidgetTester tester) async {
+  expect(find.text('Choose Your Avatar'), findsOneWidget);
+  await tester.tap(find.text('Next'));
+  await tester.pumpAndSettle();
+
+  expect(find.text('Tell Us About You'), findsOneWidget);
+  await tester.tap(find.byKey(const Key('setup-class-dropdown')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('12th').last);
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Next'));
+  await tester.pumpAndSettle();
+
+  expect(find.text('Select Your Subjects'), findsOneWidget);
   await tester.tap(find.text('Web Development'));
   await tester.pumpAndSettle();
+  await tester.tap(find.text('Next'));
+  await tester.pumpAndSettle();
+
+  expect(find.text('Confirm Your Profile'), findsOneWidget);
   await tester.tap(find.text('Continue'));
+  await tester.pumpAndSettle();
+  await tester.pump(const Duration(seconds: 1));
+  await tester.pumpAndSettle();
+
+  expect(find.text('How to Play'), findsOneWidget);
+  for (var i = 0; i < 4; i++) {
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+  }
+  await tester.tap(find.text('Start Learning'));
   await tester.pumpAndSettle();
   await tester.pump(const Duration(seconds: 1));
   await tester.pumpAndSettle();
@@ -168,28 +205,131 @@ void main() {
     expect(find.text('Log In'), findsOneWidget);
   });
 
-  testWidgets('signing up navigates to the learning path selection screen', (
-    tester,
-  ) async {
+  testWidgets('signing up navigates to profile setup', (tester) async {
     await _pumpApp(tester);
     await _signUp(tester);
 
-    expect(find.text('Choose Your Path'), findsOneWidget);
+    expect(find.text('Choose Your Avatar'), findsOneWidget);
   });
 
-  testWidgets('selecting a learning path navigates to the dashboard', (
+  testWidgets('completing first-time onboarding navigates to dashboard', (
     tester,
   ) async {
     await _pumpApp(tester);
     await _signUp(tester);
 
-    expect(find.text('Web Development'), findsOneWidget);
     await _completeOnboarding(tester);
 
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('CONTINUE LEARNING'), findsOneWidget);
+    expect(
+      find.text('Class 12th - Maharashtra State Board - Level 1'),
+      findsOneWidget,
+    );
     expect(find.text('Web Development'), findsOneWidget);
     expect(find.textContaining('HTML Foundations'), findsOneWidget);
+  });
+
+  testWidgets('profile setup validates details and subject selection', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+
+    await tester.tap(find.byKey(const Key('setup-avatar-robot')));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.widgetWithText(TextFormField, 'Full Name'), '');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('setup-class-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('11th').last);
+    await tester.pumpAndSettle();
+    final detailsNext = tester.widget<AppButton>(
+      find.byKey(const Key('setup-next-button')),
+    );
+    expect(detailsNext.onPressed, isNull);
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Full Name'),
+      'Ada',
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    final subjectsNext = tester.widget<AppButton>(
+      find.byKey(const Key('setup-next-button')),
+    );
+    expect(subjectsNext.onPressed, isNull);
+
+    await tester.tap(find.text('Web Development'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Confirm Your Profile'), findsOneWidget);
+    expect(find.text('11th'), findsOneWidget);
+    expect(find.text('Maharashtra State Board'), findsOneWidget);
+    expect(find.text('Web Development'), findsOneWidget);
+  });
+
+  testWidgets('tutorial skip completes onboarding and opens dashboard', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('setup-class-dropdown')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('12th').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Web Development'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Learn at Your Pace'), findsOneWidget);
+    await tester.tap(find.text('Skip'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
+
+    expect(find.text('CONTINUE LEARNING'), findsOneWidget);
+  });
+
+  testWidgets('completed onboarding state skips setup and tutorial', (
+    tester,
+  ) async {
+    await _pumpAppWithInitialValues(tester, {
+      'current_user_id': 'mock-user-0',
+      'selected_learning_path_id': 'web-dev',
+      'profile_mock-user-0': jsonEncode({
+        'avatarId': 'robot',
+        'classLevel': '12th',
+        'board': 'Maharashtra State Board',
+        'selectedSubjectIds': ['web-dev'],
+        'profileSetupCompleted': true,
+        'tutorialCompleted': true,
+        'xp': 0,
+        'level': 1,
+      }),
+    });
+
+    expect(find.text('Choose Your Avatar'), findsNothing);
+    expect(find.text('How to Play'), findsNothing);
+    expect(find.text('CONTINUE LEARNING'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpAndSettle();
   });
 
   testWidgets(
@@ -612,6 +752,8 @@ void main() {
       // once here — assert presence, not an exact count.
       expect(find.text('Ada'), findsWidgets);
       expect(find.text('ada@example.com'), findsOneWidget);
+      expect(find.text('Class 12th - Maharashtra State Board'), findsOneWidget);
+      expect(find.text('Web Development'), findsWidgets);
       expect(find.text('0 Coins'), findsOneWidget);
 
       await tester.tap(find.text('Edit Profile'));

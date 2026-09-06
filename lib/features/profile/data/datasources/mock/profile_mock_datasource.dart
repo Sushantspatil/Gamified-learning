@@ -9,11 +9,26 @@ import '../profile_datasource.dart';
 class ProfileMockDatasource implements ProfileDatasource {
   final Map<String, UserProfileModel> _profilesByUserId = {};
 
+  UserProfileModel _defaultProfileFor(String userId) {
+    if (userId == 'mock-user-0') {
+      return const UserProfileModel(
+        avatarId: 'default',
+        classLevel: '12th',
+        board: 'Maharashtra State Board',
+        selectedSubjectIds: ['web-dev'],
+        profileSetupCompleted: true,
+        tutorialCompleted: true,
+        xp: 0,
+        level: 1,
+      );
+    }
+    return const UserProfileModel(avatarId: 'default', xp: 0, level: 1);
+  }
+
   @override
   Future<UserProfileModel> getProfile(String userId) async {
     await Future.delayed(const Duration(milliseconds: 300));
-    return _profilesByUserId[userId] ??
-        const UserProfileModel(avatarId: 'default', xp: 0, level: 1);
+    return _profilesByUserId[userId] ?? _defaultProfileFor(userId);
   }
 
   @override
@@ -25,6 +40,53 @@ class ProfileMockDatasource implements ProfileDatasource {
     final current = await getProfile(userId);
     final updated = UserProfileModel(
       avatarId: avatarId,
+      classLevel: current.classLevel,
+      board: current.board,
+      selectedSubjectIds: current.selectedSubjectIds,
+      profileSetupCompleted: current.profileSetupCompleted,
+      tutorialCompleted: current.tutorialCompleted,
+      xp: current.xp,
+      level: current.level,
+    );
+    _profilesByUserId[userId] = updated;
+    return updated;
+  }
+
+  @override
+  Future<UserProfileModel> completeProfileSetup({
+    required String userId,
+    required String avatarId,
+    required String classLevel,
+    required String board,
+    required List<String> selectedSubjectIds,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final current = await getProfile(userId);
+    final updated = UserProfileModel(
+      avatarId: avatarId,
+      classLevel: classLevel,
+      board: board,
+      selectedSubjectIds: selectedSubjectIds,
+      profileSetupCompleted: true,
+      tutorialCompleted: current.tutorialCompleted,
+      xp: current.xp,
+      level: current.level,
+    );
+    _profilesByUserId[userId] = updated;
+    return updated;
+  }
+
+  @override
+  Future<UserProfileModel> completeTutorial({required String userId}) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    final current = await getProfile(userId);
+    final updated = UserProfileModel(
+      avatarId: current.avatarId,
+      classLevel: current.classLevel,
+      board: current.board,
+      selectedSubjectIds: current.selectedSubjectIds,
+      profileSetupCompleted: current.profileSetupCompleted,
+      tutorialCompleted: true,
       xp: current.xp,
       level: current.level,
     );
@@ -42,6 +104,11 @@ class ProfileMockDatasource implements ProfileDatasource {
     final newXp = current.xp + xp;
     final updated = UserProfileModel(
       avatarId: current.avatarId,
+      classLevel: current.classLevel,
+      board: current.board,
+      selectedSubjectIds: current.selectedSubjectIds,
+      profileSetupCompleted: current.profileSetupCompleted,
+      tutorialCompleted: current.tutorialCompleted,
       xp: newXp,
       level: LevelCalculator.levelForXp(newXp),
     );

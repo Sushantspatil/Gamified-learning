@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/providers/core_providers.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../data/datasources/mock/profile_mock_datasource.dart';
 import '../../data/datasources/profile_datasource.dart';
@@ -14,7 +15,10 @@ final profileDatasourceProvider = Provider<ProfileDatasource>((ref) {
 });
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  return ProfileRepositoryImpl(ref.watch(profileDatasourceProvider));
+  return ProfileRepositoryImpl(
+    ref.watch(profileDatasourceProvider),
+    ref.watch(localStorageServiceProvider),
+  );
 });
 
 class ProfileController extends AsyncNotifier<UserProfile?> {
@@ -34,6 +38,40 @@ class ProfileController extends AsyncNotifier<UserProfile?> {
       () => ref
           .read(profileRepositoryProvider)
           .updateAvatar(userId: user.id, avatarId: avatarId),
+    );
+  }
+
+  Future<void> completeProfileSetup({
+    required String avatarId,
+    required String classLevel,
+    required String board,
+    required List<String> selectedSubjectIds,
+  }) async {
+    final user = ref.read(authControllerProvider).valueOrNull;
+    if (user == null) return;
+
+    state = const AsyncValue<UserProfile?>.loading().copyWithPrevious(state);
+    state = await AsyncValue.guard(
+      () => ref
+          .read(profileRepositoryProvider)
+          .completeProfileSetup(
+            userId: user.id,
+            avatarId: avatarId,
+            classLevel: classLevel,
+            board: board,
+            selectedSubjectIds: selectedSubjectIds,
+          ),
+    );
+  }
+
+  Future<void> completeTutorial() async {
+    final user = ref.read(authControllerProvider).valueOrNull;
+    if (user == null) return;
+
+    state = const AsyncValue<UserProfile?>.loading().copyWithPrevious(state);
+    state = await AsyncValue.guard(
+      () =>
+          ref.read(profileRepositoryProvider).completeTutorial(userId: user.id),
     );
   }
 
