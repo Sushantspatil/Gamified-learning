@@ -15,9 +15,7 @@ class QuizResultView extends StatelessWidget {
   final int? rewardXp;
   final int? rewardCoins;
   final bool leveledUp;
-  final VoidCallback onPlayAgain;
-  final VoidCallback onChangeMode;
-  final VoidCallback onBackToHome;
+  final VoidCallback onDone;
   final VoidCallback? onPlayAgain;
 
   const QuizResultView({

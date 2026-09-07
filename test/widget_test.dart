@@ -683,9 +683,9 @@ void main() {
     expect(find.text('+50 XP'), findsOneWidget);
     expect(find.text('+25 Coins'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Change Mode'));
+    await tester.ensureVisible(find.text('Done'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Change Mode'));
+    await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
 
     expect(find.text('Start game'), findsOneWidget);
