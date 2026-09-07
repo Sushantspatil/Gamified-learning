@@ -2,12 +2,78 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer_evaluation.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
+import 'package:skillverse_app/features/questions/data/datasources/mock/question_mock_datasource.dart';
 import 'package:skillverse_app/features/quiz/data/datasources/mock/quiz_mock_datasource.dart';
 import 'package:skillverse_app/features/quiz/domain/entities/question_answer_record.dart';
 import 'package:skillverse_app/features/quiz/domain/entities/quiz_session.dart';
 
 void main() {
   final datasource = QuizMockDatasource();
+
+  test(
+    'Sort It Out loads five mapped items and scores classifications',
+    () async {
+      final questions = await QuestionMockDatasource()
+          .getQuestionsForTopicAndType('topic', QuestionType.sortItRight);
+      final question = questions.single as SortItRightQuestion;
+      expect(question.itemsInOrder.length, greaterThanOrEqualTo(5));
+      expect(question.hasCategories, isTrue);
+      final correct = SortAnswer(
+        questionId: question.id,
+        orderedItems: question.itemsInOrder,
+        selectedSides: question.correctSides,
+      );
+      final evaluation = await datasource.evaluateAnswer(question, correct);
+      expect(evaluation.pointsEarned, 10);
+      final partial = SortAnswer(
+        questionId: question.id,
+        orderedItems: question.itemsInOrder,
+        selectedSides: [SortSide.right, ...question.correctSides.skip(1)],
+      );
+      final partialEvaluation = await datasource.evaluateAnswer(
+        question,
+        partial,
+      );
+      expect(partialEvaluation.pointsEarned, 8);
+      expect(partialEvaluation.isCorrect, isFalse);
+      final wrong = await datasource.evaluateAnswer(
+        question,
+        SortAnswer(
+          questionId: question.id,
+          orderedItems: question.itemsInOrder,
+          selectedSides: question.correctSides
+              .map(
+                (side) =>
+                    side == SortSide.left ? SortSide.right : SortSide.left,
+              )
+              .toList(),
+        ),
+      );
+      expect(wrong.pointsEarned, 0);
+      final result = await datasource.submitSession(
+        QuizSession(
+          id: 'sort-result',
+          topicId: 'topic',
+          quizType: QuestionType.sortItRight,
+          questions: [question],
+          answeredRecords: [
+            QuestionAnswerRecord(
+              question: question,
+              answer: partial,
+              evaluation: partialEvaluation,
+            ),
+          ],
+          endedEarly: false,
+          startedAt: DateTime(2026),
+          completedAt: DateTime(2026, 1, 1, 0, 1),
+        ),
+      );
+      expect(result.score.correctCount, 4);
+      expect(result.wrongCount, 1);
+      expect(result.accuracy, 0.8);
+      expect(result.score.earnedPoints, 8);
+    },
+  );
 
   group('MCQ scoring', () {
     const question = McqQuestion(

@@ -141,6 +141,8 @@ Future<void> _startSortItOutQuiz(WidgetTester tester) async {
   expect(find.text('1 / 5'), findsOneWidget);
   expect(find.text('Debit'), findsWidgets);
   expect(find.text('Credit'), findsWidgets);
+  await tester.tap(find.text('Start sorting'));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _answerMcqCorrectly(WidgetTester tester) async {
@@ -155,6 +157,11 @@ Future<void> _sortCurrentCardTo(WidgetTester tester, String bucket) async {
   await tester.ensureVisible(target);
   await tester.pumpAndSettle();
   await tester.tap(target);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.pump(const Duration(milliseconds: 900));
+  // Final feedback starts the existing asynchronous answer evaluation.
+  await tester.pump(const Duration(milliseconds: 400));
   await tester.pumpAndSettle();
 }
 
@@ -534,7 +541,7 @@ void main() {
     expect(find.text('Start game'), findsOneWidget);
   });
 
-  testWidgets('completing a Sort It Out quiz shows Quiz Complete', (
+  testWidgets('Sort It Out completes, reviews answers and Play again resets', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(393, 852);
@@ -552,12 +559,30 @@ void main() {
     await _sortCurrentCardTo(tester, 'debit');
     await _sortCurrentCardTo(tester, 'credit');
     await _sortCurrentCardTo(tester, 'credit');
-    await tester.tap(find.text('Submit Sort'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Quiz Complete!'), findsOneWidget);
+    expect(find.text('Sort It Out — Results'), findsOneWidget);
     expect(find.text('+10 XP'), findsOneWidget);
     expect(find.text('+5 Coins'), findsOneWidget);
+    expect(find.text('5 of 5 correct'), findsOneWidget);
+    expect(find.text('Answer review'), findsOneWidget);
+    await tester.ensureVisible(find.text('Play again'));
+    await tester.tap(find.text('Play again'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start sorting'));
+    await tester.pumpAndSettle();
+    expect(find.text('Purchase'), findsOneWidget);
+    expect(find.text('1 / 5'), findsOneWidget);
+    expect(find.text('0 correct · 0 wrong'), findsOneWidget);
+    await _sortCurrentCardTo(tester, 'credit');
+    await _sortCurrentCardTo(tester, 'credit');
+    await _sortCurrentCardTo(tester, 'credit');
+    await _sortCurrentCardTo(tester, 'debit');
+    await _sortCurrentCardTo(tester, 'debit');
+    expect(find.text('Sort It Out — Results'), findsOneWidget);
+    expect(find.text('0 of 5 correct'), findsOneWidget);
+    expect(find.text('0 / 10 points'), findsOneWidget);
+    expect(find.text('+0 XP'), findsOneWidget);
   });
 
   testWidgets('a wrong Sudden Death answer ends the quiz early', (

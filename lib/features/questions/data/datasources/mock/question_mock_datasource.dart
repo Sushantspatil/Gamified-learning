@@ -78,6 +78,15 @@ class QuestionMockDatasource implements QuestionDatasource {
           'Cash Received',
           'Sales Revenue',
         ],
+        correctSides: const [
+          SortSide.left,
+          SortSide.left,
+          SortSide.left,
+          SortSide.right,
+          SortSide.right,
+        ],
+        hint:
+            'Expenses usually increase on Debit. Income usually increases on Credit.',
       ),
       SuddenDeathQuestion(
         id: '$topicId-sudden-death',

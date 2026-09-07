@@ -59,12 +59,14 @@ class QuizSessionRequest {
 
 class QuizController
     extends FamilyAsyncNotifier<QuizSessionViewState, QuizSessionRequest> {
-  late final String _sessionId;
-  late final QuizSessionRequest _request;
-  late final DateTime _startedAt;
+  late String _sessionId;
+  late QuizSessionRequest _request;
+  late DateTime _startedAt;
+  bool _isEvaluating = false;
 
   @override
   Future<QuizSessionViewState> build(QuizSessionRequest request) async {
+    _isEvaluating = false;
     _request = request;
     _startedAt = DateTime.now();
     _sessionId =
@@ -91,93 +93,103 @@ class QuizController
 
   Future<void> submitAnswer(Answer answer) async {
     final current = state.valueOrNull;
-    if (current == null || current.result != null) return;
+    if (current == null ||
+        current.result != null ||
+        current.isSubmittingResult ||
+        _isEvaluating) {
+      return;
+    }
 
     final question = current.currentQuestion;
-    if (question == null) return;
+    if (question == null || answer.questionId != question.id) return;
 
-    final evaluation = await ref
-        .read(quizRepositoryProvider)
-        .evaluateAnswer(question, answer);
-    final record = QuestionAnswerRecord(
-      question: question,
-      answer: answer,
-      evaluation: evaluation,
-    );
-    final updatedRecords = [...current.records, record];
-
-    final isSuddenDeathFailure =
-        question is SuddenDeathQuestion && !evaluation.isCorrect;
-    final nextIndex = current.currentIndex + 1;
-    final reachedEnd = nextIndex >= current.questions.length;
-
-    if (isSuddenDeathFailure || reachedEnd) {
-      state = AsyncValue.data(
-        current.copyWith(
-          records: updatedRecords,
-          currentIndex: nextIndex,
-          isSubmittingResult: true,
-        ),
-      );
-
-      final session = QuizSession(
-        id: _sessionId,
-        userId: ref.read(authControllerProvider).valueOrNull?.id,
-        subjectId: _request.subjectId,
-        chapterId: _request.chapterId,
-        topicId: _request.topicId,
-        quizType: _request.quizType,
-        questions: current.questions,
-        answeredRecords: updatedRecords,
-        endedEarly: isSuddenDeathFailure,
-        startedAt: _startedAt,
-        completedAt: DateTime.now(),
-      );
-      final result = await ref
+    _isEvaluating = true;
+    try {
+      final evaluation = await ref
           .read(quizRepositoryProvider)
-          .submitSession(session);
-
-      final previousLevel = ref
-          .read(profileControllerProvider)
-          .valueOrNull
-          ?.level;
-      final reward = RewardCalculator.forEarnedPoints(
-        result.score.earnedPoints,
+          .evaluateAnswer(question, answer);
+      final record = QuestionAnswerRecord(
+        question: question,
+        answer: answer,
+        evaluation: evaluation,
       );
-      final updatedProfile = await ref
-          .read(profileControllerProvider.notifier)
-          .addXp(reward.xp);
-      final leveledUp =
-          previousLevel != null &&
-          updatedProfile != null &&
-          updatedProfile.level > previousLevel;
+      final updatedRecords = [...current.records, record];
 
-      await ref
-          .read(walletControllerProvider.notifier)
-          .credit(
-            currency: CurrencyType.coins,
-            amount: reward.coins,
-            reason: 'Quiz reward',
-          );
-      await ref
-          .read(dailyMissionsControllerProvider.notifier)
-          .recordQuizCompletion();
+      final isSuddenDeathFailure =
+          question is SuddenDeathQuestion && !evaluation.isCorrect;
+      final nextIndex = current.currentIndex + 1;
+      final reachedEnd = nextIndex >= current.questions.length;
 
-      state = AsyncValue.data(
-        current.copyWith(
-          records: updatedRecords,
-          currentIndex: nextIndex,
-          isSubmittingResult: false,
-          result: result,
-          rewardXp: reward.xp,
-          rewardCoins: reward.coins,
-          leveledUp: leveledUp,
-        ),
-      );
-    } else {
-      state = AsyncValue.data(
-        current.copyWith(records: updatedRecords, currentIndex: nextIndex),
-      );
+      if (isSuddenDeathFailure || reachedEnd) {
+        state = AsyncValue.data(
+          current.copyWith(
+            records: updatedRecords,
+            currentIndex: nextIndex,
+            isSubmittingResult: true,
+          ),
+        );
+
+        final session = QuizSession(
+          id: _sessionId,
+          userId: ref.read(authControllerProvider).valueOrNull?.id,
+          subjectId: _request.subjectId,
+          chapterId: _request.chapterId,
+          topicId: _request.topicId,
+          quizType: _request.quizType,
+          questions: current.questions,
+          answeredRecords: updatedRecords,
+          endedEarly: isSuddenDeathFailure,
+          startedAt: _startedAt,
+          completedAt: DateTime.now(),
+        );
+        final result = await ref
+            .read(quizRepositoryProvider)
+            .submitSession(session);
+
+        final previousLevel = ref
+            .read(profileControllerProvider)
+            .valueOrNull
+            ?.level;
+        final reward = RewardCalculator.forEarnedPoints(
+          result.score.earnedPoints,
+        );
+        final updatedProfile = await ref
+            .read(profileControllerProvider.notifier)
+            .addXp(reward.xp);
+        final leveledUp =
+            previousLevel != null &&
+            updatedProfile != null &&
+            updatedProfile.level > previousLevel;
+
+        await ref
+            .read(walletControllerProvider.notifier)
+            .credit(
+              currency: CurrencyType.coins,
+              amount: reward.coins,
+              reason: 'Quiz reward',
+            );
+        await ref
+            .read(dailyMissionsControllerProvider.notifier)
+            .recordQuizCompletion();
+
+        state = AsyncValue.data(
+          current.copyWith(
+            records: updatedRecords,
+            currentIndex: nextIndex,
+            isSubmittingResult: false,
+            result: result,
+            rewardXp: reward.xp,
+            rewardCoins: reward.coins,
+            leveledUp: leveledUp,
+          ),
+        );
+      } else {
+        state = AsyncValue.data(
+          current.copyWith(records: updatedRecords, currentIndex: nextIndex),
+        );
+      }
+    } finally {
+      _isEvaluating = false;
     }
   }
 }

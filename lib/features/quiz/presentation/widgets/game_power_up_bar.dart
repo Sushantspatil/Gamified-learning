@@ -39,6 +39,7 @@ class GamePowerUpBar extends ConsumerStatefulWidget {
   final bool isDisabled;
   final bool isDense;
   final bool showWallet;
+  final ValueChanged<bool>? onBusyChanged;
 
   const GamePowerUpBar({
     super.key,
@@ -47,6 +48,7 @@ class GamePowerUpBar extends ConsumerStatefulWidget {
     this.isDisabled = false,
     this.isDense = false,
     this.showWallet = true,
+    this.onBusyChanged,
   });
 
   @override
@@ -57,7 +59,12 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
   String? _pendingActionId;
 
   Future<void> _buyAndUse(GamePowerUpAction action) async {
-    if (widget.isDisabled || action.isDisabled || action.isUsed) return;
+    if (widget.isDisabled ||
+        action.isDisabled ||
+        action.isUsed ||
+        _pendingActionId != null) {
+      return;
+    }
 
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
@@ -68,27 +75,34 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
     if (confirmed != true || !mounted) return;
 
     setState(() => _pendingActionId = action.id);
-    final overrideCoins = widget.coinBalanceOverride;
-    final didDebit = overrideCoins == null
-        ? await ref
-              .read(walletControllerProvider.notifier)
-              .debit(
-                currency: CurrencyType.coins,
-                amount: action.coinCost,
-                reason: 'In-game power-up: ${action.label}',
-              )
-        : overrideCoins >= action.coinCost;
-    if (!mounted) return;
+    widget.onBusyChanged?.call(true);
+    try {
+      final overrideCoins = widget.coinBalanceOverride;
+      final didDebit = overrideCoins == null
+          ? await ref
+                .read(walletControllerProvider.notifier)
+                .debit(
+                  currency: CurrencyType.coins,
+                  amount: action.coinCost,
+                  reason: 'In-game power-up: ${action.label}',
+                )
+          : overrideCoins >= action.coinCost;
+      if (!mounted) return;
 
-    setState(() => _pendingActionId = null);
-    if (!didDebit) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Not enough coins for ${action.label}.')),
-      );
-      return;
+      if (!didDebit) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Not enough coins for ${action.label}.')),
+        );
+        return;
+      }
+
+      action.onUse();
+    } finally {
+      if (mounted) {
+        setState(() => _pendingActionId = null);
+        widget.onBusyChanged?.call(false);
+      }
     }
-
-    action.onUse();
   }
 
   @override
@@ -132,7 +146,7 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
                   child: _PowerUpTile(
                     action: widget.actions[index],
                     isBusy: _pendingActionId == widget.actions[index].id,
-                    isDisabled: widget.isDisabled,
+                    isDisabled: widget.isDisabled || _pendingActionId != null,
                     isDense: widget.isDense,
                     onTap: () => _buyAndUse(widget.actions[index]),
                   ),

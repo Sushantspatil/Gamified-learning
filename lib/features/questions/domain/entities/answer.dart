@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'question.dart';
 
 sealed class Answer extends Equatable {
   final String questionId;
@@ -32,12 +33,16 @@ class MatchTheFollowingAnswer extends Answer {
 
 class SortAnswer extends Answer {
   final List<String> orderedItems;
+  final List<SortSide> selectedSides;
 
-  const SortAnswer({required String questionId, required this.orderedItems})
-    : super(questionId);
+  const SortAnswer({
+    required String questionId,
+    required this.orderedItems,
+    this.selectedSides = const [],
+  }) : super(questionId);
 
   @override
-  List<Object?> get props => [questionId, orderedItems];
+  List<Object?> get props => [questionId, orderedItems, selectedSides];
 }
 
 class SuddenDeathAnswer extends Answer {

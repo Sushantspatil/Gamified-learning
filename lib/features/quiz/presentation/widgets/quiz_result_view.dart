@@ -7,6 +7,7 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../questions/domain/entities/question.dart';
+import '../../../questions/domain/entities/answer.dart';
 import '../../domain/entities/quiz_result.dart';
 
 class QuizResultView extends StatelessWidget {
@@ -15,11 +16,13 @@ class QuizResultView extends StatelessWidget {
   final int? rewardCoins;
   final bool leveledUp;
   final VoidCallback onDone;
+  final VoidCallback? onPlayAgain;
 
   const QuizResultView({
     super.key,
     required this.result,
     required this.onDone,
+    this.onPlayAgain,
     this.rewardXp,
     this.rewardCoins,
     this.leveledUp = false,
@@ -32,7 +35,7 @@ class QuizResultView extends StatelessWidget {
     final accent = result.endedEarly ? colors.error : colors.warning;
 
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: AppSpacing.paddingMd,
         child: AppCard(
           variant: AppCardVariant.tinted,
@@ -68,6 +71,8 @@ class QuizResultView extends StatelessWidget {
               Text(
                 result.endedEarly
                     ? 'Sudden Death — Quiz Ended'
+                    : result.quizType == QuestionType.sortItRight
+                    ? 'Sort It Out — Results'
                     : 'Quiz Complete!',
                 style: context.appTextStyles.displayMedium,
                 textAlign: TextAlign.center,
@@ -117,6 +122,20 @@ class QuizResultView extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: AppSpacing.xl),
+              if (result.quizType == QuestionType.sortItRight) ...[
+                for (final record in result.records)
+                  if (record.question is SortItRightQuestion &&
+                      record.answer is SortAnswer)
+                    _SortAnswerReview(
+                      question: record.question as SortItRightQuestion,
+                      answer: record.answer as SortAnswer,
+                    ),
+                if (onPlayAgain != null) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  AppButton(label: 'Play again', onPressed: onPlayAgain),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+              ],
               AppButton(label: 'Done', onPressed: onDone),
             ],
           ),
@@ -135,8 +154,77 @@ String _metricSummary(QuizResult result) {
     QuestionType.suddenDeath =>
       'Streak ${result.streakCount} · Questions survived ${result.streakCount}',
     QuestionType.sortItRight =>
-      'Correct positions ${result.score.correctCount} · Accuracy $accuracy%',
+      'Accuracy $accuracy% · Wrong ${result.wrongCount}',
   };
+}
+
+class _SortAnswerReview extends StatelessWidget {
+  final SortItRightQuestion question;
+  final SortAnswer answer;
+
+  const _SortAnswerReview({required this.question, required this.answer});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!question.hasCategories) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Answer review', style: context.appTextStyles.titleMedium),
+        const SizedBox(height: AppSpacing.sm),
+        for (var index = 0; index < question.itemsInOrder.length; index++)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        question.itemsInOrder[index],
+                        style: context.appTextStyles.labelLarge,
+                      ),
+                      Text(
+                        'Correct group: ${question.categoryLabel(question.correctSides[index])}',
+                        style: context.appTextStyles.bodySmall,
+                      ),
+                      if (index < answer.selectedSides.length &&
+                          answer.selectedSides[index] !=
+                              question.correctSides[index])
+                        Text(
+                          'Your answer: ${question.categoryLabel(answer.selectedSides[index])}',
+                          style: context.appTextStyles.bodySmall,
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Icon(
+                  index < answer.selectedSides.length &&
+                          answer.selectedSides[index] ==
+                              question.correctSides[index]
+                      ? Icons.check_circle_outline
+                      : Icons.cancel_outlined,
+                  semanticLabel:
+                      index < answer.selectedSides.length &&
+                          answer.selectedSides[index] ==
+                              question.correctSides[index]
+                      ? 'Correct'
+                      : 'Wrong',
+                  color:
+                      index < answer.selectedSides.length &&
+                          answer.selectedSides[index] ==
+                              question.correctSides[index]
+                      ? context.themeColors.success
+                      : context.themeColors.error,
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 }
 
 class _RewardChip extends StatelessWidget {

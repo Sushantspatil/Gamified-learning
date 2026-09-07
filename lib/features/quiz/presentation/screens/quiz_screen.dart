@@ -94,6 +94,8 @@ class QuizScreen extends ConsumerWidget {
                 rewardCoins: session.rewardCoins,
                 leveledUp: session.leveledUp,
                 onDone: () => Navigator.of(context).pop(),
+                onPlayAgain: () =>
+                    ref.invalidate(quizControllerProvider(request)),
               );
             }
 

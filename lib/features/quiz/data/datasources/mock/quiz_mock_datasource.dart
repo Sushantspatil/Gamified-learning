@@ -70,6 +70,34 @@ class QuizMockDatasource implements QuizDatasource {
     SortItRightQuestion question,
     SortAnswer answer,
   ) {
+    final correctPositions = _correctSortItems(question, answer);
+    final isFullyCorrect =
+        question.itemsInOrder.isNotEmpty &&
+        correctPositions == question.itemsInOrder.length &&
+        (question.hasCategories
+            ? answer.selectedSides.length == question.itemsInOrder.length
+            : answer.orderedItems.length == question.itemsInOrder.length);
+    final pointsEarned = question.itemsInOrder.isEmpty
+        ? 0
+        : (question.points * correctPositions / question.itemsInOrder.length)
+              .round();
+    return AnswerEvaluation(
+      isCorrect: isFullyCorrect,
+      pointsEarned: pointsEarned,
+    );
+  }
+
+  int _correctSortItems(SortItRightQuestion question, SortAnswer answer) {
+    if (question.hasCategories) {
+      var correct = 0;
+      for (var i = 0; i < question.correctSides.length; i++) {
+        if (i < answer.selectedSides.length &&
+            answer.selectedSides[i] == question.correctSides[i]) {
+          correct++;
+        }
+      }
+      return correct;
+    }
     var correctPositions = 0;
     final comparableLength =
         question.itemsInOrder.length < answer.orderedItems.length
@@ -80,17 +108,7 @@ class QuizMockDatasource implements QuizDatasource {
         correctPositions++;
       }
     }
-    final isFullyCorrect =
-        question.itemsInOrder.isNotEmpty &&
-        correctPositions == question.itemsInOrder.length;
-    final pointsEarned = question.itemsInOrder.isEmpty
-        ? 0
-        : (question.points * correctPositions / question.itemsInOrder.length)
-              .round();
-    return AnswerEvaluation(
-      isCorrect: isFullyCorrect,
-      pointsEarned: pointsEarned,
-    );
+    return correctPositions;
   }
 
   @override
@@ -184,13 +202,7 @@ class QuizMockDatasource implements QuizDatasource {
       final answer = record.answer;
       if (question is! SortItRightQuestion || answer is! SortAnswer) continue;
       total += question.itemsInOrder.length;
-      final comparableLength =
-          question.itemsInOrder.length < answer.orderedItems.length
-          ? question.itemsInOrder.length
-          : answer.orderedItems.length;
-      for (var i = 0; i < comparableLength; i++) {
-        if (question.itemsInOrder[i] == answer.orderedItems[i]) correct++;
-      }
+      correct += _correctSortItems(question, answer);
     }
     for (final question in session.questions.skip(
       session.answeredRecords.length,

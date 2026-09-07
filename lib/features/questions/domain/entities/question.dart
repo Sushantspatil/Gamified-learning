@@ -138,8 +138,17 @@ class MatchTheFollowingQuestion extends Question {
   List<Object?> get props => [id, topicId, prompt, points, pairs];
 }
 
+enum SortSide { left, right }
+
 class SortItRightQuestion extends Question {
   final List<String> itemsInOrder;
+  final String leftCategory;
+  final String rightCategory;
+
+  /// Indexed alongside itemsInOrder, so repeated labels remain independent.
+  /// Empty for legacy order-based questions.
+  final List<SortSide> correctSides;
+  final String? hint;
 
   const SortItRightQuestion({
     required super.id,
@@ -147,13 +156,33 @@ class SortItRightQuestion extends Question {
     required super.prompt,
     required super.points,
     required this.itemsInOrder,
+    this.leftCategory = 'Debit',
+    this.rightCategory = 'Credit',
+    this.correctSides = const [],
+    this.hint,
   });
+
+  bool get hasCategories =>
+      itemsInOrder.isNotEmpty && correctSides.length == itemsInOrder.length;
+
+  String categoryLabel(SortSide side) =>
+      side == SortSide.left ? leftCategory : rightCategory;
 
   @override
   QuestionType get type => QuestionType.sortItRight;
 
   @override
-  List<Object?> get props => [id, topicId, prompt, points, itemsInOrder];
+  List<Object?> get props => [
+    id,
+    topicId,
+    prompt,
+    points,
+    itemsInOrder,
+    leftCategory,
+    rightCategory,
+    correctSides,
+    hint,
+  ];
 }
 
 /// One wrong answer ends the whole quiz session immediately — enforced by
