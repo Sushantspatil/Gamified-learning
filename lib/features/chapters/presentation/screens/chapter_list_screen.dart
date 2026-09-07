@@ -10,9 +10,10 @@ import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../learning_paths/presentation/widgets/learning_path_card.dart';
+import '../../../profile/presentation/providers/profile_providers.dart';
 
-/// Learn tab root: shows study subjects first. Chapter/topic drilling happens
-/// in pushed detail routes so Learn remains study-focused.
+/// Subjects tab root: shows study subjects first. Chapter/topic drilling
+/// happens in pushed detail routes so Subjects remains study-focused.
 class ChapterListScreen extends ConsumerWidget {
   const ChapterListScreen({super.key});
 
@@ -22,10 +23,13 @@ class ChapterListScreen extends ConsumerWidget {
     final selectedPathId = ref
         .watch(selectedLearningPathControllerProvider)
         .valueOrNull;
+    final selectedSubjectIds =
+        ref.watch(profileControllerProvider).valueOrNull?.selectedSubjectIds ??
+        const [];
 
     return GameScaffold(
       appBar: AppBar(
-        title: const Text('Learn'),
+        title: const Text('Subjects'),
         actions: const [ThemeModeMenu()],
       ),
       body: SafeArea(
@@ -51,7 +55,12 @@ class ChapterListScreen extends ConsumerWidget {
             ),
           ),
           data: (paths) {
-            if (paths.isEmpty) {
+            final visiblePaths = selectedSubjectIds.isEmpty
+                ? paths
+                : paths
+                      .where((path) => selectedSubjectIds.contains(path.id))
+                      .toList();
+            if (visiblePaths.isEmpty) {
               return Center(
                 child: Text(
                   'No subjects available yet.',
@@ -67,7 +76,7 @@ class ChapterListScreen extends ConsumerWidget {
                 AppSpacing.screenPadding,
                 96,
               ),
-              itemCount: paths.length + 1,
+              itemCount: visiblePaths.length + 1,
               separatorBuilder: (context, index) =>
                   const SizedBox(height: AppSpacing.sm),
               itemBuilder: (context, index) {
@@ -91,7 +100,7 @@ class ChapterListScreen extends ConsumerWidget {
                   );
                 }
 
-                final path = paths[index - 1];
+                final path = visiblePaths[index - 1];
                 return LearningPathCard(
                   path: path,
                   isSelected: path.id == selectedPathId,

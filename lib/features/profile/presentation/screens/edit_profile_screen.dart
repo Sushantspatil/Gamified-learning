@@ -24,6 +24,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   String? _selectedAvatarId;
+  String? _selectedClassLevel;
+  String? _selectedBoard;
 
   @override
   void initState() {
@@ -32,6 +34,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _nameController = TextEditingController(text: user?.displayName ?? '');
     _selectedAvatarId =
         ref.read(profileControllerProvider).valueOrNull?.avatarId ?? 'default';
+    _selectedClassLevel = ref
+        .read(profileControllerProvider)
+        .valueOrNull
+        ?.classLevel;
+    _selectedBoard =
+        ref.read(profileControllerProvider).valueOrNull?.board ??
+        'Maharashtra State Board';
   }
 
   @override
@@ -61,6 +70,18 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       await ref
           .read(profileControllerProvider.notifier)
           .updateAvatar(_selectedAvatarId!);
+    }
+    if (currentProfile != null &&
+        (_selectedClassLevel != currentProfile.classLevel ||
+            _selectedBoard != currentProfile.board)) {
+      await ref
+          .read(profileControllerProvider.notifier)
+          .completeProfileSetup(
+            avatarId: _selectedAvatarId ?? currentProfile.avatarId,
+            classLevel: _selectedClassLevel ?? '12th',
+            board: _selectedBoard ?? 'Maharashtra State Board',
+            selectedSubjectIds: currentProfile.selectedSubjectIds,
+          );
     }
 
     if (mounted) Navigator.of(context).pop();
@@ -95,6 +116,33 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<String>(
+                  key: const Key('edit-class-dropdown'),
+                  initialValue: _selectedClassLevel,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Class'),
+                  items: const [
+                    DropdownMenuItem(value: '11th', child: Text('11th')),
+                    DropdownMenuItem(value: '12th', child: Text('12th')),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => _selectedClassLevel = value),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                DropdownButtonFormField<String>(
+                  key: const Key('edit-board-dropdown'),
+                  initialValue: _selectedBoard,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Board'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'Maharashtra State Board',
+                      child: Text('Maharashtra State Board'),
+                    ),
+                  ],
+                  onChanged: (value) => setState(() => _selectedBoard = value),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Text(

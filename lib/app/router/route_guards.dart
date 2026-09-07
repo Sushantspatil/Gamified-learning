@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/authentication/presentation/providers/auth_providers.dart';
-import '../../features/learning_paths/presentation/providers/learning_path_providers.dart';
+import '../../features/profile/presentation/providers/profile_providers.dart';
 import 'route_names.dart';
 
 final splashMinimumDurationProvider = FutureProvider<void>((ref) {
@@ -22,6 +22,7 @@ class RouteGuards {
         location == RouteNames.login || location == RouteNames.signup;
     final isSplash = location == RouteNames.splash;
     final isOnboarding = location == RouteNames.onboarding;
+    final isTutorial = location == RouteNames.tutorial;
     final splashMinimumDurationState = ref.read(splashMinimumDurationProvider);
 
     if (splashMinimumDurationState.isLoading &&
@@ -45,18 +46,24 @@ class RouteGuards {
       return isAuthRoute ? null : RouteNames.login;
     }
 
-    final selectedPathState = ref.read(selectedLearningPathControllerProvider);
-    if (selectedPathState.isLoading && !selectedPathState.hasValue) {
+    final profileState = ref.read(profileControllerProvider);
+    if (profileState.isLoading && !profileState.hasValue) {
       return isSplash ? null : RouteNames.splash;
     }
 
-    final hasSelectedPath = selectedPathState.valueOrNull != null;
+    final profile = profileState.valueOrNull;
+    final hasCompletedProfile = profile?.profileSetupCompleted ?? false;
+    final hasCompletedTutorial = profile?.tutorialCompleted ?? false;
 
-    if (!hasSelectedPath) {
+    if (!hasCompletedProfile) {
       return isOnboarding ? null : RouteNames.onboarding;
     }
 
-    if (isAuthRoute || isSplash || isOnboarding) {
+    if (!hasCompletedTutorial) {
+      return isTutorial ? null : RouteNames.tutorial;
+    }
+
+    if (isAuthRoute || isSplash || isOnboarding || isTutorial) {
       return RouteNames.dashboard;
     }
 

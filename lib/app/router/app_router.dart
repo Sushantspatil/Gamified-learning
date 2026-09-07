@@ -15,10 +15,12 @@ import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 import '../../features/leaderboard/presentation/screens/leaderboard_screen.dart';
 import '../../features/learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../features/learning_paths/presentation/screens/subject_detail_screen.dart';
-import '../../features/onboarding/presentation/screens/learning_path_selection_screen.dart';
+import '../../features/onboarding/presentation/screens/how_to_play_tutorial_screen.dart';
+import '../../features/onboarding/presentation/screens/profile_setup_screen.dart';
 import '../../features/practice/presentation/screens/practice_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../../features/questions/domain/entities/question.dart';
 import '../../features/quiz/presentation/screens/quiz_screen.dart';
 import '../../features/shop/presentation/screens/shop_screen.dart';
@@ -32,6 +34,7 @@ import 'route_names.dart';
 final appRouterProvider = Provider<GoRouter>((ref) {
   final refreshNotifier = GoRouterRefreshNotifier(ref, [
     authControllerProvider,
+    profileControllerProvider,
     selectedLearningPathControllerProvider,
     splashMinimumDurationProvider,
   ]);
@@ -56,7 +59,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.onboarding,
-        builder: (context, state) => const LearningPathSelectionScreen(),
+        builder: (context, state) => const ProfileSetupScreen(),
+      ),
+      GoRoute(
+        path: RouteNames.tutorial,
+        builder: (context, state) => const HowToPlayTutorialScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => AuthenticatedShell(child: child),
@@ -71,7 +78,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: RouteNames.practice,
-            builder: (context, state) => const PracticeScreen(),
+            builder: (context, state) => PlaySetupScreen(
+              initialSubjectId: state.uri.queryParameters['subjectId'],
+              initialChapterId: state.uri.queryParameters['chapterId'],
+              initialTopicId: state.uri.queryParameters['topicId'],
+              initialGameMode: QuestionTypeX.fromRouteValue(
+                state.uri.queryParameters['quizType'] ?? '',
+              ),
+            ),
           ),
           GoRoute(
             path: RouteNames.leaderboard,
@@ -89,8 +103,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.subjectPattern,
-        builder: (context, state) =>
-            SubjectDetailScreen(subjectId: state.pathParameters['subjectId']!),
+        builder: (context, state) => SubjectLearnChaptersScreen(
+          subjectId: state.pathParameters['subjectId']!,
+        ),
       ),
       GoRoute(
         path: RouteNames.subjectLearnPattern,
@@ -100,8 +115,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.subjectPlayPattern,
-        builder: (context, state) =>
-            PlaySetupScreen(subjectId: state.pathParameters['subjectId']!),
+        redirect: (context, state) => RouteNames.playSetupPath(
+          subjectId: state.pathParameters['subjectId']!,
+        ),
       ),
       GoRoute(
         path: RouteNames.chapterPattern,
@@ -117,26 +133,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.topicPracticePattern,
-        builder: (context, state) => TopicPracticeModeSelectionScreen(
+        redirect: (context, state) => RouteNames.playSetupPath(
           chapterId: state.pathParameters['chapterId']!,
           topicId: state.pathParameters['topicId']!,
         ),
       ),
       GoRoute(
         path: RouteNames.practiceTypePattern,
-        builder: (context, state) =>
-            PracticeSubjectSelectionScreen(quizType: _quizTypeFromState(state)),
+        redirect: (context, state) =>
+            RouteNames.playSetupPath(quizType: _quizTypeFromState(state)),
       ),
       GoRoute(
         path: RouteNames.practiceSubjectPattern,
-        builder: (context, state) => PracticeChapterSelectionScreen(
+        redirect: (context, state) => RouteNames.playSetupPath(
           quizType: _quizTypeFromState(state),
           subjectId: state.pathParameters['subjectId']!,
         ),
       ),
       GoRoute(
         path: RouteNames.practiceChapterPattern,
-        builder: (context, state) => PracticeTopicSelectionScreen(
+        redirect: (context, state) => RouteNames.playSetupPath(
           quizType: _quizTypeFromState(state),
           subjectId: state.pathParameters['subjectId']!,
           chapterId: state.pathParameters['chapterId']!,
@@ -144,7 +160,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.practiceTopicPattern,
-        builder: (context, state) => PracticeStartScreen(
+        redirect: (context, state) => RouteNames.playSetupPath(
           quizType: _quizTypeFromState(state),
           subjectId: state.pathParameters['subjectId']!,
           chapterId: state.pathParameters['chapterId']!,

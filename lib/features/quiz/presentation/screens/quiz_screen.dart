@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -114,8 +116,14 @@ class QuizScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: AppSpacing.md),
                       AppButton(
-                        label: 'Choose Another Mode',
-                        onPressed: () => Navigator.of(context).maybePop(),
+                        label: 'Change Mode',
+                        onPressed: () => context.go(
+                          RouteNames.playSetupPath(
+                            subjectId: subjectId,
+                            chapterId: chapterId,
+                            topicId: topicId,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -147,6 +155,7 @@ class QuizScreen extends ConsumerWidget {
               return Padding(
                 padding: AppSpacing.paddingMd,
                 child: McqQuestionView(
+                  key: ValueKey(question.id),
                   question: question,
                   currentIndex: session.currentIndex,
                   totalQuestions: session.questions.length,
@@ -161,6 +170,7 @@ class QuizScreen extends ConsumerWidget {
 
             if (question is MatchTheFollowingQuestion) {
               return MatchTheFollowingView(
+                key: ValueKey(question.id),
                 question: question,
                 onSubmit: handleAnswer,
                 onExit: () => Navigator.of(context).maybePop(),
@@ -183,6 +193,7 @@ class QuizScreen extends ConsumerWidget {
                   : currentStreak;
 
               return SuddenDeathQuestionView(
+                key: ValueKey(question.id),
                 question: question,
                 currentIndex: session.currentIndex,
                 totalQuestions: session.questions.length,
@@ -211,6 +222,7 @@ class QuizScreen extends ConsumerWidget {
                   : currentStreak;
 
               return SortItRightView(
+                key: ValueKey(question.id),
                 question: question,
                 currentIndex: session.currentIndex,
                 totalQuestions: session.questions.length,

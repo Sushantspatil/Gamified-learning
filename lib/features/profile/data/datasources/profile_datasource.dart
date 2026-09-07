@@ -13,5 +13,15 @@ abstract class ProfileDatasource {
     required String avatarId,
   });
 
+  Future<UserProfileModel> completeProfileSetup({
+    required String userId,
+    required String avatarId,
+    required String classLevel,
+    required String board,
+    required List<String> selectedSubjectIds,
+  });
+
+  Future<UserProfileModel> completeTutorial({required String userId});
+
   Future<UserProfileModel> addXp({required String userId, required int xp});
 }

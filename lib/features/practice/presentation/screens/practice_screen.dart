@@ -18,6 +18,7 @@ import '../../../chapters/domain/entities/topic.dart';
 import '../../../chapters/presentation/providers/chapter_providers.dart';
 import '../../../learning_paths/domain/entities/learning_path.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
+import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
 
@@ -29,18 +30,47 @@ const _practiceModes = [
 ];
 
 class PlaySetupScreen extends ConsumerStatefulWidget {
-  final String subjectId;
+  final String? initialSubjectId;
+  final String? initialChapterId;
+  final String? initialTopicId;
+  final QuestionType? initialGameMode;
 
-  const PlaySetupScreen({super.key, required this.subjectId});
+  const PlaySetupScreen({
+    super.key,
+    this.initialSubjectId,
+    this.initialChapterId,
+    this.initialTopicId,
+    this.initialGameMode,
+  });
 
   @override
   ConsumerState<PlaySetupScreen> createState() => _PlaySetupScreenState();
 }
 
 class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
+  late String? _selectedSubjectId;
   String? _selectedChapterId;
   String? _selectedTopicId;
   QuestionType? _selectedMode;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSubjectId = widget.initialSubjectId;
+    _selectedChapterId = widget.initialChapterId;
+    _selectedTopicId = widget.initialTopicId;
+    _selectedMode = widget.initialGameMode;
+  }
+
+  void _selectSubject(String? subjectId) {
+    if (subjectId == _selectedSubjectId) return;
+    setState(() {
+      _selectedSubjectId = subjectId;
+      _selectedChapterId = null;
+      _selectedTopicId = null;
+      _selectedMode = null;
+    });
+  }
 
   void _selectChapter(String? chapterId) {
     if (chapterId == _selectedChapterId) return;
@@ -62,7 +92,13 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
   @override
   Widget build(BuildContext context) {
     final pathsAsync = ref.watch(learningPathsProvider);
-    final chaptersAsync = ref.watch(chaptersProvider(widget.subjectId));
+    final selectedSubjectIds =
+        ref.watch(profileControllerProvider).valueOrNull?.selectedSubjectIds ??
+        const [];
+    final selectedSubjectId = _selectedSubjectId;
+    final chaptersAsync = selectedSubjectId == null
+        ? null
+        : ref.watch(chaptersProvider(selectedSubjectId));
 
     return GameScaffold(
       appBar: AppBar(
@@ -79,7 +115,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
                   RouteNames.quizPath(
                     _selectedTopicId!,
                     _selectedMode!,
-                    subjectId: widget.subjectId,
+                    subjectId: _selectedSubjectId,
                     chapterId: _selectedChapterId,
                   ),
                 )
@@ -90,13 +126,47 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
         child: pathsAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, stackTrace) => _ErrorState(
-            message: 'Could not load this subject.',
+            message: 'Could not load subjects.',
             onRetry: () => ref.invalidate(learningPathsProvider),
           ),
           data: (paths) {
-            final subject = _findSubject(paths, widget.subjectId);
-            if (subject == null) {
-              return const _MessageState(message: 'Subject not found.');
+            final visiblePaths = selectedSubjectIds.isEmpty
+                ? paths
+                : paths
+                      .where((path) => selectedSubjectIds.contains(path.id))
+                      .toList();
+            if (visiblePaths.isEmpty) {
+              return const _MessageState(
+                message: 'No playable subjects are available yet.',
+              );
+            }
+
+            final subject = selectedSubjectId == null
+                ? null
+                : _findSubject(visiblePaths, selectedSubjectId);
+            if (selectedSubjectId != null && subject == null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _selectSubject(null);
+              });
+            }
+
+            if (chaptersAsync == null) {
+              return _SetupContent(
+                paths: visiblePaths,
+                selectedSubjectId: _selectedSubjectId,
+                selectedChapterId: _selectedChapterId,
+                selectedTopicId: _selectedTopicId,
+                selectedMode: _selectedMode,
+                chapters: const [],
+                topicsAsync: null,
+                selectedChapter: null,
+                onSubjectChanged: _selectSubject,
+                onChapterChanged: _selectChapter,
+                onTopicChanged: _selectTopic,
+                onModeChanged: (mode) => setState(() {
+                  _selectedMode = mode;
+                }),
+              );
             }
 
             return chaptersAsync.when(
@@ -104,15 +174,9 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
               error: (error, stackTrace) => _ErrorState(
                 message: 'Could not load chapters.',
                 onRetry: () =>
-                    ref.invalidate(chaptersProvider(widget.subjectId)),
+                    ref.invalidate(chaptersProvider(selectedSubjectId!)),
               ),
               data: (chapters) {
-                if (chapters.isEmpty) {
-                  return const _MessageState(
-                    message: 'No playable questions are available yet.',
-                  );
-                }
-
                 final selectedChapter = _findChapter(
                   chapters,
                   _selectedChapterId,
@@ -121,54 +185,22 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
                     ? null
                     : ref.watch(topicsProvider(selectedChapter.id));
 
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenPadding,
-                    AppSpacing.md,
-                    AppSpacing.screenPadding,
-                    112,
-                  ),
-                  children: [
-                    Text(
-                      'Play ${subject.title}',
-                      style: context.appTextStyles.displayMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Choose what to practice and how to play.',
-                      style: context.appTextStyles.bodyMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _SetupSection(
-                      title: 'What do you want to practice?',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          _ChapterDropdown(
-                            chapters: chapters,
-                            selectedChapterId: _selectedChapterId,
-                            onChanged: _selectChapter,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          _TopicPicker(
-                            topicsAsync: topicsAsync,
-                            selectedChapter: selectedChapter,
-                            selectedTopicId: _selectedTopicId,
-                            onChanged: _selectTopic,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _GameModePicker(
-                      selectedTopicId: _selectedTopicId,
-                      selectedMode: _selectedMode,
-                      onChanged: (mode) => setState(() {
-                        _selectedMode = mode;
-                      }),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                  ],
+                return _SetupContent(
+                  paths: visiblePaths,
+                  selectedSubjectId: _selectedSubjectId,
+                  selectedChapterId: _selectedChapterId,
+                  selectedTopicId: _selectedTopicId,
+                  selectedMode: _selectedMode,
+                  subject: subject,
+                  chapters: chapters,
+                  topicsAsync: topicsAsync,
+                  selectedChapter: selectedChapter,
+                  onSubjectChanged: _selectSubject,
+                  onChapterChanged: _selectChapter,
+                  onTopicChanged: _selectTopic,
+                  onModeChanged: (mode) => setState(() {
+                    _selectedMode = mode;
+                  }),
                 );
               },
             );
@@ -179,9 +211,106 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
   }
 
   bool get _canStart =>
+      _selectedSubjectId != null &&
       _selectedChapterId != null &&
       _selectedTopicId != null &&
       _selectedMode != null;
+}
+
+class _SetupContent extends StatelessWidget {
+  final List<LearningPath> paths;
+  final String? selectedSubjectId;
+  final String? selectedChapterId;
+  final String? selectedTopicId;
+  final QuestionType? selectedMode;
+  final LearningPath? subject;
+  final List<Chapter> chapters;
+  final AsyncValue<List<Topic>>? topicsAsync;
+  final Chapter? selectedChapter;
+  final ValueChanged<String?> onSubjectChanged;
+  final ValueChanged<String?> onChapterChanged;
+  final ValueChanged<String?> onTopicChanged;
+  final ValueChanged<QuestionType> onModeChanged;
+
+  const _SetupContent({
+    required this.paths,
+    required this.selectedSubjectId,
+    required this.selectedChapterId,
+    required this.selectedTopicId,
+    required this.selectedMode,
+    required this.chapters,
+    required this.topicsAsync,
+    required this.selectedChapter,
+    required this.onSubjectChanged,
+    required this.onChapterChanged,
+    required this.onTopicChanged,
+    required this.onModeChanged,
+    this.subject,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final title = subject == null ? 'Play' : 'Play ${subject!.title}';
+    final visibleChapterId =
+        chapters.any((chapter) => chapter.id == selectedChapterId)
+        ? selectedChapterId
+        : null;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screenPadding,
+        AppSpacing.md,
+        AppSpacing.screenPadding,
+        112,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(title, style: context.appTextStyles.displayMedium),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Choose what to practice and how to play.',
+            style: context.appTextStyles.bodyMedium,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _SetupSection(
+            title: 'What do you want to practice?',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _SubjectDropdown(
+                  paths: paths,
+                  selectedSubjectId: selectedSubjectId,
+                  onChanged: onSubjectChanged,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _ChapterDropdown(
+                  chapters: chapters,
+                  selectedSubjectId: selectedSubjectId,
+                  selectedChapterId: visibleChapterId,
+                  onChanged: onChapterChanged,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _TopicPicker(
+                  topicsAsync: topicsAsync,
+                  selectedChapter: selectedChapter,
+                  selectedTopicId: selectedTopicId,
+                  onChanged: onTopicChanged,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _GameModePicker(
+            selectedTopicId: selectedTopicId,
+            selectedMode: selectedMode,
+            onChanged: onModeChanged,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+      ),
+    );
+  }
 }
 
 class _SetupSection extends StatelessWidget {
@@ -206,13 +335,49 @@ class _SetupSection extends StatelessWidget {
   }
 }
 
+class _SubjectDropdown extends StatelessWidget {
+  final List<LearningPath> paths;
+  final String? selectedSubjectId;
+  final ValueChanged<String?> onChanged;
+
+  const _SubjectDropdown({
+    required this.paths,
+    required this.selectedSubjectId,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<String>(
+      key: const Key('play-subject-dropdown'),
+      initialValue: selectedSubjectId,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: 'Subject'),
+      items: [
+        for (final path in paths)
+          DropdownMenuItem(
+            value: path.id,
+            child: Text(
+              path.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
 class _ChapterDropdown extends StatelessWidget {
   final List<Chapter> chapters;
+  final String? selectedSubjectId;
   final String? selectedChapterId;
   final ValueChanged<String?> onChanged;
 
   const _ChapterDropdown({
     required this.chapters,
+    required this.selectedSubjectId,
     required this.selectedChapterId,
     required this.onChanged,
   });
@@ -224,6 +389,9 @@ class _ChapterDropdown extends StatelessWidget {
       initialValue: selectedChapterId,
       isExpanded: true,
       decoration: const InputDecoration(labelText: 'Chapter'),
+      hint: selectedSubjectId == null
+          ? const Text('Select a subject first')
+          : null,
       items: [
         for (final chapter in chapters)
           DropdownMenuItem(
@@ -235,7 +403,9 @@ class _ChapterDropdown extends StatelessWidget {
             ),
           ),
       ],
-      onChanged: onChanged,
+      onChanged: selectedSubjectId == null || chapters.isEmpty
+          ? null
+          : onChanged,
     );
   }
 }
@@ -298,7 +468,9 @@ class _TopicPicker extends StatelessWidget {
 
         return DropdownButtonFormField<String>(
           key: const Key('play-topic-dropdown'),
-          initialValue: selectedTopicId,
+          initialValue: topics.any((topic) => topic.id == selectedTopicId)
+              ? selectedTopicId
+              : null,
           isExpanded: true,
           decoration: const InputDecoration(labelText: 'Topic'),
           items: [
