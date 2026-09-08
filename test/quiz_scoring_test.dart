@@ -11,6 +11,61 @@ void main() {
   final datasource = QuizMockDatasource();
 
   test(
+    'missed sort items earn no points and remain aligned with later answers',
+    () async {
+      const question = SortItRightQuestion(
+        id: 'misses',
+        topicId: 't',
+        prompt: 'Sort',
+        points: 10,
+        itemsInOrder: ['A', 'B', 'C', 'D', 'E'],
+        correctSides: [
+          SortSide.left,
+          SortSide.right,
+          SortSide.left,
+          SortSide.right,
+          SortSide.left,
+        ],
+      );
+      const answer = SortAnswer(
+        questionId: 'misses',
+        orderedItems: ['A', 'B', 'C', 'D', 'E'],
+        selectedSides: [
+          null,
+          SortSide.right,
+          null,
+          SortSide.right,
+          SortSide.left,
+        ],
+      );
+      final evaluation = await datasource.evaluateAnswer(question, answer);
+      expect(evaluation.pointsEarned, 6);
+      expect(evaluation.isCorrect, isFalse);
+      final result = await datasource.submitSession(
+        QuizSession(
+          id: 'missed-session',
+          topicId: 't',
+          quizType: QuestionType.sortItRight,
+          questions: const [question],
+          answeredRecords: [
+            QuestionAnswerRecord(
+              question: question,
+              answer: answer,
+              evaluation: evaluation,
+            ),
+          ],
+          endedEarly: false,
+          startedAt: DateTime(2026),
+          completedAt: DateTime(2026, 1, 1, 0, 1),
+        ),
+      );
+      expect(result.score.correctCount, 3);
+      expect(result.wrongCount, 2);
+      expect(result.accuracy, .6);
+    },
+  );
+
+  test(
     'Sort It Out loads five mapped items and scores classifications',
     () async {
       final questions = await QuestionMockDatasource()

@@ -179,7 +179,7 @@ Future<void> _startSortItOutQuiz(WidgetTester tester) async {
   expect(find.text('Debit'), findsWidgets);
   expect(find.text('Credit'), findsWidgets);
   await tester.tap(find.text('Start sorting'));
-  await tester.pumpAndSettle();
+  await tester.pump();
 }
 
 Future<void> _answerAllMcqCorrectly(WidgetTester tester) async {
@@ -196,14 +196,20 @@ Future<void> _answerAllMcqCorrectly(WidgetTester tester) async {
 Future<void> _sortCurrentCardTo(WidgetTester tester, String bucket) async {
   final target = find.byKey(ValueKey('sort-bucket-$bucket'));
   await tester.ensureVisible(target);
-  await tester.pumpAndSettle();
-  await tester.tap(target);
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 300));
-  await tester.pump(const Duration(milliseconds: 900));
-  // Final feedback starts the existing asynchronous answer evaluation.
+  await tester.tap(target);
+  await _finishSortTransition(tester);
+}
+
+Future<void> _finishSortTransition(WidgetTester tester) async {
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 336));
+  await tester.pump(const Duration(milliseconds: 600));
+  // Await shared scoring after the final feedback, without consuming the next fall.
   await tester.pump(const Duration(milliseconds: 400));
-  await tester.pumpAndSettle();
+  if (find.byType(CircularProgressIndicator).evaluate().isNotEmpty) {
+    await tester.pumpAndSettle();
+  }
 }
 
 void main() {
@@ -720,10 +726,21 @@ void main() {
     await tester.tap(find.text('Play again'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Start sorting'));
-    await tester.pumpAndSettle();
+    await tester.pump();
     expect(find.text('Purchase'), findsOneWidget);
     expect(find.text('1 / 5'), findsOneWidget);
     expect(find.text('0 correct · 0 wrong'), findsOneWidget);
+    final fallingCard = find.byKey(const Key('sort-active-card'));
+    final playfield = find.byKey(const Key('sort-playfield'));
+    expect(
+      tester.getTopLeft(fallingCard).dy,
+      closeTo(tester.getTopLeft(playfield).dy, 1),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(
+      tester.getTopLeft(fallingCard).dy,
+      greaterThan(tester.getTopLeft(playfield).dy),
+    );
     await _sortCurrentCardTo(tester, 'credit');
     await _sortCurrentCardTo(tester, 'credit');
     await _sortCurrentCardTo(tester, 'credit');
@@ -733,6 +750,18 @@ void main() {
     expect(find.text('0 of 5 correct'), findsOneWidget);
     expect(find.text('0 / 10 points'), findsOneWidget);
     expect(find.text('+0 XP'), findsOneWidget);
+    await tester.ensureVisible(find.text('Play again'));
+    await tester.tap(find.text('Play again'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start sorting'));
+    await tester.pump();
+    for (var index = 0; index < 5; index++) {
+      await tester.pump(const Duration(milliseconds: 4016));
+      await _finishSortTransition(tester);
+    }
+    expect(find.text('Sort It Out — Results'), findsOneWidget);
+    expect(find.text('0 of 5 correct'), findsOneWidget);
+    expect(find.text('Missed'), findsNWidgets(5));
   });
 
   testWidgets('a wrong Sudden Death answer ends the quiz early', (

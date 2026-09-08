@@ -161,7 +161,6 @@ String _metricSummary(QuizResult result) {
 class _SortAnswerReview extends StatelessWidget {
   final SortItRightQuestion question;
   final SortAnswer answer;
-
   const _SortAnswerReview({required this.question, required this.answer});
 
   @override
@@ -173,56 +172,57 @@ class _SortAnswerReview extends StatelessWidget {
         Text('Answer review', style: context.appTextStyles.titleMedium),
         const SizedBox(height: AppSpacing.sm),
         for (var index = 0; index < question.itemsInOrder.length; index++)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            child: Row(
+          _buildItem(context, index),
+      ],
+    );
+  }
+
+  Widget _buildItem(BuildContext context, int index) {
+    final side = index < answer.selectedSides.length
+        ? answer.selectedSides[index]
+        : null;
+    final correct = side == question.correctSides[index];
+    final status = side == null
+        ? 'Missed'
+        : correct
+        ? 'Correct'
+        : 'Wrong';
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        question.itemsInOrder[index],
-                        style: context.appTextStyles.labelLarge,
-                      ),
-                      Text(
-                        'Correct group: ${question.categoryLabel(question.correctSides[index])}',
-                        style: context.appTextStyles.bodySmall,
-                      ),
-                      if (index < answer.selectedSides.length &&
-                          answer.selectedSides[index] !=
-                              question.correctSides[index])
-                        Text(
-                          'Your answer: ${question.categoryLabel(answer.selectedSides[index])}',
-                          style: context.appTextStyles.bodySmall,
-                        ),
-                    ],
+                Text(
+                  question.itemsInOrder[index],
+                  style: context.appTextStyles.labelLarge,
+                ),
+                Text(
+                  'Correct group: ${question.categoryLabel(question.correctSides[index])}',
+                  style: context.appTextStyles.bodySmall,
+                ),
+                if (!correct)
+                  Text(
+                    side == null
+                        ? 'Missed'
+                        : 'Your answer: ${question.categoryLabel(side)}',
+                    style: context.appTextStyles.bodySmall,
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Icon(
-                  index < answer.selectedSides.length &&
-                          answer.selectedSides[index] ==
-                              question.correctSides[index]
-                      ? Icons.check_circle_outline
-                      : Icons.cancel_outlined,
-                  semanticLabel:
-                      index < answer.selectedSides.length &&
-                          answer.selectedSides[index] ==
-                              question.correctSides[index]
-                      ? 'Correct'
-                      : 'Wrong',
-                  color:
-                      index < answer.selectedSides.length &&
-                          answer.selectedSides[index] ==
-                              question.correctSides[index]
-                      ? context.themeColors.success
-                      : context.themeColors.error,
-                ),
               ],
             ),
           ),
-      ],
+          const SizedBox(width: AppSpacing.sm),
+          Icon(
+            correct ? Icons.check_circle_outline : Icons.cancel_outlined,
+            semanticLabel: status,
+            color: correct
+                ? context.themeColors.success
+                : context.themeColors.error,
+          ),
+        ],
+      ),
     );
   }
 }

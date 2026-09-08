@@ -33,7 +33,9 @@ class MatchTheFollowingAnswer extends Answer {
 
 class SortAnswer extends Answer {
   final List<String> orderedItems;
-  final List<SortSide> selectedSides;
+
+  /// One entry per item. Null records a timeout without assigning a group.
+  final List<SortSide?> selectedSides;
 
   const SortAnswer({
     required String questionId,

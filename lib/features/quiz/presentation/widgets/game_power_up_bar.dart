@@ -57,6 +57,7 @@ class GamePowerUpBar extends ConsumerStatefulWidget {
 
 class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
   String? _pendingActionId;
+  bool _isCharging = false;
 
   Future<void> _buyAndUse(GamePowerUpAction action) async {
     if (widget.isDisabled ||
@@ -66,17 +67,18 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
       return;
     }
 
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) => _PowerUpBuySheet(action: action),
-    );
-    if (confirmed != true || !mounted) return;
-
     setState(() => _pendingActionId = action.id);
     widget.onBusyChanged?.call(true);
     try {
+      final confirmed = await showModalBottomSheet<bool>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (context) => _PowerUpBuySheet(action: action),
+      );
+      if (confirmed != true || !mounted) return;
+      setState(() => _isCharging = true);
+
       final overrideCoins = widget.coinBalanceOverride;
       final didDebit = overrideCoins == null
           ? await ref
@@ -99,7 +101,10 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
       action.onUse();
     } finally {
       if (mounted) {
-        setState(() => _pendingActionId = null);
+        setState(() {
+          _pendingActionId = null;
+          _isCharging = false;
+        });
         widget.onBusyChanged?.call(false);
       }
     }
@@ -145,7 +150,9 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
                 Expanded(
                   child: _PowerUpTile(
                     action: widget.actions[index],
-                    isBusy: _pendingActionId == widget.actions[index].id,
+                    isBusy:
+                        _isCharging &&
+                        _pendingActionId == widget.actions[index].id,
                     isDisabled: widget.isDisabled || _pendingActionId != null,
                     isDense: widget.isDense,
                     onTap: () => _buyAndUse(widget.actions[index]),
