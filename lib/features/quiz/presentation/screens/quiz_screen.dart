@@ -172,6 +172,8 @@ class QuizScreen extends ConsumerWidget {
               return MatchTheFollowingView(
                 key: ValueKey(question.id),
                 question: question,
+                currentIndex: session.currentIndex,
+                totalQuestions: session.questions.length,
                 onSubmit: handleAnswer,
                 onExit: () => Navigator.of(context).maybePop(),
               );

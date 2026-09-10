@@ -87,9 +87,9 @@ Future<void> _submitForAnalysis(WidgetTester tester) async {
 }
 
 Future<void> _continueFromAnalysis(WidgetTester tester) async {
-  await tester.ensureVisible(find.text('Continue'));
+  await tester.ensureVisible(find.text('Next'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Continue'));
+  await tester.tap(find.text('Next'));
   await tester.pump();
 }
 

@@ -1,9 +1,11 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../app/motion/app_motion.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_elevation.dart';
@@ -26,6 +28,8 @@ class MatchTheFollowingView extends ConsumerStatefulWidget {
   final void Function(Answer answer) onSubmit;
   final VoidCallback? onExit;
   final int? coinBalanceOverride;
+  final int currentIndex;
+  final int totalQuestions;
 
   const MatchTheFollowingView({
     super.key,
@@ -33,21 +37,34 @@ class MatchTheFollowingView extends ConsumerStatefulWidget {
     required this.onSubmit,
     this.onExit,
     this.coinBalanceOverride,
-  });
+    this.currentIndex = 0,
+    this.totalQuestions = 1,
+  }) : assert(currentIndex >= 0),
+       assert(totalQuestions > 0);
 
   @override
   ConsumerState<MatchTheFollowingView> createState() =>
       _MatchTheFollowingViewState();
 }
 
-class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
+class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
+    with TickerProviderStateMixin {
   static const double _cardHeight = 64;
   static const double _rowGap = 12;
   static const double _connectorGap = 64;
 
   late List<MatchPair> _shuffledRight;
+  late final AnimationController _entryController;
+  late final AnimationController _connectorController;
+  late final AnimationController _resultController;
 
+  final _boardKey = GlobalKey();
+  final Map<String, GlobalKey> _leftCardKeys = {};
+  final Map<String, GlobalKey> _rightCardKeys = {};
   final Map<String, String> _matches = {};
+  Map<String, Offset> _leftCenters = {};
+  Map<String, Offset> _rightCenters = {};
+  bool _measurementScheduled = false;
 
   String? _selectedLeftPairId;
   _MatchFlowPhase _phase = _MatchFlowPhase.playing;
@@ -60,6 +77,65 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
     super.initState();
     _shuffledRight = List.of(widget.question.pairs);
     _shuffledRight.shuffle(Random(widget.question.id.hashCode));
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 460),
+    )..forward();
+    _connectorController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _resultController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 360),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _entryController.duration = AppMotion.duration(
+      context,
+      const Duration(milliseconds: 460),
+    );
+    _connectorController.duration = AppMotion.duration(
+      context,
+      const Duration(milliseconds: 280),
+    );
+    _resultController.duration = AppMotion.duration(
+      context,
+      const Duration(milliseconds: 360),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant MatchTheFollowingView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.question.id != widget.question.id) {
+      _shuffledRight = List.of(widget.question.pairs);
+      _shuffledRight.shuffle(Random(widget.question.id.hashCode));
+      _matches.clear();
+      _selectedLeftPairId = null;
+      _phase = _MatchFlowPhase.playing;
+      _isHintVisible = false;
+      _isAutoMatchUsed = false;
+      _isShuffleUsed = false;
+      _leftCardKeys.clear();
+      _rightCardKeys.clear();
+      _leftCenters = {};
+      _rightCenters = {};
+      _entryController.forward(from: 0);
+      _connectorController.reset();
+      _resultController.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _entryController.dispose();
+    _connectorController.dispose();
+    _resultController.dispose();
+    super.dispose();
   }
 
   void _handleLeftTap(String pairId) {
@@ -93,6 +169,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
       _matches[selectedLeft] = pairId;
       _selectedLeftPairId = null;
     });
+    _connectorController.forward(from: 0);
   }
 
   bool get _isLocked =>
@@ -124,6 +201,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
       _phase = _MatchFlowPhase.analysis;
       _selectedLeftPairId = null;
     });
+    _resultController.forward(from: 0);
   }
 
   void _showHint() {
@@ -152,6 +230,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
       _matches[selectedPair.id] = selectedPair.id;
       _selectedLeftPairId = null;
     });
+    _connectorController.forward(from: 0);
   }
 
   void _shuffleAnswers() {
@@ -161,6 +240,44 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
       _shuffledRight.shuffle(
         Random(widget.question.id.hashCode + _matches.length + 17),
       );
+    });
+  }
+
+  GlobalKey _cardKey(Map<String, GlobalKey> keys, String pairId) {
+    return keys.putIfAbsent(pairId, GlobalKey.new);
+  }
+
+  void _scheduleMeasurements() {
+    if (_measurementScheduled) return;
+    _measurementScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _measurementScheduled = false;
+      if (!mounted) return;
+      final boardBox = _boardKey.currentContext?.findRenderObject();
+      if (boardBox is! RenderBox || !boardBox.hasSize) return;
+
+      Map<String, Offset> measure(Map<String, GlobalKey> keys) {
+        final centers = <String, Offset>{};
+        for (final entry in keys.entries) {
+          final cardBox = entry.value.currentContext?.findRenderObject();
+          if (cardBox is! RenderBox || !cardBox.hasSize) continue;
+          centers[entry.key] = boardBox.globalToLocal(
+            cardBox.localToGlobal(cardBox.size.center(Offset.zero)),
+          );
+        }
+        return centers;
+      }
+
+      final nextLeftCenters = measure(_leftCardKeys);
+      final nextRightCenters = measure(_rightCardKeys);
+      if (mapEquals(nextLeftCenters, _leftCenters) &&
+          mapEquals(nextRightCenters, _rightCenters)) {
+        return;
+      }
+      setState(() {
+        _leftCenters = nextLeftCenters;
+        _rightCenters = nextRightCenters;
+      });
     });
   }
 
@@ -202,6 +319,8 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
             children: [
               _MatchItHeader(
                 title: _subjectTitle(widget.question.topicId),
+                currentIndex: widget.currentIndex,
+                totalQuestions: widget.totalQuestions,
                 streak: streak,
                 coins: _availableCoins,
                 onExit: widget.onExit ?? () => Navigator.of(context).maybePop(),
@@ -261,23 +380,31 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
                 height: boardHeight,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
+                    _scheduleMeasurements();
                     return Stack(
+                      key: _boardKey,
                       children: [
                         Positioned.fill(
-                          child: CustomPaint(
-                            painter: _MatchConnectionPainter(
-                              leftPairs: widget.question.pairs,
-                              rightPairs: _shuffledRight,
-                              matches: _matches,
-                              hasSubmitted: _hasSubmitted,
-                              selectedLeftPairId: _selectedLeftPairId,
-                              cardHeight: _cardHeight,
-                              rowGap: _rowGap,
-                              connectorGap: _connectorGap,
-                              successColor: colors.success,
-                              errorColor: colors.error,
-                              selectedColor: colors.primary,
-                              neutralColor: colors.borderStrong,
+                          child: IgnorePointer(
+                            child: CustomPaint(
+                              painter: _MatchConnectionPainter(
+                                connectorAnimation: _connectorController,
+                                resultAnimation: _resultController,
+                                leftPairs: widget.question.pairs,
+                                rightPairs: _shuffledRight,
+                                matches: _matches,
+                                leftCenters: _leftCenters,
+                                rightCenters: _rightCenters,
+                                hasSubmitted: _hasSubmitted,
+                                selectedLeftPairId: _selectedLeftPairId,
+                                cardHeight: _cardHeight,
+                                rowGap: _rowGap,
+                                connectorGap: _connectorGap,
+                                successColor: colors.success,
+                                errorColor: colors.error,
+                                selectedColor: colors.primary,
+                                neutralColor: colors.borderStrong,
+                              ),
                             ),
                           ),
                         ),
@@ -286,15 +413,26 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
                             Expanded(
                               child: Column(
                                 children: [
-                                  for (final pair in widget.question.pairs)
-                                    _MatchConceptCard(
-                                      key: Key('match-left-${pair.id}'),
-                                      label: pair.left,
+                                  for (final indexed
+                                      in widget.question.pairs.indexed)
+                                    _EntryMotion(
+                                      controller: _entryController,
+                                      index: indexed.$1,
                                       side: _MatchCardSide.left,
-                                      state: _leftState(pair.id),
-                                      onTap: _isLocked
-                                          ? null
-                                          : () => _handleLeftTap(pair.id),
+                                      child: _MatchConceptCard(
+                                        key: Key('match-left-${indexed.$2.id}'),
+                                        anchorKey: _cardKey(
+                                          _leftCardKeys,
+                                          indexed.$2.id,
+                                        ),
+                                        label: indexed.$2.left,
+                                        side: _MatchCardSide.left,
+                                        state: _leftState(indexed.$2.id),
+                                        onTap: _isLocked
+                                            ? null
+                                            : () =>
+                                                  _handleLeftTap(indexed.$2.id),
+                                      ),
                                     ),
                                 ],
                               ),
@@ -303,15 +441,50 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
                             Expanded(
                               child: Column(
                                 children: [
-                                  for (final pair in _shuffledRight)
-                                    _MatchConceptCard(
-                                      key: Key('match-right-${pair.id}'),
-                                      label: pair.right,
-                                      side: _MatchCardSide.right,
-                                      state: _rightState(pair.id),
-                                      onTap: _isLocked
-                                          ? null
-                                          : () => _handleRightTap(pair.id),
+                                  for (final indexed in _shuffledRight.indexed)
+                                    AnimatedSwitcher(
+                                      duration: AppMotion.duration(
+                                        context,
+                                        AppMotion.slow,
+                                      ),
+                                      switchInCurve: AppMotion.easeOut,
+                                      switchOutCurve: AppMotion.easeIn,
+                                      transitionBuilder: (child, animation) =>
+                                          FadeTransition(
+                                            opacity: animation,
+                                            child: SlideTransition(
+                                              position: Tween<Offset>(
+                                                begin: const Offset(0.12, 0),
+                                                end: Offset.zero,
+                                              ).animate(animation),
+                                              child: child,
+                                            ),
+                                          ),
+                                      child: _EntryMotion(
+                                        key: ValueKey(
+                                          'match-right-entry-${indexed.$2.id}',
+                                        ),
+                                        controller: _entryController,
+                                        index: indexed.$1,
+                                        side: _MatchCardSide.right,
+                                        child: _MatchConceptCard(
+                                          key: Key(
+                                            'match-right-${indexed.$2.id}',
+                                          ),
+                                          anchorKey: _cardKey(
+                                            _rightCardKeys,
+                                            indexed.$2.id,
+                                          ),
+                                          label: indexed.$2.right,
+                                          side: _MatchCardSide.right,
+                                          state: _rightState(indexed.$2.id),
+                                          onTap: _isLocked
+                                              ? null
+                                              : () => _handleRightTap(
+                                                  indexed.$2.id,
+                                                ),
+                                        ),
+                                      ),
                                     ),
                                 ],
                               ),
@@ -332,14 +505,23 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
               ],
-              AppButton(
-                label: isAnalysis ? 'Continue' : 'Submit',
-                isLoading: _phase == _MatchFlowPhase.submitting,
-                onPressed: isAnalysis
-                    ? _continueAfterAnalysis
-                    : allMatched
-                    ? _submitIfReady
-                    : null,
+              AnimatedScale(
+                duration: AppMotion.duration(context, AppMotion.normal),
+                curve: AppMotion.easeOut,
+                scale: isAnalysis || allMatched ? 1 : 0.98,
+                child: AnimatedOpacity(
+                  duration: AppMotion.duration(context, AppMotion.normal),
+                  opacity: isAnalysis || allMatched ? 1 : 0.58,
+                  child: AppButton(
+                    label: isAnalysis ? 'Next' : 'Submit',
+                    isLoading: _phase == _MatchFlowPhase.submitting,
+                    onPressed: isAnalysis
+                        ? _continueAfterAnalysis
+                        : allMatched
+                        ? _submitIfReady
+                        : null,
+                  ),
+                ),
               ),
             ],
           ),
@@ -395,12 +577,16 @@ enum _MatchFlowPhase { playing, analysis, submitting }
 
 class _MatchItHeader extends StatelessWidget {
   final String title;
+  final int currentIndex;
+  final int totalQuestions;
   final int streak;
   final int coins;
   final VoidCallback onExit;
 
   const _MatchItHeader({
     required this.title,
+    required this.currentIndex,
+    required this.totalQuestions,
     required this.streak,
     required this.coins,
     required this.onExit,
@@ -467,6 +653,14 @@ class _MatchItHeader extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(
+          '${currentIndex + 1}/$totalQuestions',
+          style: context.appTextStyles.labelLarge.copyWith(
+            color: colors.textSecondary,
+            fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -792,9 +986,54 @@ class _CorrectAnswerRow extends StatelessWidget {
 
 enum _MatchCardSide { left, right }
 
+class _EntryMotion extends StatelessWidget {
+  final AnimationController controller;
+  final int index;
+  final _MatchCardSide side;
+  final Widget child;
+
+  const _EntryMotion({
+    super.key,
+    required this.controller,
+    required this.index,
+    required this.side,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final start = (index * 0.14).clamp(0.0, 0.72);
+    final end = (start + 0.28).clamp(start + 0.01, 1.0);
+    final animation = controller.drive(
+      CurveTween(curve: Interval(start, end, curve: AppMotion.easeOut)),
+    );
+    final begin = side == _MatchCardSide.left
+        ? const Offset(-0.18, 0)
+        : const Offset(0.18, 0);
+
+    return AnimatedBuilder(
+      animation: animation,
+      child: child,
+      builder: (context, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: begin,
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
 enum _MatchCardState { neutral, selected, matched, correct, wrong }
 
 class _MatchConceptCard extends StatelessWidget {
+  final GlobalKey anchorKey;
   final String label;
   final _MatchCardSide side;
   final _MatchCardState state;
@@ -802,6 +1041,7 @@ class _MatchConceptCard extends StatelessWidget {
 
   const _MatchConceptCard({
     super.key,
+    required this.anchorKey,
     required this.label,
     required this.side,
     required this.state,
@@ -819,67 +1059,77 @@ class _MatchConceptCard extends StatelessWidget {
       ),
       child: Opacity(
         opacity: onTap == null ? 0.88 : 1,
-        child: AppPressable(
-          onTap: onTap,
-          borderRadius: AppDimensions.radiusMd,
-          child: SizedBox(
-            height: _MatchTheFollowingViewState._cardHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: _MatchTheFollowingViewState._cardHeight,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _background(colors),
-                    borderRadius: AppDimensions.radiusMd,
-                    border: Border.all(
-                      color: _border(colors),
-                      width: state == _MatchCardState.neutral ? 1 : 1.5,
+        child: AnimatedScale(
+          duration: AppMotion.duration(context, AppMotion.fast),
+          curve: AppMotion.easeOut,
+          scale: state == _MatchCardState.selected ? 1.025 : 1,
+          child: AppPressable(
+            onTap: onTap,
+            borderRadius: AppDimensions.radiusMd,
+            child: SizedBox(
+              key: anchorKey,
+              height: _MatchTheFollowingViewState._cardHeight,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  AnimatedContainer(
+                    duration: AppMotion.duration(context, AppMotion.normal),
+                    curve: AppMotion.easeOut,
+                    width: double.infinity,
+                    height: _MatchTheFollowingViewState._cardHeight,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
                     ),
-                    boxShadow: AppElevation.shadows(
-                      colors,
-                      state == _MatchCardState.neutral ? 1 : 0,
+                    decoration: BoxDecoration(
+                      color: _background(colors),
+                      borderRadius: AppDimensions.radiusMd,
+                      border: Border.all(
+                        color: _border(colors),
+                        width: state == _MatchCardState.neutral ? 1 : 1.5,
+                      ),
+                      boxShadow: _shadows(colors),
                     ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.appTextStyles.bodyLarge.copyWith(
-                        color: _textColor(colors),
-                        fontWeight: FontWeight.w700,
+                    child: Center(
+                      child: Text(
+                        label,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: context.appTextStyles.bodyLarge.copyWith(
+                          color: _textColor(colors),
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  left: side == _MatchCardSide.right ? -10 : null,
-                  right: side == _MatchCardSide.left ? -10 : null,
-                  child: node,
-                ),
-                if (state == _MatchCardState.correct ||
-                    state == _MatchCardState.wrong)
                   Positioned(
-                    right: side == _MatchCardSide.left ? 28 : null,
-                    left: side == _MatchCardSide.right ? 28 : null,
-                    child: Icon(
-                      state == _MatchCardState.correct
-                          ? Icons.check_circle
-                          : Icons.cancel,
-                      color: state == _MatchCardState.correct
-                          ? colors.success
-                          : colors.error,
-                      size: 26,
-                    ),
+                    left: side == _MatchCardSide.right ? -10 : null,
+                    right: side == _MatchCardSide.left ? -10 : null,
+                    child: node,
                   ),
-              ],
+                  if (state == _MatchCardState.correct ||
+                      state == _MatchCardState.wrong)
+                    Positioned(
+                      right: side == _MatchCardSide.left ? 28 : null,
+                      left: side == _MatchCardSide.right ? 28 : null,
+                      child: AnimatedScale(
+                        duration: AppMotion.duration(context, AppMotion.normal),
+                        curve: AppMotion.easeOut,
+                        scale: 1,
+                        child: Icon(
+                          state == _MatchCardState.correct
+                              ? Icons.check_circle
+                              : Icons.cancel,
+                          color: state == _MatchCardState.correct
+                              ? colors.success
+                              : colors.error,
+                          size: 26,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -935,12 +1185,39 @@ class _MatchConceptCard extends StatelessWidget {
       _ => colors.textPrimary,
     };
   }
+
+  List<BoxShadow> _shadows(AppThemeColors colors) {
+    final depth = state == _MatchCardState.neutral ? 1 : 0;
+    final shadows = List<BoxShadow>.of(AppElevation.shadows(colors, depth));
+    if (state == _MatchCardState.selected || state == _MatchCardState.matched) {
+      shadows.add(
+        BoxShadow(
+          color: colors.primary.withValues(alpha: 0.22),
+          blurRadius: state == _MatchCardState.selected ? 18 : 10,
+          spreadRadius: state == _MatchCardState.selected ? 1 : 0,
+        ),
+      );
+    }
+    if (state == _MatchCardState.correct) {
+      shadows.add(
+        BoxShadow(
+          color: colors.success.withValues(alpha: 0.20),
+          blurRadius: 16,
+        ),
+      );
+    }
+    return shadows;
+  }
 }
 
 class _MatchConnectionPainter extends CustomPainter {
+  final Animation<double> connectorAnimation;
+  final Animation<double> resultAnimation;
   final List<MatchPair> leftPairs;
   final List<MatchPair> rightPairs;
   final Map<String, String> matches;
+  final Map<String, Offset> leftCenters;
+  final Map<String, Offset> rightCenters;
   final bool hasSubmitted;
   final String? selectedLeftPairId;
   final double cardHeight;
@@ -951,10 +1228,14 @@ class _MatchConnectionPainter extends CustomPainter {
   final Color selectedColor;
   final Color neutralColor;
 
-  const _MatchConnectionPainter({
+  _MatchConnectionPainter({
+    required this.connectorAnimation,
+    required this.resultAnimation,
     required this.leftPairs,
     required this.rightPairs,
     required this.matches,
+    required this.leftCenters,
+    required this.rightCenters,
     required this.hasSubmitted,
     required this.selectedLeftPairId,
     required this.cardHeight,
@@ -964,17 +1245,17 @@ class _MatchConnectionPainter extends CustomPainter {
     required this.errorColor,
     required this.selectedColor,
     required this.neutralColor,
-  });
+  }) : super(repaint: Listenable.merge([connectorAnimation, resultAnimation]));
 
   @override
   void paint(Canvas canvas, Size size) {
     for (final entry in matches.entries) {
+      final resultColor = entry.key == entry.value ? successColor : errorColor;
       final color = hasSubmitted
-          ? entry.key == entry.value
-                ? successColor
-                : errorColor
+          ? Color.lerp(neutralColor, resultColor, resultAnimation.value)!
           : selectedColor;
-      _drawConnection(canvas, size, entry.key, entry.value, color);
+      final progress = hasSubmitted ? 1.0 : connectorAnimation.value;
+      _drawConnection(canvas, size, entry.key, entry.value, color, progress);
     }
 
     if (!hasSubmitted && selectedLeftPairId != null) {
@@ -982,7 +1263,9 @@ class _MatchConnectionPainter extends CustomPainter {
         (pair) => pair.id == selectedLeftPairId,
       );
       if (leftIndex >= 0) {
-        final start = Offset(_leftX(size), _rowCenterY(leftIndex));
+        final start =
+            leftCenters[selectedLeftPairId] ??
+            Offset(_leftX(size), _rowCenterY(leftIndex));
         final end = Offset(size.width / 2, _rowCenterY(leftIndex));
         _drawCurve(
           canvas,
@@ -990,6 +1273,7 @@ class _MatchConnectionPainter extends CustomPainter {
           end,
           selectedColor.withValues(alpha: 0.45),
           2,
+          1,
         );
       }
     }
@@ -1001,17 +1285,24 @@ class _MatchConnectionPainter extends CustomPainter {
     String leftPairId,
     String rightPairId,
     Color color,
+    double progress,
   ) {
     final leftIndex = leftPairs.indexWhere((pair) => pair.id == leftPairId);
     final rightIndex = rightPairs.indexWhere((pair) => pair.id == rightPairId);
     if (leftIndex < 0 || rightIndex < 0) return;
 
+    final leftCenter =
+        leftCenters[leftPairId] ?? Offset(_leftX(size), _rowCenterY(leftIndex));
+    final rightCenter =
+        rightCenters[rightPairId] ??
+        Offset(_rightX(size), _rowCenterY(rightIndex));
     _drawCurve(
       canvas,
-      Offset(_leftX(size), _rowCenterY(leftIndex)),
-      Offset(_rightX(size), _rowCenterY(rightIndex)),
+      Offset(leftCenter.dx, leftCenter.dy),
+      Offset(rightCenter.dx, rightCenter.dy),
       color,
       3,
+      progress,
     );
   }
 
@@ -1021,7 +1312,9 @@ class _MatchConnectionPainter extends CustomPainter {
     Offset end,
     Color color,
     double width,
+    double progress,
   ) {
+    if (progress <= 0) return;
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
@@ -1031,7 +1324,12 @@ class _MatchConnectionPainter extends CustomPainter {
     final path = Path()
       ..moveTo(start.dx, start.dy)
       ..cubicTo(start.dx + 38, start.dy, end.dx - 38, end.dy, end.dx, end.dy);
-    canvas.drawPath(path, paint);
+    final metric = path.computeMetrics().first;
+    final visiblePath = metric.extractPath(
+      0,
+      metric.length * progress.clamp(0, 1),
+    );
+    canvas.drawPath(visiblePath, paint);
   }
 
   double _leftX(Size size) => (size.width - connectorGap) / 2;
@@ -1044,6 +1342,8 @@ class _MatchConnectionPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _MatchConnectionPainter oldDelegate) {
     return oldDelegate.matches != matches ||
+        oldDelegate.leftCenters != leftCenters ||
+        oldDelegate.rightCenters != rightCenters ||
         oldDelegate.hasSubmitted != hasSubmitted ||
         oldDelegate.selectedLeftPairId != selectedLeftPairId ||
         oldDelegate.neutralColor != neutralColor;
