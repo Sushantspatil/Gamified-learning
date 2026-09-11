@@ -101,11 +101,45 @@ void main() {
     expect(find.text('Accountancy'), findsOneWidget);
     expect(find.text('Match each concept'), findsOneWidget);
     expect(find.textContaining('0 of 3'), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsNothing);
-    expect(find.byIcon(Icons.cancel), findsNothing);
+    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+    expect(find.byIcon(Icons.cancel_rounded), findsNothing);
     expect(find.byKey(const Key('power_up_sheet')), findsNothing);
     expect(find.text('Remove One'), findsNothing);
     expect(find.text('Reveal Match'), findsNothing);
+  });
+
+  testWidgets('connector anchors sit on the inner card edges', (tester) async {
+    await _pumpMatchView(tester);
+
+    final leftCardRect = tester.getRect(find.byKey(const Key('match-left-p1')));
+    final leftAnchorCenter = tester.getCenter(
+      find.byKey(const Key('match-left-anchor-p1')),
+    );
+    final rightCardRect = tester.getRect(
+      find.byKey(const Key('match-right-p1')),
+    );
+    final rightAnchorCenter = tester.getCenter(
+      find.byKey(const Key('match-right-anchor-p1')),
+    );
+
+    expect(leftAnchorCenter.dx, greaterThan(leftCardRect.center.dx));
+    expect((leftAnchorCenter.dx - leftCardRect.right).abs(), lessThan(14));
+    expect(rightAnchorCenter.dx, lessThan(rightCardRect.center.dx));
+    expect((rightAnchorCenter.dx - rightCardRect.left).abs(), lessThan(14));
+  });
+
+  testWidgets('connector layer stays behind cards and ignores taps', (
+    tester,
+  ) async {
+    await _pumpMatchView(tester);
+
+    final layer = tester.widget<IgnorePointer>(
+      find.byKey(const Key('match_connection_layer')),
+    );
+
+    expect(layer.ignoring, isTrue);
+    await _selectPair(tester, 'p1', 'p2');
+    expect(find.textContaining('1 of 3'), findsOneWidget);
   });
 
   testWidgets('wrong pair is only a neutral selection before submit', (
@@ -116,8 +150,8 @@ void main() {
     await _selectPair(tester, 'p1', 'p2');
 
     expect(find.textContaining('1 of 3'), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsNothing);
-    expect(find.byIcon(Icons.cancel), findsNothing);
+    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+    expect(find.byIcon(Icons.cancel_rounded), findsNothing);
     expect(find.byKey(const Key('match_analysis_summary')), findsNothing);
     expect(find.byKey(const Key('power_up_sheet')), findsNothing);
   });
@@ -171,14 +205,22 @@ void main() {
     await _submitForAnalysis(tester);
 
     expect(find.byKey(const Key('match_analysis_summary')), findsOneWidget);
-    expect(find.text('Correct answers'), findsOneWidget);
+    expect(find.text('2 answers need review'), findsOneWidget);
     expect(find.text('1'), findsOneWidget);
     expect(find.text('2'), findsOneWidget);
     expect(find.text('33%'), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle), findsWidgets);
-    expect(find.byIcon(Icons.cancel), findsWidgets);
-    expect(find.text('Selected: Current Asset'), findsOneWidget);
-    expect(find.text('Correct: Intangible Asset'), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle_rounded), findsWidgets);
+    expect(find.byIcon(Icons.cancel_rounded), findsWidgets);
+    expect(find.text('Correct answers'), findsNothing);
+    expect(find.text('Correct: Intangible Asset'), findsWidgets);
+
+    await tester.ensureVisible(find.text('View corrections'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('View corrections'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your match: Current Asset'), findsOneWidget);
+    expect(find.text('Correct: Intangible Asset'), findsWidgets);
   });
 
   testWidgets('submitted board is locked until continuing', (tester) async {

@@ -51,7 +51,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     with TickerProviderStateMixin {
   static const double _cardHeight = 64;
   static const double _rowGap = 12;
-  static const double _connectorGap = 64;
+  static const double _connectorGap = 72;
 
   late List<MatchPair> _shuffledRight;
   late final AnimationController _entryController;
@@ -59,11 +59,11 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   late final AnimationController _resultController;
 
   final _boardKey = GlobalKey();
-  final Map<String, GlobalKey> _leftCardKeys = {};
-  final Map<String, GlobalKey> _rightCardKeys = {};
+  final Map<String, GlobalKey> _leftAnchorKeys = {};
+  final Map<String, GlobalKey> _rightAnchorKeys = {};
   final Map<String, String> _matches = {};
-  Map<String, Offset> _leftCenters = {};
-  Map<String, Offset> _rightCenters = {};
+  Map<String, Offset> _leftAnchors = {};
+  Map<String, Offset> _rightAnchors = {};
   bool _measurementScheduled = false;
 
   String? _selectedLeftPairId;
@@ -120,10 +120,10 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
       _isHintVisible = false;
       _isAutoMatchUsed = false;
       _isShuffleUsed = false;
-      _leftCardKeys.clear();
-      _rightCardKeys.clear();
-      _leftCenters = {};
-      _rightCenters = {};
+      _leftAnchorKeys.clear();
+      _rightAnchorKeys.clear();
+      _leftAnchors = {};
+      _rightAnchors = {};
       _entryController.forward(from: 0);
       _connectorController.reset();
       _resultController.reset();
@@ -243,7 +243,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     });
   }
 
-  GlobalKey _cardKey(Map<String, GlobalKey> keys, String pairId) {
+  GlobalKey _anchorKey(Map<String, GlobalKey> keys, String pairId) {
     return keys.putIfAbsent(pairId, GlobalKey.new);
   }
 
@@ -256,27 +256,27 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
       final boardBox = _boardKey.currentContext?.findRenderObject();
       if (boardBox is! RenderBox || !boardBox.hasSize) return;
 
-      Map<String, Offset> measure(Map<String, GlobalKey> keys) {
-        final centers = <String, Offset>{};
+      Map<String, Offset> measureAnchors(Map<String, GlobalKey> keys) {
+        final anchors = <String, Offset>{};
         for (final entry in keys.entries) {
-          final cardBox = entry.value.currentContext?.findRenderObject();
-          if (cardBox is! RenderBox || !cardBox.hasSize) continue;
-          centers[entry.key] = boardBox.globalToLocal(
-            cardBox.localToGlobal(cardBox.size.center(Offset.zero)),
+          final anchorBox = entry.value.currentContext?.findRenderObject();
+          if (anchorBox is! RenderBox || !anchorBox.hasSize) continue;
+          anchors[entry.key] = boardBox.globalToLocal(
+            anchorBox.localToGlobal(anchorBox.size.center(Offset.zero)),
           );
         }
-        return centers;
+        return anchors;
       }
 
-      final nextLeftCenters = measure(_leftCardKeys);
-      final nextRightCenters = measure(_rightCardKeys);
-      if (mapEquals(nextLeftCenters, _leftCenters) &&
-          mapEquals(nextRightCenters, _rightCenters)) {
+      final nextLeftAnchors = measureAnchors(_leftAnchorKeys);
+      final nextRightAnchors = measureAnchors(_rightAnchorKeys);
+      if (mapEquals(nextLeftAnchors, _leftAnchors) &&
+          mapEquals(nextRightAnchors, _rightAnchors)) {
         return;
       }
       setState(() {
-        _leftCenters = nextLeftCenters;
-        _rightCenters = nextRightCenters;
+        _leftAnchors = nextLeftAnchors;
+        _rightAnchors = nextRightAnchors;
       });
     });
   }
@@ -327,8 +327,9 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
               ),
               const SizedBox(height: AppSpacing.md),
               _ProgressHud(matchedCount: matchedCount, totalPairs: totalPairs),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               GamePowerUpBar(
+                isDense: true,
                 coinBalanceOverride: widget.coinBalanceOverride,
                 isDisabled: _isLocked,
                 actions: [
@@ -375,7 +376,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                   ),
                 ),
               ],
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: AppSpacing.md),
               SizedBox(
                 height: boardHeight,
                 child: LayoutBuilder(
@@ -386,6 +387,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                       children: [
                         Positioned.fill(
                           child: IgnorePointer(
+                            key: const Key('match_connection_layer'),
                             child: CustomPaint(
                               painter: _MatchConnectionPainter(
                                 connectorAnimation: _connectorController,
@@ -393,8 +395,8 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                                 leftPairs: widget.question.pairs,
                                 rightPairs: _shuffledRight,
                                 matches: _matches,
-                                leftCenters: _leftCenters,
-                                rightCenters: _rightCenters,
+                                leftAnchors: _leftAnchors,
+                                rightAnchors: _rightAnchors,
                                 hasSubmitted: _hasSubmitted,
                                 selectedLeftPairId: _selectedLeftPairId,
                                 cardHeight: _cardHeight,
@@ -402,7 +404,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                                 connectorGap: _connectorGap,
                                 successColor: colors.success,
                                 errorColor: colors.error,
-                                selectedColor: colors.primary,
+                                selectedColor: colors.secondary,
                                 neutralColor: colors.borderStrong,
                               ),
                             ),
@@ -421,13 +423,19 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                                       side: _MatchCardSide.left,
                                       child: _MatchConceptCard(
                                         key: Key('match-left-${indexed.$2.id}'),
-                                        anchorKey: _cardKey(
-                                          _leftCardKeys,
+                                        anchorKey: _anchorKey(
+                                          _leftAnchorKeys,
                                           indexed.$2.id,
+                                        ),
+                                        anchorSemanticKey: Key(
+                                          'match-left-anchor-${indexed.$2.id}',
                                         ),
                                         label: indexed.$2.left,
                                         side: _MatchCardSide.left,
                                         state: _leftState(indexed.$2.id),
+                                        correctionText: isAnalysis
+                                            ? _leftCorrection(indexed.$2.id)
+                                            : null,
                                         onTap: _isLocked
                                             ? null
                                             : () =>
@@ -471,9 +479,12 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                                           key: Key(
                                             'match-right-${indexed.$2.id}',
                                           ),
-                                          anchorKey: _cardKey(
-                                            _rightCardKeys,
+                                          anchorKey: _anchorKey(
+                                            _rightAnchorKeys,
                                             indexed.$2.id,
+                                          ),
+                                          anchorSemanticKey: Key(
+                                            'match-right-anchor-${indexed.$2.id}',
                                           ),
                                           label: indexed.$2.right,
                                           side: _MatchCardSide.right,
@@ -559,6 +570,14 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   String? _leftPairIdForRight(String rightPairId) {
     for (final entry in _matches.entries) {
       if (entry.value == rightPairId) return entry.key;
+    }
+    return null;
+  }
+
+  String? _leftCorrection(String leftPairId) {
+    if (_matches[leftPairId] == leftPairId) return null;
+    for (final pair in widget.question.pairs) {
+      if (pair.id == leftPairId) return 'Correct: ${pair.right}';
     }
     return null;
   }
@@ -851,24 +870,12 @@ class _MatchAnalysisSummary extends StatelessWidget {
             ],
           ),
           if (wrongPairs.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Correct answers',
-              style: context.appTextStyles.titleMedium.copyWith(
-                color: colors.primaryDark,
-              ),
-            ),
             const SizedBox(height: AppSpacing.sm),
-            for (final pair in wrongPairs) ...[
-              _CorrectAnswerRow(
-                key: Key('match-correct-answer-${pair.id}'),
-                leftLabel: pair.left,
-                selectedRightLabel: _rightLabelFor(matches[pair.id]),
-                correctRightLabel: pair.right,
-              ),
-              if (pair != wrongPairs.last)
-                const SizedBox(height: AppSpacing.sm),
-            ],
+            _CorrectionDisclosure(
+              wrongPairs: wrongPairs,
+              matches: matches,
+              rightLabelFor: _rightLabelFor,
+            ),
           ],
         ],
       ),
@@ -886,6 +893,118 @@ class _MatchAnalysisSummary extends StatelessWidget {
       if (pair.id == pairId) return pair.right;
     }
     return 'Unknown answer';
+  }
+}
+
+class _CorrectionDisclosure extends StatefulWidget {
+  final List<MatchPair> wrongPairs;
+  final Map<String, String> matches;
+  final String Function(String? pairId) rightLabelFor;
+
+  const _CorrectionDisclosure({
+    required this.wrongPairs,
+    required this.matches,
+    required this.rightLabelFor,
+  });
+
+  @override
+  State<_CorrectionDisclosure> createState() => _CorrectionDisclosureState();
+}
+
+class _CorrectionDisclosureState extends State<_CorrectionDisclosure> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    final wrongCount = widget.wrongPairs.length;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surface.withValues(alpha: 0.52),
+        borderRadius: AppDimensions.radiusMd,
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        children: [
+          AppPressable(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: AppDimensions.radiusMd,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    color: colors.warning,
+                    size: 18,
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Text(
+                      '$wrongCount ${wrongCount == 1 ? 'answer' : 'answers'} need review',
+                      style: context.appTextStyles.labelLarge.copyWith(
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    _isExpanded ? 'Hide' : 'View corrections',
+                    style: context.appTextStyles.labelSmall.copyWith(
+                      color: colors.primaryDark,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  AnimatedRotation(
+                    duration: AppMotion.duration(context, AppMotion.fast),
+                    turns: _isExpanded ? 0.5 : 0,
+                    child: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: colors.textSecondary,
+                      size: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: AppMotion.duration(context, AppMotion.normal),
+            alignment: Alignment.topCenter,
+            child: _isExpanded
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.sm,
+                      0,
+                      AppSpacing.sm,
+                      AppSpacing.sm,
+                    ),
+                    child: Column(
+                      children: [
+                        for (final pair in widget.wrongPairs) ...[
+                          _CorrectAnswerRow(
+                            key: Key('match-correct-answer-${pair.id}'),
+                            leftLabel: pair.left,
+                            selectedRightLabel: widget.rightLabelFor(
+                              widget.matches[pair.id],
+                            ),
+                            correctRightLabel: pair.right,
+                          ),
+                          if (pair != widget.wrongPairs.last)
+                            const SizedBox(height: AppSpacing.xs),
+                        ],
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -908,17 +1027,21 @@ class _MatchMetricTile extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: color.withValues(alpha: 0.08),
         borderRadius: AppDimensions.radiusMd,
-        border: Border.all(color: color.withValues(alpha: 0.24)),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
       ),
       child: Padding(
-        padding: AppSpacing.paddingSm,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.sm,
+        ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               '$value$suffix',
-              style: context.appTextStyles.titleLarge.copyWith(color: color),
+              style: context.appTextStyles.titleMedium.copyWith(color: color),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
@@ -954,26 +1077,38 @@ class _CorrectAnswerRow extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.72),
-        borderRadius: AppDimensions.radiusMd,
+        color: colors.background.withValues(alpha: 0.52),
+        borderRadius: AppDimensions.radiusSm,
         border: Border.all(color: colors.border),
       ),
       child: Padding(
-        padding: AppSpacing.paddingSm,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(leftLabel, style: context.appTextStyles.labelLarge),
+            Text(
+              leftLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.appTextStyles.labelLarge,
+            ),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Selected: $selectedRightLabel',
-              style: context.appTextStyles.bodySmall.copyWith(
+              'Your match: $selectedRightLabel',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.appTextStyles.labelSmall.copyWith(
                 color: colors.error,
               ),
             ),
             Text(
               'Correct: $correctRightLabel',
-              style: context.appTextStyles.bodySmall.copyWith(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: context.appTextStyles.labelSmall.copyWith(
                 color: colors.success,
               ),
             ),
@@ -1034,102 +1169,172 @@ enum _MatchCardState { neutral, selected, matched, correct, wrong }
 
 class _MatchConceptCard extends StatelessWidget {
   final GlobalKey anchorKey;
+  final Key anchorSemanticKey;
   final String label;
   final _MatchCardSide side;
   final _MatchCardState state;
+  final String? correctionText;
   final VoidCallback? onTap;
 
   const _MatchConceptCard({
     super.key,
     required this.anchorKey,
+    required this.anchorSemanticKey,
     required this.label,
     required this.side,
     required this.state,
+    this.correctionText,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final node = _node(colors);
+    final indicator = _statusIndicator(colors);
 
     return Padding(
       padding: const EdgeInsets.only(
         bottom: _MatchTheFollowingViewState._rowGap,
       ),
       child: Opacity(
-        opacity: onTap == null ? 0.88 : 1,
+        opacity: onTap == null ? 0.9 : 1,
         child: AnimatedScale(
           duration: AppMotion.duration(context, AppMotion.fast),
           curve: AppMotion.easeOut,
-          scale: state == _MatchCardState.selected ? 1.025 : 1,
-          child: AppPressable(
-            onTap: onTap,
-            borderRadius: AppDimensions.radiusMd,
-            child: SizedBox(
-              key: anchorKey,
-              height: _MatchTheFollowingViewState._cardHeight,
-              child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  AnimatedContainer(
-                    duration: AppMotion.duration(context, AppMotion.normal),
-                    curve: AppMotion.easeOut,
-                    width: double.infinity,
-                    height: _MatchTheFollowingViewState._cardHeight,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _background(colors),
-                      borderRadius: AppDimensions.radiusMd,
-                      border: Border.all(
-                        color: _border(colors),
-                        width: state == _MatchCardState.neutral ? 1 : 1.5,
-                      ),
-                      boxShadow: _shadows(colors),
-                    ),
-                    child: Center(
-                      child: Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.appTextStyles.bodyLarge.copyWith(
-                          color: _textColor(colors),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
+          scale: state == _MatchCardState.selected ? 1.02 : 1,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              AppPressable(
+                onTap: onTap,
+                borderRadius: AppDimensions.radiusMd,
+                child: AnimatedContainer(
+                  duration: AppMotion.duration(context, AppMotion.normal),
+                  curve: AppMotion.easeOut,
+                  width: double.infinity,
+                  height: _MatchTheFollowingViewState._cardHeight,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
                   ),
-                  Positioned(
-                    left: side == _MatchCardSide.right ? -10 : null,
-                    right: side == _MatchCardSide.left ? -10 : null,
-                    child: node,
-                  ),
-                  if (state == _MatchCardState.correct ||
-                      state == _MatchCardState.wrong)
-                    Positioned(
-                      right: side == _MatchCardSide.left ? 28 : null,
-                      left: side == _MatchCardSide.right ? 28 : null,
-                      child: AnimatedScale(
-                        duration: AppMotion.duration(context, AppMotion.normal),
-                        curve: AppMotion.easeOut,
-                        scale: 1,
-                        child: Icon(
-                          state == _MatchCardState.correct
-                              ? Icons.check_circle
-                              : Icons.cancel,
-                          color: state == _MatchCardState.correct
-                              ? colors.success
-                              : colors.error,
-                          size: 26,
-                        ),
-                      ),
+                  decoration: BoxDecoration(
+                    color: _background(colors),
+                    borderRadius: AppDimensions.radiusMd,
+                    border: Border.all(
+                      color: _border(colors),
+                      width: state == _MatchCardState.neutral ? 1 : 1.4,
                     ),
-                ],
+                    boxShadow: _shadows(colors),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          if (side == _MatchCardSide.right &&
+                              indicator != null) ...[
+                            indicator,
+                            const SizedBox(width: AppSpacing.xs),
+                          ],
+                          Expanded(
+                            child: Text(
+                              label,
+                              textAlign: TextAlign.center,
+                              maxLines: correctionText == null ? 2 : 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: context.appTextStyles.bodyMedium.copyWith(
+                                color: colors.textPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (side == _MatchCardSide.left &&
+                              indicator != null) ...[
+                            const SizedBox(width: AppSpacing.xs),
+                            indicator,
+                          ],
+                        ],
+                      ),
+                      if (correctionText != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          correctionText!,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.appTextStyles.labelSmall.copyWith(
+                            color: colors.success,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
+              Positioned(
+                top: 0,
+                bottom: 0,
+                left: side == _MatchCardSide.right ? -11 : null,
+                right: side == _MatchCardSide.left ? -11 : null,
+                child: Center(child: _node(context, colors)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget? _statusIndicator(AppThemeColors colors) {
+    if (state != _MatchCardState.correct && state != _MatchCardState.wrong) {
+      return null;
+    }
+
+    final isCorrect = state == _MatchCardState.correct;
+    final color = isCorrect ? colors.success : colors.error;
+    return Icon(
+      isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
+      color: color,
+      size: 20,
+    );
+  }
+
+  Widget _node(BuildContext context, AppThemeColors colors) {
+    final color = _border(colors);
+    final isSelected = state == _MatchCardState.selected;
+    final isResolved =
+        state == _MatchCardState.correct || state == _MatchCardState.wrong;
+
+    return KeyedSubtree(
+      key: anchorSemanticKey,
+      child: SizedBox(
+        key: anchorKey,
+        width: 22,
+        height: 22,
+        child: AnimatedContainer(
+          duration: AppMotion.duration(context, AppMotion.fast),
+          curve: AppMotion.easeOut,
+          decoration: BoxDecoration(
+            color: colors.background,
+            shape: BoxShape.circle,
+            border: Border.all(color: color, width: isResolved ? 2.8 : 2.4),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: color.withValues(alpha: 0.32),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : AppElevation.shadows(colors, 1),
+          ),
+          child: Center(
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
           ),
         ),
@@ -1137,33 +1342,12 @@ class _MatchConceptCard extends StatelessWidget {
     );
   }
 
-  Widget _node(AppThemeColors colors) {
-    final color = _border(colors);
-    return Container(
-      width: 22,
-      height: 22,
-      decoration: BoxDecoration(
-        color: colors.surface,
-        shape: BoxShape.circle,
-        border: Border.all(color: color, width: 3),
-        boxShadow: AppElevation.shadows(colors, 1),
-      ),
-      child: Center(
-        child: Container(
-          width: 9,
-          height: 9,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-      ),
-    );
-  }
-
   Color _background(AppThemeColors colors) {
     return switch (state) {
-      _MatchCardState.correct => colors.success.withValues(alpha: 0.10),
-      _MatchCardState.wrong => colors.error.withValues(alpha: 0.08),
+      _MatchCardState.correct => colors.success.withValues(alpha: 0.045),
+      _MatchCardState.wrong => colors.error.withValues(alpha: 0.04),
       _MatchCardState.selected => colors.primary.withValues(alpha: 0.08),
-      _MatchCardState.matched => colors.primary.withValues(alpha: 0.06),
+      _MatchCardState.matched => colors.secondary.withValues(alpha: 0.055),
       _MatchCardState.neutral => colors.surface,
     };
   }
@@ -1173,36 +1357,18 @@ class _MatchConceptCard extends StatelessWidget {
       _MatchCardState.correct => colors.success,
       _MatchCardState.wrong => colors.error,
       _MatchCardState.selected => colors.primary,
-      _MatchCardState.matched => colors.primary,
+      _MatchCardState.matched => colors.secondary,
       _MatchCardState.neutral => colors.borderStrong,
     };
   }
 
-  Color _textColor(AppThemeColors colors) {
-    return switch (state) {
-      _MatchCardState.correct => colors.success,
-      _MatchCardState.wrong => colors.error,
-      _ => colors.textPrimary,
-    };
-  }
-
   List<BoxShadow> _shadows(AppThemeColors colors) {
-    final depth = state == _MatchCardState.neutral ? 1 : 0;
-    final shadows = List<BoxShadow>.of(AppElevation.shadows(colors, depth));
-    if (state == _MatchCardState.selected || state == _MatchCardState.matched) {
+    final shadows = List<BoxShadow>.of(AppElevation.shadows(colors, 1));
+    if (state == _MatchCardState.selected) {
       shadows.add(
         BoxShadow(
-          color: colors.primary.withValues(alpha: 0.22),
-          blurRadius: state == _MatchCardState.selected ? 18 : 10,
-          spreadRadius: state == _MatchCardState.selected ? 1 : 0,
-        ),
-      );
-    }
-    if (state == _MatchCardState.correct) {
-      shadows.add(
-        BoxShadow(
-          color: colors.success.withValues(alpha: 0.20),
-          blurRadius: 16,
+          color: colors.primary.withValues(alpha: 0.16),
+          blurRadius: 12,
         ),
       );
     }
@@ -1216,8 +1382,8 @@ class _MatchConnectionPainter extends CustomPainter {
   final List<MatchPair> leftPairs;
   final List<MatchPair> rightPairs;
   final Map<String, String> matches;
-  final Map<String, Offset> leftCenters;
-  final Map<String, Offset> rightCenters;
+  final Map<String, Offset> leftAnchors;
+  final Map<String, Offset> rightAnchors;
   final bool hasSubmitted;
   final String? selectedLeftPairId;
   final double cardHeight;
@@ -1234,8 +1400,8 @@ class _MatchConnectionPainter extends CustomPainter {
     required this.leftPairs,
     required this.rightPairs,
     required this.matches,
-    required this.leftCenters,
-    required this.rightCenters,
+    required this.leftAnchors,
+    required this.rightAnchors,
     required this.hasSubmitted,
     required this.selectedLeftPairId,
     required this.cardHeight,
@@ -1249,12 +1415,26 @@ class _MatchConnectionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final entry in matches.entries) {
+    final entries = matches.entries.toList(growable: false);
+    for (final indexedEntry in entries.indexed) {
+      final index = indexedEntry.$1;
+      final entry = indexedEntry.$2;
       final resultColor = entry.key == entry.value ? successColor : errorColor;
+      final evaluationProgress = hasSubmitted
+          ? ((resultAnimation.value * entries.length) - index)
+                .clamp(0.0, 1.0)
+                .toDouble()
+          : 0.0;
       final color = hasSubmitted
-          ? Color.lerp(neutralColor, resultColor, resultAnimation.value)!
+          ? Color.lerp(
+              neutralColor,
+              resultColor,
+              Curves.easeOut.transform(evaluationProgress),
+            )!
           : selectedColor;
-      final progress = hasSubmitted ? 1.0 : connectorAnimation.value;
+      final progress = hasSubmitted
+          ? evaluationProgress
+          : connectorAnimation.value;
       _drawConnection(canvas, size, entry.key, entry.value, color, progress);
     }
 
@@ -1264,14 +1444,14 @@ class _MatchConnectionPainter extends CustomPainter {
       );
       if (leftIndex >= 0) {
         final start =
-            leftCenters[selectedLeftPairId] ??
+            leftAnchors[selectedLeftPairId] ??
             Offset(_leftX(size), _rowCenterY(leftIndex));
-        final end = Offset(size.width / 2, _rowCenterY(leftIndex));
+        final end = Offset(size.width / 2, start.dy);
         _drawCurve(
           canvas,
           start,
           end,
-          selectedColor.withValues(alpha: 0.45),
+          selectedColor.withValues(alpha: 0.38),
           2,
           1,
         );
@@ -1291,19 +1471,12 @@ class _MatchConnectionPainter extends CustomPainter {
     final rightIndex = rightPairs.indexWhere((pair) => pair.id == rightPairId);
     if (leftIndex < 0 || rightIndex < 0) return;
 
-    final leftCenter =
-        leftCenters[leftPairId] ?? Offset(_leftX(size), _rowCenterY(leftIndex));
-    final rightCenter =
-        rightCenters[rightPairId] ??
+    final leftAnchor =
+        leftAnchors[leftPairId] ?? Offset(_leftX(size), _rowCenterY(leftIndex));
+    final rightAnchor =
+        rightAnchors[rightPairId] ??
         Offset(_rightX(size), _rowCenterY(rightIndex));
-    _drawCurve(
-      canvas,
-      Offset(leftCenter.dx, leftCenter.dy),
-      Offset(rightCenter.dx, rightCenter.dy),
-      color,
-      3,
-      progress,
-    );
+    _drawCurve(canvas, leftAnchor, rightAnchor, color, 2.6, progress);
   }
 
   void _drawCurve(
@@ -1315,16 +1488,28 @@ class _MatchConnectionPainter extends CustomPainter {
     double progress,
   ) {
     if (progress <= 0) return;
+    if ((end - start).distance < 0.5) return;
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = width
       ..strokeCap = StrokeCap.round;
 
+    final controlOffset = max(24.0, (end.dx - start.dx).abs() * 0.45);
     final path = Path()
       ..moveTo(start.dx, start.dy)
-      ..cubicTo(start.dx + 38, start.dy, end.dx - 38, end.dy, end.dx, end.dy);
-    final metric = path.computeMetrics().first;
+      ..cubicTo(
+        start.dx + controlOffset,
+        start.dy,
+        end.dx - controlOffset,
+        end.dy,
+        end.dx,
+        end.dy,
+      );
+    final metrics = path.computeMetrics().toList(growable: false);
+    if (metrics.isEmpty) return;
+    final metric = metrics.first;
+    if (metric.length <= 0) return;
     final visiblePath = metric.extractPath(
       0,
       metric.length * progress.clamp(0, 1),
@@ -1342,8 +1527,8 @@ class _MatchConnectionPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _MatchConnectionPainter oldDelegate) {
     return oldDelegate.matches != matches ||
-        oldDelegate.leftCenters != leftCenters ||
-        oldDelegate.rightCenters != rightCenters ||
+        oldDelegate.leftAnchors != leftAnchors ||
+        oldDelegate.rightAnchors != rightAnchors ||
         oldDelegate.hasSubmitted != hasSubmitted ||
         oldDelegate.selectedLeftPairId != selectedLeftPairId ||
         oldDelegate.neutralColor != neutralColor;
