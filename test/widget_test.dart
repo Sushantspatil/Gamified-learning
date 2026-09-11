@@ -188,7 +188,9 @@ Future<void> _answerAllMcqCorrectly(WidgetTester tester) async {
     expect(find.text('${index + 1} / 5'), findsOneWidget);
     await tester.tap(find.text(answers[index]));
     await tester.pump();
-    await tester.tap(find.text('Submit Answer'));
+    await tester.tap(
+      find.text(index == answers.length - 1 ? 'Submit quiz' : 'Next'),
+    );
     await tester.pumpAndSettle();
   }
 }

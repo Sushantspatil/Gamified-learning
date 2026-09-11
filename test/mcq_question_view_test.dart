@@ -25,6 +25,9 @@ const _question = McqQuestion(
 Future<void> _pumpMcqView(
   WidgetTester tester, {
   void Function(Answer answer)? onSubmit,
+  McqQuestion question = _question,
+  int currentIndex = 0,
+  int totalQuestions = 2,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -33,9 +36,9 @@ Future<void> _pumpMcqView(
         darkTheme: AppTheme.darkTheme,
         home: Scaffold(
           body: McqQuestionView(
-            question: _question,
-            currentIndex: 0,
-            totalQuestions: 1,
+            question: question,
+            currentIndex: currentIndex,
+            totalQuestions: totalQuestions,
             currentStreak: 0,
             coins: 60,
             energy: 0,
@@ -56,6 +59,8 @@ void main() {
     expect(find.text('Which item is an asset?'), findsOneWidget);
     expect(find.text('50:50'), findsOneWidget);
     expect(find.text('Hint'), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+    expect(find.text('Next'), findsOneWidget);
     expect(find.text('Inventory'), findsOneWidget);
   });
 
@@ -67,8 +72,11 @@ void main() {
     await tester.tap(find.text('Buy & use'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Removed by 50:50'), findsNWidgets(2));
+    expect(find.text('Removed by 50:50'), findsNothing);
+    expect(find.text('Revenue'), findsNothing);
+    expect(find.text('Expense'), findsNothing);
     expect(find.text('Inventory'), findsOneWidget);
+    expect(find.text('Capital'), findsOneWidget);
   });
 
   testWidgets('hint does not reveal the correct answer', (tester) async {
@@ -86,6 +94,22 @@ void main() {
     expect(find.text('Correct: Inventory'), findsNothing);
   });
 
+  testWidgets('selected option can change and remains neutral before submit', (
+    tester,
+  ) async {
+    await _pumpMcqView(tester);
+
+    await tester.tap(find.text('Revenue'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Inventory'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Correct: Inventory'), findsNothing);
+    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+    expect(find.byIcon(Icons.cancel_rounded), findsNothing);
+    expect(find.text('Next'), findsOneWidget);
+  });
+
   testWidgets('lifelines cannot be used after answer submission', (
     tester,
   ) async {
@@ -97,7 +121,7 @@ void main() {
 
     await tester.tap(find.text('Inventory'));
     await tester.pump();
-    await tester.tap(find.text('Submit Answer'));
+    await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('50:50'));
     await tester.tap(find.text('Hint'));
@@ -109,5 +133,30 @@ void main() {
       find.text('Think about items a business owns or can sell.'),
       findsNothing,
     );
+  });
+
+  testWidgets('final question shows Submit quiz', (tester) async {
+    await _pumpMcqView(tester, currentIndex: 1, totalQuestions: 2);
+
+    expect(find.text('Submit quiz'), findsOneWidget);
+    expect(find.text('Next'), findsNothing);
+  });
+
+  testWidgets('skip submits a neutral missed answer through existing flow', (
+    tester,
+  ) async {
+    McqAnswer? submitted;
+    await _pumpMcqView(
+      tester,
+      onSubmit: (answer) => submitted = answer as McqAnswer,
+    );
+
+    await tester.tap(find.text('Skip'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Buy & use'));
+    await tester.pumpAndSettle();
+
+    expect(submitted?.selectedOptionId, isNot(_question.correctOptionId));
+    expect(find.text('Correct: Inventory'), findsNothing);
   });
 }
