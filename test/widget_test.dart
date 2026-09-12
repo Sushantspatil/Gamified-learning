@@ -167,9 +167,27 @@ Future<void> _startSuddenDeathQuiz(WidgetTester tester) async {
   expect(find.text('Sudden Death'), findsOneWidget);
   expect(find.text('1 / 5'), findsOneWidget);
   expect(find.text('15'), findsOneWidget);
-  expect(find.text('+5 SEC'), findsOneWidget);
+  expect(find.byKey(const Key('powerup-sudden-time')), findsOneWidget);
   expect(find.text('50:50'), findsOneWidget);
   expect(find.text('Skip'), findsOneWidget);
+}
+
+Future<void> _tapSuddenDeathOption(WidgetTester tester, String optionId) async {
+  final target = find.byKey(Key('sudden-option-$optionId'));
+  await tester.ensureVisible(target);
+  await tester.pumpAndSettle();
+  await tester.tap(target);
+  await tester.pump();
+}
+
+Future<void> _submitSuddenDeathAnswer(WidgetTester tester) async {
+  final target = find.text('Submit');
+  await tester.ensureVisible(target);
+  await tester.pumpAndSettle();
+  await tester.tap(target);
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 2));
+  await tester.pumpAndSettle();
 }
 
 Future<void> _startSortItOutQuiz(WidgetTester tester) async {
@@ -774,12 +792,8 @@ void main() {
     await _completeOnboarding(tester);
     await _startSuddenDeathQuiz(tester);
 
-    await tester.ensureVisible(find.text('<paragraph>'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('<paragraph>'));
-    await tester.pump();
-    await tester.tap(find.text('Submit'));
-    await tester.pumpAndSettle();
+    await _tapSuddenDeathOption(tester, 'y');
+    await _submitSuddenDeathAnswer(tester);
 
     expect(find.text('Sudden Death — Quiz Ended'), findsOneWidget);
   });
@@ -792,24 +806,16 @@ void main() {
     await _completeOnboarding(tester);
     await _startSuddenDeathQuiz(tester);
 
-    await tester.tap(find.text('<p>'));
-    await tester.pump();
-    await tester.tap(find.text('Submit'));
-    await tester.pumpAndSettle();
+    await _tapSuddenDeathOption(tester, 'x');
+    await _submitSuddenDeathAnswer(tester);
 
     expect(find.text('2 / 5'), findsOneWidget);
     expect(
       find.text('Which CSS property controls background color?'),
       findsOneWidget,
     );
-    await tester.ensureVisible(find.text('font-weight'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('font-weight'));
-    await tester.pump();
-    await tester.ensureVisible(find.text('Submit'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Submit'));
-    await tester.pumpAndSettle();
+    await _tapSuddenDeathOption(tester, 'x');
+    await _submitSuddenDeathAnswer(tester);
   });
 
   testWidgets('Sudden Death timer expiry ends the quiz early', (tester) async {
@@ -818,7 +824,8 @@ void main() {
     await _completeOnboarding(tester);
     await _startSuddenDeathQuiz(tester);
 
-    await tester.pump(const Duration(seconds: 15));
+    await tester.pump(const Duration(seconds: 16));
+    await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
 
     expect(find.text('Sudden Death — Quiz Ended'), findsOneWidget);
