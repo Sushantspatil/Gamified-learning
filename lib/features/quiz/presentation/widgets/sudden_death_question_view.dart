@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../../app/motion/app_motion.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
+import '../../../../app/theme/app_elevation.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_pressable.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import 'game_power_up_bar.dart';
@@ -47,13 +50,19 @@ class SuddenDeathQuestionView extends StatefulWidget {
       _SuddenDeathQuestionViewState();
 }
 
-class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
+class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
+    with TickerProviderStateMixin {
   static const String _timeoutOptionId = '__sudden_death_timeout__';
 
+  late final AnimationController _entryController;
+  late final AnimationController _feedbackController;
   Timer? _timer;
+  Timer? _timeBoostTimer;
   String? _selectedOptionId;
   Set<String> _hiddenOptionIds = const {};
   Duration _remainingTime = SuddenDeathConfig.questionTimeLimit;
+  _SuddenDeathFeedback _feedback = _SuddenDeathFeedback.none;
+  bool _showTimeBoost = false;
   bool _hasSubmitted = false;
   bool _extraTimeUsed = false;
   bool _fiftyFiftyUsed = false;
@@ -63,7 +72,33 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
   @override
   void initState() {
     super.initState();
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+      reverseDuration: const Duration(milliseconds: 190),
+    )..forward();
+    _feedbackController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
     _startTimer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _entryController.duration = AppMotion.duration(
+      context,
+      const Duration(milliseconds: 240),
+    );
+    _entryController.reverseDuration = AppMotion.duration(
+      context,
+      const Duration(milliseconds: 190),
+    );
+    _feedbackController.duration = AppMotion.duration(
+      context,
+      const Duration(milliseconds: 280),
+    );
   }
 
   @override
@@ -77,7 +112,11 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
       _fiftyFiftyUsed = false;
       _skipUsed = false;
       _hintUsed = false;
+      _feedback = _SuddenDeathFeedback.none;
+      _showTimeBoost = false;
       _remainingTime = SuddenDeathConfig.questionTimeLimit;
+      _feedbackController.reset();
+      _entryController.forward(from: 0);
       _startTimer();
     }
   }
@@ -85,6 +124,9 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
   @override
   void dispose() {
     _timer?.cancel();
+    _timeBoostTimer?.cancel();
+    _entryController.dispose();
+    _feedbackController.dispose();
     super.dispose();
   }
 
@@ -104,10 +146,15 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
     });
   }
 
-  void _submitTimeout() {
+  Future<void> _submitTimeout() async {
     if (_hasSubmitted) return;
-    _hasSubmitted = true;
+    setState(() {
+      _hasSubmitted = true;
+      _feedback = _SuddenDeathFeedback.timeUp;
+    });
     _timer?.cancel();
+    await _playFeedbackAndExit();
+    if (!mounted) return;
     widget.onSubmit(
       SuddenDeathAnswer(
         questionId: widget.question.id,
@@ -116,12 +163,20 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
     );
   }
 
-  void _submitSelectedAnswer() {
+  Future<void> _submitSelectedAnswer() async {
     final selectedOptionId = _selectedOptionId;
     if (selectedOptionId == null || _hasSubmitted) return;
 
-    _hasSubmitted = true;
+    final isCorrect = selectedOptionId == widget.question.correctOptionId;
+    setState(() {
+      _hasSubmitted = true;
+      _feedback = isCorrect
+          ? _SuddenDeathFeedback.survived
+          : _SuddenDeathFeedback.eliminated;
+    });
     _timer?.cancel();
+    await _playFeedbackAndExit();
+    if (!mounted) return;
     widget.onSubmit(
       SuddenDeathAnswer(
         questionId: widget.question.id,
@@ -135,6 +190,11 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
     setState(() {
       _extraTimeUsed = true;
       _remainingTime = _remainingTime + const Duration(seconds: 5);
+      _showTimeBoost = true;
+    });
+    _timeBoostTimer?.cancel();
+    _timeBoostTimer = Timer(const Duration(milliseconds: 760), () {
+      if (mounted) setState(() => _showTimeBoost = false);
     });
   }
 
@@ -147,7 +207,10 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
 
     setState(() {
       _fiftyFiftyUsed = true;
-      _hiddenOptionIds = {wrongOptions.first.id};
+      _hiddenOptionIds = wrongOptions
+          .take(2)
+          .map((option) => option.id)
+          .toSet();
       if (_selectedOptionId != null &&
           _hiddenOptionIds.contains(_selectedOptionId)) {
         _selectedOptionId = null;
@@ -155,11 +218,16 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
     });
   }
 
-  void _skipQuestion() {
+  Future<void> _skipQuestion() async {
     if (_hasSubmitted || _skipUsed) return;
-    _skipUsed = true;
+    setState(() {
+      _skipUsed = true;
+      _hasSubmitted = true;
+      _feedback = _SuddenDeathFeedback.survived;
+    });
     _timer?.cancel();
-    _hasSubmitted = true;
+    await _playFeedbackAndExit();
+    if (!mounted) return;
     widget.onSubmit(
       SuddenDeathAnswer(
         questionId: widget.question.id,
@@ -171,6 +239,19 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
   void _showHint() {
     if (_hasSubmitted || _hintUsed) return;
     setState(() => _hintUsed = true);
+  }
+
+  Future<void> _playFeedbackAndExit() async {
+    _feedbackController.forward(from: 0);
+    await Future<void>.delayed(AppMotion.duration(context, AppMotion.slow));
+    if (!mounted) return;
+    unawaited(_entryController.reverse());
+    await Future<void>.delayed(
+      AppMotion.duration(
+        context,
+        _entryController.reverseDuration ?? Duration.zero,
+      ),
+    );
   }
 
   @override
@@ -230,27 +311,59 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView> {
                               bestStreak: widget.bestStreak,
                               remainingTime: _remainingTime,
                               timeLimit: SuddenDeathConfig.questionTimeLimit,
+                              showTimeBoost: _showTimeBoost,
                             ),
                             SizedBox(
                               height: isCompact ? AppSpacing.md : AppSpacing.lg,
                             ),
-                            _QuestionPanel(
-                              question: widget.question,
-                              selectedOptionId: _selectedOptionId,
-                              hiddenOptionIds: _hiddenOptionIds,
-                              onSelected: _hasSubmitted
-                                  ? null
-                                  : (optionId) => setState(
-                                      () => _selectedOptionId = optionId,
-                                    ),
-                            ),
-                            if (_hintUsed) ...[
-                              const SizedBox(height: AppSpacing.sm),
-                              const _SuddenDeathHint(
-                                text:
-                                    'Eliminate choices that do not match the strongest clue in the prompt.',
+                            FadeTransition(
+                              opacity: _entryController.drive(
+                                CurveTween(curve: AppMotion.easeOut),
                               ),
-                            ],
+                              child: SlideTransition(
+                                position:
+                                    Tween<Offset>(
+                                      begin: const Offset(0, -0.035),
+                                      end: Offset.zero,
+                                    ).animate(
+                                      CurvedAnimation(
+                                        parent: _entryController,
+                                        curve: AppMotion.easeOut,
+                                        reverseCurve: AppMotion.easeIn,
+                                      ),
+                                    ),
+                                child: _QuestionPanel(
+                                  question: widget.question,
+                                  selectedOptionId: _selectedOptionId,
+                                  hiddenOptionIds: _hiddenOptionIds,
+                                  feedback: _feedback,
+                                  feedbackAnimation: _feedbackController,
+                                  onSelected: _hasSubmitted
+                                      ? null
+                                      : (optionId) => setState(
+                                          () => _selectedOptionId = optionId,
+                                        ),
+                                ),
+                              ),
+                            ),
+                            AnimatedSize(
+                              duration: AppMotion.duration(
+                                context,
+                                AppMotion.normal,
+                              ),
+                              alignment: Alignment.topCenter,
+                              child: _hintUsed
+                                  ? const Padding(
+                                      padding: EdgeInsets.only(
+                                        top: AppSpacing.sm,
+                                      ),
+                                      child: _SuddenDeathHint(
+                                        text:
+                                            'Eliminate choices that do not match the strongest clue in the prompt.',
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
                             SizedBox(
                               height: isCompact ? AppSpacing.md : AppSpacing.lg,
                             ),
@@ -478,6 +591,7 @@ class _SuddenDeathStatusRow extends StatelessWidget {
   final int bestStreak;
   final Duration remainingTime;
   final Duration timeLimit;
+  final bool showTimeBoost;
 
   const _SuddenDeathStatusRow({
     required this.currentIndex,
@@ -486,6 +600,7 @@ class _SuddenDeathStatusRow extends StatelessWidget {
     required this.bestStreak,
     required this.remainingTime,
     required this.timeLimit,
+    required this.showTimeBoost,
   });
 
   @override
@@ -514,6 +629,7 @@ class _SuddenDeathStatusRow extends StatelessWidget {
             child: _CountdownTimerBadge(
               remainingTime: remainingTime,
               timeLimit: timeLimit,
+              showTimeBoost: showTimeBoost,
             ),
           ),
           Expanded(
@@ -602,78 +718,148 @@ class _HudMetric extends StatelessWidget {
 class _CountdownTimerBadge extends StatelessWidget {
   final Duration remainingTime;
   final Duration timeLimit;
+  final bool showTimeBoost;
 
   const _CountdownTimerBadge({
     required this.remainingTime,
     required this.timeLimit,
+    required this.showTimeBoost,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final totalSeconds = timeLimit.inSeconds <= 0 ? 1 : timeLimit.inSeconds;
+    final totalSeconds = timeLimit.inSeconds <= 0
+        ? 1
+        : remainingTime.inSeconds > timeLimit.inSeconds
+        ? remainingTime.inSeconds
+        : timeLimit.inSeconds;
     final remainingSeconds = remainingTime.inSeconds
         .clamp(0, totalSeconds)
         .toInt();
     final progress = remainingSeconds / totalSeconds;
+    final isLowTime = progress <= 0.3;
     final accent = progress <= 0.3
         ? colors.error
         : progress <= 0.5
         ? AppColors.streakFire
         : colors.primary;
 
-    return SizedBox(
-      width: 104,
-      height: 104,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color.alphaBlend(
-                accent.withValues(alpha: 0.1),
-                colors.surface,
-              ),
-              border: Border.all(color: accent.withValues(alpha: 0.28)),
-            ),
-          ),
-          SizedBox(
-            width: 96,
-            height: 96,
-            child: CircularProgressIndicator(
-              value: progress,
-              strokeWidth: 7,
-              strokeCap: StrokeCap.round,
-              backgroundColor: colors.border.withValues(alpha: 0.45),
-              color: accent,
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: Text(
-                  remainingSeconds.toString().padLeft(2, '0'),
-                  key: ValueKey(remainingSeconds),
-                  style: context.appTextStyles.headingLarge.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w900,
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: isLowTime ? 1 : 0),
+      duration: AppMotion.duration(context, AppMotion.normal),
+      curve: AppMotion.easeOut,
+      builder: (context, pulse, child) {
+        return AnimatedScale(
+          duration: AppMotion.duration(context, AppMotion.fast),
+          scale: isLowTime ? 1.02 : 1,
+          child: SizedBox(
+            width: 104,
+            height: 104,
+            child: Stack(
+              clipBehavior: Clip.none,
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color.alphaBlend(
+                      accent.withValues(alpha: 0.1 + pulse * 0.04),
+                      colors.surface,
+                    ),
+                    border: Border.all(
+                      color: accent.withValues(alpha: 0.28 + pulse * 0.18),
+                    ),
+                    boxShadow: isLowTime
+                        ? [
+                            BoxShadow(
+                              color: accent.withValues(alpha: 0.18),
+                              blurRadius: 16,
+                            ),
+                          ]
+                        : null,
                   ),
                 ),
-              ),
-              Text(
-                'SEC',
-                style: context.appTextStyles.labelSmall.copyWith(
-                  color: colors.textPrimary,
-                  fontWeight: FontWeight.w800,
+                SizedBox(
+                  width: 96,
+                  height: 96,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween<double>(end: progress),
+                    duration: AppMotion.duration(context, AppMotion.normal),
+                    curve: AppMotion.easeOut,
+                    builder: (context, value, child) {
+                      return CircularProgressIndicator(
+                        value: value,
+                        strokeWidth: 7,
+                        strokeCap: StrokeCap.round,
+                        backgroundColor: colors.border.withValues(alpha: 0.45),
+                        color: accent,
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: AppMotion.duration(
+                        context,
+                        const Duration(milliseconds: 180),
+                      ),
+                      child: Text(
+                        remainingSeconds.toString().padLeft(2, '0'),
+                        key: ValueKey(remainingSeconds),
+                        style: context.appTextStyles.headingLarge.copyWith(
+                          color: accent,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'SEC',
+                      style: context.appTextStyles.labelSmall.copyWith(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+                AnimatedPositioned(
+                  duration: AppMotion.duration(context, AppMotion.normal),
+                  curve: AppMotion.easeOut,
+                  top: showTimeBoost ? -22 : 4,
+                  child: AnimatedOpacity(
+                    duration: AppMotion.duration(context, AppMotion.normal),
+                    opacity: showTimeBoost ? 1 : 0,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colors.success.withValues(alpha: 0.16),
+                        borderRadius: AppDimensions.radiusSm,
+                        border: Border.all(
+                          color: colors.success.withValues(alpha: 0.34),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                          vertical: 2,
+                        ),
+                        child: Text(
+                          '+5 SEC',
+                          style: context.appTextStyles.labelSmall.copyWith(
+                            color: colors.success,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -682,12 +868,16 @@ class _QuestionPanel extends StatelessWidget {
   final SuddenDeathQuestion question;
   final String? selectedOptionId;
   final Set<String> hiddenOptionIds;
+  final _SuddenDeathFeedback feedback;
+  final Animation<double> feedbackAnimation;
   final ValueChanged<String>? onSelected;
 
   const _QuestionPanel({
     required this.question,
     required this.selectedOptionId,
     required this.hiddenOptionIds,
+    required this.feedback,
+    required this.feedbackAnimation,
     required this.onSelected,
   });
 
@@ -758,16 +948,35 @@ class _QuestionPanel extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
+          AnimatedSize(
+            duration: AppMotion.duration(context, AppMotion.normal),
+            alignment: Alignment.topCenter,
+            child: feedback == _SuddenDeathFeedback.none
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                    child: _SurvivalFeedbackBanner(
+                      feedback: feedback,
+                      animation: feedbackAnimation,
+                    ),
+                  ),
+          ),
           const SizedBox(height: AppSpacing.lg),
           for (var i = 0; i < question.options.length; i++) ...[
-            _AnswerCard(
-              label: String.fromCharCode(65 + i),
-              option: question.options[i],
-              isSelected: selectedOptionId == question.options[i].id,
-              isHidden: hiddenOptionIds.contains(question.options[i].id),
-              onTap: onSelected == null
-                  ? null
-                  : () => onSelected!(question.options[i].id),
+            _SuddenDeathOptionEntry(
+              index: i,
+              child: _AnswerCard(
+                label: String.fromCharCode(65 + i),
+                option: question.options[i],
+                isSelected: selectedOptionId == question.options[i].id,
+                isHidden: hiddenOptionIds.contains(question.options[i].id),
+                feedback: selectedOptionId == question.options[i].id
+                    ? feedback
+                    : _SuddenDeathFeedback.none,
+                onTap: onSelected == null
+                    ? null
+                    : () => onSelected!(question.options[i].id),
+              ),
             ),
             if (i != question.options.length - 1)
               const SizedBox(height: AppSpacing.sm),
@@ -814,11 +1023,118 @@ class _PointsChip extends StatelessWidget {
   }
 }
 
+enum _SuddenDeathFeedback { none, survived, eliminated, timeUp }
+
+class _SurvivalFeedbackBanner extends StatelessWidget {
+  final _SuddenDeathFeedback feedback;
+  final Animation<double> animation;
+
+  const _SurvivalFeedbackBanner({
+    required this.feedback,
+    required this.animation,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    final isFailure =
+        feedback == _SuddenDeathFeedback.eliminated ||
+        feedback == _SuddenDeathFeedback.timeUp;
+    final label = switch (feedback) {
+      _SuddenDeathFeedback.survived => 'Survived',
+      _SuddenDeathFeedback.eliminated => 'Eliminated',
+      _SuddenDeathFeedback.timeUp => "Time's up",
+      _SuddenDeathFeedback.none => '',
+    };
+    final icon = isFailure ? Icons.dangerous_rounded : Icons.shield_rounded;
+    final color = isFailure ? colors.error : colors.success;
+
+    return FadeTransition(
+      opacity: animation,
+      child: ScaleTransition(
+        scale: Tween<double>(
+          begin: 0.96,
+          end: 1,
+        ).animate(CurvedAnimation(parent: animation, curve: AppMotion.easeOut)),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.12),
+            borderRadius: AppDimensions.radiusMd,
+            border: Border.all(color: color.withValues(alpha: 0.32)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: color, size: 18),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  label,
+                  style: context.appTextStyles.labelLarge.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                if (!isFailure) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '+XP',
+                    style: context.appTextStyles.labelSmall.copyWith(
+                      color: colors.textPrimary,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuddenDeathOptionEntry extends StatelessWidget {
+  final int index;
+  final Widget child;
+
+  const _SuddenDeathOptionEntry({required this.index, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final start = (index * 0.08).clamp(0.0, 0.48);
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: AppMotion.duration(
+        context,
+        Duration(milliseconds: 210 + index * 35),
+      ),
+      curve: Interval(start, 1, curve: AppMotion.easeOut),
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, (1 - value) * 12),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
 class _AnswerCard extends StatelessWidget {
   final String label;
   final QuestionOption option;
   final bool isSelected;
   final bool isHidden;
+  final _SuddenDeathFeedback feedback;
   final VoidCallback? onTap;
 
   const _AnswerCard({
@@ -826,103 +1142,140 @@ class _AnswerCard extends StatelessWidget {
     required this.option,
     required this.isSelected,
     required this.isHidden,
+    required this.feedback,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
+    final hasFeedback = feedback != _SuddenDeathFeedback.none;
+    final isFailure =
+        feedback == _SuddenDeathFeedback.eliminated ||
+        feedback == _SuddenDeathFeedback.timeUp;
     final accent = isHidden
         ? colors.textMuted
-        : isSelected
+        : hasFeedback && isFailure
+        ? colors.error
+        : hasFeedback && isSelected
         ? colors.success
+        : isSelected
+        ? colors.secondary
         : colors.primary;
 
     return Semantics(
       button: true,
       selected: isSelected,
-      child: InkWell(
-        onTap: isHidden ? null : onTap,
-        borderRadius: AppDimensions.radiusMd,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(
-              accent.withValues(
-                alpha: isHidden
-                    ? 0.04
-                    : isSelected
-                    ? 0.16
-                    : 0.07,
-              ),
-              colors.surface,
-            ),
-            borderRadius: AppDimensions.radiusMd,
-            border: Border.all(
-              color: accent.withValues(
-                alpha: isHidden
-                    ? 0.12
-                    : isSelected
-                    ? 0.88
-                    : 0.28,
-              ),
-              width: isSelected ? 1.6 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: accent.withValues(
-                    alpha: isHidden
-                        ? 0.07
-                        : isSelected
-                        ? 0.2
-                        : 0.12,
-                  ),
-                  border: Border.all(color: accent.withValues(alpha: 0.72)),
-                ),
-                child: Text(
-                  label,
-                  style: context.appTextStyles.titleMedium.copyWith(
-                    color: accent,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  isHidden ? 'Removed by 50:50' : option.text,
-                  style: context.appTextStyles.bodyLarge.copyWith(
-                    color: isHidden ? colors.textMuted : colors.textPrimary,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: isSelected
-                    ? Icon(
-                        Icons.check_circle_rounded,
-                        key: const ValueKey('selected'),
-                        color: colors.success,
-                        size: 28,
-                      )
-                    : Icon(
-                        Icons.chevron_right_rounded,
-                        key: const ValueKey('idle'),
-                        color: colors.textMuted,
-                        size: 24,
+      child: AnimatedSize(
+        duration: AppMotion.duration(context, AppMotion.normal),
+        alignment: Alignment.topCenter,
+        child: AnimatedOpacity(
+          duration: AppMotion.duration(context, AppMotion.normal),
+          opacity: isHidden ? 0 : 1,
+          child: AnimatedScale(
+            duration: AppMotion.duration(context, AppMotion.fast),
+            curve: AppMotion.easeOut,
+            scale: isHidden
+                ? 0.96
+                : isSelected
+                ? 1.02
+                : 1,
+            child: isHidden
+                ? const SizedBox.shrink()
+                : AppPressable(
+                    onTap: onTap,
+                    borderRadius: AppDimensions.radiusMd,
+                    child: AnimatedContainer(
+                      key: Key('sudden-option-${option.id}'),
+                      duration: AppMotion.duration(context, AppMotion.fast),
+                      curve: AppMotion.easeOut,
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        color: Color.alphaBlend(
+                          accent.withValues(alpha: isSelected ? 0.12 : 0.07),
+                          colors.surface,
+                        ),
+                        borderRadius: AppDimensions.radiusMd,
+                        border: Border.all(
+                          color: accent.withValues(
+                            alpha: isSelected ? 0.88 : 0.28,
+                          ),
+                          width: isSelected ? 1.6 : 1,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: accent.withValues(alpha: 0.18),
+                                  blurRadius: 14,
+                                ),
+                              ]
+                            : AppElevation.shadows(colors, 1),
                       ),
-              ),
-            ],
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: accent.withValues(
+                                alpha: isSelected ? 0.2 : 0.12,
+                              ),
+                              border: Border.all(
+                                color: accent.withValues(alpha: 0.72),
+                              ),
+                            ),
+                            child: Text(
+                              label,
+                              style: context.appTextStyles.titleMedium.copyWith(
+                                color: accent,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Expanded(
+                            child: Text(
+                              option.text,
+                              style: context.appTextStyles.bodyLarge.copyWith(
+                                color: colors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          AnimatedSwitcher(
+                            duration: AppMotion.duration(
+                              context,
+                              AppMotion.fast,
+                            ),
+                            child: hasFeedback && isSelected
+                                ? Icon(
+                                    isFailure
+                                        ? Icons.cancel_rounded
+                                        : Icons.check_circle_rounded,
+                                    key: ValueKey(feedback),
+                                    color: accent,
+                                    size: 28,
+                                  )
+                                : isSelected
+                                ? Icon(
+                                    Icons.radio_button_checked_rounded,
+                                    key: const ValueKey('selected-neutral'),
+                                    color: accent,
+                                    size: 26,
+                                  )
+                                : Icon(
+                                    Icons.chevron_right_rounded,
+                                    key: const ValueKey('idle'),
+                                    color: colors.textMuted,
+                                    size: 24,
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
           ),
         ),
       ),
