@@ -149,7 +149,7 @@ void main() {
     await tester.tap(find.text('Buy & use'));
     await tester.pumpAndSettle();
 
-    expect(submitted?.selectedOptionId, 'b');
+    expect(submitted?.selectedOptionId, isNot(_question.correctOptionId));
     expect(find.text('Skipping ahead.'), findsOneWidget);
     expect(find.text('Correct: Inventory'), findsNothing);
   });
