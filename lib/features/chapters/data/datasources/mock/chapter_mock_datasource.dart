@@ -7,6 +7,12 @@ import '../chapter_datasource.dart';
 /// this class with production logic.
 class ChapterMockDatasource implements ChapterDatasource {
   static final Map<String, List<String>> _chapterTitlesByPath = {
+    'accounting': [
+      'Introduction to Book-keeping',
+      'Double Entry & Journal',
+      'Ledger & Trial Balance',
+      'Final Accounts & BRS',
+    ],
     'web-dev': ['HTML Foundations', 'CSS & Layout', 'JavaScript Essentials'],
     'data-science': [
       'Statistics Basics',
@@ -22,6 +28,30 @@ class ChapterMockDatasource implements ChapterDatasource {
   };
 
   static final Map<String, List<String>> _topicTitlesByChapter = {
+    'Introduction to Book-keeping': [
+      'Meaning & Definition',
+      'Objectives & Importance',
+      'Basic Accounting Terms',
+      'Accounting Concepts & Conventions',
+    ],
+    'Double Entry & Journal': [
+      'Double Entry System',
+      'Rules of Debit and Credit',
+      'Journalizing Transactions',
+      'Source Documents & Vouchers',
+    ],
+    'Ledger & Trial Balance': [
+      'Ledger Posting',
+      'Balancing of Accounts',
+      'Trial Balance Preparation',
+      'Errors & Rectification',
+    ],
+    'Final Accounts & BRS': [
+      'Bank Reconciliation Statement',
+      'Trading Account',
+      'Profit & Loss Account',
+      'Balance Sheet & Adjustments',
+    ],
     'HTML Foundations': [
       'Tags & Elements',
       'Forms',

@@ -1,16 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/network/network_providers.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../data/datasources/auth_datasource.dart';
-import '../../data/datasources/mock/auth_mock_datasource.dart';
+import '../../data/datasources/remote/auth_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/app_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 
-/// MOCK BINDING — swap for a Firebase-backed AuthDatasource implementation
-/// when the backend is ready. Nothing above the datasource layer changes.
+import '../../data/datasources/mock/auth_mock_datasource.dart';
+
 final authDatasourceProvider = Provider<AuthDatasource>((ref) {
-  return AuthMockDatasource();
+  return AuthRemoteDatasource(
+    apiClient: ref.watch(apiClientProvider),
+    storage: ref.watch(localStorageServiceProvider),
+    fallbackDatasource: AuthMockDatasource(),
+  );
 });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {

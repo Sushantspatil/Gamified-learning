@@ -54,6 +54,80 @@ class QuestionMockDatasource implements QuestionDatasource {
   }
 
   List<McqQuestion> _mcqQuestions(String topicId) {
+    if (topicId.contains('accounting') || topicId.contains('account')) {
+      return [
+        McqQuestion(
+          id: '$topicId-mcq-1',
+          topicId: topicId,
+          prompt: 'Book-keeping means:',
+          points: 10,
+          options: const [
+            QuestionOption(id: 'a', text: 'Recording business transactions'),
+            QuestionOption(id: 'b', text: 'Auditing accounts'),
+            QuestionOption(id: 'c', text: 'Preparing budgets'),
+            QuestionOption(id: 'd', text: 'Paying taxes'),
+          ],
+          correctOptionId: 'a',
+          hint: 'Clerical record keeping of financial events.',
+        ),
+        McqQuestion(
+          id: '$topicId-mcq-2',
+          topicId: topicId,
+          prompt: 'A person who owns and finances a business is called:',
+          points: 10,
+          options: const [
+            QuestionOption(id: 'a', text: 'Debtor'),
+            QuestionOption(id: 'b', text: 'Creditor'),
+            QuestionOption(id: 'c', text: 'Proprietor'),
+            QuestionOption(id: 'd', text: 'Customer'),
+          ],
+          correctOptionId: 'c',
+          hint: 'The owner who invests capital.',
+        ),
+        McqQuestion(
+          id: '$topicId-mcq-3',
+          topicId: topicId,
+          prompt: 'Which accounting equation is fundamentally correct?',
+          points: 10,
+          options: const [
+            QuestionOption(id: 'a', text: 'Assets = Capital + Liabilities'),
+            QuestionOption(id: 'b', text: 'Capital = Assets + Liabilities'),
+            QuestionOption(id: 'c', text: 'Liabilities = Assets + Capital'),
+            QuestionOption(id: 'd', text: 'Assets = Expenses - Capital'),
+          ],
+          correctOptionId: 'a',
+          hint: 'The fundamental Balance Sheet equation.',
+        ),
+        McqQuestion(
+          id: '$topicId-mcq-4',
+          topicId: topicId,
+          prompt: 'What is the Golden Rule for Personal Accounts?',
+          points: 10,
+          options: const [
+            QuestionOption(id: 'a', text: 'Debit what comes in, Credit what goes out'),
+            QuestionOption(id: 'b', text: 'Debit the receiver, Credit the giver'),
+            QuestionOption(id: 'c', text: 'Debit all expenses, Credit all gains'),
+            QuestionOption(id: 'd', text: 'Debit income, Credit expenses'),
+          ],
+          correctOptionId: 'b',
+          hint: 'Receiver is debited, giver is credited.',
+        ),
+        McqQuestion(
+          id: '$topicId-mcq-5',
+          topicId: topicId,
+          prompt: 'A brief explanation of a transaction entered below a journal entry is called:',
+          points: 10,
+          options: const [
+            QuestionOption(id: 'a', text: 'Narration'),
+            QuestionOption(id: 'b', text: 'Ledger folio'),
+            QuestionOption(id: 'c', text: 'Posting'),
+            QuestionOption(id: 'd', text: 'Voucher'),
+          ],
+          correctOptionId: 'a',
+          hint: 'Starts with "Being...".',
+        ),
+      ];
+    }
     return [
       McqQuestion(
         id: '$topicId-mcq-1',
@@ -130,6 +204,32 @@ class QuestionMockDatasource implements QuestionDatasource {
   }
 
   List<MatchTheFollowingQuestion> _matchQuestions(String topicId) {
+    if (topicId.contains('accounting') || topicId.contains('account')) {
+      return [
+        MatchTheFollowingQuestion(
+          id: '$topicId-match-1',
+          topicId: topicId,
+          prompt: 'Match each Account Type with its Golden Rule.',
+          points: 15,
+          pairs: const [
+            MatchPair(id: 'personal', left: 'Personal Account', right: 'Debit receiver, Credit giver'),
+            MatchPair(id: 'real', left: 'Real Account', right: 'Debit what comes in, Credit goes out'),
+            MatchPair(id: 'nominal', left: 'Nominal Account', right: 'Debit expenses, Credit gains'),
+          ],
+        ),
+        MatchTheFollowingQuestion(
+          id: '$topicId-match-2',
+          topicId: topicId,
+          prompt: 'Match each Financial Term with its Role.',
+          points: 15,
+          pairs: const [
+            MatchPair(id: 'asset', left: 'Machinery', right: 'Real Account'),
+            MatchPair(id: 'expense', left: 'Salaries Paid', right: 'Nominal Account'),
+            MatchPair(id: 'bank', left: 'Bank of India', right: 'Personal Account'),
+          ],
+        ),
+      ];
+    }
     return [
       MatchTheFollowingQuestion(
         id: '$topicId-match-1',
@@ -190,6 +290,32 @@ class QuestionMockDatasource implements QuestionDatasource {
   }
 
   List<SuddenDeathQuestion> _suddenDeathQuestions(String topicId) {
+    if (topicId.contains('accounting') || topicId.contains('account')) {
+      return [
+        SuddenDeathQuestion(
+          id: '$topicId-sudden-death-1',
+          topicId: topicId,
+          prompt: 'Is Goodwill considered an Intangible Asset?',
+          points: 20,
+          options: const [
+            QuestionOption(id: 'x', text: 'Yes'),
+            QuestionOption(id: 'y', text: 'No'),
+          ],
+          correctOptionId: 'x',
+        ),
+        SuddenDeathQuestion(
+          id: '$topicId-sudden-death-2',
+          topicId: topicId,
+          prompt: 'Every debit entry must have an equal credit entry:',
+          points: 20,
+          options: const [
+            QuestionOption(id: 'x', text: 'True'),
+            QuestionOption(id: 'y', text: 'False'),
+          ],
+          correctOptionId: 'x',
+        ),
+      ];
+    }
     return [
       SuddenDeathQuestion(
         id: '$topicId-sudden-death-1',

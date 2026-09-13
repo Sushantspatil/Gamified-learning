@@ -11,12 +11,17 @@ import '../wallet_datasource.dart';
 /// must re-validate every debit server-side rather than trusting the
 /// client's claimed balance.
 class WalletMockDatasource implements WalletDatasource {
+  final WalletBalanceModel initialBalance;
   final Map<String, WalletBalanceModel> _balances = {};
   final Map<String, List<WalletTransactionModel>> _ledger = {};
   int _nextTransactionId = 1;
 
+  WalletMockDatasource({
+    this.initialBalance = const WalletBalanceModel(coins: 0, gems: 0),
+  });
+
   WalletBalanceModel _balanceFor(String userId) =>
-      _balances[userId] ?? const WalletBalanceModel(coins: 0, gems: 0);
+      _balances[userId] ?? initialBalance;
 
   @override
   Future<WalletBalanceModel> getBalance(String userId) async {

@@ -10,7 +10,6 @@ import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../learning_paths/presentation/widgets/learning_path_card.dart';
-import '../../../profile/presentation/providers/profile_providers.dart';
 
 /// Subjects tab root: shows study subjects first. Chapter/topic drilling
 /// happens in pushed detail routes so Subjects remains study-focused.
@@ -23,9 +22,6 @@ class ChapterListScreen extends ConsumerWidget {
     final selectedPathId = ref
         .watch(selectedLearningPathControllerProvider)
         .valueOrNull;
-    final selectedSubjectIds =
-        ref.watch(profileControllerProvider).valueOrNull?.selectedSubjectIds ??
-        const [];
 
     return GameScaffold(
       appBar: AppBar(
@@ -55,11 +51,7 @@ class ChapterListScreen extends ConsumerWidget {
             ),
           ),
           data: (paths) {
-            final visiblePaths = selectedSubjectIds.isEmpty
-                ? paths
-                : paths
-                      .where((path) => selectedSubjectIds.contains(path.id))
-                      .toList();
+            final visiblePaths = paths;
             if (visiblePaths.isEmpty) {
               return Center(
                 child: Text(

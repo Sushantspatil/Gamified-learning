@@ -8,6 +8,7 @@ import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
+import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../wallet/domain/entities/currency_type.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 
@@ -80,15 +81,23 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
       setState(() => _isCharging = true);
 
       final overrideCoins = widget.coinBalanceOverride;
-      final didDebit = overrideCoins == null
-          ? await ref
-                .read(walletControllerProvider.notifier)
-                .debit(
-                  currency: CurrencyType.coins,
-                  amount: action.coinCost,
-                  reason: 'In-game power-up: ${action.label}',
-                )
-          : overrideCoins >= action.coinCost;
+      bool didDebit = false;
+      final user = ref.read(authControllerProvider).valueOrNull;
+      if (user != null) {
+        didDebit = await ref
+            .read(walletControllerProvider.notifier)
+            .debit(
+              currency: CurrencyType.coins,
+              amount: action.coinCost,
+              reason: 'In-game power-up: ${action.label}',
+            );
+      } else {
+        final available =
+            overrideCoins ??
+            ref.read(walletControllerProvider).valueOrNull?.coins ??
+            0;
+        didDebit = available >= action.coinCost;
+      }
       if (!mounted) return;
 
       if (!didDebit) {
@@ -112,10 +121,14 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
 
   @override
   Widget build(BuildContext context) {
-    final walletCoins =
-        widget.coinBalanceOverride ??
-        ref.watch(walletControllerProvider).valueOrNull?.coins ??
-        0;
+    final user = ref.watch(authControllerProvider).valueOrNull;
+    final walletCoins = user != null
+        ? (ref.watch(walletControllerProvider).valueOrNull?.coins ??
+            widget.coinBalanceOverride ??
+            0)
+        : (widget.coinBalanceOverride ??
+            ref.watch(walletControllerProvider).valueOrNull?.coins ??
+            0);
 
     return AppCard(
       key: const Key('game_power_up_bar'),
