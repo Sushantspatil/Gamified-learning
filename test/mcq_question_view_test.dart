@@ -23,6 +23,21 @@ const _question = McqQuestion(
   hint: 'Think about items a business owns or can sell.',
 );
 
+const _nextQuestion = McqQuestion(
+  id: 'mcq-2',
+  topicId: 'accountancy-chapter-1-topic-1',
+  prompt: 'Which tag creates a paragraph?',
+  points: 10,
+  options: [
+    QuestionOption(id: 'a', text: '<div>'),
+    QuestionOption(id: 'b', text: '<p>'),
+    QuestionOption(id: 'c', text: '<span>'),
+    QuestionOption(id: 'd', text: '<main>'),
+  ],
+  correctOptionId: 'b',
+  hint: 'Think about semantic text blocks.',
+);
+
 Future<void> _pumpMcqView(
   WidgetTester tester, {
   void Function(Answer answer)? onSubmit,
@@ -50,7 +65,19 @@ Future<void> _pumpMcqView(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  await _pumpAnimations(tester);
+}
+
+Future<void> _pumpAnimations(WidgetTester tester) async {
+  await tester.pump(const Duration(milliseconds: 450));
+}
+
+Future<void> _confirmPowerUp(WidgetTester tester) async {
+  final buyButton = find.text('Buy & use');
+  await tester.ensureVisible(buyButton);
+  await _pumpAnimations(tester);
+  await tester.tap(buyButton);
+  await _pumpAnimations(tester);
 }
 
 void main() {
@@ -89,13 +116,24 @@ void main() {
     expect(powerUpTop, greaterThan(firstOptionTop));
   });
 
+  testWidgets('question and options keep their entry animations', (
+    tester,
+  ) async {
+    await _pumpMcqView(tester);
+
+    expect(find.byKey(const Key('mcq_question_motion')), findsOneWidget);
+    for (var index = 0; index < _question.options.length; index++) {
+      expect(find.byKey(Key('mcq_option_stagger_$index')), findsOneWidget);
+    }
+  });
+
   testWidgets('options remain tappable and update character state', (
     tester,
   ) async {
     await _pumpMcqView(tester);
 
     await tester.tap(find.text('Inventory'));
-    await tester.pumpAndSettle();
+    await _pumpAnimations(tester);
 
     expect(find.text('Nice choice.'), findsOneWidget);
   });
@@ -104,15 +142,14 @@ void main() {
     await _pumpMcqView(tester);
 
     await tester.tap(find.text('50:50'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Buy & use'));
-    await tester.pumpAndSettle();
+    await _pumpAnimations(tester);
+    await _confirmPowerUp(tester);
 
     expect(find.text('Removed by 50:50'), findsNothing);
     expect(find.text('Revenue'), findsNothing);
     expect(find.text('Expense'), findsNothing);
     expect(find.text('Inventory'), findsOneWidget);
-    expect(find.text('Scanning options.'), findsOneWidget);
+    expect(find.text("Let's narrow it down."), findsOneWidget);
     expect(find.text('Capital'), findsOneWidget);
   });
 
@@ -120,9 +157,8 @@ void main() {
     await _pumpMcqView(tester);
 
     await tester.tap(find.text('Hint'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Buy & use'));
-    await tester.pumpAndSettle();
+    await _pumpAnimations(tester);
+    await _confirmPowerUp(tester);
 
     expect(
       find.text('Think about items a business owns or can sell.'),
@@ -145,12 +181,11 @@ void main() {
     );
 
     await tester.tap(find.text('Skip'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Buy & use'));
-    await tester.pumpAndSettle();
+    await _pumpAnimations(tester);
+    await _confirmPowerUp(tester);
 
     expect(submitted?.selectedOptionId, isNot(_question.correctOptionId));
-    expect(find.text('Skipping ahead.'), findsOneWidget);
+    expect(find.text('Next one!'), findsOneWidget);
     expect(find.text('Correct: Inventory'), findsNothing);
   });
 
@@ -183,9 +218,9 @@ void main() {
     await _pumpMcqView(tester);
 
     await tester.tap(find.text('Revenue'));
-    await tester.pumpAndSettle();
+    await _pumpAnimations(tester);
     await tester.tap(find.text('Inventory'));
-    await tester.pumpAndSettle();
+    await _pumpAnimations(tester);
 
     expect(find.text('Correct: Inventory'), findsNothing);
     expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
@@ -205,10 +240,10 @@ void main() {
     await tester.tap(find.text('Inventory'));
     await tester.pump();
     await tester.tap(find.text('Next'));
-    await tester.pumpAndSettle();
+    await _pumpAnimations(tester);
     await tester.tap(find.text('50:50'));
     await tester.tap(find.text('Hint'));
-    await tester.pumpAndSettle();
+    await _pumpAnimations(tester);
 
     expect(submitted?.selectedOptionId, 'b');
     expect(find.text('Removed by 50:50'), findsNothing);
@@ -225,6 +260,27 @@ void main() {
     expect(find.text('Next'), findsNothing);
   });
 
+  testWidgets('question change resets companion state and animations', (
+    tester,
+  ) async {
+    await _pumpMcqView(tester);
+
+    await tester.tap(find.text('Inventory'));
+    await _pumpAnimations(tester);
+    expect(find.text('Nice choice.'), findsOneWidget);
+
+    await _pumpMcqView(
+      tester,
+      question: _nextQuestion,
+      currentIndex: 1,
+      totalQuestions: 2,
+    );
+
+    expect(find.text('Which tag creates a paragraph?'), findsOneWidget);
+    expect(find.text('Think carefully.'), findsOneWidget);
+    expect(find.byKey(const Key('mcq_question_motion')), findsOneWidget);
+  });
+
   testWidgets('skip submits a neutral missed answer through existing flow', (
     tester,
   ) async {
@@ -235,9 +291,8 @@ void main() {
     );
 
     await tester.tap(find.text('Skip'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Buy & use'));
-    await tester.pumpAndSettle();
+    await _pumpAnimations(tester);
+    await _confirmPowerUp(tester);
 
     expect(submitted?.selectedOptionId, isNot(_question.correctOptionId));
     expect(find.text('Correct: Inventory'), findsNothing);

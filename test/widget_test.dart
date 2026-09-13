@@ -143,7 +143,21 @@ Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
   await tester.tap(modeCard.first);
   await tester.pumpAndSettle();
   await tester.tap(find.text('Start game'));
-  await tester.pumpAndSettle();
+  await _pumpUntilFound(tester, find.text(modeLabel), maxPumps: 20);
+}
+
+Future<void> _pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  int maxPumps = 10,
+}) async {
+  for (var i = 0; i < maxPumps; i++) {
+    await tester.pump(const Duration(milliseconds: 250));
+    if (finder.evaluate().isNotEmpty) {
+      await tester.pump(const Duration(milliseconds: 500));
+      return;
+    }
+  }
 }
 
 String _routeValue(String modeLabel) {
@@ -204,12 +218,24 @@ Future<void> _answerAllMcqCorrectly(WidgetTester tester) async {
   const answers = ['Solar energy', '<h1>', 'color', 'A hyperlink', 'let'];
   for (var index = 0; index < answers.length; index++) {
     expect(find.text('${index + 1} / 5'), findsOneWidget);
-    await tester.tap(find.text(answers[index]));
-    await tester.pump();
-    await tester.tap(
-      find.text(index == answers.length - 1 ? 'Submit quiz' : 'Next'),
+    final answer = find.text(answers[index]);
+    await tester.ensureVisible(answer);
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(answer);
+    await tester.pump(const Duration(milliseconds: 250));
+    final next = find.text(
+      index == answers.length - 1 ? 'Submit quiz' : 'Next',
     );
-    await tester.pumpAndSettle();
+    await tester.ensureVisible(next);
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.tap(next);
+    await _pumpUntilFound(
+      tester,
+      index == answers.length - 1
+          ? find.text('Quiz Complete')
+          : find.text('${index + 2} / 5'),
+      maxPumps: 20,
+    );
   }
 }
 
