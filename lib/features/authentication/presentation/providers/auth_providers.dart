@@ -8,13 +8,10 @@ import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/app_user.dart';
 import '../../domain/repositories/auth_repository.dart';
 
-import '../../data/datasources/mock/auth_mock_datasource.dart';
-
 final authDatasourceProvider = Provider<AuthDatasource>((ref) {
   return AuthRemoteDatasource(
     apiClient: ref.watch(apiClientProvider),
     storage: ref.watch(localStorageServiceProvider),
-    fallbackDatasource: AuthMockDatasource(),
   );
 });
 

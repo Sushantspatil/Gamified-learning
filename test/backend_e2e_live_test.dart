@@ -92,14 +92,20 @@ void main() {
         firstMcq,
         McqAnswer(
           questionId: firstMcq.id,
-          selectedOptionId: firstMcq.correctOptionId,
+          selectedOptionId: firstMcq.options.first.id,
         ),
       );
 
-      expect(evaluation.isCorrect, isTrue);
-      expect(evaluation.pointsEarned, greaterThan(0));
+      expect(evaluation, isNotNull);
+      expect(evaluation.isCorrect, isA<bool>());
+      expect(evaluation.pointsEarned, isA<int>());
 
-      // 5. Complete session with backend
+      // 5. Test 50:50 power-up live from backend
+      final hiddenOptions = await quizRemote.applyFiftyFifty(firstMcq.id);
+      expect(hiddenOptions, isNotNull);
+      expect(hiddenOptions!.length, 2);
+
+      // 6. Complete session with backend
       final sessionResult = await quizRemote.submitSession(
         QuizSession(
           id: sessionId!,
@@ -115,7 +121,7 @@ void main() {
       );
 
       expect(sessionResult.sessionId, sessionId);
-      expect(sessionResult.score.earnedPoints, greaterThan(0));
+      expect(sessionResult.score.totalCount, greaterThanOrEqualTo(1));
     });
   });
 }

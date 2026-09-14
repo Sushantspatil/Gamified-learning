@@ -96,7 +96,7 @@ class QuestionRemoteDatasource implements QuestionDatasource {
         }
       }
       if (_fallbackDatasource != null) {
-        return await _fallbackDatasource.getQuestionsForTopicAndType(topicId, questionType);
+        return _fallbackDatasource.getQuestionsForTopicAndType(topicId, questionType);
       }
       throw const NetworkException('No questions returned by the backend API.');
     } catch (e) {

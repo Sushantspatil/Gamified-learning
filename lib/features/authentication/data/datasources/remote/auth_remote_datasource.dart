@@ -10,15 +10,12 @@ import '../auth_datasource.dart';
 class AuthRemoteDatasource implements AuthDatasource {
   final ApiClient _apiClient;
   final LocalStorageService _storage;
-  final AuthDatasource? _fallbackDatasource;
 
   AuthRemoteDatasource({
     required ApiClient apiClient,
     required LocalStorageService storage,
-    AuthDatasource? fallbackDatasource,
   })  : _apiClient = apiClient,
-        _storage = storage,
-        _fallbackDatasource = fallbackDatasource;
+        _storage = storage;
 
   @override
   Future<UserModel> login({
@@ -59,10 +56,7 @@ class AuthRemoteDatasource implements AuthDatasource {
         );
       }
     } on NetworkException catch (e) {
-      developer.log('Backend unreachable ($e), trying fallback.', name: 'AuthRemote');
-      if (_fallbackDatasource != null) {
-        return _fallbackDatasource.login(email: email, password: password);
-      }
+      developer.log('Backend unreachable ($e)', name: 'AuthRemote');
       rethrow;
     }
 
@@ -89,14 +83,7 @@ class AuthRemoteDatasource implements AuthDatasource {
       // 2. Automatically log in to retrieve JWT tokens and establish session
       return await login(email: email, password: password);
     } on NetworkException catch (e) {
-      developer.log('Backend unreachable ($e), trying fallback.', name: 'AuthRemote');
-      if (_fallbackDatasource != null) {
-        return _fallbackDatasource.signUp(
-          email: email,
-          password: password,
-          displayName: displayName,
-        );
-      }
+      developer.log('Backend unreachable ($e)', name: 'AuthRemote');
       rethrow;
     }
   }
@@ -105,9 +92,6 @@ class AuthRemoteDatasource implements AuthDatasource {
   Future<UserModel?> getUserById(String id) async {
     final token = _storage.getString(StorageKeys.authToken);
     if (token == null || token.isEmpty) {
-      if (_fallbackDatasource != null) {
-        return _fallbackDatasource.getUserById(id);
-      }
       return null;
     }
 
@@ -132,13 +116,7 @@ class AuthRemoteDatasource implements AuthDatasource {
       return null;
     } catch (e) {
       developer.log('Failed to fetch user session from backend: $e', name: 'AuthRemote');
-      if (_fallbackDatasource != null) {
-        return _fallbackDatasource.getUserById(id);
-      }
-      final storedId = _storage.getString(StorageKeys.currentUserId);
-      if (storedId == id) {
-        return UserModel(id: id, email: '', displayName: 'Player');
-      }
+      return null;
     }
 
     return null;
