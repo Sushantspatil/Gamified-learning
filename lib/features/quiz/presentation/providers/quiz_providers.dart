@@ -1,16 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/utils/reward_calculator.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
-import '../../../daily_missions/presentation/providers/daily_mission_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
-import '../../../wallet/domain/entities/currency_type.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../../../core/network/network_providers.dart';
-import '../../data/datasources/mock/quiz_mock_datasource.dart';
 import '../../data/datasources/quiz_datasource.dart';
 import '../../data/datasources/remote/quiz_remote_datasource.dart';
 import '../../data/repositories/quiz_repository_impl.dart';
@@ -21,10 +17,7 @@ import 'quiz_session_view_state.dart';
 
 final quizDatasourceProvider = Provider<QuizDatasource>((ref) {
   final apiClient = ref.watch(apiClientProvider);
-  return QuizRemoteDatasource(
-    apiClient: apiClient,
-    fallbackDatasource: QuizMockDatasource(),
-  );
+  return QuizRemoteDatasource(apiClient: apiClient);
 });
 
 final quizRepositoryProvider = Provider<QuizRepository>((ref) {
@@ -62,7 +55,11 @@ class QuizSessionRequest {
 }
 
 class QuizController
-    extends AutoDisposeFamilyAsyncNotifier<QuizSessionViewState, QuizSessionRequest> {
+    extends
+        AutoDisposeFamilyAsyncNotifier<
+          QuizSessionViewState,
+          QuizSessionRequest
+        > {
   late String _sessionId;
   late QuizSessionRequest _request;
   late DateTime _startedAt;
@@ -87,8 +84,7 @@ class QuizController
 
     final datasource = ref.read(quizDatasourceProvider);
     if (datasource is QuizRemoteDatasource &&
-        (request.quizType == QuestionType.mcq ||
-            request.quizType == QuestionType.suddenDeath) &&
+        request.quizType == QuestionType.mcq &&
         questions.isNotEmpty) {
       await datasource.createSession(
         topicId: request.topicId,
@@ -162,31 +158,10 @@ class QuizController
             .read(quizRepositoryProvider)
             .submitSession(session);
 
-        final previousLevel = ref
-            .read(profileControllerProvider)
-            .valueOrNull
-            ?.level;
-        final reward = RewardCalculator.forEarnedPoints(
-          result.score.earnedPoints,
-        );
-        final updatedProfile = await ref
-            .read(profileControllerProvider.notifier)
-            .addXp(reward.xp);
-        final leveledUp =
-            previousLevel != null &&
-            updatedProfile != null &&
-            updatedProfile.level > previousLevel;
-
-        await ref
-            .read(walletControllerProvider.notifier)
-            .credit(
-              currency: CurrencyType.coins,
-              amount: reward.coins,
-              reason: 'Quiz reward',
-            );
-        await ref
-            .read(dailyMissionsControllerProvider.notifier)
-            .recordQuizCompletion();
+        if (ref.read(quizDatasourceProvider) is QuizRemoteDatasource) {
+          ref.invalidate(profileControllerProvider);
+          ref.invalidate(walletControllerProvider);
+        }
 
         state = AsyncValue.data(
           current.copyWith(
@@ -194,9 +169,9 @@ class QuizController
             currentIndex: nextIndex,
             isSubmittingResult: false,
             result: result,
-            rewardXp: reward.xp,
-            rewardCoins: reward.coins,
-            leveledUp: leveledUp,
+            rewardXp: result.xpAwarded,
+            rewardCoins: result.coinsAwarded,
+            leveledUp: result.didLevelUp,
           ),
         );
       } else {

@@ -14,18 +14,18 @@ class UserProfileModel extends UserProfile {
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) =>
       UserProfileModel(
-        avatarId: json['avatarId'] as String,
+        avatarId: json['avatarId'] as String? ?? 'default',
         classLevel: json['classLevel'] as String?,
         board: json['board'] as String?,
         selectedSubjectIds:
             (json['selectedSubjectIds'] as List<dynamic>?)
-                ?.map((id) => id as String)
+                ?.map((id) => id.toString())
                 .toList() ??
             const [],
         profileSetupCompleted: json['profileSetupCompleted'] as bool? ?? false,
         tutorialCompleted: json['tutorialCompleted'] as bool? ?? false,
-        xp: json['xp'] as int,
-        level: json['level'] as int,
+        xp: json['xp'] as int? ?? json['experience'] as int? ?? 0,
+        level: json['level'] as int? ?? 1,
       );
 
   factory UserProfileModel.fromEntity(UserProfile profile) => UserProfileModel(

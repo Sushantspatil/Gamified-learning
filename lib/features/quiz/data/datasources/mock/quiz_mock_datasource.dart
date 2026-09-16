@@ -1,6 +1,7 @@
 import '../../../../questions/domain/entities/answer.dart';
 import '../../../../questions/domain/entities/answer_evaluation.dart';
 import '../../../../questions/domain/entities/question.dart';
+import '../../../../../core/utils/reward_calculator.dart';
 import '../../../domain/entities/quiz_result.dart';
 import '../../../domain/entities/quiz_session.dart';
 import '../quiz_datasource.dart';
@@ -132,6 +133,7 @@ class QuizMockDatasource implements QuizDatasource {
         ? metric.correct
         : 0;
     final completedAt = session.completedAt;
+    final reward = RewardCalculator.forEarnedPoints(earned);
 
     return QuizResult(
       sessionId: session.id,
@@ -149,6 +151,8 @@ class QuizMockDatasource implements QuizDatasource {
       records: session.answeredRecords,
       endedEarly: session.endedEarly,
       streakCount: streakCount,
+      xpAwarded: reward.xp,
+      coinsAwarded: reward.coins,
       timeTaken: completedAt.difference(session.startedAt),
       createdAt: completedAt,
     );

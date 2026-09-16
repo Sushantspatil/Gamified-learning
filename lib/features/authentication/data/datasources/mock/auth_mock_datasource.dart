@@ -27,6 +27,9 @@ class AuthMockDatasource implements AuthDatasource {
   }
 
   @override
+  Future<void> logout() async {}
+
+  @override
   Future<UserModel> login({
     required String email,
     required String password,

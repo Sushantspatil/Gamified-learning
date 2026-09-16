@@ -14,8 +14,8 @@ class AuthRemoteDatasource implements AuthDatasource {
   AuthRemoteDatasource({
     required ApiClient apiClient,
     required LocalStorageService storage,
-  })  : _apiClient = apiClient,
-        _storage = storage;
+  }) : _apiClient = apiClient,
+       _storage = storage;
 
   @override
   Future<UserModel> login({
@@ -25,10 +25,7 @@ class AuthRemoteDatasource implements AuthDatasource {
     try {
       final response = await _apiClient.post(
         '/auth/login',
-        body: {
-          'email': email.trim(),
-          'password': password,
-        },
+        body: {'email': email.trim(), 'password': password},
       );
 
       if (response is Map<String, dynamic>) {
@@ -45,7 +42,8 @@ class AuthRemoteDatasource implements AuthDatasource {
 
         final clientId = client?['id']?.toString() ?? '1';
         final clientEmail = client?['email'] as String? ?? email;
-        final clientName = client?['username'] as String? ?? clientEmail.split('@').first;
+        final clientName =
+            client?['username'] as String? ?? clientEmail.split('@').first;
 
         await _storage.setString(StorageKeys.currentUserId, clientId);
 
@@ -60,7 +58,10 @@ class AuthRemoteDatasource implements AuthDatasource {
       rethrow;
     }
 
-    throw const AuthException('Invalid response from authentication server.', 'invalid-response');
+    throw const AuthException(
+      'Invalid response from authentication server.',
+      'invalid-response',
+    );
   }
 
   @override
@@ -100,7 +101,8 @@ class AuthRemoteDatasource implements AuthDatasource {
       if (response is Map<String, dynamic>) {
         final clientId = response['id']?.toString() ?? id;
         final clientEmail = response['email'] as String? ?? '';
-        final clientName = response['username'] as String? ?? clientEmail.split('@').first;
+        final clientName =
+            response['username'] as String? ?? clientEmail.split('@').first;
 
         return UserModel(
           id: clientId,
@@ -115,7 +117,10 @@ class AuthRemoteDatasource implements AuthDatasource {
       await _storage.remove(StorageKeys.currentUserId);
       return null;
     } catch (e) {
-      developer.log('Failed to fetch user session from backend: $e', name: 'AuthRemote');
+      developer.log(
+        'Failed to fetch user session from backend: $e',
+        name: 'AuthRemote',
+      );
       return null;
     }
 
@@ -123,14 +128,31 @@ class AuthRemoteDatasource implements AuthDatasource {
   }
 
   @override
+  Future<void> logout() async {
+    final refreshToken = _storage.getString(StorageKeys.refreshToken);
+    await _apiClient.post(
+      '/auth/logout',
+      body: refreshToken == null ? null : {'refreshToken': refreshToken},
+    );
+  }
+
+  @override
   Future<UserModel> updateDisplayName({
     required String userId,
     required String displayName,
   }) async {
+    await _apiClient.put('/profile', body: {'name': displayName.trim()});
+    final user = await getUserById(userId);
+    if (user == null) {
+      throw const AuthException(
+        'Unable to reload the updated user profile.',
+        'profile-refresh-failed',
+      );
+    }
     return UserModel(
-      id: userId,
-      email: '',
-      displayName: displayName,
+      id: user.id,
+      email: user.email,
+      displayName: displayName.trim(),
     );
   }
 }

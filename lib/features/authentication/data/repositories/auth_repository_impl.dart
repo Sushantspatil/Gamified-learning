@@ -45,9 +45,13 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> logout() async {
-    await _storage.remove(StorageKeys.currentUserId);
-    await _storage.remove(StorageKeys.authToken);
-    await _storage.remove(StorageKeys.refreshToken);
+    try {
+      await _datasource.logout();
+    } finally {
+      await _storage.remove(StorageKeys.currentUserId);
+      await _storage.remove(StorageKeys.authToken);
+      await _storage.remove(StorageKeys.refreshToken);
+    }
   }
 
   @override

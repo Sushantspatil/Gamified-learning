@@ -16,6 +16,12 @@ import 'package:skillverse_app/features/questions/data/datasources/mock/question
 import 'package:skillverse_app/features/questions/presentation/providers/question_providers.dart';
 import 'package:skillverse_app/features/quiz/data/datasources/mock/quiz_mock_datasource.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/quiz_providers.dart';
+import 'package:skillverse_app/features/profile/data/datasources/mock/profile_mock_datasource.dart';
+import 'package:skillverse_app/features/profile/presentation/providers/profile_providers.dart';
+import 'package:skillverse_app/features/streaks/data/datasources/mock/streak_mock_datasource.dart';
+import 'package:skillverse_app/features/streaks/presentation/providers/streak_providers.dart';
+import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock_datasource.dart';
+import 'package:skillverse_app/features/wallet/presentation/providers/wallet_providers.dart';
 
 Finder _buyButtonFor(String itemTitle) {
   final card = find.ancestor(
@@ -56,6 +62,9 @@ Future<void> _pumpAppWithInitialValues(
         authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
         questionDatasourceProvider.overrideWithValue(QuestionMockDatasource()),
         quizDatasourceProvider.overrideWithValue(QuizMockDatasource()),
+        profileDatasourceProvider.overrideWithValue(ProfileMockDatasource()),
+        streakDatasourceProvider.overrideWithValue(StreakMockDatasource()),
+        walletDatasourceProvider.overrideWithValue(WalletMockDatasource()),
       ],
       child: const SkillverseApp(),
     ),

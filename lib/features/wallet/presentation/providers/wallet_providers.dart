@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/network/network_providers.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
-import '../../data/datasources/mock/wallet_mock_datasource.dart';
 import '../../data/datasources/wallet_datasource.dart';
+import '../../data/datasources/remote/wallet_remote_datasource.dart';
 import '../../data/repositories/wallet_repository_impl.dart';
 import '../../domain/entities/currency_type.dart';
 import '../../domain/entities/wallet_balance.dart';
@@ -12,7 +13,7 @@ import '../../domain/repositories/wallet_repository.dart';
 /// MOCK BINDING — swap for a datasource that calls a Cloud Function when
 /// the backend is ready.
 final walletDatasourceProvider = Provider<WalletDatasource>((ref) {
-  return WalletMockDatasource();
+  return WalletRemoteDatasource(apiClient: ref.watch(apiClientProvider));
 });
 
 final walletRepositoryProvider = Provider<WalletRepository>((ref) {

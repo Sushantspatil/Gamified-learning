@@ -13,6 +13,8 @@ abstract class AuthDatasource {
 
   Future<UserModel?> getUserById(String id);
 
+  Future<void> logout();
+
   Future<UserModel> updateDisplayName({
     required String userId,
     required String displayName,

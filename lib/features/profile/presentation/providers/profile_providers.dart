@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/providers/core_providers.dart';
+import '../../../../core/network/network_providers.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
-import '../../data/datasources/mock/profile_mock_datasource.dart';
 import '../../data/datasources/profile_datasource.dart';
+import '../../data/datasources/remote/profile_remote_datasource.dart';
 import '../../data/repositories/profile_repository_impl.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/profile_repository.dart';
@@ -11,14 +11,11 @@ import '../../domain/repositories/profile_repository.dart';
 /// MOCK BINDING — swap for a Firestore-backed ProfileDatasource
 /// implementation when the backend is ready.
 final profileDatasourceProvider = Provider<ProfileDatasource>((ref) {
-  return ProfileMockDatasource();
+  return ProfileRemoteDatasource(apiClient: ref.watch(apiClientProvider));
 });
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  return ProfileRepositoryImpl(
-    ref.watch(profileDatasourceProvider),
-    ref.watch(localStorageServiceProvider),
-  );
+  return ProfileRepositoryImpl(ref.watch(profileDatasourceProvider));
 });
 
 class ProfileController extends AsyncNotifier<UserProfile?> {

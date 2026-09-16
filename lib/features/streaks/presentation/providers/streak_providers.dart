@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/network/network_providers.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
-import '../../data/datasources/mock/streak_mock_datasource.dart';
 import '../../data/datasources/streak_datasource.dart';
+import '../../data/datasources/remote/streak_remote_datasource.dart';
 import '../../data/repositories/streak_repository_impl.dart';
 import '../../domain/entities/streak.dart';
 import '../../domain/repositories/streak_repository.dart';
@@ -10,7 +11,7 @@ import '../../domain/repositories/streak_repository.dart';
 /// MOCK BINDING — swap for a Firestore-backed StreakDatasource
 /// implementation when the backend is ready.
 final streakDatasourceProvider = Provider<StreakDatasource>((ref) {
-  return StreakMockDatasource();
+  return StreakRemoteDatasource(apiClient: ref.watch(apiClientProvider));
 });
 
 final streakRepositoryProvider = Provider<StreakRepository>((ref) {

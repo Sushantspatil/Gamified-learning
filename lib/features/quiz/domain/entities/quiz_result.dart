@@ -43,6 +43,10 @@ class QuizResult extends Equatable {
   final List<QuestionAnswerRecord> records;
   final bool endedEarly;
   final int streakCount;
+  final int xpAwarded;
+  final int coinsAwarded;
+  final int gemsAwarded;
+  final bool didLevelUp;
   final Duration timeTaken;
   final DateTime createdAt;
 
@@ -57,6 +61,10 @@ class QuizResult extends Equatable {
     required this.records,
     required this.endedEarly,
     required this.streakCount,
+    this.xpAwarded = 0,
+    this.coinsAwarded = 0,
+    this.gemsAwarded = 0,
+    this.didLevelUp = false,
     required this.timeTaken,
     required this.createdAt,
   });
@@ -77,6 +85,10 @@ class QuizResult extends Equatable {
     records,
     endedEarly,
     streakCount,
+    xpAwarded,
+    coinsAwarded,
+    gemsAwarded,
+    didLevelUp,
     timeTaken,
     createdAt,
   ];

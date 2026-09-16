@@ -8,6 +8,7 @@ import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/sort_it_right_view.dart';
 import 'package:skillverse_app/features/wallet/domain/entities/currency_type.dart';
+import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock_datasource.dart';
 import 'package:skillverse_app/features/wallet/presentation/providers/wallet_providers.dart';
 
 const question = SortItRightQuestion(
@@ -59,7 +60,10 @@ Future<ProviderContainer> pumpSort(
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   final container = ProviderContainer(
-    overrides: [authControllerProvider.overrideWith(_SignedInAuth.new)],
+    overrides: [
+      authControllerProvider.overrideWith(_SignedInAuth.new),
+      walletDatasourceProvider.overrideWithValue(WalletMockDatasource()),
+    ],
   );
   addTearDown(container.dispose);
   await tester.runAsync(() async {
