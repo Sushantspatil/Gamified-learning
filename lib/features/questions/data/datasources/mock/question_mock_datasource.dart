@@ -130,6 +130,32 @@ class QuestionMockDatasource implements QuestionDatasource {
   }
 
   List<MatchTheFollowingQuestion> _matchQuestions(String topicId) {
+    if (topicId.contains('accounting') || topicId.contains('account')) {
+      return [
+        MatchTheFollowingQuestion(
+          id: '$topicId-match-1',
+          topicId: topicId,
+          prompt: 'Match each Account Type with its Golden Rule.',
+          points: 15,
+          pairs: const [
+            MatchPair(id: 'personal', left: 'Personal Account', right: 'Debit receiver, Credit giver'),
+            MatchPair(id: 'real', left: 'Real Account', right: 'Debit what comes in, Credit goes out'),
+            MatchPair(id: 'nominal', left: 'Nominal Account', right: 'Debit expenses, Credit gains'),
+          ],
+        ),
+        MatchTheFollowingQuestion(
+          id: '$topicId-match-2',
+          topicId: topicId,
+          prompt: 'Match each Financial Term with its Role.',
+          points: 15,
+          pairs: const [
+            MatchPair(id: 'asset', left: 'Machinery', right: 'Real Account'),
+            MatchPair(id: 'expense', left: 'Salaries Paid', right: 'Nominal Account'),
+            MatchPair(id: 'bank', left: 'Bank of India', right: 'Personal Account'),
+          ],
+        ),
+      ];
+    }
     return [
       MatchTheFollowingQuestion(
         id: '$topicId-match-1',

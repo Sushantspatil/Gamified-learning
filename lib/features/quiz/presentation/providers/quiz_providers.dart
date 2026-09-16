@@ -9,18 +9,22 @@ import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
 import '../../../wallet/domain/entities/currency_type.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import '../../../../core/network/network_providers.dart';
 import '../../data/datasources/mock/quiz_mock_datasource.dart';
 import '../../data/datasources/quiz_datasource.dart';
+import '../../data/datasources/remote/quiz_remote_datasource.dart';
 import '../../data/repositories/quiz_repository_impl.dart';
 import '../../domain/entities/question_answer_record.dart';
 import '../../domain/entities/quiz_session.dart';
 import '../../domain/repositories/quiz_repository.dart';
 import 'quiz_session_view_state.dart';
 
-/// MOCK BINDING — swap for a datasource that calls a Cloud Function once
-/// scores must be server-authoritative.
 final quizDatasourceProvider = Provider<QuizDatasource>((ref) {
-  return QuizMockDatasource();
+  final apiClient = ref.watch(apiClientProvider);
+  return QuizRemoteDatasource(
+    apiClient: apiClient,
+    fallbackDatasource: QuizMockDatasource(),
+  );
 });
 
 final quizRepositoryProvider = Provider<QuizRepository>((ref) {
@@ -58,7 +62,7 @@ class QuizSessionRequest {
 }
 
 class QuizController
-    extends FamilyAsyncNotifier<QuizSessionViewState, QuizSessionRequest> {
+    extends AutoDisposeFamilyAsyncNotifier<QuizSessionViewState, QuizSessionRequest> {
   late String _sessionId;
   late QuizSessionRequest _request;
   late DateTime _startedAt;
@@ -71,14 +75,26 @@ class QuizController
     _startedAt = DateTime.now();
     _sessionId =
         'session-${request.topicId}-${request.quizType.routeValue}-${_startedAt.microsecondsSinceEpoch}';
-    final questions = await ref.watch(
-      questionsForTopicAndTypeProvider(
-        QuestionsForTopicAndTypeRequest(
-          topicId: request.topicId,
-          questionType: request.quizType,
-        ),
-      ).future,
+
+    final questionsRequest = QuestionsForTopicAndTypeRequest(
+      topicId: request.topicId,
+      questionType: request.quizType,
     );
+    // Refresh questions so every new attempt gets fresh randomized questions
+    final questions = await ref.refresh(
+      questionsForTopicAndTypeProvider(questionsRequest).future,
+    );
+
+    final datasource = ref.read(quizDatasourceProvider);
+    if (datasource is QuizRemoteDatasource &&
+        (request.quizType == QuestionType.mcq ||
+            request.quizType == QuestionType.suddenDeath) &&
+        questions.isNotEmpty) {
+      await datasource.createSession(
+        topicId: request.topicId,
+        questionCount: questions.length,
+      );
+    }
 
     return QuizSessionViewState(
       topicId: request.topicId,
@@ -195,7 +211,7 @@ class QuizController
 }
 
 final quizControllerProvider =
-    AsyncNotifierProvider.family<
+    AutoDisposeAsyncNotifierProvider.family<
       QuizController,
       QuizSessionViewState,
       QuizSessionRequest

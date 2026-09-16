@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/motion/app_motion.dart';
+import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
+import '../../../../app/theme/app_elevation.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -11,7 +13,6 @@ import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import 'game_power_up_bar.dart';
-import 'mcq_character_widget.dart';
 
 class McqQuestionView extends StatefulWidget {
   final McqQuestion question;
@@ -45,12 +46,11 @@ class _McqQuestionViewState extends State<McqQuestionView>
 
   late final AnimationController _questionMotionController;
   String? _selectedOptionId;
-  final Set<String> _hiddenOptionIds = {};
+  Set<String> _hiddenOptionIds = {};
   bool _isFiftyFiftyUsed = false;
   bool _isHintVisible = false;
-  bool _isSubmitted = false;
   bool _isSkipUsed = false;
-  McqCharacterState _characterState = McqCharacterState.idle;
+  bool _isSubmitted = false;
 
   bool get _isFinalQuestion => widget.currentIndex >= widget.totalQuestions - 1;
 
@@ -82,12 +82,11 @@ class _McqQuestionViewState extends State<McqQuestionView>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.question.id != widget.question.id) {
       _selectedOptionId = null;
-      _hiddenOptionIds.clear();
+      _hiddenOptionIds = {};
       _isFiftyFiftyUsed = false;
       _isHintVisible = false;
-      _isSubmitted = false;
       _isSkipUsed = false;
-      _characterState = McqCharacterState.idle;
+      _isSubmitted = false;
       _questionMotionController.forward(from: 0);
     }
   }
@@ -112,54 +111,38 @@ class _McqQuestionViewState extends State<McqQuestionView>
 
     setState(() {
       _isFiftyFiftyUsed = true;
-      _hiddenOptionIds.addAll(
-        incorrectOptions.take(removeCount).map((option) => option.id),
-      );
+      _hiddenOptionIds = {
+        ..._hiddenOptionIds,
+        ...incorrectOptions.take(removeCount).map((option) => option.id),
+      };
       if (_selectedOptionId != null &&
           _hiddenOptionIds.contains(_selectedOptionId)) {
         _selectedOptionId = null;
-        _characterState = McqCharacterState.thinking;
-      } else {
-        _characterState = McqCharacterState.powerUp;
       }
     });
   }
 
   void _showHint() {
     if (_isSubmitted || _isHintVisible) return;
-    setState(() {
-      _isHintVisible = true;
-      _characterState = McqCharacterState.thinking;
-    });
+    setState(() => _isHintVisible = true);
   }
 
-  Future<void> _skipQuestion() async {
+  void _skipQuestion() {
     if (_isSubmitted || _isSkipUsed) return;
-
-    setState(() {
-      _isSkipUsed = true;
-      _isSubmitted = true;
-      _characterState = McqCharacterState.transition;
-    });
-    await _questionMotionController.reverse();
-    if (!mounted) return;
-
-    widget.onSubmit(
-      McqAnswer(
-        questionId: widget.question.id,
-        selectedOptionId: _skippedOptionId,
-      ),
-    );
+    setState(() => _isSkipUsed = true);
+    _submitAnswer(_skippedOptionId);
   }
 
   Future<void> _submitSelectedAnswer() async {
     final selectedOptionId = _selectedOptionId;
-    if (selectedOptionId == null || _isSubmitted) return;
+    if (selectedOptionId == null) return;
+    await _submitAnswer(selectedOptionId);
+  }
 
-    setState(() {
-      _isSubmitted = true;
-      _characterState = McqCharacterState.transition;
-    });
+  Future<void> _submitAnswer(String selectedOptionId) async {
+    if (_isSubmitted) return;
+
+    setState(() => _isSubmitted = true);
     await _questionMotionController.reverse();
     if (!mounted) return;
 
@@ -173,17 +156,10 @@ class _McqQuestionViewState extends State<McqQuestionView>
 
   @override
   Widget build(BuildContext context) {
-    final hintText =
-        widget.question.hint ??
-        'Read the question carefully and eliminate choices that do not fit.';
-    final buttonLabel = _isFinalQuestion ? 'Submit quiz' : 'Next';
-    final visibleOptions = widget.question.options
-        .where((option) => !_hiddenOptionIds.contains(option.id))
-        .toList();
     final progress = widget.totalQuestions == 0
         ? 0.0
         : (widget.currentIndex + 1) / widget.totalQuestions;
-    final selected = _selectedOptionId != null && !_isSubmitted;
+    final buttonLabel = _isFinalQuestion ? 'Submit quiz' : 'Next';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -192,127 +168,136 @@ class _McqQuestionViewState extends State<McqQuestionView>
           currentIndex: widget.currentIndex,
           totalQuestions: widget.totalQuestions,
           progress: progress,
+          coins: widget.coins,
         ),
         const SizedBox(height: AppSpacing.md),
         Expanded(
-          child: FadeTransition(
-            key: const Key('mcq_question_motion'),
-            opacity: _questionMotionController.drive(
-              CurveTween(curve: AppMotion.easeOut),
-            ),
-            child: SlideTransition(
-              position:
-                  Tween<Offset>(
-                    begin: const Offset(0, 0.045),
-                    end: Offset.zero,
-                  ).animate(
-                    CurvedAnimation(
-                      parent: _questionMotionController,
-                      curve: AppMotion.easeOut,
-                      reverseCurve: AppMotion.easeIn,
+          child: SingleChildScrollView(
+            child: FadeTransition(
+              opacity: _questionMotionController.drive(
+                CurveTween(curve: AppMotion.easeOut),
+              ),
+              child: SlideTransition(
+                position:
+                    Tween<Offset>(
+                      begin: const Offset(0, 0.045),
+                      end: Offset.zero,
+                    ).animate(
+                      CurvedAnimation(
+                        parent: _questionMotionController,
+                        curve: AppMotion.easeOut,
+                        reverseCurve: AppMotion.easeIn,
+                      ),
                     ),
-                  ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    widget.question.prompt,
-                    style: context.appTextStyles.titleLarge.copyWith(
-                      fontWeight: FontWeight.w800,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      widget.question.prompt,
+                      style: context.appTextStyles.titleLarge,
                     ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  McqCharacterWidget(
-                    key: ValueKey('mcq-character-${widget.question.id}'),
-                    state: _characterState,
-                    message: _isHintVisible ? hintText : null,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Expanded(
-                    key: const Key('mcq_options_section'),
-                    child: ListView.separated(
-                      padding: EdgeInsets.zero,
-                      itemCount: visibleOptions.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: AppSpacing.sm),
-                      itemBuilder: (context, index) {
-                        final option = visibleOptions[index];
-                        return _AnimatedMcqOption(
-                          key: ValueKey(
-                            'mcq-option-${widget.question.id}-${option.id}',
-                          ),
-                          controller: _questionMotionController,
-                          index: index,
-                          option: option,
-                          isSelected: _selectedOptionId == option.id,
-                          isDisabled: _isSubmitted,
-                          onSelected: () {
-                            if (_isSubmitted) return;
-                            setState(() {
-                              _selectedOptionId = option.id;
-                              _characterState = McqCharacterState.acknowledge;
-                            });
-                          },
-                        );
-                      },
+                    const SizedBox(height: AppSpacing.md),
+                    GamePowerUpBar(
+                      coinBalanceOverride: widget.coins,
+                      isDisabled: _isSubmitted,
+                      actions: [
+                        GamePowerUpAction(
+                          id: '50-50',
+                          label: '50:50',
+                          description: 'Remove two wrong answers.',
+                          coinCost: 20,
+                          icon: Icons.filter_2,
+                          isUsed: _isFiftyFiftyUsed,
+                          onUse: _useFiftyFifty,
+                        ),
+                        GamePowerUpAction(
+                          id: 'hint',
+                          label: 'Hint',
+                          description:
+                              'Show a helpful clue without revealing the answer.',
+                          coinCost: 10,
+                          icon: Icons.lightbulb_outline,
+                          isUsed: _isHintVisible,
+                          onUse: _showHint,
+                        ),
+                        GamePowerUpAction(
+                          id: 'mcq-skip',
+                          label: 'Skip',
+                          description: 'Move on without selecting an answer.',
+                          coinCost: 25,
+                          icon: Icons.fast_forward_rounded,
+                          isUsed: _isSkipUsed,
+                          onUse: _skipQuestion,
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    AnimatedSize(
+                      duration: AppMotion.duration(context, AppMotion.normal),
+                      alignment: Alignment.topCenter,
+                      child: _isHintVisible
+                          ? Padding(
+                              padding: const EdgeInsets.only(
+                                top: AppSpacing.sm,
+                              ),
+                              child: _HintPanel(
+                                text:
+                                    widget.question.hint ??
+                                    'Read the question carefully and eliminate choices that do not fit.',
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    for (final indexed in widget.question.options.indexed) ...[
+                      _AnimatedMcqOption(
+                        key: ValueKey(
+                          'mcq-option-${widget.question.id}-${indexed.$2.id}',
+                        ),
+                        controller: _questionMotionController,
+                        index: indexed.$1,
+                        option: indexed.$2,
+                        isSelected: _selectedOptionId == indexed.$2.id,
+                        isHidden: _hiddenOptionIds.contains(indexed.$2.id),
+                        isDisabled: _isSubmitted,
+                        onSelected: () {
+                          if (_isSubmitted ||
+                              _hiddenOptionIds.contains(indexed.$2.id)) {
+                            return;
+                          }
+                          setState(() => _selectedOptionId = indexed.$2.id);
+                        },
+                      ),
+                      if (indexed.$1 != widget.question.options.length - 1)
+                        const SizedBox(height: AppSpacing.sm),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),
         ),
         const SizedBox(height: AppSpacing.md),
-        GamePowerUpBar(
-          coinBalanceOverride: widget.coins,
-          isDisabled: _isSubmitted,
-          showWallet: false,
-          actions: [
-            GamePowerUpAction(
-              id: '50-50',
-              label: '50:50',
-              description: 'Remove two wrong answers.',
-              coinCost: 20,
-              icon: Icons.filter_2,
-              isUsed: _isFiftyFiftyUsed,
-              onUse: _useFiftyFifty,
-            ),
-            GamePowerUpAction(
-              id: 'hint',
-              label: 'Hint',
-              description: 'Show a helpful clue without revealing the answer.',
-              coinCost: 10,
-              icon: Icons.lightbulb_outline,
-              isUsed: _isHintVisible,
-              onUse: _showHint,
-            ),
-            GamePowerUpAction(
-              id: 'skip',
-              label: 'Skip',
-              description: 'Skip this question safely.',
-              coinCost: 30,
-              icon: Icons.fast_forward_rounded,
-              isUsed: _isSkipUsed,
-              onUse: _skipQuestion,
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
         AnimatedScale(
           duration: AppMotion.duration(context, AppMotion.fast),
           curve: AppMotion.easeOut,
-          scale: selected ? 1 : 0.985,
+          scale: _selectedOptionId == null || _isSubmitted ? 0.98 : 1,
           child: AnimatedOpacity(
             duration: AppMotion.duration(context, AppMotion.fast),
-            opacity: selected ? 1 : 0.68,
+            opacity: _selectedOptionId == null || _isSubmitted ? 0.62 : 1,
             child: AppButton(
               label: buttonLabel,
-              trailingIcon: Icon(
-                _isFinalQuestion
-                    ? Icons.emoji_events_rounded
-                    : Icons.arrow_forward_rounded,
+              trailingIcon: AnimatedSwitcher(
+                duration: AppMotion.duration(context, AppMotion.fast),
+                child: Icon(
+                  _isFinalQuestion
+                      ? Icons.emoji_events_rounded
+                      : Icons.arrow_forward_rounded,
+                  key: ValueKey(buttonLabel),
+                ),
               ),
-              onPressed: selected ? _submitSelectedAnswer : null,
+              onPressed: _selectedOptionId == null || _isSubmitted
+                  ? null
+                  : _submitSelectedAnswer,
             ),
           ),
         ),
@@ -325,11 +310,13 @@ class _McqHeader extends StatelessWidget {
   final int currentIndex;
   final int totalQuestions;
   final double progress;
+  final int coins;
 
   const _McqHeader({
     required this.currentIndex,
     required this.totalQuestions,
     required this.progress,
+    required this.coins,
   });
 
   @override
@@ -344,6 +331,42 @@ class _McqHeader extends StatelessWidget {
             Expanded(
               child: Text('MCQ Quiz', style: context.appTextStyles.titleLarge),
             ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: 4,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.coinGold.withValues(alpha: 0.12),
+                borderRadius: AppDimensions.radiusSm,
+                border: Border.all(
+                  color: AppColors.coinGold.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.monetization_on_rounded,
+                    color: AppColors.coinGold,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 4),
+                  AnimatedSwitcher(
+                    duration: AppMotion.duration(context, AppMotion.fast),
+                    child: Text(
+                      '$coins',
+                      key: ValueKey(coins),
+                      style: context.appTextStyles.labelLarge.copyWith(
+                        color: AppColors.coinGold,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
             AnimatedSwitcher(
               duration: AppMotion.duration(context, AppMotion.fast),
               child: Text(
@@ -376,11 +399,49 @@ class _McqHeader extends StatelessWidget {
   }
 }
 
+class _HintPanel extends StatelessWidget {
+  final String text;
+
+  const _HintPanel({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.primary.withValues(alpha: 0.08),
+        borderRadius: AppDimensions.radiusMd,
+        border: Border.all(color: colors.primary.withValues(alpha: 0.18)),
+      ),
+      child: Padding(
+        padding: AppSpacing.paddingSm,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.lightbulb_outline, color: colors.primary, size: 18),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Text(
+                text,
+                style: context.appTextStyles.bodyMedium.copyWith(
+                  color: colors.textPrimary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AnimatedMcqOption extends StatelessWidget {
   final Animation<double> controller;
   final int index;
   final QuestionOption option;
   final bool isSelected;
+  final bool isHidden;
   final bool isDisabled;
   final VoidCallback onSelected;
 
@@ -390,6 +451,7 @@ class _AnimatedMcqOption extends StatelessWidget {
     required this.index,
     required this.option,
     required this.isSelected,
+    required this.isHidden,
     required this.isDisabled,
     required this.onSelected,
   });
@@ -404,22 +466,35 @@ class _AnimatedMcqOption extends StatelessWidget {
     final horizontalOffset = index.isEven ? -0.045 : 0.045;
 
     return FadeTransition(
-      key: Key('mcq_option_stagger_$index'),
       opacity: animation,
       child: SlideTransition(
         position: Tween<Offset>(
-          begin: Offset(horizontalOffset, 0.025),
+          begin: Offset(horizontalOffset, 0.02),
           end: Offset.zero,
         ).animate(animation),
-        child: AnimatedScale(
-          duration: AppMotion.duration(context, AppMotion.fast),
-          curve: AppMotion.easeOut,
-          scale: isSelected ? 1.015 : 1,
-          child: _McqOptionCard(
-            option: option,
-            isSelected: isSelected,
-            isDisabled: isDisabled,
-            onSelected: onSelected,
+        child: AnimatedSize(
+          duration: AppMotion.duration(context, AppMotion.normal),
+          alignment: Alignment.topCenter,
+          child: AnimatedOpacity(
+            duration: AppMotion.duration(context, AppMotion.normal),
+            opacity: isHidden ? 0 : 1,
+            child: AnimatedScale(
+              duration: AppMotion.duration(context, AppMotion.fast),
+              curve: AppMotion.easeOut,
+              scale: isHidden
+                  ? 0.96
+                  : isSelected
+                  ? 1.02
+                  : 1,
+              child: isHidden
+                  ? const SizedBox.shrink()
+                  : _McqOptionCard(
+                      option: option,
+                      isSelected: isSelected,
+                      isDisabled: isDisabled,
+                      onSelected: onSelected,
+                    ),
+            ),
           ),
         ),
       ),
@@ -443,74 +518,74 @@ class _McqOptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final borderColor = isSelected ? colors.primary : colors.borderStrong;
-    final accentColor = isSelected ? colors.primary : colors.secondary;
 
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      enabled: !isDisabled,
-      child: AppPressable(
-        onTap: isDisabled ? null : onSelected,
-        borderRadius: AppDimensions.radiusMd,
-        child: AnimatedContainer(
-          duration: AppMotion.duration(context, AppMotion.normal),
-          curve: AppMotion.easeOut,
-          constraints: const BoxConstraints(minHeight: 54),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.sm,
+    return AppPressable(
+      onTap: isDisabled ? null : onSelected,
+      borderRadius: AppDimensions.radiusMd,
+      pressedScale: 0.98,
+      child: AnimatedContainer(
+        duration: AppMotion.duration(context, AppMotion.fast),
+        curve: AppMotion.easeOut,
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colors.primary.withValues(alpha: 0.08)
+              : colors.surface,
+          borderRadius: AppDimensions.radiusMd,
+          border: Border.all(
+            color: isSelected ? colors.primary : colors.borderStrong,
+            width: isSelected ? 1.5 : 1,
           ),
-          decoration: BoxDecoration(
-            color: Color.alphaBlend(
-              accentColor.withValues(alpha: isSelected ? 0.14 : 0.055),
-              colors.surface,
-            ),
-            borderRadius: AppDimensions.radiusMd,
-            border: Border.all(
-              color: borderColor.withValues(alpha: isSelected ? 0.88 : 0.42),
-              width: isSelected ? 1.6 : 1,
-            ),
-            boxShadow: [
-              if (isSelected)
-                BoxShadow(
-                  color: colors.primary.withValues(alpha: 0.22),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
-                ),
-            ],
+          boxShadow: [
+            ...AppElevation.shadows(colors, 1),
+            if (isSelected)
+              BoxShadow(
+                color: colors.secondary.withValues(alpha: 0.18),
+                blurRadius: 16,
+              ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
           ),
           child: Row(
             children: [
               AnimatedContainer(
-                duration: AppMotion.duration(context, AppMotion.normal),
-                width: 34,
-                height: 34,
-                alignment: Alignment.center,
+                duration: AppMotion.duration(context, AppMotion.fast),
+                width: 22,
+                height: 22,
                 decoration: BoxDecoration(
+                  color: isSelected
+                      ? colors.secondary.withValues(alpha: 0.16)
+                      : colors.background,
                   shape: BoxShape.circle,
-                  color: accentColor.withValues(
-                    alpha: isSelected ? 0.20 : 0.10,
-                  ),
                   border: Border.all(
-                    color: accentColor.withValues(
-                      alpha: isSelected ? 0.76 : 0.36,
-                    ),
+                    color: isSelected ? colors.secondary : colors.borderStrong,
+                    width: isSelected ? 2.2 : 1.4,
                   ),
                 ),
-                child: Icon(
-                  Icons.circle,
-                  size: isSelected ? 10 : 7,
-                  color: accentColor,
+                child: Center(
+                  child: AnimatedContainer(
+                    duration: AppMotion.duration(context, AppMotion.fast),
+                    width: isSelected ? 9 : 0,
+                    height: isSelected ? 9 : 0,
+                    decoration: BoxDecoration(
+                      color: colors.secondary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   option.text,
-                  style: context.appTextStyles.bodyLarge.copyWith(
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.appTextStyles.bodyMedium.copyWith(
                     color: colors.textPrimary,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),

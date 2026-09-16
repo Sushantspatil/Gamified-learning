@@ -10,6 +10,12 @@ import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/shared/widgets/app_button.dart';
 import 'package:skillverse_app/features/shop/presentation/widgets/shop_item_card.dart';
+import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
+import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
+import 'package:skillverse_app/features/questions/data/datasources/mock/question_mock_datasource.dart';
+import 'package:skillverse_app/features/questions/presentation/providers/question_providers.dart';
+import 'package:skillverse_app/features/quiz/data/datasources/mock/quiz_mock_datasource.dart';
+import 'package:skillverse_app/features/quiz/presentation/providers/quiz_providers.dart';
 
 Finder _buyButtonFor(String itemTitle) {
   final card = find.ancestor(
@@ -47,6 +53,9 @@ Future<void> _pumpAppWithInitialValues(
     ProviderScope(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storageService),
+        authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
+        questionDatasourceProvider.overrideWithValue(QuestionMockDatasource()),
+        quizDatasourceProvider.overrideWithValue(QuizMockDatasource()),
       ],
       child: const SkillverseApp(),
     ),

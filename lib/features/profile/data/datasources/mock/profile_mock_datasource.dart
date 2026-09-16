@@ -15,14 +15,19 @@ class ProfileMockDatasource implements ProfileDatasource {
         avatarId: 'default',
         classLevel: '12th',
         board: 'Maharashtra State Board',
-        selectedSubjectIds: ['web-dev'],
+        selectedSubjectIds: ['accounting', 'web-dev'],
         profileSetupCompleted: true,
         tutorialCompleted: true,
         xp: 0,
         level: 1,
       );
     }
-    return const UserProfileModel(avatarId: 'default', xp: 0, level: 1);
+    return const UserProfileModel(
+      avatarId: 'default',
+      selectedSubjectIds: ['accounting', 'web-dev'],
+      xp: 0,
+      level: 1,
+    );
   }
 
   @override

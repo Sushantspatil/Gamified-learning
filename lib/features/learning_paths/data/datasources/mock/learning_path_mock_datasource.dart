@@ -11,6 +11,13 @@ class LearningPathMockDatasource implements LearningPathDatasource {
     await Future.delayed(const Duration(milliseconds: 500));
     return const [
       LearningPathModel(
+        id: 'accounting',
+        title: 'Book-Keeping & Accountancy',
+        description: 'Double entry, debit/credit rules, ledger posting, and financial statements.',
+        difficulty: LearningPathDifficulty.beginner,
+        topicCount: 16,
+      ),
+      LearningPathModel(
         id: 'web-dev',
         title: 'Web Development',
         description: 'HTML, CSS, JavaScript and modern frameworks.',
