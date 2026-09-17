@@ -25,8 +25,8 @@ class UserProfileModel extends UserProfile {
                 ?.map((id) => id.toString())
                 .toList() ??
             const [],
-        profileSetupCompleted: json['profileSetupCompleted'] as bool? ?? true,
-        tutorialCompleted: json['tutorialCompleted'] as bool? ?? true,
+        profileSetupCompleted: json['profileSetupCompleted'] as bool? ?? false,
+        tutorialCompleted: json['tutorialCompleted'] as bool? ?? false,
         xp: json['xp'] as int? ?? json['experience'] as int? ?? 0,
         level: json['level'] as int? ?? 1,
       );

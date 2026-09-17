@@ -1,19 +1,31 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../authentication/presentation/providers/auth_providers.dart';
-import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../data/datasources/chest_datasource.dart';
-import '../../data/datasources/mock/chest_mock_datasource.dart';
+import '../../data/models/chest_result_model.dart';
 import '../../data/repositories/chest_repository_impl.dart';
 import '../../domain/entities/chest_result.dart';
 import '../../domain/entities/chest_type.dart';
 import '../../domain/repositories/chest_repository.dart';
 
-/// MOCK BINDING — swap for a Firestore/Cloud-Function-backed
-/// ChestDatasource implementation when the backend is ready.
+/// Empty binding until the backend exposes chest rewards.
 final chestDatasourceProvider = Provider<ChestDatasource>((ref) {
-  return ChestMockDatasource();
+  return const EmptyChestDatasource();
 });
+
+class EmptyChestDatasource implements ChestDatasource {
+  const EmptyChestDatasource();
+
+  @override
+  Future<bool> isDailyChestAvailable(String userId) async {
+    return false;
+  }
+
+  @override
+  Future<ChestResultModel> openChest(String userId, ChestType type) {
+    throw UnsupportedError('Chests are not available from the backend.');
+  }
+}
 
 final chestRepositoryProvider = Provider<ChestRepository>((ref) {
   return ChestRepositoryImpl(ref.watch(chestDatasourceProvider));
@@ -34,22 +46,8 @@ class ChestController extends FamilyAsyncNotifier<bool, ChestType> {
   Future<ChestResult?> open(ChestType type) async {
     final user = ref.read(authControllerProvider).valueOrNull;
     if (user == null) return null;
-
-    final result = await ref
-        .read(chestRepositoryProvider)
-        .openChest(user.id, type);
-    await ref
-        .read(walletControllerProvider.notifier)
-        .credit(
-          currency: result.currency,
-          amount: result.amount,
-          reason: type == ChestType.daily ? 'Daily chest' : 'Ad chest',
-        );
-
-    if (type == ChestType.daily) {
-      state = const AsyncValue.data(false);
-    }
-    return result;
+    state = const AsyncValue.data(false);
+    return null;
   }
 }
 

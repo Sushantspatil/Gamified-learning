@@ -8,8 +8,7 @@ import '../../data/repositories/streak_repository_impl.dart';
 import '../../domain/entities/streak.dart';
 import '../../domain/repositories/streak_repository.dart';
 
-/// MOCK BINDING — swap for a Firestore-backed StreakDatasource
-/// implementation when the backend is ready.
+/// Backend binding for profile-derived streak data.
 final streakDatasourceProvider = Provider<StreakDatasource>((ref) {
   return StreakRemoteDatasource(apiClient: ref.watch(apiClientProvider));
 });

@@ -1,19 +1,30 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../authentication/presentation/providers/auth_providers.dart';
-import '../../../wallet/domain/entities/currency_type.dart';
-import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../data/datasources/daily_mission_datasource.dart';
-import '../../data/datasources/mock/daily_mission_mock_datasource.dart';
+import '../../data/models/daily_mission_model.dart';
 import '../../data/repositories/daily_mission_repository_impl.dart';
 import '../../domain/entities/daily_mission.dart';
 import '../../domain/repositories/daily_mission_repository.dart';
 
-/// MOCK BINDING — swap for a Firestore-backed DailyMissionDatasource
-/// implementation when the backend is ready.
+/// Empty binding until the backend exposes daily mission data.
 final dailyMissionDatasourceProvider = Provider<DailyMissionDatasource>((ref) {
-  return DailyMissionMockDatasource();
+  return const EmptyDailyMissionDatasource();
 });
+
+class EmptyDailyMissionDatasource implements DailyMissionDatasource {
+  const EmptyDailyMissionDatasource();
+
+  @override
+  Future<List<DailyMissionModel>> getTodayMissions(String userId) async {
+    return const [];
+  }
+
+  @override
+  Future<DailyMissionModel> recordQuizCompleted(String userId) {
+    throw UnsupportedError('Daily missions are not available from the backend.');
+  }
+}
 
 final dailyMissionRepositoryProvider = Provider<DailyMissionRepository>((ref) {
   return DailyMissionRepositoryImpl(ref.watch(dailyMissionDatasourceProvider));
@@ -32,23 +43,6 @@ class DailyMissionsController extends AsyncNotifier<List<DailyMission>> {
   Future<void> recordQuizCompletion() async {
     final user = ref.read(authControllerProvider).valueOrNull;
     if (user == null) return;
-
-    final before = state.valueOrNull ?? const [];
-    final wasCompleted = {for (final m in before) m.id: m.isCompleted};
-
-    final updatedMission = await ref
-        .read(dailyMissionRepositoryProvider)
-        .recordQuizCompleted(user.id);
-
-    if (updatedMission.isCompleted && wasCompleted[updatedMission.id] != true) {
-      await ref
-          .read(walletControllerProvider.notifier)
-          .credit(
-            currency: CurrencyType.coins,
-            amount: updatedMission.coinReward,
-            reason: 'Mission: ${updatedMission.title}',
-          );
-    }
 
     final refreshed = await ref
         .read(dailyMissionRepositoryProvider)

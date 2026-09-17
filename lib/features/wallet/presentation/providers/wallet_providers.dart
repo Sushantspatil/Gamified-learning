@@ -10,8 +10,7 @@ import '../../domain/entities/wallet_balance.dart';
 import '../../domain/entities/wallet_transaction.dart';
 import '../../domain/repositories/wallet_repository.dart';
 
-/// MOCK BINDING — swap for a datasource that calls a Cloud Function when
-/// the backend is ready.
+/// Backend binding for profile-derived wallet data.
 final walletDatasourceProvider = Provider<WalletDatasource>((ref) {
   return WalletRemoteDatasource(apiClient: ref.watch(apiClientProvider));
 });

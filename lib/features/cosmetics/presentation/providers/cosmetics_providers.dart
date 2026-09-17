@@ -4,7 +4,7 @@ import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../wallet/domain/entities/currency_type.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../data/datasources/cosmetics_datasource.dart';
-import '../../data/datasources/mock/cosmetics_mock_datasource.dart';
+import '../../data/models/cosmetic_item_model.dart';
 import '../../data/repositories/cosmetics_repository_impl.dart';
 import '../../domain/entities/cosmetic_item.dart';
 import '../../domain/repositories/cosmetics_repository.dart';
@@ -23,11 +23,35 @@ class CosmeticsState {
   });
 }
 
-/// MOCK BINDING — swap for a Firestore-backed CosmeticsDatasource
-/// implementation when the backend is ready.
+/// Empty binding until the backend exposes cosmetics data.
 final cosmeticsDatasourceProvider = Provider<CosmeticsDatasource>((ref) {
-  return CosmeticsMockDatasource();
+  return const EmptyCosmeticsDatasource();
 });
+
+class EmptyCosmeticsDatasource implements CosmeticsDatasource {
+  const EmptyCosmeticsDatasource();
+
+  @override
+  Future<List<CosmeticItemModel>> getCatalog() async {
+    return const [];
+  }
+
+  @override
+  Future<Set<String>> getOwnedCosmeticIds(String userId) async {
+    return const {};
+  }
+
+  @override
+  Future<String?> getEquippedCosmeticId(String userId) async {
+    return null;
+  }
+
+  @override
+  Future<void> recordPurchase(String userId, String cosmeticId) async {}
+
+  @override
+  Future<void> setEquipped(String userId, String cosmeticId) async {}
+}
 
 final cosmeticsRepositoryProvider = Provider<CosmeticsRepository>((ref) {
   return CosmeticsRepositoryImpl(ref.watch(cosmeticsDatasourceProvider));

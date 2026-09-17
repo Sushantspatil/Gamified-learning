@@ -9,8 +9,7 @@ import '../../data/repositories/profile_repository_impl.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/repositories/profile_repository.dart';
 
-/// MOCK BINDING — swap for a Firestore-backed ProfileDatasource
-/// implementation when the backend is ready.
+/// Backend profile binding.
 final profileDatasourceProvider = Provider<ProfileDatasource>((ref) {
   return ProfileRemoteDatasource(
     apiClient: ref.watch(apiClientProvider),

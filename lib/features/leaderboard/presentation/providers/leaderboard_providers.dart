@@ -4,17 +4,41 @@ import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../data/datasources/leaderboard_datasource.dart';
-import '../../data/datasources/mock/leaderboard_mock_datasource.dart';
+import '../../data/models/leaderboard_entry_model.dart';
 import '../../data/repositories/leaderboard_repository_impl.dart';
 import '../../domain/entities/leaderboard_entry.dart';
 import '../../domain/entities/leaderboard_filter.dart';
 import '../../domain/repositories/leaderboard_repository.dart';
 
-/// MOCK BINDING — swap for a Firestore-backed LeaderboardDatasource
-/// implementation when the backend is ready.
+/// Empty binding until the backend exposes leaderboard data.
 final leaderboardDatasourceProvider = Provider<LeaderboardDatasource>((ref) {
-  return LeaderboardMockDatasource();
+  return const EmptyLeaderboardDatasource();
 });
+
+class EmptyLeaderboardDatasource implements LeaderboardDatasource {
+  const EmptyLeaderboardDatasource();
+
+  @override
+  Future<List<LeaderboardEntryModel>> getGlobalLeaderboard({
+    required String currentUserId,
+    required String currentUserName,
+    required String currentUserAvatarId,
+    required int currentUserXp,
+  }) async {
+    return const [];
+  }
+
+  @override
+  Future<List<LeaderboardEntryModel>> getLeaderboard({
+    required LeaderboardFilter filter,
+    required String currentUserId,
+    required String currentUserName,
+    required String currentUserAvatarId,
+    required int currentUserXp,
+  }) async {
+    return const [];
+  }
+}
 
 final leaderboardRepositoryProvider = Provider<LeaderboardRepository>((ref) {
   return LeaderboardRepositoryImpl(ref.watch(leaderboardDatasourceProvider));

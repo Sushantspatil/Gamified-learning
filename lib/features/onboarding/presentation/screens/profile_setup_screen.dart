@@ -22,6 +22,15 @@ import '../../../profile/presentation/providers/profile_providers.dart';
 
 const _classLevels = ['11th', '12th'];
 const _boards = ['Maharashtra State Board'];
+const _backendLearningPaths = [
+  LearningPath(
+    id: 'accounting',
+    title: 'Book-Keeping & Accountancy',
+    description: 'Available from the deployed backend.',
+    difficulty: LearningPathDifficulty.beginner,
+    topicCount: 1,
+  ),
+];
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -58,7 +67,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pathsAsync = ref.watch(learningPathsProvider);
     final isSaving =
         ref.watch(authControllerProvider).isLoading ||
         ref.watch(profileControllerProvider).isLoading ||
@@ -78,58 +86,51 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
         actions: const [ThemeModeMenu()],
       ),
       body: SafeArea(
-        child: pathsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => _MessageState(
-            message: 'Could not load subjects.',
-            onRetry: () => ref.invalidate(learningPathsProvider),
-          ),
-          data: (paths) => Column(
-            children: [
-              Padding(
-                padding: AppSpacing.paddingMd,
-                child: _SetupProgress(step: _step),
+        child: Column(
+          children: [
+            Padding(
+              padding: AppSpacing.paddingMd,
+              child: _SetupProgress(step: _step),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: AppSpacing.horizontalMd,
+                child: _stepContent(_backendLearningPaths),
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: AppSpacing.horizontalMd,
-                  child: _stepContent(paths),
-                ),
-              ),
-              Padding(
-                padding: AppSpacing.paddingMd,
-                child: Row(
-                  children: [
-                    if (_step > 0) ...[
-                      Expanded(
-                        child: AppButton(
-                          key: const Key('setup-back-button'),
-                          label: 'Back',
-                          variant: AppButtonVariant.secondary,
-                          onPressed: isSaving
-                              ? null
-                              : () => setState(() => _step -= 1),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                    ],
+            ),
+            Padding(
+              padding: AppSpacing.paddingMd,
+              child: Row(
+                children: [
+                  if (_step > 0) ...[
                     Expanded(
                       child: AppButton(
-                        key: const Key('setup-next-button'),
-                        label: _step == 3 ? 'Continue' : 'Next',
-                        isLoading: isSaving,
-                        onPressed: !_canContinue
+                        key: const Key('setup-back-button'),
+                        label: 'Back',
+                        variant: AppButtonVariant.secondary,
+                        onPressed: isSaving
                             ? null
-                            : _step == 3
-                            ? _completeProfile
-                            : () => setState(() => _step += 1),
+                            : () => setState(() => _step -= 1),
                       ),
                     ),
+                    const SizedBox(width: AppSpacing.sm),
                   ],
-                ),
+                  Expanded(
+                    child: AppButton(
+                      key: const Key('setup-next-button'),
+                      label: _step == 3 ? 'Continue' : 'Next',
+                      isLoading: isSaving,
+                      onPressed: !_canContinue
+                          ? null
+                          : _step == 3
+                          ? _completeProfile
+                          : () => setState(() => _step += 1),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -505,26 +506,3 @@ class _StepFrame extends StatelessWidget {
   }
 }
 
-class _MessageState extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _MessageState({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: AppSpacing.paddingMd,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(message, style: context.appTextStyles.bodyLarge),
-            const SizedBox(height: AppSpacing.md),
-            AppButton(label: 'Retry', onPressed: onRetry),
-          ],
-        ),
-      ),
-    );
-  }
-}

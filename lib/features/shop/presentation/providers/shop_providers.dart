@@ -1,19 +1,27 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../wallet/presentation/providers/wallet_providers.dart';
-import '../../data/datasources/mock/shop_mock_datasource.dart';
 import '../../data/datasources/shop_datasource.dart';
+import '../../data/models/shop_item_model.dart';
 import '../../data/repositories/shop_repository_impl.dart';
 import '../../domain/entities/shop_item.dart';
 import '../../domain/repositories/shop_repository.dart';
 
 enum PurchaseResult { success, insufficientFunds }
 
-/// MOCK BINDING — swap for a Firestore-backed ShopDatasource implementation
-/// when the backend is ready.
+/// Empty binding until the backend exposes shop data.
 final shopDatasourceProvider = Provider<ShopDatasource>((ref) {
-  return ShopMockDatasource();
+  return const EmptyShopDatasource();
 });
+
+class EmptyShopDatasource implements ShopDatasource {
+  const EmptyShopDatasource();
+
+  @override
+  Future<List<ShopItemModel>> getShopItems() async {
+    return const [];
+  }
+}
 
 final shopRepositoryProvider = Provider<ShopRepository>((ref) {
   return ShopRepositoryImpl(ref.watch(shopDatasourceProvider));
