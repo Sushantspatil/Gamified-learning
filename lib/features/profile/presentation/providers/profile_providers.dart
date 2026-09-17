@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/network_providers.dart';
+import '../../../../core/providers/core_providers.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../data/datasources/profile_datasource.dart';
 import '../../data/datasources/remote/profile_remote_datasource.dart';
@@ -11,7 +12,10 @@ import '../../domain/repositories/profile_repository.dart';
 /// MOCK BINDING — swap for a Firestore-backed ProfileDatasource
 /// implementation when the backend is ready.
 final profileDatasourceProvider = Provider<ProfileDatasource>((ref) {
-  return ProfileRemoteDatasource(apiClient: ref.watch(apiClientProvider));
+  return ProfileRemoteDatasource(
+    apiClient: ref.watch(apiClientProvider),
+    storage: ref.watch(localStorageServiceProvider),
+  );
 });
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {

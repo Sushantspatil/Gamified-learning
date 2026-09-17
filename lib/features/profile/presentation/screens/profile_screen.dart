@@ -4,20 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_colors.dart';
-import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
-import '../../../cosmetics/presentation/cosmetic_color_catalog.dart';
-import '../../../cosmetics/presentation/providers/cosmetics_providers.dart';
-import '../../../learning_paths/domain/entities/learning_path.dart';
-import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../avatar_catalog.dart';
 import '../providers/profile_providers.dart';
@@ -31,19 +25,7 @@ class ProfileScreen extends ConsumerWidget {
     final user = ref.watch(authControllerProvider).valueOrNull;
     final profileAsync = ref.watch(profileControllerProvider);
     final wallet = ref.watch(walletControllerProvider).valueOrNull;
-    final paths = ref.watch(learningPathsProvider).valueOrNull ?? const [];
-    final cosmeticsState = ref.watch(cosmeticsControllerProvider).valueOrNull;
     final colors = context.themeColors;
-    String? equippedColorKey;
-    if (cosmeticsState != null && cosmeticsState.equippedId != null) {
-      for (final item in cosmeticsState.catalog) {
-        if (item.id == cosmeticsState.equippedId) {
-          equippedColorKey = item.colorKey;
-          break;
-        }
-      }
-    }
-    final equippedColor = CosmeticColorCatalog.colorFor(equippedColorKey);
 
     return GameScaffold(
       appBar: AppBar(
@@ -95,16 +77,11 @@ class ProfileScreen extends ConsumerWidget {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            equippedColor ?? colors.primary,
-                            colors.secondary,
-                          ],
+                          colors: [colors.primary, colors.secondary],
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: (equippedColor ?? colors.primary).withValues(
-                              alpha: 0.24,
-                            ),
+                            color: colors.primary.withValues(alpha: 0.24),
                             blurRadius: 24,
                             spreadRadius: 1,
                           ),
@@ -139,25 +116,13 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.md),
                     AppCard(
                       padding: AppSpacing.paddingMd,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            [
-                              if (profile.classLevel != null)
-                                'Class ${profile.classLevel}',
-                              if (profile.board != null) profile.board!,
-                            ].join(' - '),
-                            style: context.appTextStyles.titleMedium,
-                          ),
-                          if (profile.selectedSubjectIds.isNotEmpty) ...[
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              _subjectNames(paths, profile.selectedSubjectIds),
-                              style: context.appTextStyles.bodyMedium,
-                            ),
-                          ],
-                        ],
+                      child: Text(
+                        [
+                          if (profile.classLevel != null)
+                            'Class ${profile.classLevel}',
+                          if (profile.board != null) profile.board!,
+                        ].join(' - '),
+                        style: context.appTextStyles.titleMedium,
                       ),
                     ),
                   ],
@@ -167,26 +132,20 @@ class ProfileScreen extends ConsumerWidget {
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
                     children: [
-                      AppPressable(
-                        onTap: () => context.push(RouteNames.wallet),
-                        child: ProfileStatChip(
-                          icon: Icons.monetization_on,
-                          iconColor: AppColors.coinGold,
-                          label: '${wallet?.coins ?? 0} Coins',
-                        ),
+                      ProfileStatChip(
+                        icon: Icons.monetization_on,
+                        iconColor: AppColors.coinGold,
+                        label: '${wallet?.coins ?? 0} Coins',
                       ),
-                      AppPressable(
-                        onTap: () => context.push(RouteNames.wallet),
-                        child: ProfileStatChip(
-                          icon: Icons.diamond,
-                          iconColor: AppColors.gemCyan,
-                          label: '${wallet?.gems ?? 0} Gems',
-                        ),
+                      ProfileStatChip(
+                        icon: Icons.diamond,
+                        iconColor: AppColors.gemCyan,
+                        label: '${wallet?.gems ?? 0} Gems',
                       ),
                       ProfileStatChip(
                         icon: Icons.bolt,
                         iconColor: AppColors.xpPurple,
-                        label: 'Level ${profile.level} • ${profile.xp} XP',
+                        label: 'Level ${profile.level} - ${profile.xp} XP',
                       ),
                     ],
                   ),
@@ -194,13 +153,6 @@ class ProfileScreen extends ConsumerWidget {
                   AppButton(
                     label: 'Edit Profile',
                     onPressed: () => context.push(RouteNames.editProfile),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-                  const _ComingSoonSection(title: 'Achievements'),
-                  const SizedBox(height: AppSpacing.md),
-                  _NavSection(
-                    title: 'Cosmetics',
-                    onTap: () => context.push(RouteNames.cosmetics),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   AppButton(
@@ -217,71 +169,6 @@ class ProfileScreen extends ConsumerWidget {
               ),
             );
           },
-        ),
-      ),
-    );
-  }
-}
-
-String _subjectNames(List<LearningPath> paths, List<String> selectedIds) {
-  final names = [
-    for (final path in paths)
-      if (selectedIds.contains(path.id)) path.title,
-  ];
-  return names.isEmpty
-      ? '${selectedIds.length} subjects selected'
-      : names.join(', ');
-}
-
-class _ComingSoonSection extends StatelessWidget {
-  final String title;
-
-  const _ComingSoonSection({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return AppCard(
-      padding: AppSpacing.paddingMd,
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(title, style: context.appTextStyles.titleMedium),
-          ),
-          Icon(Icons.emoji_events_outlined, color: colors.warning, size: 18),
-          const SizedBox(width: AppSpacing.xs),
-          Text('Coming soon', style: context.appTextStyles.labelSmall),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavSection extends StatelessWidget {
-  final String title;
-  final VoidCallback onTap;
-
-  const _NavSection({required this.title, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return AppPressable(
-      onTap: onTap,
-      borderRadius: AppDimensions.radiusCard,
-      child: AppCard(
-        padding: AppSpacing.paddingMd,
-        child: Row(
-          children: [
-            Icon(Icons.auto_awesome, color: colors.violet, size: 20),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(title, style: context.appTextStyles.titleMedium),
-            ),
-            Icon(Icons.chevron_right, color: colors.textSecondary),
-          ],
         ),
       ),
     );

@@ -81,4 +81,28 @@ void main() {
     expect(storage.getString(StorageKeys.authToken), isNull);
     expect(storage.getString(StorageKeys.refreshToken), isNull);
   });
+
+  test('can call backend root routes outside the api v1 prefix', () async {
+    final storage = await LocalStorageService.create();
+
+    final client = ApiClient(
+      config: ApiConfig(baseUrl: 'https://api.example.com/api/v1'),
+      storage: storage,
+      httpClient: MockClient((request) async {
+        expect(request.url.toString(), 'https://api.example.com/profile');
+        return http.Response(
+          jsonEncode({
+            'success': true,
+            'data': {'name': 'Sushant Patil'},
+          }),
+          200,
+        );
+      }),
+    );
+
+    final data =
+        await client.get('/profile', useApiRoot: true) as Map<String, dynamic>;
+
+    expect(data['name'], 'Sushant Patil');
+  });
 }

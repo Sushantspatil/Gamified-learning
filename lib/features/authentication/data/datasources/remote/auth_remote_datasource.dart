@@ -141,7 +141,11 @@ class AuthRemoteDatasource implements AuthDatasource {
     required String userId,
     required String displayName,
   }) async {
-    await _apiClient.put('/profile', body: {'name': displayName.trim()});
+    await _apiClient.put(
+      '/profile',
+      useApiRoot: true,
+      body: {'name': displayName.trim()},
+    );
     final user = await getUserById(userId);
     if (user == null) {
       throw const AuthException(

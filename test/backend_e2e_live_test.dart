@@ -22,7 +22,7 @@ void main() {
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
       storage = await LocalStorageService.create();
-      final config = ApiConfig(baseUrl: 'http://127.0.0.1:8080/api/v1');
+      final config = ApiConfig.defaultConfig();
       apiClient = ApiClient(config: config, storage: storage);
       authRemote = AuthRemoteDatasource(apiClient: apiClient, storage: storage);
       questionRemote = QuestionRemoteDatasource(apiClient: apiClient);

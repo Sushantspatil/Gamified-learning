@@ -6,6 +6,7 @@ import '../theme/app_elevation.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_theme_colors.dart';
 import '../theme/app_typography.dart';
+import '../../features/questions/domain/entities/question.dart';
 import 'route_names.dart';
 
 class AuthenticatedShell extends StatelessWidget {
@@ -53,22 +54,13 @@ class _AuthenticatedBottomNavigation extends StatelessWidget {
               onTap: () => context.go(RouteNames.dashboard),
             ),
             _BottomNavItem(
-              icon: Icons.menu_book_outlined,
-              label: 'Subjects',
-              tooltip: 'Subjects',
-              isActive: location == RouteNames.learningPath,
-              onTap: () => context.go(RouteNames.learningPath),
-            ),
-            _PracticeNavItem(
-              isActive: location == RouteNames.practice,
-              onTap: () => context.go(RouteNames.practice),
-            ),
-            _BottomNavItem(
-              icon: Icons.leaderboard_outlined,
-              label: 'Leaderboard',
-              tooltip: 'Leaderboard',
-              isActive: location == RouteNames.leaderboard,
-              onTap: () => context.go(RouteNames.leaderboard),
+              icon: Icons.quiz_outlined,
+              label: 'Play',
+              tooltip: 'Play backend quiz',
+              isActive: location.startsWith(RouteNames.quiz),
+              onTap: () => context.go(
+                RouteNames.quizPath('accounting', QuestionType.mcq),
+              ),
             ),
             _BottomNavItem(
               icon: Icons.person_outline,
@@ -136,51 +128,6 @@ class _BottomNavItem extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PracticeNavItem extends StatelessWidget {
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _PracticeNavItem({required this.isActive, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return Expanded(
-      child: Center(
-        child: Tooltip(
-          message: 'Play',
-          child: InkWell(
-            borderRadius: AppDimensions.radiusCircular,
-            onTap: onTap,
-            child: Container(
-              width: 58,
-              height: 58,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [colors.primary, colors.violet],
-                ),
-                border: Border.all(
-                  color: colors.primaryForeground.withValues(alpha: 0.24),
-                ),
-                boxShadow: AppElevation.shadows(colors, 2),
-              ),
-              child: Icon(
-                Icons.sports_esports,
-                color: colors.primaryForeground,
-                size: isActive ? 28 : 26,
-              ),
             ),
           ),
         ),

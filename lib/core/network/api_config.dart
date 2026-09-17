@@ -20,6 +20,9 @@ class ApiConfig {
       return ApiConfig(baseUrl: envBaseUrl);
     }
 
-    return const ApiConfig(baseUrl: 'http://127.0.0.1:8080/api/v1');
+    return const ApiConfig(
+      baseUrl:
+          'https://gamifiedquizappdigitalhq-production.up.railway.app/api/v1',
+    );
   }
 }

@@ -5,26 +5,15 @@ import '../../features/authentication/presentation/providers/auth_providers.dart
 import '../../features/authentication/presentation/screens/login_screen.dart';
 import '../../features/authentication/presentation/screens/signup_screen.dart';
 import '../../features/authentication/presentation/screens/splash_screen.dart';
-import '../../features/chapters/presentation/screens/chapter_list_screen.dart';
-import '../../features/chapters/presentation/screens/chapter_summary_screen.dart';
-import '../../features/chapters/presentation/screens/topic_learning_screen.dart';
-import '../../features/chests/domain/entities/chest_type.dart';
-import '../../features/chests/presentation/screens/chest_screen.dart';
-import '../../features/cosmetics/presentation/screens/cosmetics_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
-import '../../features/leaderboard/presentation/screens/leaderboard_screen.dart';
 import '../../features/learning_paths/presentation/providers/learning_path_providers.dart';
-import '../../features/learning_paths/presentation/screens/subject_detail_screen.dart';
 import '../../features/onboarding/presentation/screens/how_to_play_tutorial_screen.dart';
 import '../../features/onboarding/presentation/screens/profile_setup_screen.dart';
-import '../../features/practice/presentation/screens/practice_screen.dart';
 import '../../features/profile/presentation/screens/edit_profile_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../../features/questions/domain/entities/question.dart';
 import '../../features/quiz/presentation/screens/quiz_screen.dart';
-import '../../features/shop/presentation/screens/shop_screen.dart';
-import '../../features/spin_wheel/presentation/screens/spin_wheel_screen.dart';
 import '../../features/wallet/presentation/screens/wallet_screen.dart';
 import 'authenticated_shell.dart';
 import 'go_router_refresh_notifier.dart';
@@ -74,22 +63,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: RouteNames.learningPath,
-            builder: (context, state) => const ChapterListScreen(),
+            redirect: (context, state) => RouteNames.dashboard,
           ),
           GoRoute(
             path: RouteNames.practice,
-            builder: (context, state) => PlaySetupScreen(
-              initialSubjectId: state.uri.queryParameters['subjectId'],
-              initialChapterId: state.uri.queryParameters['chapterId'],
-              initialTopicId: state.uri.queryParameters['topicId'],
-              initialGameMode: QuestionTypeX.fromRouteValue(
-                state.uri.queryParameters['quizType'] ?? '',
-              ),
-            ),
+            redirect: (context, state) =>
+                RouteNames.quizPath('accounting', QuestionType.mcq),
           ),
           GoRoute(
             path: RouteNames.leaderboard,
-            builder: (context, state) => const LeaderboardScreen(),
+            redirect: (context, state) => RouteNames.dashboard,
           ),
           GoRoute(
             path: RouteNames.profile,
@@ -103,69 +86,49 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.subjectPattern,
-        builder: (context, state) => SubjectLearnChaptersScreen(
-          subjectId: state.pathParameters['subjectId']!,
-        ),
+        redirect: (context, state) => RouteNames.dashboard,
       ),
       GoRoute(
         path: RouteNames.subjectLearnPattern,
-        builder: (context, state) => SubjectLearnChaptersScreen(
-          subjectId: state.pathParameters['subjectId']!,
-        ),
+        redirect: (context, state) => RouteNames.dashboard,
       ),
       GoRoute(
         path: RouteNames.subjectPlayPattern,
-        redirect: (context, state) => RouteNames.playSetupPath(
-          subjectId: state.pathParameters['subjectId']!,
-        ),
+        redirect: (context, state) =>
+            RouteNames.quizPath('accounting', QuestionType.mcq),
       ),
       GoRoute(
         path: RouteNames.chapterPattern,
-        builder: (context, state) =>
-            ChapterSummaryScreen(chapterId: state.pathParameters['chapterId']!),
+        redirect: (context, state) => RouteNames.dashboard,
       ),
       GoRoute(
         path: RouteNames.topicPattern,
-        builder: (context, state) => TopicLearningScreen(
-          chapterId: state.pathParameters['chapterId']!,
-          topicId: state.pathParameters['topicId']!,
-        ),
+        redirect: (context, state) => RouteNames.dashboard,
       ),
       GoRoute(
         path: RouteNames.topicPracticePattern,
-        redirect: (context, state) => RouteNames.playSetupPath(
-          chapterId: state.pathParameters['chapterId']!,
-          topicId: state.pathParameters['topicId']!,
-        ),
+        redirect: (context, state) =>
+            RouteNames.quizPath('accounting', QuestionType.mcq),
       ),
       GoRoute(
         path: RouteNames.practiceTypePattern,
         redirect: (context, state) =>
-            RouteNames.playSetupPath(quizType: _quizTypeFromState(state)),
+            RouteNames.quizPath('accounting', QuestionType.mcq),
       ),
       GoRoute(
         path: RouteNames.practiceSubjectPattern,
-        redirect: (context, state) => RouteNames.playSetupPath(
-          quizType: _quizTypeFromState(state),
-          subjectId: state.pathParameters['subjectId']!,
-        ),
+        redirect: (context, state) =>
+            RouteNames.quizPath('accounting', QuestionType.mcq),
       ),
       GoRoute(
         path: RouteNames.practiceChapterPattern,
-        redirect: (context, state) => RouteNames.playSetupPath(
-          quizType: _quizTypeFromState(state),
-          subjectId: state.pathParameters['subjectId']!,
-          chapterId: state.pathParameters['chapterId']!,
-        ),
+        redirect: (context, state) =>
+            RouteNames.quizPath('accounting', QuestionType.mcq),
       ),
       GoRoute(
         path: RouteNames.practiceTopicPattern,
-        redirect: (context, state) => RouteNames.playSetupPath(
-          quizType: _quizTypeFromState(state),
-          subjectId: state.pathParameters['subjectId']!,
-          chapterId: state.pathParameters['chapterId']!,
-          topicId: state.pathParameters['topicId']!,
-        ),
+        redirect: (context, state) =>
+            RouteNames.quizPath('accounting', QuestionType.mcq),
       ),
       GoRoute(
         path: RouteNames.typedQuizPattern,
@@ -189,23 +152,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.shop,
-        builder: (context, state) => const ShopScreen(),
+        redirect: (context, state) => RouteNames.dashboard,
       ),
       GoRoute(
         path: RouteNames.chestPattern,
-        builder: (context, state) => ChestScreen(
-          type: state.pathParameters['type'] == 'daily'
-              ? ChestType.daily
-              : ChestType.ad,
-        ),
+        redirect: (context, state) => RouteNames.dashboard,
       ),
       GoRoute(
         path: RouteNames.spinWheel,
-        builder: (context, state) => const SpinWheelScreen(),
+        redirect: (context, state) => RouteNames.dashboard,
       ),
       GoRoute(
         path: RouteNames.cosmetics,
-        builder: (context, state) => const CosmeticsScreen(),
+        redirect: (context, state) => RouteNames.dashboard,
       ),
     ],
   );

@@ -67,7 +67,10 @@ void main() {
   group('ApiConfig Host Resolution', () {
     test('defaultConfig produces valid base URL', () {
       final config = ApiConfig.defaultConfig();
-      expect(config.baseUrl, contains(':8080/api/v1'));
+      expect(
+        config.baseUrl,
+        'https://gamifiedquizappdigitalhq-production.up.railway.app/api/v1',
+      );
     });
 
     test('customBaseUrl overrides default host', () {

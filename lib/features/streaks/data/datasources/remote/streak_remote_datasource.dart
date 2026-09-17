@@ -11,7 +11,7 @@ class StreakRemoteDatasource implements StreakDatasource {
 
   @override
   Future<StreakModel> getStreak(String userId) async {
-    final data = await _apiClient.get('/profile');
+    final data = await _apiClient.get('/profile', useApiRoot: true);
     if (data is! Map<String, dynamic>) {
       throw const ServerException('Invalid streak response from backend.');
     }

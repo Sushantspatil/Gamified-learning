@@ -14,7 +14,10 @@ class UserProfileModel extends UserProfile {
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) =>
       UserProfileModel(
-        avatarId: json['avatarId'] as String? ?? 'default',
+        avatarId:
+            json['avatarId'] as String? ??
+            json['avatarUrl'] as String? ??
+            'default',
         classLevel: json['classLevel'] as String?,
         board: json['board'] as String?,
         selectedSubjectIds:
@@ -22,8 +25,8 @@ class UserProfileModel extends UserProfile {
                 ?.map((id) => id.toString())
                 .toList() ??
             const [],
-        profileSetupCompleted: json['profileSetupCompleted'] as bool? ?? false,
-        tutorialCompleted: json['tutorialCompleted'] as bool? ?? false,
+        profileSetupCompleted: json['profileSetupCompleted'] as bool? ?? true,
+        tutorialCompleted: json['tutorialCompleted'] as bool? ?? true,
         xp: json['xp'] as int? ?? json['experience'] as int? ?? 0,
         level: json['level'] as int? ?? 1,
       );

@@ -22,15 +22,26 @@ class ApiClient {
        _storage = storage,
        _httpClient = httpClient ?? http.Client();
 
-  Uri _buildUri(String endpoint, [Map<String, String>? queryParams]) {
+  String get _apiRootUrl {
+    if (_config.baseUrl.endsWith('/api/v1')) {
+      return _config.baseUrl.substring(0, _config.baseUrl.length - 7);
+    }
+    return _config.baseUrl;
+  }
+
+  Uri _buildUri(
+    String endpoint, [
+    Map<String, String>? queryParams,
+    bool useApiRoot = false,
+  ]) {
     var cleanEndpoint = endpoint.startsWith('/')
         ? endpoint.substring(1)
         : endpoint;
-    if (_config.baseUrl.endsWith('/api/v1') &&
-        cleanEndpoint.startsWith('api/v1/')) {
+    final baseUrl = useApiRoot ? _apiRootUrl : _config.baseUrl;
+    if (baseUrl.endsWith('/api/v1') && cleanEndpoint.startsWith('api/v1/')) {
       cleanEndpoint = cleanEndpoint.substring(7);
     }
-    final urlStr = '${_config.baseUrl}/$cleanEndpoint';
+    final urlStr = '$baseUrl/$cleanEndpoint';
     final uri = Uri.parse(urlStr);
     if (queryParams == null || queryParams.isEmpty) {
       return uri;
@@ -61,8 +72,9 @@ class ApiClient {
     String endpoint, {
     Map<String, String>? queryParams,
     Map<String, String>? headers,
+    bool useApiRoot = false,
   }) async {
-    final uri = _buildUri(endpoint, queryParams);
+    final uri = _buildUri(endpoint, queryParams, useApiRoot);
     try {
       final response = await _httpClient
           .get(uri, headers: _buildHeaders(headers))
@@ -92,8 +104,9 @@ class ApiClient {
     String endpoint, {
     dynamic body,
     Map<String, String>? headers,
+    bool useApiRoot = false,
   }) async {
-    final uri = _buildUri(endpoint);
+    final uri = _buildUri(endpoint, null, useApiRoot);
     try {
       final encodedBody = body != null ? jsonEncode(body) : null;
       final response = await _httpClient
@@ -124,8 +137,9 @@ class ApiClient {
     String endpoint, {
     dynamic body,
     Map<String, String>? headers,
+    bool useApiRoot = false,
   }) async {
-    final uri = _buildUri(endpoint);
+    final uri = _buildUri(endpoint, null, useApiRoot);
     try {
       final encodedBody = body != null ? jsonEncode(body) : null;
       final response = await _httpClient
