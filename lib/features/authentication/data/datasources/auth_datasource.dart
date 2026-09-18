@@ -1,5 +1,5 @@
 import '../models/user_model.dart';
-
+ 
 /// Implemented today by [AuthMockDatasource]. Swap the provider binding to a
 /// Firebase-backed implementation later without changing the repository.
 abstract class AuthDatasource {
