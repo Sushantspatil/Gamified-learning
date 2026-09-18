@@ -750,8 +750,8 @@ void main() {
     await _answerAllMcqCorrectly(tester);
 
     expect(find.text('Quiz Complete!'), findsOneWidget);
-    expect(find.text('+50 XP'), findsOneWidget);
-    expect(find.text('+25 Coins'), findsOneWidget);
+    expect(find.text('+55 XP'), findsOneWidget);
+    expect(find.text('+15 Coins'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Done'));
     await tester.pumpAndSettle();

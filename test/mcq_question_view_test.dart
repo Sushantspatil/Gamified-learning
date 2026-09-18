@@ -52,11 +52,22 @@ Future<void> _pumpMcqView(
   await tester.pumpAndSettle();
 }
 
+Future<void> _tapPowerUp(WidgetTester tester, String label) async {
+  final finder = find.text(label);
+  await tester.ensureVisible(finder);
+  await tester.pump();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('MCQ renders with assistance controls', (tester) async {
     await _pumpMcqView(tester);
 
     expect(find.text('Which item is an asset?'), findsOneWidget);
+    expect(find.byKey(const Key('quiz_companion_placeholder')), findsOneWidget);
+    expect(find.text('Your Quiz Companion'), findsOneWidget);
+    expect(find.text('Coming Soon'), findsOneWidget);
     expect(find.text('50:50'), findsOneWidget);
     expect(find.text('Hint'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);
@@ -67,8 +78,7 @@ void main() {
   testWidgets('50:50 removes two incorrect options only', (tester) async {
     await _pumpMcqView(tester);
 
-    await tester.tap(find.text('50:50'));
-    await tester.pumpAndSettle();
+    await _tapPowerUp(tester, '50:50');
     await tester.tap(find.text('Buy & use'));
     await tester.pumpAndSettle();
 
@@ -82,8 +92,7 @@ void main() {
   testWidgets('hint does not reveal the correct answer', (tester) async {
     await _pumpMcqView(tester);
 
-    await tester.tap(find.text('Hint'));
-    await tester.pumpAndSettle();
+    await _tapPowerUp(tester, 'Hint');
     await tester.tap(find.text('Buy & use'));
     await tester.pumpAndSettle();
 
@@ -123,8 +132,8 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('50:50'));
-    await tester.tap(find.text('Hint'));
+    await _tapPowerUp(tester, '50:50');
+    await _tapPowerUp(tester, 'Hint');
     await tester.pumpAndSettle();
 
     expect(submitted?.selectedOptionId, 'b');
@@ -151,8 +160,7 @@ void main() {
       onSubmit: (answer) => submitted = answer as McqAnswer,
     );
 
-    await tester.tap(find.text('Skip'));
-    await tester.pumpAndSettle();
+    await _tapPowerUp(tester, 'Skip');
     await tester.tap(find.text('Buy & use'));
     await tester.pumpAndSettle();
 

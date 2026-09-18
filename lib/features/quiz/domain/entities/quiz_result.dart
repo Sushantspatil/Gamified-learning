@@ -28,6 +28,54 @@ class Score extends Equatable {
   ];
 }
 
+class RewardBreakdownItem extends Equatable {
+  final String key;
+  final int amount;
+
+  const RewardBreakdownItem({required this.key, required this.amount});
+
+  @override
+  List<Object?> get props => [key, amount];
+}
+
+class QuizRewardBreakdown extends Equatable {
+  final List<RewardBreakdownItem> score;
+  final List<RewardBreakdownItem> xp;
+  final List<RewardBreakdownItem> coins;
+
+  const QuizRewardBreakdown({
+    this.score = const [],
+    this.xp = const [],
+    this.coins = const [],
+  });
+
+  bool get hasScore => score.any((item) => item.amount != 0);
+  bool get hasXp => xp.any((item) => item.amount != 0);
+  bool get hasCoins => coins.any((item) => item.amount != 0);
+
+  @override
+  List<Object?> get props => [score, xp, coins];
+}
+
+class QuizLevelProgress extends Equatable {
+  final int currentLevel;
+  final int experience;
+  final int nextLevelExperience;
+
+  const QuizLevelProgress({
+    required this.currentLevel,
+    required this.experience,
+    required this.nextLevelExperience,
+  });
+
+  double get progress => nextLevelExperience <= 0
+      ? 0
+      : (experience / nextLevelExperience).clamp(0, 1).toDouble();
+
+  @override
+  List<Object?> get props => [currentLevel, experience, nextLevelExperience];
+}
+
 /// Returned by QuizRepository.submitSession. Today the mock datasource
 /// computes this from the client-reported records; once a backend exists
 /// this must be recomputed/verified server-side rather than trusted as-is
@@ -47,6 +95,8 @@ class QuizResult extends Equatable {
   final int coinsAwarded;
   final int gemsAwarded;
   final bool didLevelUp;
+  final QuizRewardBreakdown rewardBreakdown;
+  final QuizLevelProgress? levelProgress;
   final Duration timeTaken;
   final DateTime createdAt;
 
@@ -65,6 +115,8 @@ class QuizResult extends Equatable {
     this.coinsAwarded = 0,
     this.gemsAwarded = 0,
     this.didLevelUp = false,
+    this.rewardBreakdown = const QuizRewardBreakdown(),
+    this.levelProgress,
     required this.timeTaken,
     required this.createdAt,
   });
@@ -89,6 +141,8 @@ class QuizResult extends Equatable {
     coinsAwarded,
     gemsAwarded,
     didLevelUp,
+    rewardBreakdown,
+    levelProgress,
     timeTaken,
     createdAt,
   ];

@@ -1,10 +1,15 @@
 import '../../../../questions/domain/entities/answer.dart';
 import '../../../../questions/domain/entities/answer_evaluation.dart';
 import '../../../../questions/domain/entities/question.dart';
-import '../../../../../core/utils/reward_calculator.dart';
 import '../../../domain/entities/quiz_result.dart';
 import '../../../domain/entities/quiz_session.dart';
 import '../quiz_datasource.dart';
+
+const _completionXp = 20;
+const _correctAnswerXp = 5;
+const _perfectBonusXp = 10;
+const _completionCoins = 10;
+const _accuracyBonusCoins = 5;
 
 /// MOCK DATA — this is the ONLY place scoring math happens. Replace the
 /// binding in quiz_providers.dart with a datasource that calls a Cloud
@@ -133,7 +138,31 @@ class QuizMockDatasource implements QuizDatasource {
         ? metric.correct
         : 0;
     final completedAt = session.completedAt;
-    final reward = RewardCalculator.forEarnedPoints(earned);
+    final perfect = metric.total > 0 && metric.correct == metric.total;
+    final accuracy = metric.total == 0 ? 0 : metric.correct / metric.total;
+    final xpBreakdown = [
+      const RewardBreakdownItem(key: 'completion_xp', amount: _completionXp),
+      RewardBreakdownItem(
+        key: 'correct_answer_xp',
+        amount: metric.correct * _correctAnswerXp,
+      ),
+      RewardBreakdownItem(
+        key: 'perfect_bonus_xp',
+        amount: perfect ? _perfectBonusXp : 0,
+      ),
+    ];
+    final coinBreakdown = [
+      const RewardBreakdownItem(
+        key: 'completion_coins',
+        amount: _completionCoins,
+      ),
+      RewardBreakdownItem(
+        key: 'accuracy_bonus_coins',
+        amount: accuracy >= .8 ? _accuracyBonusCoins : 0,
+      ),
+    ];
+    final xp = xpBreakdown.fold(0, (sum, item) => sum + item.amount);
+    final coins = coinBreakdown.fold(0, (sum, item) => sum + item.amount);
 
     return QuizResult(
       sessionId: session.id,
@@ -151,8 +180,16 @@ class QuizMockDatasource implements QuizDatasource {
       records: session.answeredRecords,
       endedEarly: session.endedEarly,
       streakCount: streakCount,
-      xpAwarded: reward.xp,
-      coinsAwarded: reward.coins,
+      xpAwarded: xp,
+      coinsAwarded: coins,
+      rewardBreakdown: QuizRewardBreakdown(
+        score: [
+          RewardBreakdownItem(key: 'correct_answer_points', amount: earned),
+          const RewardBreakdownItem(key: 'bonus_points', amount: 0),
+        ],
+        xp: xpBreakdown,
+        coins: coinBreakdown,
+      ),
       timeTaken: completedAt.difference(session.startedAt),
       createdAt: completedAt,
     );

@@ -122,6 +122,9 @@ class QuizRemoteDatasource implements QuizDatasource {
       final correctCount = data['correct_count'] as int? ?? 0;
       final totalCount =
           data['total_questions'] as int? ?? session.questions.length;
+      final maxScore =
+          data['max_score'] as int? ??
+          session.questions.fold<int>(0, (sum, q) => sum + q.points);
       final completedAt = session.completedAt;
 
       return QuizResult(
@@ -133,7 +136,7 @@ class QuizRemoteDatasource implements QuizDatasource {
         quizType: session.quizType,
         score: Score(
           earnedPoints: finalScore,
-          maxPoints: session.questions.fold(0, (sum, q) => sum + q.points),
+          maxPoints: maxScore,
           correctCount: correctCount,
           totalCount: totalCount,
         ),
@@ -148,6 +151,12 @@ class QuizRemoteDatasource implements QuizDatasource {
         didLevelUp: data['level'] is Map<String, dynamic>
             ? (data['level']['did_level_up'] as bool? ?? false)
             : false,
+        rewardBreakdown: QuizRewardBreakdown(
+          score: _parseBreakdown(data['score_breakdown']),
+          xp: _parseBreakdown(data['xp_breakdown']),
+          coins: _parseBreakdown(data['coin_breakdown']),
+        ),
+        levelProgress: _parseLevelProgress(data['level']),
         timeTaken: completedAt.difference(session.startedAt),
         createdAt: completedAt,
       );
@@ -181,5 +190,32 @@ class QuizRemoteDatasource implements QuizDatasource {
       );
     }
     return null;
+  }
+
+  List<RewardBreakdownItem> _parseBreakdown(Object? value) {
+    if (value is! Map) return const [];
+    return value.entries
+        .map(
+          (entry) => RewardBreakdownItem(
+            key: entry.key.toString(),
+            amount: entry.value is num ? (entry.value as num).round() : 0,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  QuizLevelProgress? _parseLevelProgress(Object? value) {
+    if (value is! Map<String, dynamic>) return null;
+    final current = value['current'] as int?;
+    final experience = value['experience'] as int?;
+    final nextLevelExperience = value['next_level_exp'] as int?;
+    if (current == null || experience == null || nextLevelExperience == null) {
+      return null;
+    }
+    return QuizLevelProgress(
+      currentLevel: current,
+      experience: experience,
+      nextLevelExperience: nextLevelExperience,
+    );
   }
 }
