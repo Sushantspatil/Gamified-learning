@@ -160,6 +160,30 @@ class _McqQuestionViewState extends State<McqQuestionView>
         ? 0.0
         : (widget.currentIndex + 1) / widget.totalQuestions;
     final buttonLabel = _isFinalQuestion ? 'Submit quiz' : 'Next';
+    final submitButton = AnimatedScale(
+      duration: AppMotion.duration(context, AppMotion.fast),
+      curve: AppMotion.easeOut,
+      scale: _selectedOptionId == null || _isSubmitted ? 0.98 : 1,
+      child: AnimatedOpacity(
+        duration: AppMotion.duration(context, AppMotion.fast),
+        opacity: _selectedOptionId == null || _isSubmitted ? 0.62 : 1,
+        child: AppButton(
+          label: buttonLabel,
+          trailingIcon: AnimatedSwitcher(
+            duration: AppMotion.duration(context, AppMotion.fast),
+            child: Icon(
+              _isFinalQuestion
+                  ? Icons.emoji_events_rounded
+                  : Icons.arrow_forward_rounded,
+              key: ValueKey(buttonLabel),
+            ),
+          ),
+          onPressed: _selectedOptionId == null || _isSubmitted
+              ? null
+              : _submitSelectedAnswer,
+        ),
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -172,144 +196,150 @@ class _McqQuestionViewState extends State<McqQuestionView>
         ),
         const SizedBox(height: AppSpacing.md),
         Expanded(
-          child: SingleChildScrollView(
-            child: FadeTransition(
-              opacity: _questionMotionController.drive(
-                CurveTween(curve: AppMotion.easeOut),
-              ),
-              child: SlideTransition(
-                position:
-                    Tween<Offset>(
-                      begin: const Offset(0, 0.045),
-                      end: Offset.zero,
-                    ).animate(
-                      CurvedAnimation(
-                        parent: _questionMotionController,
-                        curve: AppMotion.easeOut,
-                        reverseCurve: AppMotion.easeIn,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final companionHeight = _companionHeightFor(
+                constraints.maxHeight,
+              );
+
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: FadeTransition(
+                    opacity: _questionMotionController.drive(
+                      CurveTween(curve: AppMotion.easeOut),
+                    ),
+                    child: SlideTransition(
+                      position:
+                          Tween<Offset>(
+                            begin: const Offset(0, 0.045),
+                            end: Offset.zero,
+                          ).animate(
+                            CurvedAnimation(
+                              parent: _questionMotionController,
+                              curve: AppMotion.easeOut,
+                              reverseCurve: AppMotion.easeIn,
+                            ),
+                          ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            widget.question.prompt,
+                            style: context.appTextStyles.titleLarge,
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          QuizCompanionPlaceholder(height: companionHeight),
+                          const SizedBox(height: AppSpacing.md),
+                          for (final indexed
+                              in widget.question.options.indexed) ...[
+                            _AnimatedMcqOption(
+                              key: ValueKey(
+                                'mcq-option-${widget.question.id}-${indexed.$2.id}',
+                              ),
+                              controller: _questionMotionController,
+                              index: indexed.$1,
+                              option: indexed.$2,
+                              isSelected: _selectedOptionId == indexed.$2.id,
+                              isHidden: _hiddenOptionIds.contains(
+                                indexed.$2.id,
+                              ),
+                              isDisabled: _isSubmitted,
+                              onSelected: () {
+                                if (_isSubmitted ||
+                                    _hiddenOptionIds.contains(indexed.$2.id)) {
+                                  return;
+                                }
+                                setState(
+                                  () => _selectedOptionId = indexed.$2.id,
+                                );
+                              },
+                            ),
+                            if (indexed.$1 !=
+                                widget.question.options.length - 1)
+                              const SizedBox(height: AppSpacing.sm),
+                          ],
+                          AnimatedSize(
+                            duration: AppMotion.duration(
+                              context,
+                              AppMotion.normal,
+                            ),
+                            alignment: Alignment.topCenter,
+                            child: _isHintVisible
+                                ? Padding(
+                                    padding: const EdgeInsets.only(
+                                      top: AppSpacing.md,
+                                    ),
+                                    child: _HintPanel(
+                                      text:
+                                          widget.question.hint ??
+                                          'Read the question carefully and eliminate choices that do not fit.',
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          GamePowerUpBar(
+                            coinBalanceOverride: widget.coins,
+                            isDisabled: _isSubmitted,
+                            actions: [
+                              GamePowerUpAction(
+                                id: '50-50',
+                                label: '50:50',
+                                description: 'Remove two wrong answers.',
+                                coinCost: 20,
+                                icon: Icons.filter_2,
+                                isUsed: _isFiftyFiftyUsed,
+                                onUse: _useFiftyFifty,
+                              ),
+                              GamePowerUpAction(
+                                id: 'hint',
+                                label: 'Hint',
+                                description:
+                                    'Show a helpful clue without revealing the answer.',
+                                coinCost: 10,
+                                icon: Icons.lightbulb_outline,
+                                isUsed: _isHintVisible,
+                                onUse: _showHint,
+                              ),
+                              GamePowerUpAction(
+                                id: 'mcq-skip',
+                                label: 'Skip',
+                                description:
+                                    'Move on without selecting an answer.',
+                                coinCost: 25,
+                                icon: Icons.fast_forward_rounded,
+                                isUsed: _isSkipUsed,
+                                onUse: _skipQuestion,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          submitButton,
+                        ],
                       ),
                     ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      widget.question.prompt,
-                      style: context.appTextStyles.titleLarge,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    const QuizCompanionPlaceholder(),
-                    const SizedBox(height: AppSpacing.md),
-                    for (final indexed in widget.question.options.indexed) ...[
-                      _AnimatedMcqOption(
-                        key: ValueKey(
-                          'mcq-option-${widget.question.id}-${indexed.$2.id}',
-                        ),
-                        controller: _questionMotionController,
-                        index: indexed.$1,
-                        option: indexed.$2,
-                        isSelected: _selectedOptionId == indexed.$2.id,
-                        isHidden: _hiddenOptionIds.contains(indexed.$2.id),
-                        isDisabled: _isSubmitted,
-                        onSelected: () {
-                          if (_isSubmitted ||
-                              _hiddenOptionIds.contains(indexed.$2.id)) {
-                            return;
-                          }
-                          setState(() => _selectedOptionId = indexed.$2.id);
-                        },
-                      ),
-                      if (indexed.$1 != widget.question.options.length - 1)
-                        const SizedBox(height: AppSpacing.sm),
-                    ],
-                    AnimatedSize(
-                      duration: AppMotion.duration(context, AppMotion.normal),
-                      alignment: Alignment.topCenter,
-                      child: _isHintVisible
-                          ? Padding(
-                              padding: const EdgeInsets.only(
-                                top: AppSpacing.md,
-                              ),
-                              child: _HintPanel(
-                                text:
-                                    widget.question.hint ??
-                                    'Read the question carefully and eliminate choices that do not fit.',
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    GamePowerUpBar(
-                      coinBalanceOverride: widget.coins,
-                      isDisabled: _isSubmitted,
-                      actions: [
-                        GamePowerUpAction(
-                          id: '50-50',
-                          label: '50:50',
-                          description: 'Remove two wrong answers.',
-                          coinCost: 20,
-                          icon: Icons.filter_2,
-                          isUsed: _isFiftyFiftyUsed,
-                          onUse: _useFiftyFifty,
-                        ),
-                        GamePowerUpAction(
-                          id: 'hint',
-                          label: 'Hint',
-                          description:
-                              'Show a helpful clue without revealing the answer.',
-                          coinCost: 10,
-                          icon: Icons.lightbulb_outline,
-                          isUsed: _isHintVisible,
-                          onUse: _showHint,
-                        ),
-                        GamePowerUpAction(
-                          id: 'mcq-skip',
-                          label: 'Skip',
-                          description: 'Move on without selecting an answer.',
-                          coinCost: 25,
-                          icon: Icons.fast_forward_rounded,
-                          isUsed: _isSkipUsed,
-                          onUse: _skipQuestion,
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AnimatedScale(
-          duration: AppMotion.duration(context, AppMotion.fast),
-          curve: AppMotion.easeOut,
-          scale: _selectedOptionId == null || _isSubmitted ? 0.98 : 1,
-          child: AnimatedOpacity(
-            duration: AppMotion.duration(context, AppMotion.fast),
-            opacity: _selectedOptionId == null || _isSubmitted ? 0.62 : 1,
-            child: AppButton(
-              label: buttonLabel,
-              trailingIcon: AnimatedSwitcher(
-                duration: AppMotion.duration(context, AppMotion.fast),
-                child: Icon(
-                  _isFinalQuestion
-                      ? Icons.emoji_events_rounded
-                      : Icons.arrow_forward_rounded,
-                  key: ValueKey(buttonLabel),
-                ),
-              ),
-              onPressed: _selectedOptionId == null || _isSubmitted
-                  ? null
-                  : _submitSelectedAnswer,
-            ),
+              );
+            },
           ),
         ),
       ],
     );
   }
+
+  double _companionHeightFor(double availableHeight) {
+    final reservedControlHeight = _isHintVisible ? 568.0 : 512.0;
+    final targetHeight = availableHeight - reservedControlHeight;
+    return targetHeight.clamp(112.0, 240.0);
+  }
 }
 
 class QuizCompanionPlaceholder extends StatefulWidget {
-  const QuizCompanionPlaceholder({super.key});
+  final double? height;
+
+  const QuizCompanionPlaceholder({super.key, this.height});
 
   @override
   State<QuizCompanionPlaceholder> createState() =>
@@ -357,7 +387,8 @@ class _QuizCompanionPlaceholderState extends State<QuizCompanionPlaceholder>
 
   @override
   Widget build(BuildContext context) {
-    final height = _placeholderHeight(MediaQuery.sizeOf(context).height);
+    final height =
+        widget.height ?? _placeholderHeight(MediaQuery.sizeOf(context).height);
 
     return Semantics(
       container: true,

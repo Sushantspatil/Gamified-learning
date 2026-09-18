@@ -9,6 +9,7 @@ import '../../../../shared/widgets/app_card.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../domain/entities/quiz_result.dart';
+import 'quiz_celebration_overlay.dart';
 
 class QuizResultView extends StatelessWidget {
   final QuizResult result;
@@ -36,104 +37,109 @@ class QuizResultView extends StatelessWidget {
     final xp = rewardXp ?? result.xpAwarded;
     final coins = rewardCoins ?? result.coinsAwarded;
 
-    return Center(
-      child: SingleChildScrollView(
-        padding: AppSpacing.paddingMd,
-        child: AppCard(
-          variant: AppCardVariant.tinted,
-          tintColor: accent,
-          padding: AppSpacing.paddingLg,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 86,
-                height: 86,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: result.endedEarly
-                        ? [colors.error, colors.violet]
-                        : [colors.warning, AppColors.accentGold],
+    return QuizCelebrationOverlay(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: AppSpacing.paddingMd,
+          child: AppCard(
+            variant: AppCardVariant.tinted,
+            tintColor: accent,
+            padding: AppSpacing.paddingLg,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 86,
+                  height: 86,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: result.endedEarly
+                          ? [colors.error, colors.violet]
+                          : [colors.warning, AppColors.accentGold],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.22),
+                        blurRadius: 24,
+                      ),
+                    ],
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: accent.withValues(alpha: 0.22),
-                      blurRadius: 24,
+                  child: Icon(
+                    result.endedEarly ? Icons.whatshot : Icons.emoji_events,
+                    color: colors.textInverse,
+                    size: 44,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  result.endedEarly
+                      ? 'Sudden Death - Quiz Ended'
+                      : result.quizType == QuestionType.sortItRight
+                      ? 'Sort It Out - Results'
+                      : 'Quiz Complete!',
+                  style: context.appTextStyles.displayMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _ScorePanel(result: result),
+                const SizedBox(height: AppSpacing.md),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    _MetricPill(
+                      icon: Icons.check_circle_outline,
+                      label: '${score.correctCount} correct',
+                      color: colors.success,
+                    ),
+                    _MetricPill(
+                      icon: Icons.cancel_outlined,
+                      label: '${result.wrongCount} wrong',
+                      color: colors.error,
+                    ),
+                    _MetricPill(
+                      icon: Icons.track_changes_rounded,
+                      label: '${(result.accuracy * 100).round()}% accuracy',
+                      color: colors.primary,
                     ),
                   ],
                 ),
-                child: Icon(
-                  result.endedEarly ? Icons.whatshot : Icons.emoji_events,
-                  color: colors.textInverse,
-                  size: 44,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                result.endedEarly
-                    ? 'Sudden Death - Quiz Ended'
-                    : result.quizType == QuestionType.sortItRight
-                    ? 'Sort It Out - Results'
-                    : 'Quiz Complete!',
-                style: context.appTextStyles.displayMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              _ScorePanel(result: result),
-              const SizedBox(height: AppSpacing.md),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  _MetricPill(
-                    icon: Icons.check_circle_outline,
-                    label: '${score.correctCount} correct',
-                    color: colors.success,
-                  ),
-                  _MetricPill(
-                    icon: Icons.cancel_outlined,
-                    label: '${result.wrongCount} wrong',
-                    color: colors.error,
-                  ),
-                  _MetricPill(
-                    icon: Icons.track_changes_rounded,
-                    label: '${(result.accuracy * 100).round()}% accuracy',
-                    color: colors.primary,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _RewardTotals(xp: xp, coins: coins, leveledUp: leveledUp),
-              if (result.levelProgress != null) ...[
                 const SizedBox(height: AppSpacing.md),
-                _XpProgressPanel(progress: result.levelProgress!, earnedXp: xp),
-              ],
-              _RewardBreakdowns(result: result),
-              const SizedBox(height: AppSpacing.sm),
-              TextButton.icon(
-                onPressed: () => _showScoringSheet(context),
-                icon: const Icon(Icons.info_outline, size: 18),
-                label: const Text('How scoring works'),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              if (result.quizType == QuestionType.sortItRight) ...[
-                for (final record in result.records)
-                  if (record.question is SortItRightQuestion &&
-                      record.answer is SortAnswer)
-                    _SortAnswerReview(
-                      question: record.question as SortItRightQuestion,
-                      answer: record.answer as SortAnswer,
-                    ),
-                if (onPlayAgain != null) ...[
+                _RewardTotals(xp: xp, coins: coins, leveledUp: leveledUp),
+                if (result.levelProgress != null) ...[
                   const SizedBox(height: AppSpacing.md),
-                  AppButton(label: 'Play again', onPressed: onPlayAgain),
-                  const SizedBox(height: AppSpacing.sm),
+                  _XpProgressPanel(
+                    progress: result.levelProgress!,
+                    earnedXp: xp,
+                  ),
                 ],
+                _RewardBreakdowns(result: result),
+                const SizedBox(height: AppSpacing.sm),
+                TextButton.icon(
+                  onPressed: () => _showScoringSheet(context),
+                  icon: const Icon(Icons.info_outline, size: 18),
+                  label: const Text('How scoring works'),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                if (result.quizType == QuestionType.sortItRight) ...[
+                  for (final record in result.records)
+                    if (record.question is SortItRightQuestion &&
+                        record.answer is SortAnswer)
+                      _SortAnswerReview(
+                        question: record.question as SortItRightQuestion,
+                        answer: record.answer as SortAnswer,
+                      ),
+                  if (onPlayAgain != null) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    AppButton(label: 'Play again', onPressed: onPlayAgain),
+                    const SizedBox(height: AppSpacing.sm),
+                  ],
+                ],
+                AppButton(label: 'Done', onPressed: onDone),
               ],
-              AppButton(label: 'Done', onPressed: onDone),
-            ],
+            ),
           ),
         ),
       ),
