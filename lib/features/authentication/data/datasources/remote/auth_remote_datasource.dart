@@ -65,13 +65,32 @@ class AuthRemoteDatasource implements AuthDatasource {
   }
 
   @override
+  Future<void> requestSignUpOtp({required String email}) async {
+    await _apiClient.post(
+      '/auth/register/email-request',
+      body: {'email': email.trim()},
+    );
+  }
+
+  @override
+  Future<void> verifySignUpOtp({
+    required String email,
+    required String otp,
+  }) async {
+    await _apiClient.post(
+      '/auth/register/email-verify',
+      body: {'email': email.trim(), 'otp': otp.trim()},
+    );
+  }
+
+  @override
   Future<UserModel> signUp({
     required String email,
     required String password,
     required String displayName,
   }) async {
     try {
-      // 1. Register client in backend database
+      // Email verification is completed before this method is called.
       await _apiClient.post(
         '/auth/register/validate-basic',
         body: {
@@ -81,7 +100,7 @@ class AuthRemoteDatasource implements AuthDatasource {
         },
       );
 
-      // 2. Automatically log in to retrieve JWT tokens and establish session
+      // Log in to retrieve JWT tokens and establish the new session.
       return await login(email: email, password: password);
     } on NetworkException catch (e) {
       developer.log('Backend unreachable ($e)', name: 'AuthRemote');

@@ -92,7 +92,10 @@ Future<void> _signUp(WidgetTester tester) async {
     find.widgetWithText(TextFormField, 'Confirm password'),
     'password123',
   );
-  await tester.tap(find.text('Sign Up'));
+  await tester.tap(find.text('Send verification code'));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byKey(const Key('signup-otp-field')), '123456');
+  await tester.tap(find.text('Verify and create account'));
   await tester.pumpAndSettle();
 }
 

@@ -1,9 +1,13 @@
 import '../models/user_model.dart';
- 
+
 /// Implemented today by [AuthMockDatasource]. Swap the provider binding to a
 /// Firebase-backed implementation later without changing the repository.
 abstract class AuthDatasource {
   Future<UserModel> login({required String email, required String password});
+
+  Future<void> requestSignUpOtp({required String email});
+
+  Future<void> verifySignUpOtp({required String email, required String otp});
 
   Future<UserModel> signUp({
     required String email,

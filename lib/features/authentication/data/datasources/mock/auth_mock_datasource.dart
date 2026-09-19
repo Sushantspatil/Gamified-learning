@@ -50,6 +50,28 @@ class AuthMockDatasource implements AuthDatasource {
   }
 
   @override
+  Future<void> requestSignUpOtp({required String email}) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (_usersByEmail.containsKey(email)) {
+      throw const AuthException(
+        'An account already exists for this email.',
+        'email-in-use',
+      );
+    }
+  }
+
+  @override
+  Future<void> verifySignUpOtp({
+    required String email,
+    required String otp,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (otp != '123456') {
+      throw const AuthException('Invalid verification code.', 'invalid-otp');
+    }
+  }
+
+  @override
   Future<UserModel> signUp({
     required String email,
     required String password,

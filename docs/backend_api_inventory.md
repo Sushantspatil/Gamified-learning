@@ -15,7 +15,7 @@ The backend wraps successful responses as `{ "success": true, "message": "...", 
 | Frontend flow | Current production source | Backend endpoint | Request / response | Auth | Status |
 | --- | --- | --- | --- | --- | --- |
 | Login | `AuthRemoteDatasource` | `POST /api/v1/auth/login` | `{email,password}` -> access token, refresh token, client | No | Integrated |
-| Sign up | `AuthRemoteDatasource` | `POST /api/v1/auth/register/validate-basic` | `{username,email,password}` | No | Integrated; backend also exposes email/phone verification flows |
+| Sign up | `AuthRemoteDatasource` | `POST /api/v1/auth/register/email-request`, `POST /api/v1/auth/register/email-verify`, then `POST /api/v1/auth/register/validate-basic` | `{email}` -> `{email,otp}` -> `{username,email,password}` | No | Integrated email OTP verification followed by account creation and login |
 | Restore session | `AuthRemoteDatasource` | `GET /api/v1/session` | client session | Bearer | Integrated |
 | Refresh token | Central `ApiClient` retry | `POST /api/v1/auth/refresh` | `{refreshToken}` -> access token | No | Integrated |
 | Logout | Remote call followed by local cleanup | `POST /api/v1/auth/logout` | logout confirmation | Bearer | Integrated |
