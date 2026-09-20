@@ -1,13 +1,13 @@
 class ApiConfig {
   static const String defaultProductionBaseUrl =
-      'http://localhost:8080/api/v1';
+      'https://gamifiedquizappdigitalhq-production.up.railway.app/api/v1';
 
   final String baseUrl;
   final Duration timeout;
 
   const ApiConfig({
     required this.baseUrl,
-    this.timeout = const Duration(seconds: 10),
+    this.timeout = const Duration(seconds: 15),
   });
 
   /// Check whether the URL refers to a local development host.
