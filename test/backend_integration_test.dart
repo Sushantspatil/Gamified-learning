@@ -69,7 +69,6 @@ void main() {
       final config = ApiConfig.defaultConfig();
       expect(
         config.baseUrl,
-        'localhost:8080',
         'http://localhost:8080/api/v1',
       );
     });

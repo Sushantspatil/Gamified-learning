@@ -51,7 +51,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         final message = err is AppException ? err.message : err.toString();
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(next.error.toString())));
         ).showSnackBar(SnackBar(content: Text(message)));
       }
     });

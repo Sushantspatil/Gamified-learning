@@ -25,7 +25,6 @@ class ProfileMockDatasource implements ProfileDatasource {
     return const UserProfileModel(
       avatarId: 'default',
       selectedSubjectIds: ['accounting', 'web-dev'],
-      selectedSubjectIds: [],
       xp: 0,
       level: 1,
     );

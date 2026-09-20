@@ -73,22 +73,34 @@ class QuizController
     _sessionId =
         'session-${request.topicId}-${request.quizType.routeValue}-${_startedAt.microsecondsSinceEpoch}';
 
-    final questionsRequest = QuestionsForTopicAndTypeRequest(
-      topicId: request.topicId,
-      questionType: request.quizType,
-    );
-    // Refresh questions so every new attempt gets fresh randomized questions
-    final questions = await ref.refresh(
-      questionsForTopicAndTypeProvider(questionsRequest).future,
-    );
-
     final datasource = ref.read(quizDatasourceProvider);
+    List<Question> questions = const [];
+
+    // For MCQ quizzes with remote backend, create session first to ensure 1:1 question & option state
     if (datasource is QuizRemoteDatasource &&
-        request.quizType == QuestionType.mcq &&
-        questions.isNotEmpty) {
-      await datasource.createSession(
+        request.quizType == QuestionType.mcq) {
+      try {
+        await datasource.createSession(
+          topicId: request.topicId,
+          questionCount: 10,
+        );
+        if (datasource.activeSessionQuestions != null &&
+            datasource.activeSessionQuestions!.isNotEmpty) {
+          questions = datasource.activeSessionQuestions!;
+        }
+      } catch (_) {
+        // Fall back to question provider if session creation fails
+      }
+    }
+
+    if (questions.isEmpty) {
+      final questionsRequest = QuestionsForTopicAndTypeRequest(
         topicId: request.topicId,
-        questionCount: questions.length,
+        questionType: request.quizType,
+      );
+      // Refresh questions so every new attempt gets fresh randomized questions
+      questions = await ref.refresh(
+        questionsForTopicAndTypeProvider(questionsRequest).future,
       );
     }
 

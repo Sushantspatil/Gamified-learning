@@ -5,7 +5,6 @@ import '../models/user_model.dart';
 abstract class AuthDatasource {
   Future<UserModel> login({required String email, required String password});
 
-  Future<void> requestSignUpOtp({required String email});
   Future<String?> requestSignUpOtp({required String email});
 
   Future<void> verifySignUpOtp({required String email, required String otp});

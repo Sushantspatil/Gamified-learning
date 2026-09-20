@@ -5,6 +5,7 @@ import 'package:skillverse_app/core/network/api_client.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer_evaluation.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
+import 'package:skillverse_app/features/questions/data/models/question_dto.dart';
 import '../../../domain/entities/quiz_result.dart';
 import '../../../domain/entities/quiz_session.dart';
 import '../quiz_datasource.dart';
@@ -14,18 +15,22 @@ class QuizRemoteDatasource implements QuizDatasource {
 
   String? _backendSessionId;
   String? _activeTopicId;
+  List<Question>? _activeSessionQuestions;
 
   QuizRemoteDatasource({required ApiClient apiClient}) : _apiClient = apiClient;
 
   String? get activeSessionId => _backendSessionId;
+  List<Question>? get activeSessionQuestions => _activeSessionQuestions;
 
   /// Creates a new server-side session in PostgreSQL.
   Future<String> createSession({
     required String topicId,
     int questionCount = 10,
+    List<String>? questionCodes,
   }) async {
     _backendSessionId = null;
     _activeTopicId = null;
+    _activeSessionQuestions = null;
     final backendTopic = topicId.contains('accounting')
         ? 'accounting'
         : topicId;
@@ -35,12 +40,23 @@ class QuizRemoteDatasource implements QuizDatasource {
         'topic': backendTopic,
         'question_count': questionCount,
         'abandon_stale': true,
+        if (questionCodes != null && questionCodes.isNotEmpty)
+          'question_codes': questionCodes,
       },
     );
 
     if (response is Map<String, dynamic> && response['session'] is String) {
       _backendSessionId = response['session'] as String;
       _activeTopicId = topicId;
+
+      if (response['questions'] is List) {
+        final rawQuestions = response['questions'] as List<dynamic>;
+        _activeSessionQuestions = rawQuestions
+            .whereType<Map<String, dynamic>>()
+            .map((q) => QuestionDto.fromJson(q).toDomain(topicId))
+            .toList();
+      }
+
       return _backendSessionId!;
     }
 
@@ -76,12 +92,25 @@ class QuizRemoteDatasource implements QuizDatasource {
         ? 'skip'
         : selectedOption.toLowerCase();
 
+    // Look up selected option text for robust multi-layered backend verification
+    String? selectedText;
+    if (option != 'skip') {
+      for (final opt in question.options) {
+        if (opt.id.toLowerCase() == option) {
+          selectedText = opt.text;
+          break;
+        }
+      }
+    }
+
     final data = await _apiClient.post(
       '/quiz/answers/evaluate',
       body: {
         'session': _backendSessionId,
         'question': question.id,
         'option': option,
+        if (selectedText != null && selectedText.isNotEmpty)
+          'selected_text': selectedText,
         'time_taken_ms': 3000,
       },
     );
