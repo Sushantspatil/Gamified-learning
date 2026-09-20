@@ -37,10 +37,30 @@ class AuthController extends AsyncNotifier<AppUser?> {
     );
   }
 
-  Future<bool> requestSignUpOtp({required String email}) async {
+  Future<bool> requestSignUpOtp({
+    required String email,
+    String? password,
+    String? displayName,
+  }) async {
     state = const AsyncValue<AppUser?>.loading().copyWithPrevious(state);
     try {
-      await ref.read(authRepositoryProvider).requestSignUpOtp(email: email);
+      await ref.read(authRepositoryProvider).requestSignUpOtp(
+            email: email,
+            password: password,
+            displayName: displayName,
+          );
+      state = const AsyncValue.data(null);
+      return true;
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
+      return false;
+    }
+  }
+
+  Future<bool> resendSignUpOtp({required String email}) async {
+    state = const AsyncValue<AppUser?>.loading().copyWithPrevious(state);
+    try {
+      await ref.read(authRepositoryProvider).resendSignUpOtp(email: email);
       state = const AsyncValue.data(null);
       return true;
     } catch (error, stackTrace) {

@@ -31,3 +31,10 @@ class AuthException extends AppException {
 class ValidationException extends AppException {
   const ValidationException(super.message, [super.code]);
 }
+
+class NotFoundException extends AppException {
+  const NotFoundException([
+    super.message = 'Resource not found',
+    super.code = 'not-found',
+  ]);
+}

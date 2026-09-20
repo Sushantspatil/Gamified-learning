@@ -1,7 +1,7 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
-
 class ApiConfig {
+  static const String defaultProductionBaseUrl =
+      'http://localhost:8080/api/v1';
+
   final String baseUrl;
   final Duration timeout;
 
@@ -10,9 +10,54 @@ class ApiConfig {
     this.timeout = const Duration(seconds: 10),
   });
 
-  /// Factory that automatically resolves host based on target platform:
-  /// - Android Emulator: http://10.0.2.2:8080/api/v1
-  /// - iOS Simulator / macOS / Web / Linux / Windows: http://localhost:8080/api/v1
+  /// Check whether the URL refers to a local development host.
+  static bool isLocalUrl(String url) {
+    final lower = url.toLowerCase();
+    return lower.contains('localhost') ||
+        lower.contains('127.0.0.1') ||
+        lower.contains('10.0.2.2');
+  }
+
+  /// The root host URL without the /api/v1 suffix.
+  /// Uses http:// for local hosts and https:// for production hosts.
+  String get rootUrl {
+    var url = baseUrl;
+    if (url.endsWith('/api/v1')) {
+      url = url.substring(0, url.length - 7);
+    }
+    if (isLocalUrl(url)) {
+      if (url.startsWith('https://')) {
+        url = 'http://${url.substring(8)}';
+      } else if (!url.startsWith('http://')) {
+        url = 'http://$url';
+      }
+    } else {
+      if (url.startsWith('http://')) {
+        url = 'https://${url.substring(7)}';
+      } else if (!url.startsWith('https://')) {
+        url = 'https://$url';
+      }
+    }
+    return url;
+  }
+
+  /// WebSocket root URL (ws:// for local hosts, wss:// for production hosts).
+  String get wsRootUrl {
+    final root = rootUrl;
+    if (root.startsWith('http://')) {
+      return 'ws://${root.substring(7)}';
+    } else if (root.startsWith('https://')) {
+      return 'wss://${root.substring(8)}';
+    }
+    return isLocalUrl(root) ? 'ws://$root' : 'wss://$root';
+  }
+
+  /// Dedicated WebSocket endpoint for game/multiplayer.
+  String get gameWsUrl => '$wsRootUrl/ws/game';
+
+  /// Factory that resolves the API base URL.
+  /// Automatically retains http:// and ws:// for localhost/local development
+  /// and strictly enforces https:// and wss:// for production/remote domains.
   factory ApiConfig.defaultConfig({String? customBaseUrl}) {
     String url = customBaseUrl?.trim() ?? '';
     if (url.isEmpty) {
@@ -20,14 +65,34 @@ class ApiConfig {
     }
 
     if (url.isEmpty) {
-      final host = (!kIsWeb && Platform.isAndroid) ? '10.0.2.2:8080' : 'localhost:8080';
-      return ApiConfig(baseUrl: 'http://$host/api/v1');
+      return const ApiConfig(baseUrl: defaultProductionBaseUrl);
     }
 
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'http://$url';
+    final isLocal = isLocalUrl(url);
+
+    if (isLocal) {
+      if (url.startsWith('https://')) {
+        url = 'http://${url.substring(8)}';
+      } else if (url.startsWith('wss://')) {
+        url = 'http://${url.substring(6)}';
+      } else if (url.startsWith('ws://')) {
+        url = 'http://${url.substring(5)}';
+      } else if (!url.startsWith('http://')) {
+        url = 'http://$url';
+      }
+    } else {
+      if (url.startsWith('http://')) {
+        url = 'https://${url.substring(7)}';
+      } else if (url.startsWith('ws://')) {
+        url = 'https://${url.substring(5)}';
+      } else if (url.startsWith('wss://')) {
+        url = 'https://${url.substring(6)}';
+      } else if (!url.startsWith('https://')) {
+        url = 'https://$url';
+      }
     }
 
+    // Ensure it ends with /api/v1
     if (!url.endsWith('/api/v1')) {
       url = url.endsWith('/') ? '${url}api/v1' : '$url/api/v1';
     }
@@ -35,3 +100,4 @@ class ApiConfig {
     return ApiConfig(baseUrl: url);
   }
 }
+

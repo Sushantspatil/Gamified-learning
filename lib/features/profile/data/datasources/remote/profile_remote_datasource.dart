@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import '../../../../../core/network/api_client.dart';
+import '../../../../../core/network/api_endpoints.dart';
+import '../../../../../core/network/dtos/profile_dtos.dart';
 import '../../../../../core/storage/local_storage_service.dart';
 import '../../../../../core/storage/storage_keys.dart';
 import '../../models/user_profile_model.dart';
@@ -18,7 +20,7 @@ class ProfileRemoteDatasource implements ProfileDatasource {
 
   @override
   Future<UserProfileModel> getProfile(String userId) async {
-    final data = await _apiClient.get('/profile', useApiRoot: true);
+    final data = await _apiClient.get(ApiEndpoints.profile);
     return _parseProfile(userId, data);
   }
 
@@ -27,10 +29,13 @@ class ProfileRemoteDatasource implements ProfileDatasource {
     required String userId,
     required String avatarId,
   }) async {
+    final requestDto = ProfileUpdateRequestDto(
+      avatarId: avatarId,
+      avatarUrl: avatarId,
+    );
     final data = await _apiClient.put(
-      '/profile',
-      useApiRoot: true,
-      body: {'avatarUrl': avatarId},
+      ApiEndpoints.profile,
+      body: requestDto.toJson(),
     );
     return _parseProfile(userId, data);
   }
@@ -51,10 +56,23 @@ class ProfileRemoteDatasource implements ProfileDatasource {
       profileSetupCompleted: true,
     );
 
-    final data = await _apiClient.put(
-      '/profile',
-      useApiRoot: true,
-      body: {'avatarUrl': avatarId},
+    final local = _localProfileFields(userId);
+    final userName = (local['name'] as String?) ??
+        (local['displayName'] as String?) ??
+        (local['username'] as String?) ??
+        'Student';
+
+    final requestDto = ProfileSetupRequestDto(
+      avatarId: avatarId,
+      name: userName,
+      classLevel: classLevel,
+      board: board,
+      subjects: selectedSubjectIds,
+    );
+
+    final data = await _apiClient.post(
+      ApiEndpoints.profileSetup,
+      body: requestDto.toJson(),
     );
     return _parseProfile(userId, data);
   }
@@ -71,8 +89,9 @@ class ProfileRemoteDatasource implements ProfileDatasource {
 
   UserProfileModel _parseProfile(String userId, dynamic data) {
     if (data is Map<String, dynamic>) {
+      final dto = ProfileResponseDto.fromJson(data);
       return UserProfileModel.fromJson({
-        ...data,
+        ...dto.toJson(),
         ..._localProfileFields(userId),
       });
     }

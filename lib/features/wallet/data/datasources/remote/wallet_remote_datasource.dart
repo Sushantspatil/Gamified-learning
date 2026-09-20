@@ -1,5 +1,7 @@
 import '../../../../../core/errors/app_exception.dart';
 import '../../../../../core/network/api_client.dart';
+import '../../../../../core/network/api_endpoints.dart';
+import '../../../../../core/network/dtos/wallet_dtos.dart';
 import '../../../domain/entities/currency_type.dart';
 import '../../../domain/entities/wallet_transaction.dart';
 import '../../models/wallet_balance_model.dart';
@@ -14,23 +16,14 @@ class WalletRemoteDatasource implements WalletDatasource {
 
   @override
   Future<WalletBalanceModel> getBalance(String userId) async {
-    try {
-      final data = await _apiClient.get('/wallet/balance', useApiRoot: true);
-      if (data is Map<String, dynamic>) {
-        return WalletBalanceModel(
-          coins: data['coins'] as int? ?? 0,
-          gems: data['gems'] as int? ?? 0,
-        );
-      }
-    } catch (_) {}
-
-    final data = await _apiClient.get('/profile', useApiRoot: true);
+    final data = await _apiClient.get(ApiEndpoints.walletBalance);
     if (data is! Map<String, dynamic>) {
       throw const ServerException('Invalid wallet response from backend.');
     }
+    final dto = WalletBalanceResponseDto.fromJson(data);
     return WalletBalanceModel(
-      coins: data['coins'] as int? ?? 0,
-      gems: data['gems'] as int? ?? 0,
+      coins: dto.coins,
+      gems: dto.gems,
     );
   }
 
@@ -42,31 +35,30 @@ class WalletRemoteDatasource implements WalletDatasource {
     required String reason,
   }) async {
     final currencyStr = currency == CurrencyType.coins ? 'coins' : 'gems';
+    final requestDto = WalletCreditRequestDto(
+      currency: currencyStr,
+      amount: amount,
+      reason: reason,
+    );
     final data = await _apiClient.post(
-      '/wallet/credit',
-      useApiRoot: true,
-      body: {
-        'currency': currencyStr,
-        'amount': amount,
-        'reason': reason,
-      },
+      ApiEndpoints.walletCredit,
+      body: requestDto.toJson(),
     );
 
     if (data is! Map<String, dynamic>) {
       throw const ServerException('Invalid credit response from backend.');
     }
 
+    final dto = WalletTransactionResponseDto.fromJson(data);
     return WalletTransactionModel(
-      id: data['id'] as String? ?? 'txn-${DateTime.now().millisecondsSinceEpoch}',
+      id: dto.id.isNotEmpty ? dto.id : 'txn-${DateTime.now().millisecondsSinceEpoch}',
       userId: userId,
       currency: currency,
       direction: TransactionDirection.credit,
-      amount: data['amount'] as int? ?? amount,
-      reason: data['reason'] as String? ?? reason,
-      balanceAfter: data['balance_after'] as int? ?? 0,
-      createdAt: data['created_at'] != null
-          ? DateTime.tryParse(data['created_at'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      amount: dto.amount > 0 ? dto.amount : amount,
+      reason: dto.reason.isNotEmpty ? dto.reason : reason,
+      balanceAfter: dto.balanceAfter,
+      createdAt: dto.createdAt,
     );
   }
 
@@ -78,56 +70,52 @@ class WalletRemoteDatasource implements WalletDatasource {
     required String reason,
   }) async {
     final currencyStr = currency == CurrencyType.coins ? 'coins' : 'gems';
+    final requestDto = WalletDebitRequestDto(
+      currency: currencyStr,
+      amount: amount,
+      reason: reason,
+    );
     final data = await _apiClient.post(
-      '/wallet/debit',
-      useApiRoot: true,
-      body: {
-        'currency': currencyStr,
-        'amount': amount,
-        'reason': reason,
-      },
+      ApiEndpoints.walletDebit,
+      body: requestDto.toJson(),
     );
 
     if (data is! Map<String, dynamic>) {
       throw const ServerException('Invalid debit response from backend.');
     }
 
+    final dto = WalletTransactionResponseDto.fromJson(data);
     return WalletTransactionModel(
-      id: data['id'] as String? ?? 'txn-${DateTime.now().millisecondsSinceEpoch}',
+      id: dto.id.isNotEmpty ? dto.id : 'txn-${DateTime.now().millisecondsSinceEpoch}',
       userId: userId,
       currency: currency,
       direction: TransactionDirection.debit,
-      amount: data['amount'] as int? ?? amount,
-      reason: data['reason'] as String? ?? reason,
-      balanceAfter: data['balance_after'] as int? ?? 0,
-      createdAt: data['created_at'] != null
-          ? DateTime.tryParse(data['created_at'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      amount: dto.amount > 0 ? dto.amount : amount,
+      reason: dto.reason.isNotEmpty ? dto.reason : reason,
+      balanceAfter: dto.balanceAfter,
+      createdAt: dto.createdAt,
     );
   }
 
   @override
   Future<List<WalletTransactionModel>> getTransactionHistory(String userId) async {
-    final data = await _apiClient.get('/wallet/transactions', useApiRoot: true);
-    if (data is! Map<String, dynamic> || data['transactions'] is! List) {
+    final data = await _apiClient.get(ApiEndpoints.walletTransactions);
+    if (data is! Map<String, dynamic>) {
       return const [];
     }
-    final list = data['transactions'] as List;
-    return list.map((item) {
-      final map = item as Map<String, dynamic>;
-      final curr = (map['currency'] == 'gems') ? CurrencyType.gems : CurrencyType.coins;
-      final dir = (map['direction'] == 'debit') ? TransactionDirection.debit : TransactionDirection.credit;
+    final historyDto = WalletHistoryResponseDto.fromJson(data);
+    return historyDto.transactions.map((tx) {
+      final curr = (tx.currency == 'gems') ? CurrencyType.gems : CurrencyType.coins;
+      final dir = (tx.direction == 'debit') ? TransactionDirection.debit : TransactionDirection.credit;
       return WalletTransactionModel(
-        id: map['id'] as String? ?? '',
+        id: tx.id,
         userId: userId,
         currency: curr,
         direction: dir,
-        amount: map['amount'] as int? ?? 0,
-        reason: map['reason'] as String? ?? '',
-        balanceAfter: map['balance_after'] as int? ?? 0,
-        createdAt: map['created_at'] != null
-            ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
-            : DateTime.now(),
+        amount: tx.amount,
+        reason: tx.reason,
+        balanceAfter: tx.balanceAfter,
+        createdAt: tx.createdAt,
       );
     }).toList();
   }

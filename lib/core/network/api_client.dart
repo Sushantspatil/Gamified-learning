@@ -8,6 +8,7 @@ import '../errors/app_exception.dart';
 import '../storage/local_storage_service.dart';
 import '../storage/storage_keys.dart';
 import 'api_config.dart';
+import 'api_endpoints.dart';
 
 class ApiClient {
   final http.Client _httpClient;
@@ -22,13 +23,6 @@ class ApiClient {
        _storage = storage,
        _httpClient = httpClient ?? http.Client();
 
-  String get _apiRootUrl {
-    if (_config.baseUrl.endsWith('/api/v1')) {
-      return _config.baseUrl.substring(0, _config.baseUrl.length - 7);
-    }
-    return _config.baseUrl;
-  }
-
   Uri _buildUri(
     String endpoint, [
     Map<String, String>? queryParams,
@@ -37,7 +31,7 @@ class ApiClient {
     var cleanEndpoint = endpoint.startsWith('/')
         ? endpoint.substring(1)
         : endpoint;
-    final baseUrl = useApiRoot ? _apiRootUrl : _config.baseUrl;
+    final baseUrl = _config.baseUrl;
     if (baseUrl.endsWith('/api/v1') && cleanEndpoint.startsWith('api/v1/')) {
       cleanEndpoint = cleanEndpoint.substring(7);
     }
@@ -166,14 +160,78 @@ class ApiClient {
     }
   }
 
+  Future<dynamic> patch(
+    String endpoint, {
+    dynamic body,
+    Map<String, String>? headers,
+    bool useApiRoot = false,
+  }) async {
+    final uri = _buildUri(endpoint, null, useApiRoot);
+    try {
+      final encodedBody = body != null ? jsonEncode(body) : null;
+      final response = await _httpClient
+          .patch(uri, headers: _buildHeaders(headers), body: encodedBody)
+          .timeout(_config.timeout);
+      final resolvedResponse = await _refreshAndRetryIfNeeded(
+        endpoint: endpoint,
+        response: response,
+        retry: () => _httpClient
+            .patch(uri, headers: _buildHeaders(headers), body: encodedBody)
+            .timeout(_config.timeout),
+      );
+      return _handleResponse(resolvedResponse);
+    } on SocketException catch (e) {
+      throw NetworkException(
+        'Unable to reach backend server at ${uri.host}:${uri.port}: ${e.message}',
+      );
+    } on TimeoutException {
+      throw const NetworkException(
+        'Request timed out. Please check your backend connection.',
+      );
+    } on http.ClientException catch (e) {
+      throw NetworkException(e.message);
+    }
+  }
+
+  Future<dynamic> delete(
+    String endpoint, {
+    Map<String, String>? headers,
+    bool useApiRoot = false,
+  }) async {
+    final uri = _buildUri(endpoint, null, useApiRoot);
+    try {
+      final response = await _httpClient
+          .delete(uri, headers: _buildHeaders(headers))
+          .timeout(_config.timeout);
+      final resolvedResponse = await _refreshAndRetryIfNeeded(
+        endpoint: endpoint,
+        response: response,
+        retry: () => _httpClient
+            .delete(uri, headers: _buildHeaders(headers))
+            .timeout(_config.timeout),
+      );
+      return _handleResponse(resolvedResponse);
+    } on SocketException catch (e) {
+      throw NetworkException(
+        'Unable to reach backend server at ${uri.host}:${uri.port}: ${e.message}',
+      );
+    } on TimeoutException {
+      throw const NetworkException(
+        'Request timed out. Please check your backend connection.',
+      );
+    } on http.ClientException catch (e) {
+      throw NetworkException(e.message);
+    }
+  }
+
   Future<http.Response> _refreshAndRetryIfNeeded({
     required String endpoint,
     required http.Response response,
     required Future<http.Response> Function() retry,
   }) async {
     if (response.statusCode != 401 ||
-        endpoint.contains('/auth/login') ||
-        endpoint.contains('/auth/refresh')) {
+        endpoint.contains(ApiEndpoints.login) ||
+        endpoint.contains(ApiEndpoints.refresh)) {
       return response;
     }
 
@@ -185,7 +243,7 @@ class ApiClient {
 
     final refreshResponse = await _httpClient
         .post(
-          _buildUri('/auth/refresh'),
+          _buildUri(ApiEndpoints.refresh),
           headers: const {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -239,10 +297,24 @@ class ApiClient {
     final message =
         (decoded is Map<String, dynamic> && decoded['message'] is String)
         ? decoded['message'] as String
+        : (decoded is Map<String, dynamic> && decoded['error'] is String)
+        ? decoded['error'] as String
         : 'Server returned HTTP ${response.statusCode}';
 
     if (response.statusCode == 401) {
       throw AuthException(message, 'unauthorized');
+    }
+    if (response.statusCode == 403) {
+      throw AuthException(message, 'forbidden');
+    }
+    if (response.statusCode == 404) {
+      throw NotFoundException(message, 'not-found');
+    }
+    if (response.statusCode == 400 ||
+        response.statusCode == 409 ||
+        response.statusCode == 422 ||
+        response.statusCode == 429) {
+      throw ValidationException(message, response.statusCode.toString());
     }
 
     throw ServerException(message, response.statusCode.toString());

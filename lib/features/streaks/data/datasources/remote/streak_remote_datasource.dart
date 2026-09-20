@@ -1,5 +1,6 @@
 import '../../../../../core/errors/app_exception.dart';
 import '../../../../../core/network/api_client.dart';
+import '../../../../../core/network/api_endpoints.dart';
 import '../../models/streak_model.dart';
 import '../streak_datasource.dart';
 
@@ -11,7 +12,7 @@ class StreakRemoteDatasource implements StreakDatasource {
 
   @override
   Future<StreakModel> getStreak(String userId) async {
-    final data = await _apiClient.get('/profile', useApiRoot: true);
+    final data = await _apiClient.get(ApiEndpoints.profile);
     if (data is! Map<String, dynamic>) {
       throw const ServerException('Invalid streak response from backend.');
     }

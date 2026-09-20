@@ -65,26 +65,70 @@ void main() {
   });
 
   group('ApiConfig Host Resolution', () {
-    test('defaultConfig produces valid base URL', () {
+    test('defaultConfig produces valid base URL and WebSocket URL for local dev', () {
       final config = ApiConfig.defaultConfig();
       expect(
         config.baseUrl,
         'http://localhost:8080/api/v1',
       );
+      expect(config.baseUrl.startsWith('http://'), isTrue);
+      expect(
+        config.rootUrl,
+        'http://localhost:8080',
+      );
+      expect(
+        config.wsRootUrl,
+        'ws://localhost:8080',
+      );
+      expect(config.wsRootUrl.startsWith('ws://'), isTrue);
+      expect(
+        config.gameWsUrl,
+        'ws://localhost:8080/ws/game',
+      );
+      expect(config.gameWsUrl.startsWith('ws://'), isTrue);
     });
 
     test('customBaseUrl overrides default host', () {
       final config = ApiConfig.defaultConfig(
-        customBaseUrl: 'http://my-server.internal:8080/api/v1',
+        customBaseUrl: 'https://custom-backend.up.railway.app/api/v1',
       );
-      expect(config.baseUrl, 'http://my-server.internal:8080/api/v1');
+      expect(config.baseUrl, 'https://custom-backend.up.railway.app/api/v1');
+      expect(config.wsRootUrl, 'wss://custom-backend.up.railway.app');
+      expect(config.gameWsUrl, 'wss://custom-backend.up.railway.app/ws/game');
     });
 
-    test('customBaseUrl without scheme normalizes to valid http URL with /api/v1', () {
+    test('remote customBaseUrl with http is upgraded to https and wss', () {
+      final config = ApiConfig.defaultConfig(
+        customBaseUrl: 'http://custom-backend.up.railway.app/api/v1',
+      );
+      expect(config.baseUrl.startsWith('https://'), isTrue);
+      expect(config.wsRootUrl.startsWith('wss://'), isTrue);
+      expect(config.gameWsUrl.startsWith('wss://'), isTrue);
+    });
+
+    test('localhost customBaseUrl retains plain http and ws', () {
+      final config = ApiConfig.defaultConfig(
+        customBaseUrl: 'http://localhost:8080/api/v1',
+      );
+      expect(config.baseUrl, 'http://localhost:8080/api/v1');
+      expect(config.wsRootUrl, 'ws://localhost:8080');
+      expect(config.gameWsUrl, 'ws://localhost:8080/ws/game');
+    });
+
+    test('localhost without scheme normalizes to valid http URL with /api/v1', () {
       final config = ApiConfig.defaultConfig(
         customBaseUrl: 'localhost:8080',
       );
-      expect(config.baseUrl, 'http://localhost:8080/api/v1');
+      expect(
+        config.baseUrl,
+        'http://localhost:8080/api/v1',
+      );
+      expect(config.baseUrl.startsWith('http://'), isTrue);
+      expect(
+        config.gameWsUrl,
+        'ws://localhost:8080/ws/game',
+      );
+      expect(config.gameWsUrl.startsWith('ws://'), isTrue);
     });
   });
 }

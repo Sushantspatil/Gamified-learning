@@ -1,5 +1,6 @@
 import 'package:skillverse_app/core/errors/app_exception.dart';
 import 'package:skillverse_app/core/network/api_client.dart';
+import 'package:skillverse_app/core/network/api_endpoints.dart';
 import '../../../domain/entities/question.dart';
 import '../../models/question_dto.dart';
 import '../question_datasource.dart';
@@ -28,7 +29,7 @@ class QuestionRemoteDatasource implements QuestionDatasource {
         ? 'accounting'
         : topicId;
     final responseData = await _apiClient.get(
-      '/topics/$backendTopic/questions',
+      ApiEndpoints.topicQuestions(backendTopic),
       queryParams: {'limit': '10'},
     );
 

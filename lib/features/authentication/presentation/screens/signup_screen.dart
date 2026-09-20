@@ -45,6 +45,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     if (!_isOtpRequested) {
       final sent = await controller.requestSignUpOtp(
         email: _emailController.text.trim(),
+        password: _passwordController.text,
+        displayName: _nameController.text.trim(),
       );
       if (!mounted || !sent) return;
 
@@ -65,7 +67,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Future<void> _resendOtp() async {
     final sent = await ref
         .read(authControllerProvider.notifier)
-        .requestSignUpOtp(email: _emailController.text.trim());
+        .resendSignUpOtp(email: _emailController.text.trim());
     if (!mounted || !sent) return;
     _otpController.clear();
     _showMessage('A new verification code was sent.');

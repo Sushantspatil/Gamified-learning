@@ -18,14 +18,21 @@ class UserProfileModel extends UserProfile {
             json['avatarId'] as String? ??
             json['avatarUrl'] as String? ??
             'default',
-        classLevel: json['classLevel'] as String?,
+        classLevel:
+            json['classLevel'] as String? ?? json['class'] as String?,
         board: json['board'] as String?,
         selectedSubjectIds:
             (json['selectedSubjectIds'] as List<dynamic>?)
                 ?.map((id) => id.toString())
                 .toList() ??
+            (json['subjects'] as List<dynamic>?)
+                ?.map((id) => id.toString())
+                .toList() ??
             const [],
-        profileSetupCompleted: json['profileSetupCompleted'] as bool? ?? false,
+        profileSetupCompleted:
+            json['profileSetupCompleted'] as bool? ??
+            json['isOnboarded'] as bool? ??
+            false,
         tutorialCompleted: json['tutorialCompleted'] as bool? ?? false,
         xp: json['xp'] as int? ?? json['experience'] as int? ?? 0,
         level: json['level'] as int? ?? 1,

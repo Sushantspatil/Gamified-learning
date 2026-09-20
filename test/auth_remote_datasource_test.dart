@@ -12,7 +12,7 @@ import 'package:skillverse_app/features/authentication/data/datasources/remote/a
 
 void main() {
   test(
-    'signup verifies email before creating and logging in the user',
+    'signup uses exact backend routes /auth/signup/send-code and /auth/signup/verify',
     () async {
       SharedPreferences.setMockInitialValues({});
       final storage = await LocalStorageService.create();
@@ -23,12 +23,29 @@ void main() {
         httpClient: MockClient((request) async {
           requests.add(request);
           final path = request.url.path;
-          if (path.endsWith('/auth/login')) {
+          if (path.endsWith('/auth/signup/send-code')) {
             return http.Response(
               jsonEncode({
+                'success': true,
+                'data': {
+                  'email': 'ada@example.com',
+                  'cooldownSeconds': 60,
+                  'expiresIn': 600,
+                  'message': 'Verification code sent',
+                },
+              }),
+              200,
+            );
+          }
+          if (path.endsWith('/auth/signup/verify')) {
+            return http.Response(
+              jsonEncode({
+                'success': true,
                 'data': {
                   'accessToken': 'access-token',
                   'refreshToken': 'refresh-token',
+                  'tokenType': 'Bearer',
+                  'expiresIn': 2592000,
                   'client': {
                     'id': 42,
                     'email': 'ada@example.com',
@@ -47,7 +64,11 @@ void main() {
         storage: storage,
       );
 
-      await datasource.requestSignUpOtp(email: ' ada@example.com ');
+      await datasource.requestSignUpOtp(
+        email: ' ada@example.com ',
+        password: 'password123',
+        displayName: ' Ada ',
+      );
       await datasource.verifySignUpOtp(
         email: ' ada@example.com ',
         otp: ' 123456 ',
@@ -59,17 +80,20 @@ void main() {
       );
 
       expect(requests.map((request) => request.url.path), [
-        '/api/v1/auth/register/email-request',
-        '/api/v1/auth/register/email-verify',
-        '/api/v1/auth/register/validate-basic',
-        '/api/v1/auth/login',
+        '/api/v1/auth/signup/send-code',
+        '/api/v1/auth/signup/verify',
       ]);
-      expect(jsonDecode(requests[0].body), {'email': 'ada@example.com'});
+      expect(jsonDecode(requests[0].body), {
+        'email': 'ada@example.com',
+        'password': 'password123',
+        'displayName': 'Ada',
+      });
       expect(jsonDecode(requests[1].body), {
         'email': 'ada@example.com',
-        'otp': '123456',
+        'code': '123456',
       });
       expect(user.id, '42');
+      expect(user.displayName, 'Ada');
       expect(storage.getString(StorageKeys.authToken), 'access-token');
       expect(storage.getString(StorageKeys.refreshToken), 'refresh-token');
 

@@ -2,6 +2,8 @@ import 'dart:developer' as developer;
 
 import 'package:skillverse_app/core/errors/app_exception.dart';
 import 'package:skillverse_app/core/network/api_client.dart';
+import 'package:skillverse_app/core/network/api_endpoints.dart';
+import '../../../../../core/network/dtos/quiz_dtos.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer_evaluation.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
@@ -16,6 +18,7 @@ class QuizRemoteDatasource implements QuizDatasource {
   String? _backendSessionId;
   String? _activeTopicId;
   List<Question>? _activeSessionQuestions;
+  DateTime? _questionStartTime;
 
   QuizRemoteDatasource({required ApiClient apiClient}) : _apiClient = apiClient;
 
@@ -34,30 +37,32 @@ class QuizRemoteDatasource implements QuizDatasource {
     final backendTopic = topicId.contains('accounting')
         ? 'accounting'
         : topicId;
+    final requestDto = CreateSessionRequestDto(
+      topic: backendTopic,
+      questionCount: questionCount,
+      abandonStale: true,
+      questionCodes: questionCodes,
+    );
     final response = await _apiClient.post(
-      '/quiz/sessions/create',
-      body: {
-        'topic': backendTopic,
-        'question_count': questionCount,
-        'abandon_stale': true,
-        if (questionCodes != null && questionCodes.isNotEmpty)
-          'question_codes': questionCodes,
-      },
+      ApiEndpoints.quizCreateSession,
+      body: requestDto.toJson(),
     );
 
-    if (response is Map<String, dynamic> && response['session'] is String) {
-      _backendSessionId = response['session'] as String;
-      _activeTopicId = topicId;
+    if (response is Map<String, dynamic>) {
+      final sessionDto = SessionCreatedResponseDto.fromJson(response);
+      if (sessionDto.session.isNotEmpty) {
+        _backendSessionId = sessionDto.session;
+        _activeTopicId = topicId;
+        _questionStartTime = DateTime.now();
 
-      if (response['questions'] is List) {
-        final rawQuestions = response['questions'] as List<dynamic>;
-        _activeSessionQuestions = rawQuestions
-            .whereType<Map<String, dynamic>>()
-            .map((q) => QuestionDto.fromJson(q).toDomain(topicId))
-            .toList();
+        if (sessionDto.questions.isNotEmpty) {
+          _activeSessionQuestions = sessionDto.questions
+              .map((q) => QuestionDto.fromJson(q).toDomain(topicId))
+              .toList();
+        }
+
+        return _backendSessionId!;
       }
-
-      return _backendSessionId!;
     }
 
     throw const ServerException(
@@ -103,22 +108,32 @@ class QuizRemoteDatasource implements QuizDatasource {
       }
     }
 
+    final now = DateTime.now();
+    var timeTakenMs = 3000;
+    if (_questionStartTime != null) {
+      timeTakenMs = now.difference(_questionStartTime!).inMilliseconds;
+      if (timeTakenMs < 500) timeTakenMs = 500;
+      if (timeTakenMs > 15000) timeTakenMs = 15000;
+    }
+    _questionStartTime = now;
+
+    final requestDto = EvaluateAnswerRequestDto(
+      session: _backendSessionId!,
+      question: question.id,
+      option: option,
+      selectedText: selectedText,
+      timeTakenMs: timeTakenMs,
+    );
     final data = await _apiClient.post(
-      '/quiz/answers/evaluate',
-      body: {
-        'session': _backendSessionId,
-        'question': question.id,
-        'option': option,
-        if (selectedText != null && selectedText.isNotEmpty)
-          'selected_text': selectedText,
-        'time_taken_ms': 3000,
-      },
+      ApiEndpoints.quizEvaluateAnswer,
+      body: requestDto.toJson(),
     );
 
     if (data is Map<String, dynamic>) {
+      final resDto = AnswerResultResponseDto.fromJson(data);
       return AnswerEvaluation(
-        isCorrect: data['is_correct'] as bool? ?? false,
-        pointsEarned: data['points_earned'] as int? ?? 0,
+        isCorrect: resDto.isCorrect,
+        pointsEarned: resDto.pointsEarned,
       );
     }
 
@@ -130,11 +145,14 @@ class QuizRemoteDatasource implements QuizDatasource {
 
   @override
   Future<QuizResult> submitSession(QuizSession session) async {
-    final sessionId = _backendSessionId;
+    final sessionId = (_backendSessionId != null && _backendSessionId!.isNotEmpty)
+        ? _backendSessionId!
+        : session.id;
     _backendSessionId = null;
     _activeTopicId = null;
+    _questionStartTime = null;
 
-    if (sessionId == null || session.quizType != QuestionType.mcq) {
+    if (sessionId.isEmpty || session.quizType != QuestionType.mcq) {
       throw const ValidationException(
         'This quiz mode is not supported by the backend yet.',
         'unsupported-quiz-mode',
@@ -142,18 +160,39 @@ class QuizRemoteDatasource implements QuizDatasource {
     }
 
     final data = await _apiClient.post(
-      '/quiz/sessions/complete',
-      body: {'session': sessionId},
+      ApiEndpoints.quizCompleteSession,
+      body: CompleteSessionRequestDto(session: sessionId).toJson(),
     );
 
     if (data is Map<String, dynamic>) {
-      final finalScore = data['final_score'] as int? ?? 0;
-      final correctCount = data['correct_count'] as int? ?? 0;
-      final totalCount =
-          data['total_questions'] as int? ?? session.questions.length;
-      final maxScore =
-          data['max_score'] as int? ??
-          session.questions.fold<int>(0, (sum, q) => sum + q.points);
+      final resDto = SessionCompleteResponseDto.fromJson(data);
+
+      var recordedPoints = 0;
+      var computedCorrectCount = 0;
+      for (final record in session.answeredRecords) {
+        if (record.evaluation.isCorrect) {
+          recordedPoints += record.evaluation.pointsEarned;
+          computedCorrectCount++;
+        }
+      }
+
+      final earnedPoints = resDto.finalScore > 0
+          ? resDto.finalScore
+          : recordedPoints;
+
+      final maxScore = resDto.maxScore > 0
+          ? resDto.maxScore
+          : (session.questions.isNotEmpty
+              ? session.questions.fold<int>(0, (sum, q) => sum + q.points)
+              : 100);
+
+      final correctCount = resDto.correctCount > 0
+          ? resDto.correctCount
+          : computedCorrectCount;
+
+      final totalCount = resDto.totalQuestions > 0
+          ? resDto.totalQuestions
+          : (session.questions.isNotEmpty ? session.questions.length : 10);
       final completedAt = session.completedAt;
 
       return QuizResult(
@@ -164,28 +203,35 @@ class QuizRemoteDatasource implements QuizDatasource {
         topicId: session.topicId,
         quizType: session.quizType,
         score: Score(
-          earnedPoints: finalScore,
+          earnedPoints: earnedPoints,
           maxPoints: maxScore,
           correctCount: correctCount,
           totalCount: totalCount,
         ),
         records: session.answeredRecords,
         endedEarly: session.endedEarly,
-        streakCount: data['streak'] is Map<String, dynamic>
-            ? (data['streak']['current_streak'] as int? ?? 0)
-            : 0,
-        xpAwarded: data['xp_awarded'] as int? ?? 0,
-        coinsAwarded: data['coins_awarded'] as int? ?? 0,
-        gemsAwarded: data['gems_awarded'] as int? ?? 0,
-        didLevelUp: data['level'] is Map<String, dynamic>
-            ? (data['level']['did_level_up'] as bool? ?? false)
-            : false,
+        streakCount: resDto.streak?.currentStreak ?? 0,
+        xpAwarded: resDto.xpAwarded,
+        coinsAwarded: resDto.coinsAwarded,
+        gemsAwarded: resDto.gemsAwarded,
+        didLevelUp: resDto.level?.didLevelUp ?? false,
         rewardBreakdown: QuizRewardBreakdown(
-          score: _parseBreakdown(data['score_breakdown']),
-          xp: _parseBreakdown(data['xp_breakdown']),
-          coins: _parseBreakdown(data['coin_breakdown']),
+          score: [
+            RewardBreakdownItem(
+              key: 'correct_answer_points',
+              amount: earnedPoints,
+            ),
+          ],
+          xp: _parseBreakdown(resDto.xpBreakdown),
+          coins: _parseBreakdown(resDto.coinBreakdown),
         ),
-        levelProgress: _parseLevelProgress(data['level']),
+        levelProgress: resDto.level != null
+            ? QuizLevelProgress(
+                currentLevel: resDto.level!.current,
+                experience: resDto.level!.experience,
+                nextLevelExperience: resDto.level!.nextLevelExp,
+              )
+            : null,
         timeTaken: completedAt.difference(session.startedAt),
         createdAt: completedAt,
       );
@@ -203,14 +249,18 @@ class QuizRemoteDatasource implements QuizDatasource {
 
     try {
       final data = await _apiClient.post(
-        '/quiz/power-ups/fifty-fifty',
-        body: {'session': _backendSessionId, 'question': questionId},
+        ApiEndpoints.quizFiftyFifty,
+        body: FiftyFiftyRequestDto(
+          session: _backendSessionId!,
+          question: questionId,
+        ).toJson(),
       );
 
-      if (data is Map<String, dynamic> && data['hidden_options'] is List) {
-        return (data['hidden_options'] as List)
-            .map((e) => e.toString())
-            .toList();
+      if (data is Map<String, dynamic>) {
+        final resDto = FiftyFiftyResponseDto.fromJson(data);
+        if (resDto.hiddenOptions.isNotEmpty) {
+          return resDto.hiddenOptions;
+        }
       }
     } catch (e) {
       developer.log(
@@ -221,30 +271,14 @@ class QuizRemoteDatasource implements QuizDatasource {
     return null;
   }
 
-  List<RewardBreakdownItem> _parseBreakdown(Object? value) {
-    if (value is! Map) return const [];
-    return value.entries
+  List<RewardBreakdownItem> _parseBreakdown(Map<String, int> values) {
+    return values.entries
         .map(
           (entry) => RewardBreakdownItem(
-            key: entry.key.toString(),
-            amount: entry.value is num ? (entry.value as num).round() : 0,
+            key: entry.key,
+            amount: entry.value,
           ),
         )
         .toList(growable: false);
-  }
-
-  QuizLevelProgress? _parseLevelProgress(Object? value) {
-    if (value is! Map<String, dynamic>) return null;
-    final current = value['current'] as int?;
-    final experience = value['experience'] as int?;
-    final nextLevelExperience = value['next_level_exp'] as int?;
-    if (current == null || experience == null || nextLevelExperience == null) {
-      return null;
-    }
-    return QuizLevelProgress(
-      currentLevel: current,
-      experience: experience,
-      nextLevelExperience: nextLevelExperience,
-    );
   }
 }

@@ -11,6 +11,10 @@ import 'package:skillverse_app/features/quiz/data/datasources/remote/quiz_remote
 import 'package:skillverse_app/features/quiz/domain/entities/quiz_session.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
 
+import 'package:skillverse_app/features/profile/data/datasources/remote/profile_remote_datasource.dart';
+import 'package:skillverse_app/features/wallet/data/datasources/remote/wallet_remote_datasource.dart';
+import 'package:skillverse_app/features/wallet/domain/entities/currency_type.dart';
+
 void main() {
   group('Live Go Backend & Flutter End-to-End Integration', () {
     late LocalStorageService storage;
@@ -18,6 +22,8 @@ void main() {
     late AuthRemoteDatasource authRemote;
     late QuestionRemoteDatasource questionRemote;
     late QuizRemoteDatasource quizRemote;
+    late ProfileRemoteDatasource profileRemote;
+    late WalletRemoteDatasource walletRemote;
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
@@ -27,6 +33,9 @@ void main() {
       authRemote = AuthRemoteDatasource(apiClient: apiClient, storage: storage);
       questionRemote = QuestionRemoteDatasource(apiClient: apiClient);
       quizRemote = QuizRemoteDatasource(apiClient: apiClient);
+      profileRemote =
+          ProfileRemoteDatasource(apiClient: apiClient, storage: storage);
+      walletRemote = WalletRemoteDatasource(apiClient: apiClient);
     });
 
     tearDown(() {
@@ -68,7 +77,11 @@ void main() {
         final testName = 'Player$uniqueSuffix';
 
         // 1. Request verification OTP from backend
-        final otp = await authRemote.requestSignUpOtp(email: testEmail);
+        final otp = await authRemote.requestSignUpOtp(
+          email: testEmail,
+          password: testPassword,
+          displayName: testName,
+        );
         expect(otp, isNotNull);
         expect(otp!.length, 6);
 
@@ -168,5 +181,64 @@ void main() {
         expect(sessionResult.score.totalCount, greaterThanOrEqualTo(1));
       },
     );
+
+    test('Live Profile lifecycle: fetch profile, update avatar, and complete setup', () async {
+      final user = await authRemote.login(
+        email: 'player@example.com',
+        password: 'secretpassword123',
+      );
+
+      final initialProfile = await profileRemote.getProfile(user.id);
+      expect(initialProfile, isNotNull);
+
+      final updatedProfile = await profileRemote.updateAvatar(
+        userId: user.id,
+        avatarId: 'paw',
+      );
+      expect(updatedProfile.avatarId, 'paw');
+
+      final completedProfile = await profileRemote.completeProfileSetup(
+        userId: user.id,
+        avatarId: 'paw',
+        classLevel: '12th',
+        board: 'CBSE',
+        selectedSubjectIds: ['accounting'],
+      );
+      expect(completedProfile.classLevel, '12th');
+      expect(completedProfile.board, 'CBSE');
+      expect(completedProfile.profileSetupCompleted, isTrue);
+    });
+
+    test('Live Wallet lifecycle: check balance, credit, debit, and fetch transactions', () async {
+      final user = await authRemote.login(
+        email: 'player@example.com',
+        password: 'secretpassword123',
+      );
+
+      final initialBalance = await walletRemote.getBalance(user.id);
+      expect(initialBalance.coins, greaterThanOrEqualTo(0));
+
+      final creditTxn = await walletRemote.credit(
+        userId: user.id,
+        currency: CurrencyType.coins,
+        amount: 50,
+        reason: 'Daily streak reward',
+      );
+      expect(creditTxn.amount, 50);
+
+      final debitTxn = await walletRemote.debit(
+        userId: user.id,
+        currency: CurrencyType.coins,
+        amount: 20,
+        reason: 'Purchased power-up',
+      );
+      expect(debitTxn.amount, 20);
+
+      final balanceAfter = await walletRemote.getBalance(user.id);
+      expect(balanceAfter.coins, equals(initialBalance.coins + 30));
+
+      final history = await walletRemote.getTransactionHistory(user.id);
+      expect(history, isNotEmpty);
+    });
   });
 }
