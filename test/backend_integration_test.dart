@@ -69,7 +69,8 @@ void main() {
       final config = ApiConfig.defaultConfig();
       expect(
         config.baseUrl,
-        'https://gamifiedquizappdigitalhq-production.up.railway.app/api/v1',
+        'localhost:8080',
+        'http://localhost:8080/api/v1',
       );
     });
 
@@ -78,6 +79,13 @@ void main() {
         customBaseUrl: 'http://my-server.internal:8080/api/v1',
       );
       expect(config.baseUrl, 'http://my-server.internal:8080/api/v1');
+    });
+
+    test('customBaseUrl without scheme normalizes to valid http URL with /api/v1', () {
+      final config = ApiConfig.defaultConfig(
+        customBaseUrl: 'localhost:8080',
+      );
+      expect(config.baseUrl, 'http://localhost:8080/api/v1');
     });
   });
 }

@@ -51,6 +51,7 @@ class AuthMockDatasource implements AuthDatasource {
 
   @override
   Future<void> requestSignUpOtp({required String email}) async {
+  Future<String?> requestSignUpOtp({required String email}) async {
     await Future.delayed(const Duration(milliseconds: 100));
     if (_usersByEmail.containsKey(email)) {
       throw const AuthException(
@@ -58,6 +59,7 @@ class AuthMockDatasource implements AuthDatasource {
         'email-in-use',
       );
     }
+    return '123456';
   }
 
   @override

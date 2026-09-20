@@ -30,6 +30,13 @@ const _backendLearningPaths = [
     difficulty: LearningPathDifficulty.beginner,
     topicCount: 1,
   ),
+  LearningPath(
+    id: 'web-dev',
+    title: 'Web Development',
+    description: 'HTML, CSS, and modern web foundations.',
+    difficulty: LearningPathDifficulty.beginner,
+    topicCount: 3,
+  ),
 ];
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {

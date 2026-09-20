@@ -60,6 +60,49 @@ void main() {
     );
 
     test(
+      'Live Go Backend Sign up: request OTP, verify OTP, register user, and establish session',
+      () async {
+        final uniqueSuffix = DateTime.now().millisecondsSinceEpoch;
+        final testEmail = 'player_$uniqueSuffix@example.com';
+        const testPassword = 'SecretPass123!';
+        final testName = 'Player$uniqueSuffix';
+
+        // 1. Request verification OTP from backend
+        final otp = await authRemote.requestSignUpOtp(email: testEmail);
+        expect(otp, isNotNull);
+        expect(otp!.length, 6);
+
+        // 2. Verify OTP with backend
+        await authRemote.verifySignUpOtp(email: testEmail, otp: otp);
+
+        // 3. Register user and log in to get session
+        final user = await authRemote.signUp(
+          email: testEmail,
+          password: testPassword,
+          displayName: testName,
+        );
+
+        expect(user.id, isNotEmpty);
+        expect(user.email, testEmail);
+        expect(user.displayName, testName);
+
+        // 4. Verify auth tokens are saved to local storage
+        final token = storage.getString(StorageKeys.authToken);
+        expect(token, isNotNull);
+        expect(token!, isNotEmpty);
+
+        final currentUserId = storage.getString(StorageKeys.currentUserId);
+        expect(currentUserId, user.id);
+
+        // 5. Verify session can be retrieved using stored token
+        final sessionUser = await authRemote.getUserById(user.id);
+        expect(sessionUser, isNotNull);
+        expect(sessionUser!.id, user.id);
+        expect(sessionUser.email, testEmail);
+      },
+    );
+
+    test(
       'Live MCQ Quiz lifecycle: fetch questions, create session, evaluate answer, and complete',
       () async {
         // 1. Authenticate to populate Bearer token

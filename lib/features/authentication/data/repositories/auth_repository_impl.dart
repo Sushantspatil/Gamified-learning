@@ -30,6 +30,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> requestSignUpOtp({required String email}) {
+  Future<String?> requestSignUpOtp({required String email}) {
     return _datasource.requestSignUpOtp(email: email);
   }
 

@@ -67,9 +67,15 @@ class AuthRemoteDatasource implements AuthDatasource {
   @override
   Future<void> requestSignUpOtp({required String email}) async {
     await _apiClient.post(
+  Future<String?> requestSignUpOtp({required String email}) async {
+    final response = await _apiClient.post(
       '/auth/register/email-request',
       body: {'email': email.trim()},
     );
+    if (response is Map<String, dynamic>) {
+      return response['otp'] as String?;
+    }
+    return null;
   }
 
   @override
