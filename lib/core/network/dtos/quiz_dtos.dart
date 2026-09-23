@@ -127,15 +127,9 @@ class FiftyFiftyRequestDto {
   final String session;
   final String question;
 
-  const FiftyFiftyRequestDto({
-    required this.session,
-    required this.question,
-  });
+  const FiftyFiftyRequestDto({required this.session, required this.question});
 
-  Map<String, dynamic> toJson() => {
-    'session': session,
-    'question': question,
-  };
+  Map<String, dynamic> toJson() => {'session': session, 'question': question};
 }
 
 class FiftyFiftyResponseDto {
@@ -151,7 +145,9 @@ class FiftyFiftyResponseDto {
     final list = json['hidden_options'];
     return FiftyFiftyResponseDto(
       question: json['question'] as String? ?? '',
-      hiddenOptions: list is List ? list.map((e) => e.toString()).toList() : const [],
+      hiddenOptions: list is List
+          ? list.map((e) => e.toString()).toList()
+          : const [],
     );
   }
 }
@@ -161,9 +157,7 @@ class CompleteSessionRequestDto {
 
   const CompleteSessionRequestDto({required this.session});
 
-  Map<String, dynamic> toJson() => {
-    'session': session,
-  };
+  Map<String, dynamic> toJson() => {'session': session};
 }
 
 class LevelProgressDto {
@@ -204,19 +198,39 @@ class StreakSummaryDto {
       );
 }
 
+class LevelUpRewardDto {
+  final int xp;
+  final int coins;
+  final int gems;
+
+  const LevelUpRewardDto({
+    required this.xp,
+    required this.coins,
+    required this.gems,
+  });
+
+  factory LevelUpRewardDto.fromJson(Map<String, dynamic> json) =>
+      LevelUpRewardDto(
+        xp: json['xp'] as int? ?? 0,
+        coins: json['coins'] as int? ?? 0,
+        gems: json['gems'] as int? ?? 0,
+      );
+}
+
 class SessionCompleteResponseDto {
   final String session;
-  final int totalQuestions;
-  final int correctCount;
-  final double accuracyPercentage;
-  final int finalScore;
-  final int maxScore;
+  final int? totalQuestions;
+  final int? correctCount;
+  final double? accuracyPercentage;
+  final int? finalScore;
+  final int? maxScore;
   final int coinsAwarded;
   final int xpAwarded;
   final int gemsAwarded;
   final Map<String, int> scoreBreakdown;
   final Map<String, int> coinBreakdown;
   final Map<String, int> xpBreakdown;
+  final LevelUpRewardDto? levelUpReward;
   final LevelProgressDto? level;
   final StreakSummaryDto? streak;
 
@@ -233,6 +247,7 @@ class SessionCompleteResponseDto {
     this.scoreBreakdown = const {},
     this.coinBreakdown = const {},
     this.xpBreakdown = const {},
+    this.levelUpReward,
     this.level,
     this.streak,
   });
@@ -249,17 +264,22 @@ class SessionCompleteResponseDto {
 
     return SessionCompleteResponseDto(
       session: json['session'] as String? ?? '',
-      totalQuestions: json['total_questions'] as int? ?? 0,
-      correctCount: json['correct_count'] as int? ?? 0,
-      accuracyPercentage: (json['accuracy_percentage'] as num?)?.toDouble() ?? 0.0,
-      finalScore: json['final_score'] as int? ?? 0,
-      maxScore: json['max_score'] as int? ?? 0,
+      totalQuestions: json['total_questions'] as int?,
+      correctCount: json['correct_count'] as int?,
+      accuracyPercentage: (json['accuracy_percentage'] as num?)?.toDouble(),
+      finalScore: json['final_score'] as int?,
+      maxScore: json['max_score'] as int?,
       coinsAwarded: json['coins_awarded'] as int? ?? 0,
       xpAwarded: json['xp_awarded'] as int? ?? 0,
       gemsAwarded: json['gems_awarded'] as int? ?? 0,
       scoreBreakdown: parseBreakdown(json['score_breakdown']),
       coinBreakdown: parseBreakdown(json['coin_breakdown']),
       xpBreakdown: parseBreakdown(json['xp_breakdown']),
+      levelUpReward: json['level_up_reward'] is Map<String, dynamic>
+          ? LevelUpRewardDto.fromJson(
+              json['level_up_reward'] as Map<String, dynamic>,
+            )
+          : null,
       level: json['level'] is Map<String, dynamic>
           ? LevelProgressDto.fromJson(json['level'] as Map<String, dynamic>)
           : null,

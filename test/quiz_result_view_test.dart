@@ -12,19 +12,21 @@ void main() {
     await _pumpResult(tester, _result());
 
     expect(find.text('Quiz Complete!'), findsOneWidget);
-    expect(find.text('40 / 50'), findsOneWidget);
-    expect(find.text('4 correct'), findsOneWidget);
-    expect(find.text('1 wrong'), findsOneWidget);
-    expect(find.text('80% accuracy'), findsOneWidget);
-    expect(find.text('+40 XP'), findsNWidgets(2));
+    expect(find.text('50 / 100'), findsOneWidget);
+    expect(find.text('5 correct'), findsOneWidget);
+    expect(find.text('5 wrong'), findsOneWidget);
+    expect(find.text('50% accuracy'), findsOneWidget);
+    expect(find.text('+35 XP'), findsNWidgets(2));
     expect(find.text('+15 Coins'), findsOneWidget);
     expect(find.text('Level 4'), findsOneWidget);
     expect(find.text('340 / 500 XP'), findsOneWidget);
     expect(find.text('Quiz completion'), findsWidgets);
-    expect(find.text('+20 XP'), findsNWidgets(2));
-    expect(find.text('+20 pts'), findsNothing);
-    expect(find.text('+40 pts'), findsOneWidget);
-    expect(find.text('Accuracy bonus'), findsOneWidget);
+    expect(find.text('+10 XP'), findsOneWidget);
+    expect(find.text('+25 XP'), findsOneWidget);
+    expect(find.text('+50 pts'), findsOneWidget);
+    expect(find.text('+5'), findsOneWidget);
+    expect(find.text('+10'), findsOneWidget);
+    expect(find.text('Speed bonus XP'), findsNothing);
   });
 
   testWidgets('hides zero value reward rows', (tester) async {
@@ -42,13 +44,49 @@ void main() {
     await tester.tap(find.text('How scoring works'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Points'), findsWidgets);
+    expect(find.text('Quiz points'), findsNWidgets(2));
     expect(
-      find.text('Earned from correct answers in this quiz.'),
+      find.text(
+        '+10 points for every correct answer.\n'
+        'Wrong and skipped answers give 0 points.',
+      ),
       findsOneWidget,
     );
-    expect(find.text('Helps increase your account level.'), findsOneWidget);
-    expect(find.text('Can be used for power-ups.'), findsOneWidget);
+    expect(
+      find.text(
+        '+10 XP for completing the quiz.\n'
+        '+5 XP for every correct answer.\n'
+        '+15 XP bonus for a perfect score.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        '+5 Coins for completing the quiz.\n'
+        '+2 Coins for every correct answer.\n'
+        '+10 Coins bonus for a perfect score.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Using a power-up does not reduce your score or XP.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('shows perfect bonuses and separate level-up rewards', (
+    tester,
+  ) async {
+    await _pumpResult(tester, _perfectResult());
+
+    expect(find.text('+75 XP'), findsOneWidget);
+    expect(find.text('+35 Coins'), findsOneWidget);
+    expect(find.text('Perfect score bonus'), findsNWidgets(2));
+    expect(find.text('+15 XP'), findsOneWidget);
+    expect(find.text('+10'), findsOneWidget);
+    expect(find.text('Level up bonus'), findsOneWidget);
+    expect(find.text('+50 Coins'), findsOneWidget);
+    expect(find.text('+1 Gems'), findsOneWidget);
   });
 }
 
@@ -71,35 +109,73 @@ QuizResult _result() {
     topicId: 'topic-1',
     quizType: QuestionType.mcq,
     score: const Score(
-      earnedPoints: 40,
-      maxPoints: 50,
-      correctCount: 4,
-      totalCount: 5,
+      earnedPoints: 50,
+      maxPoints: 100,
+      correctCount: 5,
+      totalCount: 10,
     ),
     records: const [],
     endedEarly: false,
     streakCount: 0,
-    xpAwarded: 40,
+    xpAwarded: 35,
     coinsAwarded: 15,
     rewardBreakdown: const QuizRewardBreakdown(
-      score: [
-        RewardBreakdownItem(key: 'correct_answer_points', amount: 40),
-        RewardBreakdownItem(key: 'bonus_points', amount: 0),
-      ],
+      score: [RewardBreakdownItem(key: 'correct_answer_points', amount: 50)],
       xp: [
-        RewardBreakdownItem(key: 'completion_xp', amount: 20),
-        RewardBreakdownItem(key: 'correct_answer_xp', amount: 20),
+        RewardBreakdownItem(key: 'completion_xp', amount: 10),
+        RewardBreakdownItem(key: 'correct_answer_xp', amount: 25),
         RewardBreakdownItem(key: 'perfect_bonus_xp', amount: 0),
+        RewardBreakdownItem(key: 'speed_bonus_xp', amount: 108),
       ],
       coins: [
-        RewardBreakdownItem(key: 'completion_coins', amount: 10),
-        RewardBreakdownItem(key: 'accuracy_bonus_coins', amount: 5),
+        RewardBreakdownItem(key: 'completion_coins', amount: 5),
+        RewardBreakdownItem(key: 'correct_answer_coins', amount: 10),
+        RewardBreakdownItem(key: 'perfect_bonus_coins', amount: 0),
       ],
     ),
     levelProgress: const QuizLevelProgress(
       currentLevel: 4,
       experience: 340,
       nextLevelExperience: 500,
+    ),
+    timeTaken: const Duration(minutes: 1),
+    createdAt: DateTime(2026),
+  );
+}
+
+QuizResult _perfectResult() {
+  return QuizResult(
+    sessionId: 'session-perfect',
+    topicId: 'topic-1',
+    quizType: QuestionType.mcq,
+    score: const Score(
+      earnedPoints: 100,
+      maxPoints: 100,
+      correctCount: 10,
+      totalCount: 10,
+    ),
+    records: const [],
+    endedEarly: false,
+    streakCount: 0,
+    xpAwarded: 75,
+    coinsAwarded: 35,
+    didLevelUp: true,
+    rewardBreakdown: const QuizRewardBreakdown(
+      score: [RewardBreakdownItem(key: 'correct_answer_points', amount: 100)],
+      xp: [
+        RewardBreakdownItem(key: 'completion_xp', amount: 10),
+        RewardBreakdownItem(key: 'correct_answer_xp', amount: 50),
+        RewardBreakdownItem(key: 'perfect_bonus_xp', amount: 15),
+      ],
+      coins: [
+        RewardBreakdownItem(key: 'completion_coins', amount: 5),
+        RewardBreakdownItem(key: 'correct_answer_coins', amount: 20),
+        RewardBreakdownItem(key: 'perfect_bonus_coins', amount: 10),
+      ],
+      levelUp: [
+        RewardBreakdownItem(key: 'level_up_bonus_coins', amount: 50),
+        RewardBreakdownItem(key: 'level_up_bonus_gems', amount: 1),
+      ],
     ),
     timeTaken: const Duration(minutes: 1),
     createdAt: DateTime(2026),

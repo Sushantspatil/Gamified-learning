@@ -118,7 +118,7 @@ class QuizResultView extends StatelessWidget {
                 _RewardBreakdowns(result: result),
                 const SizedBox(height: AppSpacing.sm),
                 TextButton.icon(
-                  onPressed: () => _showScoringSheet(context),
+                  onPressed: () => _showScoringSheet(context, result.quizType),
                   icon: const Icon(Icons.info_outline, size: 18),
                   label: const Text('How scoring works'),
                 ),
@@ -171,7 +171,9 @@ class _ScorePanel extends StatelessWidget {
             Text('Score', style: context.appTextStyles.labelLarge),
             const SizedBox(height: AppSpacing.xs),
             Text(
-              '${result.score.earnedPoints} / ${result.score.maxPoints}',
+              result.score.maxPoints > 0
+                  ? '${result.score.earnedPoints} / ${result.score.maxPoints}'
+                  : '${result.score.earnedPoints}',
               style: context.appTextStyles.displayMedium,
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -244,14 +246,30 @@ class _RewardBreakdowns extends StatelessWidget {
           title: 'XP earned',
           unit: 'XP',
           color: AppColors.xpPurple,
-          items: breakdown.xp,
+          items: result.quizType == QuestionType.mcq
+              ? breakdown.xp
+                    .where((item) => item.key != 'speed_bonus_xp')
+                    .toList(growable: false)
+              : breakdown.xp,
         ),
       if (breakdown.hasCoins)
         _BreakdownSection(
           title: 'Coins',
           unit: '',
           color: AppColors.coinGold,
-          items: breakdown.coins,
+          items: result.quizType == QuestionType.mcq
+              ? breakdown.coins
+                    .where((item) => item.key != 'accuracy_bonus_coins')
+                    .toList(growable: false)
+              : breakdown.coins,
+        ),
+      if (breakdown.hasLevelUp)
+        _BreakdownSection(
+          title: 'Level up bonus',
+          unit: '',
+          color: context.themeColors.primary,
+          items: breakdown.levelUp,
+          formatAmount: _formatLevelUpAmount,
         ),
     ];
 
@@ -350,12 +368,14 @@ class _BreakdownSection extends StatelessWidget {
   final String unit;
   final Color color;
   final List<RewardBreakdownItem> items;
+  final String Function(RewardBreakdownItem item)? formatAmount;
 
   const _BreakdownSection({
     required this.title,
     required this.unit,
     required this.color,
     required this.items,
+    this.formatAmount,
   });
 
   @override
@@ -390,7 +410,8 @@ class _BreakdownSection extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
-                      '+${item.amount}${unit.isEmpty ? '' : ' $unit'}',
+                      formatAmount?.call(item) ??
+                          '+${item.amount}${unit.isEmpty ? '' : ' $unit'}',
                       style: context.appTextStyles.labelLarge.copyWith(
                         color: colors.textPrimary,
                       ),
@@ -555,9 +576,14 @@ String _friendlyRewardLabel(String key) {
     'completion_xp' => 'Quiz completion',
     'correct_answer_xp' => 'Correct answers',
     'perfect_bonus_xp' => 'Perfect score bonus',
+    'speed_bonus_xp' => 'Speed bonus XP',
     'completion_coins' => 'Quiz completion',
+    'correct_answer_coins' => 'Correct answers',
+    'perfect_bonus_coins' => 'Perfect score bonus',
     'accuracy_bonus_coins' => 'Accuracy bonus',
-    'level_up_bonus_coins' => 'Level up bonus',
+    'level_up_bonus_xp' => 'XP',
+    'level_up_bonus_coins' => 'Coins',
+    'level_up_bonus_gems' => 'Gems',
     _ =>
       key
           .split('_')
@@ -567,42 +593,73 @@ String _friendlyRewardLabel(String key) {
   };
 }
 
-void _showScoringSheet(BuildContext context) {
+String _formatLevelUpAmount(RewardBreakdownItem item) {
+  final unit = switch (item.key) {
+    'level_up_bonus_xp' => ' XP',
+    'level_up_bonus_coins' => ' Coins',
+    'level_up_bonus_gems' => ' Gems',
+    _ => '',
+  };
+  return '+${item.amount}$unit';
+}
+
+void _showScoringSheet(BuildContext context, QuestionType quizType) {
+  final isMcq = quizType == QuestionType.mcq;
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
     builder: (context) {
       return SafeArea(
-        child: Padding(
-          padding: AppSpacing.paddingLg,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'How scoring works',
-                style: context.appTextStyles.titleLarge,
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _ScoringInfoRow(
-                icon: Icons.track_changes_rounded,
-                title: 'Points',
-                body: 'Earned from correct answers in this quiz.',
-                color: context.themeColors.primary,
-              ),
-              _ScoringInfoRow(
-                icon: Icons.bolt,
-                title: 'XP',
-                body: 'Helps increase your account level.',
-                color: AppColors.xpPurple,
-              ),
-              _ScoringInfoRow(
-                icon: Icons.monetization_on,
-                title: 'Coins',
-                body: 'Can be used for power-ups.',
-                color: AppColors.coinGold,
-              ),
-            ],
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: AppSpacing.paddingLg,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'How scoring works',
+                  style: context.appTextStyles.titleLarge,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                _ScoringInfoRow(
+                  icon: Icons.track_changes_rounded,
+                  title: isMcq ? 'Quiz points' : 'Points',
+                  body: isMcq
+                      ? '+10 points for every correct answer.\n'
+                            'Wrong and skipped answers give 0 points.'
+                      : 'Earned from correct answers in this quiz.',
+                  color: context.themeColors.primary,
+                ),
+                _ScoringInfoRow(
+                  icon: Icons.bolt,
+                  title: 'XP',
+                  body: isMcq
+                      ? '+10 XP for completing the quiz.\n'
+                            '+5 XP for every correct answer.\n'
+                            '+15 XP bonus for a perfect score.'
+                      : 'Helps increase your account level.',
+                  color: AppColors.xpPurple,
+                ),
+                _ScoringInfoRow(
+                  icon: Icons.monetization_on,
+                  title: 'Coins',
+                  body: isMcq
+                      ? '+5 Coins for completing the quiz.\n'
+                            '+2 Coins for every correct answer.\n'
+                            '+10 Coins bonus for a perfect score.'
+                      : 'Can be used for power-ups.',
+                  color: AppColors.coinGold,
+                ),
+                if (isMcq)
+                  _ScoringInfoRow(
+                    icon: Icons.auto_awesome_outlined,
+                    title: 'Power-ups',
+                    body: 'Using a power-up does not reduce your score or XP.',
+                    color: context.themeColors.primary,
+                  ),
+              ],
+            ),
           ),
         ),
       );

@@ -51,81 +51,78 @@ void main() {
       storage = _FakeLocalStorage();
     });
 
-    test(
-      'evaluateAnswer returns pointsEarned computed by backend CalculatePoints algorithm',
-      () async {
-        final mockClient = MockClient((request) async {
-          if (request.url.path.contains('/quiz/sessions/create')) {
-            return http.Response(
-              jsonEncode({
-                'code': 200,
-                'message': 'Session created',
-                'data': {
-                  'session': 'sess-123',
-                  'topic': 'accounting',
-                  'total_questions': 10,
-                  'questions': [],
-                },
-              }),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }
-          if (request.url.path.contains('/quiz/answers/evaluate')) {
-            return http.Response(
-              jsonEncode({
-                'code': 200,
-                'message': 'Answer evaluated successfully',
-                'data': {
-                  'question': 'q1',
-                  'option': 'a',
-                  'correct_option': 'a',
-                  'is_correct': true,
-                  'is_skipped': false,
-                  'points_earned': 23, // CalculatePoints(15, 2, 3000, 1) = 23
-                  'coins_earned': 5,
-                  'combo_streak': 1,
-                  'total_score': 23,
-                },
-              }),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }
-          return http.Response('{}', 200);
-        });
+    test('evaluateAnswer uses backend fixed MCQ points', () async {
+      final mockClient = MockClient((request) async {
+        if (request.url.path.contains('/quiz/sessions/create')) {
+          return http.Response(
+            jsonEncode({
+              'code': 200,
+              'message': 'Session created',
+              'data': {
+                'session': 'sess-123',
+                'topic': 'accounting',
+                'total_questions': 10,
+                'questions': [],
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        if (request.url.path.contains('/quiz/answers/evaluate')) {
+          return http.Response(
+            jsonEncode({
+              'code': 200,
+              'message': 'Answer evaluated successfully',
+              'data': {
+                'question': 'q1',
+                'option': 'a',
+                'correct_option': 'a',
+                'is_correct': true,
+                'is_skipped': false,
+                'points_earned': 10,
+                'coins_earned': 0,
+                'combo_streak': 1,
+                'total_score': 10,
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('{}', 200);
+      });
 
-        final apiClient = ApiClient(
-          config: const ApiConfig(baseUrl: 'http://localhost:8080/api/v1'),
-          storage: storage,
-          httpClient: mockClient,
-        );
+      final apiClient = ApiClient(
+        config: const ApiConfig(baseUrl: 'http://localhost:8080/api/v1'),
+        storage: storage,
+        httpClient: mockClient,
+      );
 
-        final remote = QuizRemoteDatasource(apiClient: apiClient);
-        const question = McqQuestion(
-          id: 'q1',
-          topicId: 'accounting',
-          prompt: 'Test Question',
-          points: 15,
-          options: [
-            QuestionOption(id: 'a', text: 'Option A'),
-            QuestionOption(id: 'b', text: 'Option B'),
-          ],
-          correctOptionId: 'a',
-        );
+      final remote = QuizRemoteDatasource(apiClient: apiClient);
+      const question = McqQuestion(
+        id: 'q1',
+        topicId: 'accounting',
+        prompt: 'Test Question',
+        points: 15,
+        options: [
+          QuestionOption(id: 'a', text: 'Option A'),
+          QuestionOption(id: 'b', text: 'Option B'),
+        ],
+        correctOptionId: 'a',
+      );
 
-        final eval = await remote.evaluateAnswer(
-          question,
-          const McqAnswer(questionId: 'q1', selectedOptionId: 'a'),
-        );
+      final eval = await remote.evaluateAnswer(
+        question,
+        const McqAnswer(questionId: 'q1', selectedOptionId: 'a'),
+      );
 
-        expect(eval.isCorrect, isTrue);
-        expect(eval.pointsEarned, 23); // Uses proper CalculatePoints score
-      },
-    );
+      expect(eval.isCorrect, isTrue);
+      expect(eval.pointsEarned, 10);
+    });
 
     test(
-      'submitSession uses authoritative CalculatePoints total score and maxScore',
+      'submitSession uses authoritative deterministic totals and breakdowns',
       () async {
         final mockClient = MockClient((request) async {
           if (request.url.path.contains('/quiz/sessions/complete')) {
@@ -137,11 +134,23 @@ void main() {
                   'session': 'sess-123',
                   'total_questions': 10,
                   'correct_count': 3,
-                  'final_score': 82, // 3 correct answers scored with CalculatePoints
-                  'max_score': 280, // Total achievable score with perfect speed & combo
-                  'coins_awarded': 17,
-                  'xp_awarded': 51,
+                  'accuracy_percentage': 30,
+                  'final_score': 30,
+                  'max_score': 100,
+                  'coins_awarded': 11,
+                  'xp_awarded': 25,
                   'gems_awarded': 0,
+                  'score_breakdown': {'correct_answer_points': 30},
+                  'xp_breakdown': {
+                    'completion_xp': 10,
+                    'correct_answer_xp': 15,
+                    'perfect_bonus_xp': 0,
+                  },
+                  'coin_breakdown': {
+                    'completion_coins': 5,
+                    'correct_answer_coins': 6,
+                    'perfect_bonus_coins': 0,
+                  },
                 },
               }),
               200,
@@ -203,19 +212,141 @@ void main() {
 
         final result = await remote.submitSession(session);
 
-        // Check accurate points calculation from CalculatePoints
-        expect(result.score.earnedPoints, 82);
-        expect(result.score.maxPoints, 280);
+        expect(result.score.earnedPoints, 30);
+        expect(result.score.maxPoints, 100);
         expect(result.score.correctCount, 3);
         expect(result.score.totalCount, 10);
-        expect(result.score.percentage, closeTo(82 / 280, 0.001));
+        expect(result.score.percentage, 0.3);
         expect(result.accuracy, 0.3);
         expect(result.wrongCount, 7);
+        expect(result.xpAwarded, 25);
+        expect(result.coinsAwarded, 11);
+        expect(result.rewardBreakdown.score.single.amount, 30);
+        expect(
+          result.rewardBreakdown.xp.fold<int>(
+            0,
+            (sum, item) => sum + item.amount,
+          ),
+          25,
+        );
+        expect(
+          result.rewardBreakdown.coins.fold<int>(
+            0,
+            (sum, item) => sum + item.amount,
+          ),
+          11,
+        );
       },
     );
 
+    test('full 10/10 response preserves perfect score and bonuses', () async {
+      final mockClient = MockClient((request) async {
+        if (request.url.path.contains('/quiz/sessions/complete')) {
+          return http.Response(
+            jsonEncode({
+              'code': 200,
+              'message': 'Completed',
+              'data': {
+                'session': 'sess-789',
+                'total_questions': 10,
+                'correct_count': 10,
+                'accuracy_percentage': 100,
+                'final_score': 100,
+                'max_score': 100,
+                'coins_awarded': 35,
+                'xp_awarded': 75,
+                'gems_awarded': 3,
+                'score_breakdown': {'correct_answer_points': 100},
+                'xp_breakdown': {
+                  'completion_xp': 10,
+                  'correct_answer_xp': 50,
+                  'perfect_bonus_xp': 15,
+                },
+                'coin_breakdown': {
+                  'completion_coins': 5,
+                  'correct_answer_coins': 20,
+                  'perfect_bonus_coins': 10,
+                },
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        return http.Response('{}', 200);
+      });
+
+      final apiClient = ApiClient(
+        config: const ApiConfig(baseUrl: 'http://localhost:8080/api/v1'),
+        storage: storage,
+        httpClient: mockClient,
+      );
+
+      final remote = QuizRemoteDatasource(apiClient: apiClient);
+
+      final questions = List.generate(
+        10,
+        (i) => McqQuestion(
+          id: 'q$i',
+          topicId: 'accounting',
+          prompt: 'Question $i',
+          points: 10,
+          options: const [
+            QuestionOption(id: 'a', text: 'Opt A'),
+            QuestionOption(id: 'b', text: 'Opt B'),
+          ],
+          correctOptionId: 'a',
+        ),
+      );
+
+      final answeredRecords = List.generate(
+        10,
+        (i) => QuestionAnswerRecord(
+          question: questions[i],
+          answer: const McqAnswer(questionId: 'q0', selectedOptionId: 'a'),
+          evaluation: const AnswerEvaluation(isCorrect: true, pointsEarned: 28),
+        ),
+      );
+
+      final session = QuizSession(
+        id: 'sess-789',
+        userId: '1',
+        topicId: 'accounting',
+        quizType: QuestionType.mcq,
+        questions: questions,
+        answeredRecords: answeredRecords,
+        endedEarly: false,
+        startedAt: DateTime.now().subtract(const Duration(seconds: 30)),
+        completedAt: DateTime.now(),
+      );
+
+      final result = await remote.submitSession(session);
+
+      expect(result.score.earnedPoints, 100);
+      expect(result.score.maxPoints, 100);
+      expect(result.score.correctCount, 10);
+      expect(result.score.totalCount, 10);
+      expect(result.score.percentage, 1.0);
+      expect(result.accuracy, 1.0);
+      expect(result.wrongCount, 0);
+      expect(result.xpAwarded, 75);
+      expect(result.coinsAwarded, 35);
+      expect(
+        result.rewardBreakdown.xp
+            .singleWhere((item) => item.key == 'perfect_bonus_xp')
+            .amount,
+        15,
+      );
+      expect(
+        result.rewardBreakdown.coins
+            .singleWhere((item) => item.key == 'perfect_bonus_coins')
+            .amount,
+        10,
+      );
+    });
+
     test(
-      'Full 10/10 correct answers achieves perfect 280 / 280 score',
+      'zero backend score is authoritative and is not replaced locally',
       () async {
         final mockClient = MockClient((request) async {
           if (request.url.path.contains('/quiz/sessions/complete')) {
@@ -224,14 +355,21 @@ void main() {
                 'code': 200,
                 'message': 'Completed',
                 'data': {
-                  'session': 'sess-789',
+                  'session': 'sess-zero',
                   'total_questions': 10,
-                  'correct_count': 10,
-                  'final_score': 280,
-                  'max_score': 280,
-                  'coins_awarded': 56,
-                  'xp_awarded': 140,
-                  'gems_awarded': 3,
+                  'correct_count': 0,
+                  'accuracy_percentage': 0,
+                  'final_score': 0,
+                  'max_score': 100,
+                  'coins_awarded': 5,
+                  'xp_awarded': 10,
+                  'gems_awarded': 0,
+                  'score_breakdown': {'correct_answer_points': 99},
+                  'xp_breakdown': {'completion_xp': 10, 'speed_bonus_xp': 108},
+                  'coin_breakdown': {
+                    'completion_coins': 5,
+                    'accuracy_bonus_coins': 99,
+                  },
                 },
               }),
               200,
@@ -240,66 +378,50 @@ void main() {
           }
           return http.Response('{}', 200);
         });
-
-        final apiClient = ApiClient(
-          config: const ApiConfig(baseUrl: 'http://localhost:8080/api/v1'),
-          storage: storage,
-          httpClient: mockClient,
-        );
-
-        final remote = QuizRemoteDatasource(apiClient: apiClient);
-
-        final questions = List.generate(
-          10,
-          (i) => McqQuestion(
-            id: 'q$i',
-            topicId: 'accounting',
-            prompt: 'Question $i',
-            points: 10,
-            options: const [
-              QuestionOption(id: 'a', text: 'Opt A'),
-              QuestionOption(id: 'b', text: 'Opt B'),
-            ],
-            correctOptionId: 'a',
+        final remote = QuizRemoteDatasource(
+          apiClient: ApiClient(
+            config: const ApiConfig(baseUrl: 'http://localhost:8080/api/v1'),
+            storage: storage,
+            httpClient: mockClient,
           ),
         );
-
-        final answeredRecords = List.generate(
-          10,
-          (i) => QuestionAnswerRecord(
-            question: questions[i],
-            answer: const McqAnswer(
-              questionId: 'q0',
-              selectedOptionId: 'a',
-            ),
-            evaluation: const AnswerEvaluation(
-              isCorrect: true,
-              pointsEarned: 28,
-            ),
-          ),
+        const question = McqQuestion(
+          id: 'q1',
+          topicId: 'accounting',
+          prompt: 'Question',
+          points: 99,
+          options: [
+            QuestionOption(id: 'a', text: 'A'),
+            QuestionOption(id: 'b', text: 'B'),
+          ],
+          correctOptionId: 'a',
         );
-
         final session = QuizSession(
-          id: 'sess-789',
-          userId: '1',
+          id: 'sess-zero',
           topicId: 'accounting',
           quizType: QuestionType.mcq,
-          questions: questions,
-          answeredRecords: answeredRecords,
+          questions: const [question],
+          answeredRecords: const [
+            QuestionAnswerRecord(
+              question: question,
+              answer: McqAnswer(questionId: 'q1', selectedOptionId: 'b'),
+              evaluation: AnswerEvaluation(isCorrect: false, pointsEarned: 99),
+            ),
+          ],
           endedEarly: false,
-          startedAt: DateTime.now().subtract(const Duration(seconds: 30)),
-          completedAt: DateTime.now(),
+          startedAt: DateTime(2026),
+          completedAt: DateTime(2026, 1, 1, 0, 1),
         );
 
         final result = await remote.submitSession(session);
 
-        expect(result.score.earnedPoints, 280);
-        expect(result.score.maxPoints, 280);
-        expect(result.score.correctCount, 10);
-        expect(result.score.totalCount, 10);
-        expect(result.score.percentage, 1.0);
-        expect(result.accuracy, 1.0);
-        expect(result.wrongCount, 0);
+        expect(result.score.earnedPoints, 0);
+        expect(result.score.maxPoints, 100);
+        expect(result.score.correctCount, 0);
+        expect(result.wrongCount, 10);
+        expect(result.rewardBreakdown.score, isEmpty);
+        expect(result.rewardBreakdown.xp, isEmpty);
+        expect(result.rewardBreakdown.coins, isEmpty);
       },
     );
   });

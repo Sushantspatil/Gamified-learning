@@ -135,7 +135,7 @@ void main() {
       id: 'q1',
       topicId: 't1',
       prompt: 'p',
-      points: 10,
+      points: 25,
       options: [
         QuestionOption(id: 'a', text: 'A'),
         QuestionOption(id: 'b', text: 'B'),
@@ -159,6 +159,132 @@ void main() {
       );
       expect(evaluation.isCorrect, isFalse);
       expect(evaluation.pointsEarned, 0);
+    });
+
+    test(
+      'partial result uses fixed MCQ score, XP, and coin formulas',
+      () async {
+        final questions = List.generate(
+          10,
+          (index) => McqQuestion(
+            id: 'q$index',
+            topicId: 't1',
+            prompt: 'Question $index',
+            points: 25,
+            options: const [
+              QuestionOption(id: 'a', text: 'A'),
+              QuestionOption(id: 'b', text: 'B'),
+            ],
+            correctOptionId: 'a',
+          ),
+        );
+        final records = List.generate(
+          5,
+          (index) => QuestionAnswerRecord(
+            question: questions[index],
+            answer: McqAnswer(
+              questionId: questions[index].id,
+              selectedOptionId: 'a',
+            ),
+            evaluation: const AnswerEvaluation(
+              isCorrect: true,
+              pointsEarned: 10,
+            ),
+          ),
+        );
+
+        final result = await datasource.submitSession(
+          QuizSession(
+            id: 'mcq-partial',
+            topicId: 't1',
+            quizType: QuestionType.mcq,
+            questions: questions,
+            answeredRecords: records,
+            endedEarly: false,
+            startedAt: DateTime(2026),
+            completedAt: DateTime(2026, 1, 1, 0, 1),
+          ),
+        );
+
+        expect(result.score.earnedPoints, 50);
+        expect(result.score.maxPoints, 100);
+        expect(result.score.correctCount, 5);
+        expect(result.wrongCount, 5);
+        expect(result.accuracy, .5);
+        expect(result.xpAwarded, 35);
+        expect(result.coinsAwarded, 15);
+        expect(
+          result.rewardBreakdown.xp
+              .singleWhere((item) => item.key == 'perfect_bonus_xp')
+              .amount,
+          0,
+        );
+        expect(
+          result.rewardBreakdown.coins
+              .singleWhere((item) => item.key == 'perfect_bonus_coins')
+              .amount,
+          0,
+        );
+      },
+    );
+
+    test('perfect result includes only the fixed perfect bonuses', () async {
+      final questions = List.generate(
+        10,
+        (index) => McqQuestion(
+          id: 'perfect-$index',
+          topicId: 't1',
+          prompt: 'Question $index',
+          points: 40,
+          options: const [
+            QuestionOption(id: 'a', text: 'A'),
+            QuestionOption(id: 'b', text: 'B'),
+          ],
+          correctOptionId: 'a',
+        ),
+      );
+      final records = questions
+          .map(
+            (question) => QuestionAnswerRecord(
+              question: question,
+              answer: McqAnswer(questionId: question.id, selectedOptionId: 'a'),
+              evaluation: const AnswerEvaluation(
+                isCorrect: true,
+                pointsEarned: 10,
+              ),
+            ),
+          )
+          .toList();
+
+      final result = await datasource.submitSession(
+        QuizSession(
+          id: 'mcq-perfect',
+          topicId: 't1',
+          quizType: QuestionType.mcq,
+          questions: questions,
+          answeredRecords: records,
+          endedEarly: false,
+          startedAt: DateTime(2026),
+          completedAt: DateTime(2026, 1, 1, 0, 1),
+        ),
+      );
+
+      expect(result.score.earnedPoints, 100);
+      expect(result.score.maxPoints, 100);
+      expect(result.xpAwarded, 75);
+      expect(result.coinsAwarded, 35);
+      expect(
+        result.rewardBreakdown.xp
+            .singleWhere((item) => item.key == 'perfect_bonus_xp')
+            .amount,
+        15,
+      );
+      expect(
+        result.rewardBreakdown.coins
+            .singleWhere((item) => item.key == 'perfect_bonus_coins')
+            .amount,
+        10,
+      );
     });
   });
 
@@ -242,19 +368,23 @@ void main() {
         ],
         correctOptionId: 'b',
       );
-      const sort = SortItRightQuestion(
-        id: 'q3',
+      const secondMcq = McqQuestion(
+        id: 'q2',
         topicId: 't1',
-        prompt: 'p',
-        points: 5,
-        itemsInOrder: ['A', 'B'],
+        prompt: 'p2',
+        points: 25,
+        options: [
+          QuestionOption(id: 'a', text: 'A'),
+          QuestionOption(id: 'b', text: 'B'),
+        ],
+        correctOptionId: 'a',
       );
 
       final session = QuizSession(
         id: 'session-1',
         topicId: 't1',
         quizType: QuestionType.mcq,
-        questions: const [mcq, sort],
+        questions: const [mcq, secondMcq],
         answeredRecords: [
           QuestionAnswerRecord(
             question: mcq,
@@ -273,10 +403,7 @@ void main() {
       final result = await datasource.submitSession(session);
 
       expect(result.score.earnedPoints, 10);
-      expect(
-        result.score.maxPoints,
-        15,
-      ); // includes the un-answered sort question's points
+      expect(result.score.maxPoints, 20);
       expect(result.score.correctCount, 1);
       expect(result.score.totalCount, 2);
       expect(result.endedEarly, isTrue);

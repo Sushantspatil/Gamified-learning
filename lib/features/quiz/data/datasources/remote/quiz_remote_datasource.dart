@@ -145,7 +145,8 @@ class QuizRemoteDatasource implements QuizDatasource {
 
   @override
   Future<QuizResult> submitSession(QuizSession session) async {
-    final sessionId = (_backendSessionId != null && _backendSessionId!.isNotEmpty)
+    final sessionId =
+        (_backendSessionId != null && _backendSessionId!.isNotEmpty)
         ? _backendSessionId!
         : session.id;
     _backendSessionId = null;
@@ -176,24 +177,26 @@ class QuizRemoteDatasource implements QuizDatasource {
         }
       }
 
-      final earnedPoints = resDto.finalScore > 0
-          ? resDto.finalScore
-          : recordedPoints;
-
-      final maxScore = resDto.maxScore > 0
-          ? resDto.maxScore
-          : (session.questions.isNotEmpty
-              ? session.questions.fold<int>(0, (sum, q) => sum + q.points)
-              : 100);
-
-      final correctCount = resDto.correctCount > 0
-          ? resDto.correctCount
-          : computedCorrectCount;
-
-      final totalCount = resDto.totalQuestions > 0
-          ? resDto.totalQuestions
-          : (session.questions.isNotEmpty ? session.questions.length : 10);
+      final earnedPoints = resDto.finalScore ?? recordedPoints;
+      final maxScore = resDto.maxScore ?? 0;
+      final correctCount = resDto.correctCount ?? computedCorrectCount;
+      final totalCount = resDto.totalQuestions ?? session.questions.length;
       final completedAt = session.completedAt;
+
+      final xpBreakdown = resDto.xpBreakdown.containsKey('speed_bonus_xp')
+          ? const <RewardBreakdownItem>[]
+          : _parseBreakdown(
+              resDto.xpBreakdown,
+              expectedTotal: resDto.xpAwarded,
+            );
+      final coinBreakdown =
+          resDto.coinBreakdown.containsKey('accuracy_bonus_coins')
+          ? const <RewardBreakdownItem>[]
+          : _parseBreakdown(
+              resDto.coinBreakdown,
+              expectedTotal: resDto.coinsAwarded,
+            );
+      final levelUpReward = resDto.levelUpReward;
 
       return QuizResult(
         sessionId: sessionId,
@@ -216,14 +219,28 @@ class QuizRemoteDatasource implements QuizDatasource {
         gemsAwarded: resDto.gemsAwarded,
         didLevelUp: resDto.level?.didLevelUp ?? false,
         rewardBreakdown: QuizRewardBreakdown(
-          score: [
-            RewardBreakdownItem(
-              key: 'correct_answer_points',
-              amount: earnedPoints,
-            ),
-          ],
-          xp: _parseBreakdown(resDto.xpBreakdown),
-          coins: _parseBreakdown(resDto.coinBreakdown),
+          score: _parseBreakdown(
+            resDto.scoreBreakdown,
+            expectedTotal: earnedPoints,
+          ),
+          xp: xpBreakdown,
+          coins: coinBreakdown,
+          levelUp: levelUpReward == null
+              ? const []
+              : [
+                  RewardBreakdownItem(
+                    key: 'level_up_bonus_xp',
+                    amount: levelUpReward.xp,
+                  ),
+                  RewardBreakdownItem(
+                    key: 'level_up_bonus_coins',
+                    amount: levelUpReward.coins,
+                  ),
+                  RewardBreakdownItem(
+                    key: 'level_up_bonus_gems',
+                    amount: levelUpReward.gems,
+                  ),
+                ],
         ),
         levelProgress: resDto.level != null
             ? QuizLevelProgress(
@@ -271,13 +288,19 @@ class QuizRemoteDatasource implements QuizDatasource {
     return null;
   }
 
-  List<RewardBreakdownItem> _parseBreakdown(Map<String, int> values) {
+  List<RewardBreakdownItem> _parseBreakdown(
+    Map<String, int> values, {
+    int? expectedTotal,
+  }) {
+    if (values.isEmpty) return const [];
+    if (expectedTotal != null &&
+        values.values.fold<int>(0, (sum, value) => sum + value) !=
+            expectedTotal) {
+      return const [];
+    }
     return values.entries
         .map(
-          (entry) => RewardBreakdownItem(
-            key: entry.key,
-            amount: entry.value,
-          ),
+          (entry) => RewardBreakdownItem(key: entry.key, amount: entry.value),
         )
         .toList(growable: false);
   }

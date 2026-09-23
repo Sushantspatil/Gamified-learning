@@ -42,19 +42,22 @@ class QuizRewardBreakdown extends Equatable {
   final List<RewardBreakdownItem> score;
   final List<RewardBreakdownItem> xp;
   final List<RewardBreakdownItem> coins;
+  final List<RewardBreakdownItem> levelUp;
 
   const QuizRewardBreakdown({
     this.score = const [],
     this.xp = const [],
     this.coins = const [],
+    this.levelUp = const [],
   });
 
   bool get hasScore => score.any((item) => item.amount != 0);
   bool get hasXp => xp.any((item) => item.amount != 0);
   bool get hasCoins => coins.any((item) => item.amount != 0);
+  bool get hasLevelUp => levelUp.any((item) => item.amount != 0);
 
   @override
-  List<Object?> get props => [score, xp, coins];
+  List<Object?> get props => [score, xp, coins, levelUp];
 }
 
 class QuizLevelProgress extends Equatable {

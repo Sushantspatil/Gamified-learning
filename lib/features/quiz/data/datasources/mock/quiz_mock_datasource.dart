@@ -10,6 +10,13 @@ const _correctAnswerXp = 5;
 const _perfectBonusXp = 10;
 const _completionCoins = 10;
 const _accuracyBonusCoins = 5;
+const _mcqCorrectAnswerPoints = 10;
+const _mcqCompletionXp = 10;
+const _mcqCorrectAnswerXp = 5;
+const _mcqPerfectBonusXp = 15;
+const _mcqCompletionCoins = 5;
+const _mcqCorrectAnswerCoins = 2;
+const _mcqPerfectBonusCoins = 10;
 
 /// MOCK DATA — this is the ONLY place scoring math happens. Replace the
 /// binding in quiz_providers.dart with a datasource that calls a Cloud
@@ -27,7 +34,7 @@ class QuizMockDatasource implements QuizDatasource {
       (McqQuestion q, McqAnswer a) => _evaluateOptionBased(
         q.correctOptionId,
         a.selectedOptionId,
-        q.points,
+        _mcqCorrectAnswerPoints,
       ),
       (SuddenDeathQuestion q, SuddenDeathAnswer a) => _evaluateOptionBased(
         q.correctOptionId,
@@ -134,33 +141,71 @@ class QuizMockDatasource implements QuizDatasource {
     }
 
     final metric = _metricForSession(session);
+    final isMcq = session.quizType == QuestionType.mcq;
+    if (isMcq) {
+      earned = metric.correct * _mcqCorrectAnswerPoints;
+      max = metric.total * _mcqCorrectAnswerPoints;
+    }
     final streakCount = session.quizType == QuestionType.suddenDeath
         ? metric.correct
         : 0;
     final completedAt = session.completedAt;
     final perfect = metric.total > 0 && metric.correct == metric.total;
     final accuracy = metric.total == 0 ? 0 : metric.correct / metric.total;
-    final xpBreakdown = [
-      const RewardBreakdownItem(key: 'completion_xp', amount: _completionXp),
-      RewardBreakdownItem(
-        key: 'correct_answer_xp',
-        amount: metric.correct * _correctAnswerXp,
-      ),
-      RewardBreakdownItem(
-        key: 'perfect_bonus_xp',
-        amount: perfect ? _perfectBonusXp : 0,
-      ),
-    ];
-    final coinBreakdown = [
-      const RewardBreakdownItem(
-        key: 'completion_coins',
-        amount: _completionCoins,
-      ),
-      RewardBreakdownItem(
-        key: 'accuracy_bonus_coins',
-        amount: accuracy >= .8 ? _accuracyBonusCoins : 0,
-      ),
-    ];
+    final xpBreakdown = isMcq
+        ? [
+            const RewardBreakdownItem(
+              key: 'completion_xp',
+              amount: _mcqCompletionXp,
+            ),
+            RewardBreakdownItem(
+              key: 'correct_answer_xp',
+              amount: metric.correct * _mcqCorrectAnswerXp,
+            ),
+            RewardBreakdownItem(
+              key: 'perfect_bonus_xp',
+              amount: perfect ? _mcqPerfectBonusXp : 0,
+            ),
+          ]
+        : [
+            const RewardBreakdownItem(
+              key: 'completion_xp',
+              amount: _completionXp,
+            ),
+            RewardBreakdownItem(
+              key: 'correct_answer_xp',
+              amount: metric.correct * _correctAnswerXp,
+            ),
+            RewardBreakdownItem(
+              key: 'perfect_bonus_xp',
+              amount: perfect ? _perfectBonusXp : 0,
+            ),
+          ];
+    final coinBreakdown = isMcq
+        ? [
+            const RewardBreakdownItem(
+              key: 'completion_coins',
+              amount: _mcqCompletionCoins,
+            ),
+            RewardBreakdownItem(
+              key: 'correct_answer_coins',
+              amount: metric.correct * _mcqCorrectAnswerCoins,
+            ),
+            RewardBreakdownItem(
+              key: 'perfect_bonus_coins',
+              amount: perfect ? _mcqPerfectBonusCoins : 0,
+            ),
+          ]
+        : [
+            const RewardBreakdownItem(
+              key: 'completion_coins',
+              amount: _completionCoins,
+            ),
+            RewardBreakdownItem(
+              key: 'accuracy_bonus_coins',
+              amount: accuracy >= .8 ? _accuracyBonusCoins : 0,
+            ),
+          ];
     final xp = xpBreakdown.fold(0, (sum, item) => sum + item.amount);
     final coins = coinBreakdown.fold(0, (sum, item) => sum + item.amount);
 
