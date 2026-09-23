@@ -143,22 +143,28 @@ void main() {
 
         expect(sessionId, isNotNull);
         expect(quizRemote.activeSessionId, sessionId);
+        final sessionQuestions = quizRemote.activeSessionQuestions;
+        expect(sessionQuestions, isNotNull);
+        expect(sessionQuestions, hasLength(3));
+        final sessionQuestion = sessionQuestions!.first as McqQuestion;
 
         // 4. Submit an answer for evaluation to the backend
         final evaluation = await quizRemote.evaluateAnswer(
-          firstMcq,
+          sessionQuestion,
           McqAnswer(
-            questionId: firstMcq.id,
-            selectedOptionId: firstMcq.options.first.id,
+            questionId: sessionQuestion.id,
+            selectedOptionId: sessionQuestion.options.first.id,
           ),
         );
 
         expect(evaluation, isNotNull);
         expect(evaluation.isCorrect, isA<bool>());
-        expect(evaluation.pointsEarned, isA<int>());
+        expect(evaluation.pointsEarned, evaluation.isCorrect ? 10 : 0);
 
         // 5. Test 50:50 power-up live from backend
-        final hiddenOptions = await quizRemote.applyFiftyFifty(firstMcq.id);
+        final hiddenOptions = await quizRemote.applyFiftyFifty(
+          sessionQuestion.id,
+        );
         expect(hiddenOptions, isNotNull);
         expect(hiddenOptions!.length, 2);
 
@@ -169,7 +175,7 @@ void main() {
             userId: '1',
             topicId: 'accounting',
             quizType: QuestionType.mcq,
-            questions: questions.take(3).toList(),
+            questions: sessionQuestions,
             answeredRecords: [],
             endedEarly: false,
             startedAt: DateTime.now().subtract(const Duration(seconds: 10)),
@@ -178,7 +184,40 @@ void main() {
         );
 
         expect(sessionResult.sessionId, sessionId);
-        expect(sessionResult.score.totalCount, greaterThanOrEqualTo(1));
+        final expectedCorrect = evaluation.isCorrect ? 1 : 0;
+        expect(sessionResult.score.earnedPoints, expectedCorrect * 10);
+        expect(sessionResult.score.maxPoints, 30);
+        expect(sessionResult.score.correctCount, expectedCorrect);
+        expect(sessionResult.score.totalCount, 3);
+        expect(sessionResult.xpAwarded, 10 + expectedCorrect * 5);
+        expect(sessionResult.coinsAwarded, 5 + expectedCorrect * 2);
+        expect(
+          sessionResult.rewardBreakdown.score.fold<int>(
+            0,
+            (sum, item) => sum + item.amount,
+          ),
+          sessionResult.score.earnedPoints,
+        );
+        expect(
+          sessionResult.rewardBreakdown.xp.fold<int>(
+            0,
+            (sum, item) => sum + item.amount,
+          ),
+          sessionResult.xpAwarded,
+        );
+        expect(
+          sessionResult.rewardBreakdown.coins.fold<int>(
+            0,
+            (sum, item) => sum + item.amount,
+          ),
+          sessionResult.coinsAwarded,
+        );
+        expect(
+          sessionResult.rewardBreakdown.xp.any(
+            (item) => item.key == 'speed_bonus_xp',
+          ),
+          isFalse,
+        );
       },
     );
 

@@ -133,22 +133,22 @@ void main() {
                 'data': {
                   'session': 'sess-123',
                   'total_questions': 10,
-                  'correct_count': 3,
-                  'accuracy_percentage': 30,
-                  'final_score': 30,
+                  'correct_count': 5,
+                  'accuracy_percentage': 50,
+                  'final_score': 50,
                   'max_score': 100,
-                  'coins_awarded': 11,
-                  'xp_awarded': 25,
+                  'coins_awarded': 15,
+                  'xp_awarded': 35,
                   'gems_awarded': 0,
-                  'score_breakdown': {'correct_answer_points': 30},
+                  'score_breakdown': {'correct_answer_points': 50},
                   'xp_breakdown': {
                     'completion_xp': 10,
-                    'correct_answer_xp': 15,
+                    'correct_answer_xp': 25,
                     'perfect_bonus_xp': 0,
                   },
                   'coin_breakdown': {
                     'completion_coins': 5,
-                    'correct_answer_coins': 6,
+                    'correct_answer_coins': 10,
                     'perfect_bonus_coins': 0,
                   },
                 },
@@ -189,11 +189,11 @@ void main() {
             question: questions[i],
             answer: McqAnswer(
               questionId: questions[i].id,
-              selectedOptionId: i < 3 ? 'a' : 'b',
+              selectedOptionId: i < 5 ? 'a' : 'b',
             ),
             evaluation: AnswerEvaluation(
-              isCorrect: i < 3,
-              pointsEarned: i == 0 ? 23 : (i == 1 ? 23 : (i == 2 ? 36 : 0)),
+              isCorrect: i < 5,
+              pointsEarned: i < 5 ? 99 : 0,
             ),
           ),
         );
@@ -212,29 +212,29 @@ void main() {
 
         final result = await remote.submitSession(session);
 
-        expect(result.score.earnedPoints, 30);
+        expect(result.score.earnedPoints, 50);
         expect(result.score.maxPoints, 100);
-        expect(result.score.correctCount, 3);
+        expect(result.score.correctCount, 5);
         expect(result.score.totalCount, 10);
-        expect(result.score.percentage, 0.3);
-        expect(result.accuracy, 0.3);
-        expect(result.wrongCount, 7);
-        expect(result.xpAwarded, 25);
-        expect(result.coinsAwarded, 11);
-        expect(result.rewardBreakdown.score.single.amount, 30);
+        expect(result.score.percentage, 0.5);
+        expect(result.accuracy, 0.5);
+        expect(result.wrongCount, 5);
+        expect(result.xpAwarded, 35);
+        expect(result.coinsAwarded, 15);
+        expect(result.rewardBreakdown.score.single.amount, 50);
         expect(
           result.rewardBreakdown.xp.fold<int>(
             0,
             (sum, item) => sum + item.amount,
           ),
-          25,
+          35,
         );
         expect(
           result.rewardBreakdown.coins.fold<int>(
             0,
             (sum, item) => sum + item.amount,
           ),
-          11,
+          15,
         );
       },
     );

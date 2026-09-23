@@ -36,6 +36,22 @@ void main() {
     expect(find.text('+0 XP'), findsNothing);
   });
 
+  testWidgets('shows completion rewards when MCQ score is zero', (
+    tester,
+  ) async {
+    await _pumpResult(tester, _zeroResult());
+
+    expect(find.text('0 / 100'), findsOneWidget);
+    expect(find.text('0 correct'), findsOneWidget);
+    expect(find.text('10 wrong'), findsOneWidget);
+    expect(find.text('0% accuracy'), findsOneWidget);
+    expect(find.text('+10 XP'), findsNWidgets(2));
+    expect(find.text('+5 Coins'), findsOneWidget);
+    expect(find.text('Quiz completion'), findsNWidgets(2));
+    expect(find.text('Correct answers'), findsNothing);
+    expect(find.text('Perfect score bonus'), findsNothing);
+  });
+
   testWidgets('opens scoring explanation sheet', (tester) async {
     await _pumpResult(tester, _result());
 
@@ -175,6 +191,40 @@ QuizResult _perfectResult() {
       levelUp: [
         RewardBreakdownItem(key: 'level_up_bonus_coins', amount: 50),
         RewardBreakdownItem(key: 'level_up_bonus_gems', amount: 1),
+      ],
+    ),
+    timeTaken: const Duration(minutes: 1),
+    createdAt: DateTime(2026),
+  );
+}
+
+QuizResult _zeroResult() {
+  return QuizResult(
+    sessionId: 'session-zero',
+    topicId: 'topic-1',
+    quizType: QuestionType.mcq,
+    score: const Score(
+      earnedPoints: 0,
+      maxPoints: 100,
+      correctCount: 0,
+      totalCount: 10,
+    ),
+    records: const [],
+    endedEarly: false,
+    streakCount: 0,
+    xpAwarded: 10,
+    coinsAwarded: 5,
+    rewardBreakdown: const QuizRewardBreakdown(
+      score: [RewardBreakdownItem(key: 'correct_answer_points', amount: 0)],
+      xp: [
+        RewardBreakdownItem(key: 'completion_xp', amount: 10),
+        RewardBreakdownItem(key: 'correct_answer_xp', amount: 0),
+        RewardBreakdownItem(key: 'perfect_bonus_xp', amount: 0),
+      ],
+      coins: [
+        RewardBreakdownItem(key: 'completion_coins', amount: 5),
+        RewardBreakdownItem(key: 'correct_answer_coins', amount: 0),
+        RewardBreakdownItem(key: 'perfect_bonus_coins', amount: 0),
       ],
     ),
     timeTaken: const Duration(minutes: 1),
