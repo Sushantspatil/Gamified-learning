@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
@@ -7,43 +8,32 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/game_scaffold.dart';
-import '../../../questions/data/datasources/mock/question_mock_datasource.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
+import '../providers/sudden_death_preview_providers.dart';
 import '../widgets/quiz_celebration_overlay.dart';
 import '../widgets/sudden_death_question_view.dart';
 
 /// Development-only UI harness for Sudden Death.
 ///
-/// The route that builds this screen is omitted from release/profile builds.
+/// The route that builds this screen is omitted from release builds.
 /// It intentionally owns only preview progression and visual feedback; it does
 /// not submit scores, rewards, streaks, wallet mutations, or backend actions.
-class SuddenDeathDemoScreen extends StatefulWidget {
+class SuddenDeathDemoScreen extends ConsumerStatefulWidget {
   const SuddenDeathDemoScreen({super.key});
 
   @override
-  State<SuddenDeathDemoScreen> createState() => _SuddenDeathDemoScreenState();
+  ConsumerState<SuddenDeathDemoScreen> createState() =>
+      _SuddenDeathDemoScreenState();
 }
 
-class _SuddenDeathDemoScreenState extends State<SuddenDeathDemoScreen> {
-  late final Future<List<SuddenDeathQuestion>> _questionsFuture;
+class _SuddenDeathDemoScreenState extends ConsumerState<SuddenDeathDemoScreen> {
+  static const _previewTopicId = 'sudden-death-ui-preview';
+
   var _currentIndex = 0;
   var _previewStreak = 0;
   var _bestPreviewStreak = 0;
   _DemoResult? _result;
-
-  @override
-  void initState() {
-    super.initState();
-    _questionsFuture = QuestionMockDatasource()
-        .getQuestionsForTopicAndType(
-          'sudden-death-ui-preview',
-          QuestionType.suddenDeath,
-        )
-        .then(
-          (questions) => questions.whereType<SuddenDeathQuestion>().toList(),
-        );
-  }
 
   void _handleAnswer(List<SuddenDeathQuestion> questions, Answer answer) {
     if (answer is! SuddenDeathAnswer || _result != null) return;
@@ -102,22 +92,19 @@ class _SuddenDeathDemoScreenState extends State<SuddenDeathDemoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return GameScaffold(
-      body: FutureBuilder<List<SuddenDeathQuestion>>(
-        future: _questionsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _DemoMessage(
-              title: 'Preview unavailable',
-              body: 'The isolated Sudden Death demo questions could not load.',
-              onExit: () => Navigator.of(context).maybePop(),
-            );
-          }
+    final questionsAsync = ref.watch(
+      suddenDeathPreviewQuestionsProvider(_previewTopicId),
+    );
 
-          final questions = snapshot.data ?? const [];
+    return GameScaffold(
+      body: questionsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => _DemoMessage(
+          title: 'Preview unavailable',
+          body: 'The isolated Sudden Death demo questions could not load.',
+          onExit: () => Navigator.of(context).maybePop(),
+        ),
+        data: (questions) {
           if (questions.isEmpty) {
             return _DemoMessage(
               title: 'No preview questions',

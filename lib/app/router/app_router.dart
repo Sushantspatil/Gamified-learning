@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../config/app_config.dart';
 import '../../features/authentication/presentation/providers/auth_providers.dart';
 import '../../features/authentication/presentation/screens/login_screen.dart';
 import '../../features/authentication/presentation/screens/signup_screen.dart';
@@ -169,7 +169,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           topicId: state.pathParameters['topicId']!,
         ),
       ),
-      if (kDebugMode)
+      if (AppConfig.developmentPreviewsEnabled)
         GoRoute(
           path: RouteNames.suddenDeathDemo,
           builder: (context, state) => const SuddenDeathDemoScreen(),

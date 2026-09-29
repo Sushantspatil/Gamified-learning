@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../app/config/app_config.dart';
 import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
@@ -21,6 +21,7 @@ import '../../../learning_paths/domain/entities/learning_path.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
+import '../../../quiz/presentation/providers/sudden_death_preview_providers.dart';
 
 const _practiceModes = [
   QuestionType.mcq,
@@ -110,7 +111,8 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
           onPressed: _canStart
               ? () {
                   final isSuddenDeathPreview =
-                      kDebugMode && _selectedMode == QuestionType.suddenDeath;
+                      AppConfig.developmentPreviewsEnabled &&
+                      _selectedMode == QuestionType.suddenDeath;
                   context.push(
                     isSuddenDeathPreview
                         ? RouteNames.suddenDeathDemo
@@ -507,15 +509,33 @@ class _GameModePicker extends ConsumerWidget {
     final questionsAsync = topicId == null
         ? const AsyncValue<List<Question>>.data([])
         : ref.watch(questionsForTopicProvider(topicId));
+    final previewQuestionsAsync = topicId == null
+        ? const AsyncValue<List<SuddenDeathQuestion>>.data([])
+        : ref.watch(suddenDeathPreviewQuestionsProvider(topicId));
+    final previewQuestions = previewQuestionsAsync.valueOrNull ?? const [];
+    final hasSuddenDeathPreview = previewQuestions.isNotEmpty;
 
     Widget buildModeGrid(List<Question> questions) {
       final availability = {
         for (final mode in _practiceModes)
-          mode:
-              kDebugMode && topicId != null && mode == QuestionType.suddenDeath
-              ? const _ModeAvailability(isEnabled: true)
-              : _modeAvailability(mode, questions),
+          mode: _modeAvailability(mode, questions),
       };
+
+      if (topicId != null && AppConfig.developmentPreviewsEnabled) {
+        final productionAvailability = availability[QuestionType.suddenDeath]!;
+        if (hasSuddenDeathPreview) {
+          availability[QuestionType.suddenDeath] = _ModeAvailability(
+            isEnabled: true,
+            reason: '${previewQuestions.length} development preview questions',
+          );
+        } else if (!productionAvailability.isEnabled &&
+            previewQuestionsAsync.isLoading) {
+          availability[QuestionType.suddenDeath] = const _ModeAvailability(
+            isEnabled: false,
+            reason: 'Loading preview questions',
+          );
+        }
+      }
 
       return GridView.count(
         crossAxisCount: 2,
@@ -539,8 +559,12 @@ class _GameModePicker extends ConsumerWidget {
     return _SetupSection(
       title: 'Choose game mode',
       child: questionsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => kDebugMode && topicId != null
+        loading: () =>
+            AppConfig.developmentPreviewsEnabled && hasSuddenDeathPreview
+            ? buildModeGrid(const [])
+            : const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) =>
+            AppConfig.developmentPreviewsEnabled && topicId != null
             ? buildModeGrid(const [])
             : Text(
                 'No playable questions are available for this topic yet.',
