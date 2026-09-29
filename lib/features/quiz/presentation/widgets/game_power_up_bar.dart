@@ -39,7 +39,9 @@ class GamePowerUpBar extends ConsumerStatefulWidget {
   final int? coinBalanceOverride;
   final bool isDisabled;
   final bool isDense;
+  final bool wrapOnCompact;
   final bool showWallet;
+  final bool isPreviewMode;
   final ValueChanged<bool>? onBusyChanged;
 
   const GamePowerUpBar({
@@ -48,7 +50,9 @@ class GamePowerUpBar extends ConsumerStatefulWidget {
     this.coinBalanceOverride,
     this.isDisabled = false,
     this.isDense = false,
+    this.wrapOnCompact = false,
     this.showWallet = true,
+    this.isPreviewMode = false,
     this.onBusyChanged,
   });
 
@@ -75,15 +79,18 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
         context: context,
         isScrollControlled: true,
         showDragHandle: true,
-        builder: (context) => _PowerUpBuySheet(action: action),
+        builder: (context) => _PowerUpBuySheet(
+          action: action,
+          isPreviewMode: widget.isPreviewMode,
+        ),
       );
       if (confirmed != true || !mounted) return;
       setState(() => _isCharging = true);
 
       final overrideCoins = widget.coinBalanceOverride;
-      bool didDebit = false;
+      var didDebit = widget.isPreviewMode;
       final user = ref.read(authControllerProvider).valueOrNull;
-      if (user != null) {
+      if (!widget.isPreviewMode && user != null) {
         didDebit = await ref
             .read(walletControllerProvider.notifier)
             .debit(
@@ -91,7 +98,7 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
               amount: action.coinCost,
               reason: 'In-game power-up: ${action.label}',
             );
-      } else {
+      } else if (!widget.isPreviewMode) {
         final available =
             overrideCoins ??
             ref.read(walletControllerProvider).valueOrNull?.coins ??
@@ -124,11 +131,11 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
     final user = ref.watch(authControllerProvider).valueOrNull;
     final walletCoins = user != null
         ? (ref.watch(walletControllerProvider).valueOrNull?.coins ??
-            widget.coinBalanceOverride ??
-            0)
+              widget.coinBalanceOverride ??
+              0)
         : (widget.coinBalanceOverride ??
-            ref.watch(walletControllerProvider).valueOrNull?.coins ??
-            0);
+              ref.watch(walletControllerProvider).valueOrNull?.coins ??
+              0);
 
     return AppCard(
       key: const Key('game_power_up_bar'),
@@ -157,24 +164,47 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
             ),
             SizedBox(height: widget.isDense ? AppSpacing.xs : AppSpacing.sm),
           ],
-          Row(
-            children: [
-              for (var index = 0; index < widget.actions.length; index++) ...[
-                Expanded(
-                  child: _PowerUpTile(
-                    action: widget.actions[index],
-                    isBusy:
-                        _isCharging &&
-                        _pendingActionId == widget.actions[index].id,
-                    isDisabled: widget.isDisabled || _pendingActionId != null,
-                    isDense: widget.isDense,
-                    onTap: () => _buyAndUse(widget.actions[index]),
-                  ),
-                ),
-                if (index != widget.actions.length - 1)
-                  const SizedBox(width: AppSpacing.sm),
-              ],
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              Widget buildTile(GamePowerUpAction action, {bool? isDense}) {
+                return _PowerUpTile(
+                  action: action,
+                  isBusy: _isCharging && _pendingActionId == action.id,
+                  isDisabled: widget.isDisabled || _pendingActionId != null,
+                  isDense: isDense ?? widget.isDense,
+                  onTap: () => _buyAndUse(action),
+                );
+              }
+
+              if (widget.wrapOnCompact && constraints.maxWidth < 440) {
+                final tileWidth = (constraints.maxWidth - AppSpacing.sm) / 2;
+                return Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    for (final action in widget.actions)
+                      SizedBox(
+                        width: tileWidth,
+                        child: buildTile(action, isDense: true),
+                      ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  for (
+                    var index = 0;
+                    index < widget.actions.length;
+                    index++
+                  ) ...[
+                    Expanded(child: buildTile(widget.actions[index])),
+                    if (index != widget.actions.length - 1)
+                      const SizedBox(width: AppSpacing.sm),
+                  ],
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -307,8 +337,9 @@ class _PowerUpTile extends StatelessWidget {
 
 class _PowerUpBuySheet extends StatelessWidget {
   final GamePowerUpAction action;
+  final bool isPreviewMode;
 
-  const _PowerUpBuySheet({required this.action});
+  const _PowerUpBuySheet({required this.action, required this.isPreviewMode});
 
   @override
   Widget build(BuildContext context) {
@@ -384,6 +415,16 @@ class _PowerUpBuySheet extends StatelessWidget {
                   ),
                 ),
               ),
+              if (isPreviewMode) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Preview mode — no coins will be charged.',
+                  textAlign: TextAlign.center,
+                  style: context.appTextStyles.bodySmall.copyWith(
+                    color: colors.textMuted,
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               AppButton(
                 label: 'Buy & use',

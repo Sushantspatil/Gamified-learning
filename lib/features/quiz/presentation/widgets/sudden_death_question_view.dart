@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -21,6 +22,8 @@ class SuddenDeathConfig {
   static const Duration questionTimeLimit = Duration(seconds: 15);
 }
 
+enum SuddenDeathFeedbackState { none, survived, eliminated, timeUp, skipped }
+
 class SuddenDeathQuestionView extends StatefulWidget {
   final SuddenDeathQuestion question;
   final int currentIndex;
@@ -31,6 +34,17 @@ class SuddenDeathQuestionView extends StatefulWidget {
   final int coins;
   final VoidCallback onExit;
   final void Function(Answer answer) onSubmit;
+  final VoidCallback? onSkip;
+  final VoidCallback? onTimeout;
+  final VoidCallback? onAddTime;
+  final VoidCallback? onFiftyFifty;
+  final VoidCallback? onHint;
+  final Set<String> hiddenOptionIds;
+  final String? hintText;
+  final Duration? remainingTime;
+  final SuddenDeathFeedbackState feedback;
+  final bool isSubmitting;
+  final bool isPreviewMode;
 
   const SuddenDeathQuestionView({
     super.key,
@@ -43,6 +57,17 @@ class SuddenDeathQuestionView extends StatefulWidget {
     required this.coins,
     required this.onExit,
     required this.onSubmit,
+    this.onSkip,
+    this.onTimeout,
+    this.onAddTime,
+    this.onFiftyFifty,
+    this.onHint,
+    this.hiddenOptionIds = const {},
+    this.hintText,
+    this.remainingTime,
+    this.feedback = SuddenDeathFeedbackState.none,
+    this.isSubmitting = false,
+    this.isPreviewMode = false,
   });
 
   @override
@@ -52,16 +77,14 @@ class SuddenDeathQuestionView extends StatefulWidget {
 
 class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
     with TickerProviderStateMixin {
-  static const String _timeoutOptionId = '__sudden_death_timeout__';
-
   late final AnimationController _entryController;
   late final AnimationController _feedbackController;
   Timer? _timer;
   Timer? _timeBoostTimer;
   String? _selectedOptionId;
-  Set<String> _hiddenOptionIds = const {};
+  Set<String> _previewHiddenOptionIds = const {};
   Duration _remainingTime = SuddenDeathConfig.questionTimeLimit;
-  _SuddenDeathFeedback _feedback = _SuddenDeathFeedback.none;
+  SuddenDeathFeedbackState _previewFeedback = SuddenDeathFeedbackState.none;
   bool _showTimeBoost = false;
   bool _hasSubmitted = false;
   bool _extraTimeUsed = false;
@@ -81,7 +104,9 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
-    _startTimer();
+    _remainingTime =
+        widget.remainingTime ?? SuddenDeathConfig.questionTimeLimit;
+    if (widget.isPreviewMode) _startTimer();
   }
 
   @override
@@ -106,18 +131,32 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.question.id != widget.question.id) {
       _selectedOptionId = null;
-      _hiddenOptionIds = const {};
+      _previewHiddenOptionIds = const {};
       _hasSubmitted = false;
       _extraTimeUsed = false;
       _fiftyFiftyUsed = false;
       _skipUsed = false;
       _hintUsed = false;
-      _feedback = _SuddenDeathFeedback.none;
+      _previewFeedback = SuddenDeathFeedbackState.none;
       _showTimeBoost = false;
-      _remainingTime = SuddenDeathConfig.questionTimeLimit;
+      _remainingTime =
+          widget.remainingTime ?? SuddenDeathConfig.questionTimeLimit;
       _feedbackController.reset();
       _entryController.forward(from: 0);
-      _startTimer();
+      if (widget.isPreviewMode) {
+        _startTimer();
+      } else {
+        _timer?.cancel();
+      }
+    } else if (!widget.isPreviewMode &&
+        widget.remainingTime != null &&
+        widget.remainingTime != oldWidget.remainingTime) {
+      _remainingTime = widget.remainingTime!;
+    }
+
+    if (widget.feedback != oldWidget.feedback &&
+        widget.feedback != SuddenDeathFeedbackState.none) {
+      _feedbackController.forward(from: 0);
     }
   }
 
@@ -133,7 +172,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted || _hasSubmitted) return;
+      if (!mounted || _hasSubmitted || !widget.isPreviewMode) return;
 
       final nextRemaining = _remainingTime - const Duration(seconds: 1);
       if (nextRemaining <= Duration.zero) {
@@ -147,32 +186,39 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   }
 
   Future<void> _submitTimeout() async {
-    if (_hasSubmitted) return;
+    if (_hasSubmitted || !widget.isPreviewMode) return;
     setState(() {
       _hasSubmitted = true;
-      _feedback = _SuddenDeathFeedback.timeUp;
+      _previewFeedback = SuddenDeathFeedbackState.timeUp;
     });
     _timer?.cancel();
     await _playFeedbackAndExit();
     if (!mounted) return;
-    widget.onSubmit(
-      SuddenDeathAnswer(
-        questionId: widget.question.id,
-        selectedOptionId: _timeoutOptionId,
-      ),
-    );
+    widget.onTimeout?.call();
   }
 
   Future<void> _submitSelectedAnswer() async {
     final selectedOptionId = _selectedOptionId;
     if (selectedOptionId == null || _hasSubmitted) return;
 
+    if (!widget.isPreviewMode) {
+      setState(() => _hasSubmitted = true);
+      _timer?.cancel();
+      widget.onSubmit(
+        SuddenDeathAnswer(
+          questionId: widget.question.id,
+          selectedOptionId: selectedOptionId,
+        ),
+      );
+      return;
+    }
+
     final isCorrect = selectedOptionId == widget.question.correctOptionId;
     setState(() {
       _hasSubmitted = true;
-      _feedback = isCorrect
-          ? _SuddenDeathFeedback.survived
-          : _SuddenDeathFeedback.eliminated;
+      _previewFeedback = isCorrect
+          ? SuddenDeathFeedbackState.survived
+          : SuddenDeathFeedbackState.eliminated;
     });
     _timer?.cancel();
     await _playFeedbackAndExit();
@@ -187,6 +233,10 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
 
   void _addFiveSeconds() {
     if (_hasSubmitted || _extraTimeUsed) return;
+    if (!widget.isPreviewMode) {
+      widget.onAddTime?.call();
+      return;
+    }
     setState(() {
       _extraTimeUsed = true;
       _remainingTime = _remainingTime + const Duration(seconds: 5);
@@ -200,6 +250,10 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
 
   void _useFiftyFifty() {
     if (_hasSubmitted || _fiftyFiftyUsed) return;
+    if (!widget.isPreviewMode) {
+      widget.onFiftyFifty?.call();
+      return;
+    }
     final wrongOptions = widget.question.options
         .where((option) => option.id != widget.question.correctOptionId)
         .toList();
@@ -207,37 +261,45 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
 
     setState(() {
       _fiftyFiftyUsed = true;
-      _hiddenOptionIds = wrongOptions
+      _previewHiddenOptionIds = wrongOptions
           .take(2)
           .map((option) => option.id)
           .toSet();
       if (_selectedOptionId != null &&
-          _hiddenOptionIds.contains(_selectedOptionId)) {
+          _previewHiddenOptionIds.contains(_selectedOptionId)) {
         _selectedOptionId = null;
       }
     });
   }
 
   Future<void> _skipQuestion() async {
-    if (_hasSubmitted || _skipUsed) return;
+    if (_hasSubmitted || _skipUsed || widget.onSkip == null) return;
+    if (!widget.isPreviewMode) {
+      setState(() {
+        _skipUsed = true;
+        _hasSubmitted = true;
+      });
+      _timer?.cancel();
+      widget.onSkip!.call();
+      return;
+    }
     setState(() {
       _skipUsed = true;
       _hasSubmitted = true;
-      _feedback = _SuddenDeathFeedback.survived;
+      _previewFeedback = SuddenDeathFeedbackState.skipped;
     });
     _timer?.cancel();
     await _playFeedbackAndExit();
     if (!mounted) return;
-    widget.onSubmit(
-      SuddenDeathAnswer(
-        questionId: widget.question.id,
-        selectedOptionId: widget.question.correctOptionId,
-      ),
-    );
+    widget.onSkip!.call();
   }
 
   void _showHint() {
     if (_hasSubmitted || _hintUsed) return;
+    if (!widget.isPreviewMode) {
+      widget.onHint?.call();
+      return;
+    }
     setState(() => _hintUsed = true);
   }
 
@@ -257,6 +319,16 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
+    final feedback = widget.isPreviewMode ? _previewFeedback : widget.feedback;
+    final hiddenOptionIds = <String>{
+      ...widget.hiddenOptionIds,
+      if (widget.isPreviewMode) ..._previewHiddenOptionIds,
+    };
+    final isInteractionLocked =
+        _hasSubmitted ||
+        widget.isSubmitting ||
+        feedback != SuddenDeathFeedbackState.none;
+    final showHint = _hintUsed || widget.hintText != null;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -299,6 +371,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                             _SuddenDeathTopBar(
                               energy: widget.energy,
                               coins: widget.coins,
+                              isPreviewMode: widget.isPreviewMode,
                               onExit: widget.onExit,
                             ),
                             SizedBox(
@@ -335,10 +408,10 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                 child: _QuestionPanel(
                                   question: widget.question,
                                   selectedOptionId: _selectedOptionId,
-                                  hiddenOptionIds: _hiddenOptionIds,
-                                  feedback: _feedback,
+                                  hiddenOptionIds: hiddenOptionIds,
+                                  feedback: feedback,
                                   feedbackAnimation: _feedbackController,
-                                  onSelected: _hasSubmitted
+                                  onSelected: isInteractionLocked
                                       ? null
                                       : (optionId) => setState(
                                           () => _selectedOptionId = optionId,
@@ -352,13 +425,14 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                 AppMotion.normal,
                               ),
                               alignment: Alignment.topCenter,
-                              child: _hintUsed
-                                  ? const Padding(
+                              child: showHint
+                                  ? Padding(
                                       padding: EdgeInsets.only(
                                         top: AppSpacing.sm,
                                       ),
                                       child: _SuddenDeathHint(
                                         text:
+                                            widget.hintText ??
                                             'Eliminate choices that do not match the strongest clue in the prompt.',
                                       ),
                                     )
@@ -367,9 +441,9 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                             SizedBox(
                               height: isCompact ? AppSpacing.md : AppSpacing.lg,
                             ),
-                            _DangerBanner(points: widget.question.points),
+                            const _DangerBanner(),
                             const SizedBox(height: AppSpacing.md),
-                            _MascotCallout(),
+                            if (!isCompact) const _MascotCallout(),
                           ],
                         ),
                       ),
@@ -385,7 +459,10 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                         children: [
                           GamePowerUpBar(
                             coinBalanceOverride: widget.coins,
-                            isDisabled: _hasSubmitted,
+                            isDisabled: isInteractionLocked,
+                            isPreviewMode: widget.isPreviewMode,
+                            isDense: constraints.maxWidth < 380,
+                            wrapOnCompact: true,
                             actions: [
                               GamePowerUpAction(
                                 id: 'sudden-time',
@@ -395,15 +472,21 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                 coinCost: 12,
                                 icon: Icons.timer_outlined,
                                 isUsed: _extraTimeUsed,
+                                isDisabled:
+                                    !widget.isPreviewMode &&
+                                    widget.onAddTime == null,
                                 onUse: _addFiveSeconds,
                               ),
                               GamePowerUpAction(
                                 id: 'sudden-50-50',
                                 label: '50:50',
-                                description: 'Remove one wrong answer.',
+                                description: 'Hide two wrong answers.',
                                 coinCost: 25,
                                 icon: Icons.call_split_rounded,
                                 isUsed: _fiftyFiftyUsed,
+                                isDisabled:
+                                    !widget.isPreviewMode &&
+                                    widget.onFiftyFifty == null,
                                 onUse: _useFiftyFifty,
                               ),
                               GamePowerUpAction(
@@ -413,6 +496,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                 coinCost: 35,
                                 icon: Icons.fast_forward_rounded,
                                 isUsed: _skipUsed,
+                                isDisabled: widget.onSkip == null,
                                 onUse: _skipQuestion,
                               ),
                               GamePowerUpAction(
@@ -422,7 +506,10 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                     'Show a clue without ending the run.',
                                 coinCost: 10,
                                 icon: Icons.lightbulb_outline,
-                                isUsed: _hintUsed,
+                                isUsed: showHint,
+                                isDisabled:
+                                    !widget.isPreviewMode &&
+                                    widget.onHint == null,
                                 onUse: _showHint,
                               ),
                             ],
@@ -433,7 +520,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                             variant: AppButtonVariant.destructive,
                             leadingIcon: const Icon(Icons.bolt_rounded),
                             onPressed:
-                                _selectedOptionId == null || _hasSubmitted
+                                _selectedOptionId == null || isInteractionLocked
                                 ? null
                                 : _submitSelectedAnswer,
                           ),
@@ -454,11 +541,13 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
 class _SuddenDeathTopBar extends StatelessWidget {
   final int energy;
   final int coins;
+  final bool isPreviewMode;
   final VoidCallback onExit;
 
   const _SuddenDeathTopBar({
     required this.energy,
     required this.coins,
+    required this.isPreviewMode,
     required this.onExit,
   });
 
@@ -466,74 +555,113 @@ class _SuddenDeathTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.themeColors;
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Tooltip(
-          message: 'Back',
-          child: InkWell(
-            onTap: onExit,
-            borderRadius: AppDimensions.radiusMd,
-            child: Ink(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: colors.primary.withValues(alpha: 0.16),
+        Row(
+          children: [
+            Tooltip(
+              message: 'Back',
+              child: InkWell(
+                onTap: onExit,
                 borderRadius: AppDimensions.radiusMd,
-                border: Border.all(
-                  color: colors.primary.withValues(alpha: 0.38),
-                ),
-              ),
-              child: Icon(Icons.arrow_back_rounded, color: colors.primary),
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.local_fire_department_rounded,
-                    color: AppColors.streakFire,
-                    size: 26,
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  Flexible(
-                    child: Text(
-                      'Sudden Death',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.appTextStyles.titleLarge.copyWith(
-                        color: colors.error,
-                        fontWeight: FontWeight.w800,
-                      ),
+                child: Ink(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: colors.primary.withValues(alpha: 0.16),
+                    borderRadius: AppDimensions.radiusMd,
+                    border: Border.all(
+                      color: colors.primary.withValues(alpha: 0.38),
                     ),
                   ),
+                  child: Icon(Icons.arrow_back_rounded, color: colors.primary),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.local_fire_department_rounded,
+                        color: AppColors.streakFire,
+                        size: 26,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Flexible(
+                        child: Text(
+                          'Sudden Death',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.appTextStyles.titleLarge.copyWith(
+                            color: colors.error,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'One wrong answer ends the run.',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.appTextStyles.bodySmall,
+                  ),
+                  if (isPreviewMode) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.xs,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.warning.withValues(alpha: 0.14),
+                          borderRadius: AppDimensions.radiusSm,
+                          border: Border.all(
+                            color: colors.warning.withValues(alpha: 0.32),
+                          ),
+                        ),
+                        child: Text(
+                          'UI preview',
+                          style: context.appTextStyles.labelSmall.copyWith(
+                            color: colors.warning,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                'One wrong answer ends the run.',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.appTextStyles.bodySmall,
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ResourceChip(
+                icon: Icons.bolt_rounded,
+                value: energy,
+                color: AppColors.coinGold,
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              _ResourceChip(
+                icon: Icons.monetization_on_rounded,
+                value: coins,
+                color: AppColors.coinGold,
               ),
             ],
           ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        _ResourceChip(
-          icon: Icons.bolt_rounded,
-          value: energy,
-          color: AppColors.coinGold,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        _ResourceChip(
-          icon: Icons.monetization_on_rounded,
-          value: coins,
-          color: AppColors.coinGold,
         ),
       ],
     );
@@ -761,6 +889,7 @@ class _CountdownTimerBadge extends StatelessWidget {
               alignment: Alignment.center,
               children: [
                 Container(
+                  key: isLowTime ? const Key('sudden-low-time') : null,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Color.alphaBlend(
@@ -868,7 +997,7 @@ class _QuestionPanel extends StatelessWidget {
   final SuddenDeathQuestion question;
   final String? selectedOptionId;
   final Set<String> hiddenOptionIds;
-  final _SuddenDeathFeedback feedback;
+  final SuddenDeathFeedbackState feedback;
   final Animation<double> feedbackAnimation;
   final ValueChanged<String>? onSelected;
 
@@ -885,7 +1014,7 @@ class _QuestionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.themeColors;
 
-    return Container(
+    final panel = Container(
       padding: AppSpacing.paddingMd,
       decoration: BoxDecoration(
         color: colors.cardBackground.withValues(alpha: 0.92),
@@ -895,7 +1024,10 @@ class _QuestionPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            alignment: WrapAlignment.spaceBetween,
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -927,19 +1059,17 @@ class _QuestionPanel extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  _topicLabelFromId(question.topicId),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.appTextStyles.labelLarge.copyWith(
-                    color: colors.secondary,
-                  ),
-                ),
-              ),
-              _PointsChip(points: question.points),
+              const _ChallengeChip(),
             ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            _topicLabelFromId(question.topicId),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.appTextStyles.labelLarge.copyWith(
+              color: colors.secondary,
+            ),
           ),
           const SizedBox(height: AppSpacing.lg),
           Text(
@@ -951,7 +1081,7 @@ class _QuestionPanel extends StatelessWidget {
           AnimatedSize(
             duration: AppMotion.duration(context, AppMotion.normal),
             alignment: Alignment.topCenter,
-            child: feedback == _SuddenDeathFeedback.none
+            child: feedback == SuddenDeathFeedbackState.none
                 ? const SizedBox.shrink()
                 : Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
@@ -972,7 +1102,7 @@ class _QuestionPanel extends StatelessWidget {
                 isHidden: hiddenOptionIds.contains(question.options[i].id),
                 feedback: selectedOptionId == question.options[i].id
                     ? feedback
-                    : _SuddenDeathFeedback.none,
+                    : SuddenDeathFeedbackState.none,
                 onTap: onSelected == null
                     ? null
                     : () => onSelected!(question.options[i].id),
@@ -984,13 +1114,26 @@ class _QuestionPanel extends StatelessWidget {
         ],
       ),
     );
+
+    return AnimatedBuilder(
+      animation: feedbackAnimation,
+      child: panel,
+      builder: (context, child) {
+        if (feedback != SuddenDeathFeedbackState.eliminated) return child!;
+        final progress = feedbackAnimation.value;
+        final horizontalOffset =
+            math.sin(progress * math.pi * 6) * (1 - progress) * 6;
+        return Transform.translate(
+          offset: Offset(horizontalOffset, 0),
+          child: child,
+        );
+      },
+    );
   }
 }
 
-class _PointsChip extends StatelessWidget {
-  final int points;
-
-  const _PointsChip({required this.points});
+class _ChallengeChip extends StatelessWidget {
+  const _ChallengeChip();
 
   @override
   Widget build(BuildContext context) {
@@ -1002,19 +1145,19 @@ class _PointsChip extends StatelessWidget {
         vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: AppColors.coinGold.withValues(alpha: 0.14),
+        color: colors.error.withValues(alpha: 0.12),
         borderRadius: AppDimensions.radiusSm,
-        border: Border.all(color: AppColors.coinGold.withValues(alpha: 0.38)),
+        border: Border.all(color: colors.error.withValues(alpha: 0.32)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star_rounded, color: AppColors.coinGold, size: 18),
+          Icon(Icons.bolt_rounded, color: colors.error, size: 18),
           const SizedBox(width: AppSpacing.xs),
           Text(
-            '$points points',
+            'Survival run',
             style: context.appTextStyles.labelLarge.copyWith(
-              color: colors.textPrimary,
+              color: colors.error,
             ),
           ),
         ],
@@ -1023,10 +1166,8 @@ class _PointsChip extends StatelessWidget {
   }
 }
 
-enum _SuddenDeathFeedback { none, survived, eliminated, timeUp }
-
 class _SurvivalFeedbackBanner extends StatelessWidget {
-  final _SuddenDeathFeedback feedback;
+  final SuddenDeathFeedbackState feedback;
   final Animation<double> animation;
 
   const _SurvivalFeedbackBanner({
@@ -1038,16 +1179,26 @@ class _SurvivalFeedbackBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.themeColors;
     final isFailure =
-        feedback == _SuddenDeathFeedback.eliminated ||
-        feedback == _SuddenDeathFeedback.timeUp;
+        feedback == SuddenDeathFeedbackState.eliminated ||
+        feedback == SuddenDeathFeedbackState.timeUp;
     final label = switch (feedback) {
-      _SuddenDeathFeedback.survived => 'Survived',
-      _SuddenDeathFeedback.eliminated => 'Eliminated',
-      _SuddenDeathFeedback.timeUp => "Time's up",
-      _SuddenDeathFeedback.none => '',
+      SuddenDeathFeedbackState.survived => 'Survived',
+      SuddenDeathFeedbackState.eliminated => 'Eliminated',
+      SuddenDeathFeedbackState.timeUp => "Time's up",
+      SuddenDeathFeedbackState.skipped => 'Skipped',
+      SuddenDeathFeedbackState.none => '',
     };
-    final icon = isFailure ? Icons.dangerous_rounded : Icons.shield_rounded;
-    final color = isFailure ? colors.error : colors.success;
+    final isSkipped = feedback == SuddenDeathFeedbackState.skipped;
+    final icon = isFailure
+        ? Icons.dangerous_rounded
+        : isSkipped
+        ? Icons.fast_forward_rounded
+        : Icons.shield_rounded;
+    final color = isFailure
+        ? colors.error
+        : isSkipped
+        ? colors.warning
+        : colors.success;
 
     return FadeTransition(
       opacity: animation,
@@ -1079,16 +1230,6 @@ class _SurvivalFeedbackBanner extends StatelessWidget {
                     fontWeight: FontWeight.w900,
                   ),
                 ),
-                if (!isFailure) ...[
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    '+XP',
-                    style: context.appTextStyles.labelSmall.copyWith(
-                      color: colors.textPrimary,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -1134,7 +1275,7 @@ class _AnswerCard extends StatelessWidget {
   final QuestionOption option;
   final bool isSelected;
   final bool isHidden;
-  final _SuddenDeathFeedback feedback;
+  final SuddenDeathFeedbackState feedback;
   final VoidCallback? onTap;
 
   const _AnswerCard({
@@ -1149,10 +1290,10 @@ class _AnswerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final hasFeedback = feedback != _SuddenDeathFeedback.none;
+    final hasFeedback = feedback != SuddenDeathFeedbackState.none;
     final isFailure =
-        feedback == _SuddenDeathFeedback.eliminated ||
-        feedback == _SuddenDeathFeedback.timeUp;
+        feedback == SuddenDeathFeedbackState.eliminated ||
+        feedback == SuddenDeathFeedbackState.timeUp;
     final accent = isHidden
         ? colors.textMuted
         : hasFeedback && isFailure
@@ -1284,9 +1425,7 @@ class _AnswerCard extends StatelessWidget {
 }
 
 class _DangerBanner extends StatelessWidget {
-  final int points;
-
-  const _DangerBanner({required this.points});
+  const _DangerBanner();
 
   @override
   Widget build(BuildContext context) {
@@ -1325,7 +1464,7 @@ class _DangerBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'and it is game over. Correct answers earn $points points.',
+                  'Survive each question and build your streak.',
                   style: context.appTextStyles.bodyMedium.copyWith(
                     color: colors.textPrimary,
                     fontWeight: FontWeight.w700,

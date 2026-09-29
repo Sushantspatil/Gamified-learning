@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -23,6 +24,7 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../../features/questions/domain/entities/question.dart';
 import '../../features/quiz/presentation/screens/quiz_screen.dart';
+import '../../features/quiz/presentation/screens/sudden_death_demo_screen.dart';
 import '../../features/shop/presentation/screens/shop_screen.dart';
 import '../../features/spin_wheel/presentation/screens/spin_wheel_screen.dart';
 import '../../features/wallet/presentation/screens/wallet_screen.dart';
@@ -167,6 +169,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           topicId: state.pathParameters['topicId']!,
         ),
       ),
+      if (kDebugMode)
+        GoRoute(
+          path: RouteNames.suddenDeathDemo,
+          builder: (context, state) => const SuddenDeathDemoScreen(),
+        ),
       GoRoute(
         path: RouteNames.typedQuizPattern,
         builder: (context, state) => QuizScreen(

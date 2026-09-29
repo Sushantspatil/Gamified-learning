@@ -68,6 +68,7 @@ class RouteNames {
   static const String quiz = '/quiz';
   static const String quizPattern = '/quiz/:topicId';
   static const String typedQuizPattern = '/quiz/:topicId/:quizType';
+  static const String suddenDeathDemo = '/debug/sudden-death-preview';
   static String quizPath(
     String topicId,
     QuestionType quizType, {

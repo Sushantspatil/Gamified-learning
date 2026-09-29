@@ -24,6 +24,9 @@ const _question = SuddenDeathQuestion(
 Future<void> _pumpSuddenDeathView(
   WidgetTester tester, {
   void Function(Answer answer)? onSubmit,
+  VoidCallback? onSkip,
+  VoidCallback? onTimeout,
+  bool isPreviewMode = true,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -40,8 +43,11 @@ Future<void> _pumpSuddenDeathView(
             bestStreak: 0,
             energy: 0,
             coins: 100,
+            isPreviewMode: isPreviewMode,
             onExit: () {},
             onSubmit: onSubmit ?? (_) {},
+            onSkip: onSkip,
+            onTimeout: onTimeout,
           ),
         ),
       ),
@@ -132,18 +138,21 @@ void main() {
     expect(find.text('Correct: <p>'), findsNothing);
   });
 
-  testWidgets('skip advances safely through existing submission flow', (
+  testWidgets('skip stays neutral and does not submit a correct answer', (
     tester,
   ) async {
     SuddenDeathAnswer? submitted;
+    var skipped = false;
     await _pumpSuddenDeathView(
       tester,
       onSubmit: (answer) => submitted = answer as SuddenDeathAnswer,
+      onSkip: () => skipped = true,
     );
 
     await _buyPowerUp(tester, 'Skip');
 
-    expect(submitted?.selectedOptionId, _question.correctOptionId);
+    expect(skipped, isTrue);
+    expect(submitted, isNull);
   });
 
   testWidgets('correct and wrong answers submit after feedback', (
@@ -157,6 +166,9 @@ void main() {
 
     await _tapOption(tester, '<p>');
     await tester.tap(find.text('Submit'));
+    await tester.pump();
+
+    expect(find.text('Survived'), findsOneWidget);
     await tester.pumpAndSettle();
 
     expect(submitted?.selectedOptionId, 'b');
@@ -168,21 +180,74 @@ void main() {
     );
     await _tapOption(tester, '<div>');
     await tester.tap(find.text('Submit'));
+    await tester.pump();
+
+    expect(find.text('Eliminated'), findsOneWidget);
     await tester.pumpAndSettle();
 
     expect(submitted?.selectedOptionId, 'a');
   });
 
   testWidgets('timeout submits a failure answer', (tester) async {
+    var timedOut = false;
+    await _pumpSuddenDeathView(tester, onTimeout: () => timedOut = true);
+
+    await tester.pump(SuddenDeathConfig.questionTimeLimit);
+    await tester.pump();
+
+    expect(find.text("Time's up"), findsOneWidget);
+    await tester.pumpAndSettle();
+
+    expect(timedOut, isTrue);
+  });
+
+  testWidgets('production path submits without calculating correctness', (
+    tester,
+  ) async {
     SuddenDeathAnswer? submitted;
     await _pumpSuddenDeathView(
       tester,
+      isPreviewMode: false,
       onSubmit: (answer) => submitted = answer as SuddenDeathAnswer,
     );
 
-    await tester.pump(SuddenDeathConfig.questionTimeLimit);
-    await tester.pumpAndSettle();
+    await _tapOption(tester, '<p>');
+    await tester.tap(find.text('Submit'));
+    await tester.pump();
 
-    expect(submitted?.selectedOptionId, isNot(_question.correctOptionId));
+    expect(submitted?.selectedOptionId, 'b');
+    expect(find.text('Survived'), findsNothing);
+    expect(find.text('Eliminated'), findsNothing);
   });
+
+  testWidgets('low time state becomes visible under five seconds', (
+    tester,
+  ) async {
+    await _pumpSuddenDeathView(tester, onTimeout: () {});
+
+    await tester.pump(const Duration(seconds: 11));
+
+    expect(find.byKey(const Key('sudden-low-time')), findsOneWidget);
+  });
+
+  for (final size in <Size>[
+    const Size(320, 568),
+    const Size(393, 852),
+    const Size(430, 932),
+  ]) {
+    testWidgets('remains overflow-free at ${size.width}x${size.height}', (
+      tester,
+    ) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await _pumpSuddenDeathView(tester, onTimeout: () {});
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Submit'), findsOneWidget);
+      expect(find.byKey(const Key('game_power_up_bar')), findsOneWidget);
+    });
+  }
 }

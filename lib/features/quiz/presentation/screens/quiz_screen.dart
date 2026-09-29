@@ -12,6 +12,7 @@ import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
+import '../../data/datasources/mock/quiz_mock_datasource.dart';
 import '../providers/quiz_providers.dart';
 import '../widgets/match_the_following_view.dart';
 import '../widgets/mcq_question_view.dart';
@@ -180,31 +181,45 @@ class QuizScreen extends ConsumerWidget {
             }
 
             if (question is SuddenDeathQuestion) {
-              final currentStreak = session.records
-                  .where((record) => record.evaluation.isCorrect)
-                  .length;
-              final appStreak =
-                  ref
-                      .watch(streakControllerProvider)
-                      .valueOrNull
-                      ?.currentStreak ??
-                  0;
+              final isMockPreview =
+                  ref.read(quizDatasourceProvider) is QuizMockDatasource;
+              final previewStreak = isMockPreview
+                  ? session.records
+                        .where((record) => record.evaluation.isCorrect)
+                        .length
+                  : 0;
+              final appStreak = isMockPreview
+                  ? ref
+                            .watch(streakControllerProvider)
+                            .valueOrNull
+                            ?.currentStreak ??
+                        0
+                  : 0;
               final wallet = ref.watch(walletControllerProvider).valueOrNull;
-              final bestStreak = appStreak > currentStreak
+              final previewBestStreak = appStreak > previewStreak
                   ? appStreak
-                  : currentStreak;
+                  : previewStreak;
 
               return SuddenDeathQuestionView(
                 key: ValueKey(question.id),
                 question: question,
                 currentIndex: session.currentIndex,
                 totalQuestions: session.questions.length,
-                currentStreak: currentStreak,
-                bestStreak: bestStreak,
+                currentStreak: previewStreak,
+                bestStreak: previewBestStreak,
                 energy: wallet?.gems ?? 0,
                 coins: wallet?.coins ?? 0,
+                isPreviewMode: isMockPreview,
                 onExit: () => Navigator.of(context).maybePop(),
                 onSubmit: handleAnswer,
+                onTimeout: isMockPreview
+                    ? () => handleAnswer(
+                        SuddenDeathAnswer(
+                          questionId: question.id,
+                          selectedOptionId: '__ui_preview_timeout__',
+                        ),
+                      )
+                    : null,
               );
             }
 

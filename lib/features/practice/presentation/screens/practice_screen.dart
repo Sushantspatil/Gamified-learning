@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -107,14 +108,20 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
           label: 'Start game',
           leadingIcon: const Icon(Icons.play_arrow_rounded),
           onPressed: _canStart
-              ? () => context.push(
-                  RouteNames.quizPath(
-                    _selectedTopicId!,
-                    _selectedMode!,
-                    subjectId: _selectedSubjectId,
-                    chapterId: _selectedChapterId,
-                  ),
-                )
+              ? () {
+                  final isSuddenDeathPreview =
+                      kDebugMode && _selectedMode == QuestionType.suddenDeath;
+                  context.push(
+                    isSuddenDeathPreview
+                        ? RouteNames.suddenDeathDemo
+                        : RouteNames.quizPath(
+                            _selectedTopicId!,
+                            _selectedMode!,
+                            subjectId: _selectedSubjectId,
+                            chapterId: _selectedChapterId,
+                          ),
+                  );
+                }
               : null,
         ),
       ),
@@ -501,38 +508,45 @@ class _GameModePicker extends ConsumerWidget {
         ? const AsyncValue<List<Question>>.data([])
         : ref.watch(questionsForTopicProvider(topicId));
 
+    Widget buildModeGrid(List<Question> questions) {
+      final availability = {
+        for (final mode in _practiceModes)
+          mode:
+              kDebugMode && topicId != null && mode == QuestionType.suddenDeath
+              ? const _ModeAvailability(isEnabled: true)
+              : _modeAvailability(mode, questions),
+      };
+
+      return GridView.count(
+        crossAxisCount: 2,
+        childAspectRatio: 1.22,
+        crossAxisSpacing: AppSpacing.sm,
+        mainAxisSpacing: AppSpacing.sm,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        children: [
+          for (final mode in _practiceModes)
+            _SelectableQuizModeCard(
+              mode: mode,
+              isSelected: mode == selectedMode,
+              availability: availability[mode]!,
+              onTap: () => onChanged(mode),
+            ),
+        ],
+      );
+    }
+
     return _SetupSection(
       title: 'Choose game mode',
       child: questionsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Text(
-          'No playable questions are available for this topic yet.',
-          style: context.appTextStyles.bodyMedium,
-        ),
-        data: (questions) {
-          final availability = {
-            for (final mode in _practiceModes)
-              mode: _modeAvailability(mode, questions),
-          };
-
-          return GridView.count(
-            crossAxisCount: 2,
-            childAspectRatio: 1.22,
-            crossAxisSpacing: AppSpacing.sm,
-            mainAxisSpacing: AppSpacing.sm,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              for (final mode in _practiceModes)
-                _SelectableQuizModeCard(
-                  mode: mode,
-                  isSelected: mode == selectedMode,
-                  availability: availability[mode]!,
-                  onTap: () => onChanged(mode),
-                ),
-            ],
-          );
-        },
+        error: (error, stackTrace) => kDebugMode && topicId != null
+            ? buildModeGrid(const [])
+            : Text(
+                'No playable questions are available for this topic yet.',
+                style: context.appTextStyles.bodyMedium,
+              ),
+        data: buildModeGrid,
       ),
     );
   }
