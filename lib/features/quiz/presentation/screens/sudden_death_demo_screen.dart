@@ -20,7 +20,9 @@ import '../widgets/sudden_death_question_view.dart';
 /// It intentionally owns only preview progression and visual feedback; it does
 /// not submit scores, rewards, streaks, wallet mutations, or backend actions.
 class SuddenDeathDemoScreen extends ConsumerStatefulWidget {
-  const SuddenDeathDemoScreen({super.key});
+  final String? topicId;
+
+  const SuddenDeathDemoScreen({super.key, this.topicId});
 
   @override
   ConsumerState<SuddenDeathDemoScreen> createState() =>
@@ -28,7 +30,7 @@ class SuddenDeathDemoScreen extends ConsumerStatefulWidget {
 }
 
 class _SuddenDeathDemoScreenState extends ConsumerState<SuddenDeathDemoScreen> {
-  static const _previewTopicId = 'sudden-death-ui-preview';
+  static const _previewTopicId = 'accounting';
 
   var _currentIndex = 0;
   var _previewStreak = 0;
@@ -92,8 +94,9 @@ class _SuddenDeathDemoScreenState extends ConsumerState<SuddenDeathDemoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final activeTopicId = widget.topicId ?? _previewTopicId;
     final questionsAsync = ref.watch(
-      suddenDeathPreviewQuestionsProvider(_previewTopicId),
+      suddenDeathPreviewQuestionsProvider(activeTopicId),
     );
 
     return GameScaffold(
@@ -118,9 +121,11 @@ class _SuddenDeathDemoScreenState extends ConsumerState<SuddenDeathDemoScreen> {
           if (result != null) {
             return _SuddenDeathDemoResult(
               result: result,
-              survivedQuestions: result == _DemoResult.eliminated
-                  ? _currentIndex
-                  : _currentIndex + 1,
+              survivedQuestions:
+                  (result == _DemoResult.eliminated ||
+                          result == _DemoResult.timeUp)
+                      ? _currentIndex
+                      : questions.length,
               bestPreviewStreak: _bestPreviewStreak,
               onReplay: _restartPreview,
               onDone: () => Navigator.of(context).maybePop(),

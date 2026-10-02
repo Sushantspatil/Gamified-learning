@@ -35,7 +35,7 @@ void main() {
   ) async {
     await _pumpDemo(tester);
 
-    await _submitOption(tester, 'y');
+    await _submitOption(tester, 'b');
 
     expect(find.text('Eliminated'), findsOneWidget);
     expect(
@@ -55,12 +55,13 @@ void main() {
   ) async {
     await _pumpDemo(tester);
 
-    for (var index = 0; index < 5; index++) {
-      await _submitOption(tester, 'x');
+    const correctAnswers = ['a', 'b', 'c', 'b', 'c', 'b', 'c', 'b', 'b', 'b'];
+    for (final answer in correctAnswers) {
+      await _submitOption(tester, answer);
     }
 
     expect(find.text('Sudden Death cleared'), findsOneWidget);
-    expect(find.text('5 survived'), findsOneWidget);
+    expect(find.text('10 survived'), findsOneWidget);
     expect(
       tester
           .widget<QuizCelebrationOverlay>(find.byType(QuizCelebrationOverlay))

@@ -80,7 +80,7 @@ void main() {
 
       final suddenDeathCard = find.byKey(const Key('play-mode-suddenDeath'));
       expect(suddenDeathCard, findsOneWidget);
-      expect(find.text('5 development preview questions'), findsOneWidget);
+      expect(find.text('10 development preview questions'), findsOneWidget);
       expect(tester.widget<AppPressable>(suddenDeathCard).onTap, isNotNull);
 
       await tester.ensureVisible(suddenDeathCard);

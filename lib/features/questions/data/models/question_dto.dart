@@ -96,3 +96,99 @@ class TopicQuestionsResponseDto {
     );
   }
 }
+
+class SuddenDeathQuestionDto {
+  final String id;
+  final String question;
+  final String prompt;
+  final String questionType;
+  final String? subject;
+  final String? topic;
+  final String? difficulty;
+  final String? hint;
+  final String correctOption;
+  final List<QuestionOptionDto> options;
+
+  const SuddenDeathQuestionDto({
+    required this.id,
+    required this.question,
+    required this.prompt,
+    required this.questionType,
+    this.subject,
+    this.topic,
+    this.difficulty,
+    this.hint,
+    required this.correctOption,
+    required this.options,
+  });
+
+  factory SuddenDeathQuestionDto.fromJson(Map<String, dynamic> json) {
+    final rawOptions = json['options'] as List<dynamic>? ?? [];
+    final id = (json['id'] ?? json['question'] ?? '').toString();
+    final prompt = (json['prompt'] ?? json['question'] ?? '').toString();
+    final questionText = (json['question'] ?? json['prompt'] ?? '').toString();
+
+    return SuddenDeathQuestionDto(
+      id: id,
+      question: questionText,
+      prompt: prompt,
+      questionType: json['question_type'] as String? ?? 'sudden_death',
+      subject: json['subject'] as String?,
+      topic: json['topic'] as String?,
+      difficulty: json['difficulty'] as String?,
+      hint: json['hint'] as String?,
+      correctOption: (json['correct_option'] ?? 'a').toString(),
+      options: rawOptions
+          .whereType<Map<String, dynamic>>()
+          .map((opt) => QuestionOptionDto(
+                option: (opt['id'] ?? opt['option'] ?? '').toString(),
+                text: (opt['text'] ?? '').toString(),
+              ))
+          .toList(),
+    );
+  }
+
+  SuddenDeathQuestion toDomain({String topicId = 'accounting'}) {
+    final domainOptions = options.map((o) => o.toDomain()).toList();
+    return SuddenDeathQuestion(
+      id: id,
+      topicId: topic ?? topicId,
+      prompt: prompt.isNotEmpty ? prompt : question,
+      points: 20, // Compatibility value for demo rendering, clearly isolated from production scoring
+      options: domainOptions,
+      correctOptionId: correctOption,
+      hint: hint,
+      difficulty: difficulty,
+    );
+  }
+}
+
+class SuddenDeathQuestionsResponseDto {
+  final String gameMode;
+  final String subject;
+  final int total;
+  final int timeLimitSec;
+  final List<SuddenDeathQuestionDto> questions;
+
+  const SuddenDeathQuestionsResponseDto({
+    required this.gameMode,
+    required this.subject,
+    required this.total,
+    required this.timeLimitSec,
+    required this.questions,
+  });
+
+  factory SuddenDeathQuestionsResponseDto.fromJson(Map<String, dynamic> json) {
+    final rawQuestions = json['questions'] as List<dynamic>? ?? [];
+    return SuddenDeathQuestionsResponseDto(
+      gameMode: json['game_mode'] as String? ?? 'sudden_death',
+      subject: json['subject'] as String? ?? '',
+      total: json['total'] as int? ?? 0,
+      timeLimitSec: json['time_limit_sec'] as int? ?? 15,
+      questions: rawQuestions
+          .whereType<Map<String, dynamic>>()
+          .map(SuddenDeathQuestionDto.fromJson)
+          .toList(),
+    );
+  }
+}

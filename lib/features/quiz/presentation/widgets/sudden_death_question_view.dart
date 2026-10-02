@@ -433,6 +433,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                       child: _SuddenDeathHint(
                                         text:
                                             widget.hintText ??
+                                            widget.question.hint ??
                                             'Eliminate choices that do not match the strongest clue in the prompt.',
                                       ),
                                     )

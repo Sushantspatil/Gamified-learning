@@ -172,7 +172,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (AppConfig.developmentPreviewsEnabled)
         GoRoute(
           path: RouteNames.suddenDeathDemo,
-          builder: (context, state) => const SuddenDeathDemoScreen(),
+          builder: (context, state) => SuddenDeathDemoScreen(
+            topicId: state.uri.queryParameters['topicId'],
+          ),
         ),
       GoRoute(
         path: RouteNames.typedQuizPattern,

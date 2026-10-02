@@ -115,7 +115,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
                       _selectedMode == QuestionType.suddenDeath;
                   context.push(
                     isSuddenDeathPreview
-                        ? RouteNames.suddenDeathDemo
+                        ? '${RouteNames.suddenDeathDemo}?topicId=${Uri.encodeComponent(_selectedTopicId!)}'
                         : RouteNames.quizPath(
                             _selectedTopicId!,
                             _selectedMode!,

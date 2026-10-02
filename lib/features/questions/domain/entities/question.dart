@@ -191,6 +191,8 @@ class SortItRightQuestion extends Question {
 class SuddenDeathQuestion extends Question {
   final List<QuestionOption> options;
   final String correctOptionId;
+  final String? hint;
+  final String? difficulty;
 
   const SuddenDeathQuestion({
     required super.id,
@@ -199,6 +201,8 @@ class SuddenDeathQuestion extends Question {
     required super.points,
     required this.options,
     required this.correctOptionId,
+    this.hint,
+    this.difficulty,
   });
 
   @override
@@ -212,5 +216,7 @@ class SuddenDeathQuestion extends Question {
     points,
     options,
     correctOptionId,
+    hint,
+    difficulty,
   ];
 }

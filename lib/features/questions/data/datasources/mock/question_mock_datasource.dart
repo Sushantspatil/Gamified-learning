@@ -1,5 +1,6 @@
 import '../../../domain/entities/question.dart';
 import '../question_datasource.dart';
+import 'sudden_death_mock_datasource.dart';
 
 /// MOCK DATA - replace the binding in question_providers.dart with a
 /// Firestore-backed implementation when the backend is ready. Every topic gets
@@ -17,6 +18,12 @@ class QuestionMockDatasource implements QuestionDatasource {
     String topicId,
     QuestionType questionType,
   ) async {
+    if (questionType == QuestionType.suddenDeath) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      return SuddenDeathMockDatasource().getDevelopmentQuestions(
+        topicId: topicId,
+      );
+    }
     final questions = await getQuestionsForTopic(topicId);
     return questions
         .where((question) => question.type == questionType)
@@ -216,62 +223,8 @@ class QuestionMockDatasource implements QuestionDatasource {
   }
 
   List<SuddenDeathQuestion> _suddenDeathQuestions(String topicId) {
-    return [
-      SuddenDeathQuestion(
-        id: '$topicId-sudden-death-1',
-        topicId: topicId,
-        prompt: 'Which option is a valid HTML paragraph tag?',
-        points: 20,
-        options: const [
-          QuestionOption(id: 'x', text: '<p>'),
-          QuestionOption(id: 'y', text: '<paragraph>'),
-        ],
-        correctOptionId: 'x',
-      ),
-      SuddenDeathQuestion(
-        id: '$topicId-sudden-death-2',
-        topicId: topicId,
-        prompt: 'Which CSS property controls background color?',
-        points: 20,
-        options: const [
-          QuestionOption(id: 'x', text: 'background-color'),
-          QuestionOption(id: 'y', text: 'font-weight'),
-        ],
-        correctOptionId: 'x',
-      ),
-      SuddenDeathQuestion(
-        id: '$topicId-sudden-death-3',
-        topicId: topicId,
-        prompt: 'Which attribute gives an image its source file?',
-        points: 20,
-        options: const [
-          QuestionOption(id: 'x', text: 'src'),
-          QuestionOption(id: 'y', text: 'href'),
-        ],
-        correctOptionId: 'x',
-      ),
-      SuddenDeathQuestion(
-        id: '$topicId-sudden-death-4',
-        topicId: topicId,
-        prompt: 'Which JavaScript value represents true or false?',
-        points: 20,
-        options: const [
-          QuestionOption(id: 'x', text: 'Boolean'),
-          QuestionOption(id: 'y', text: 'String'),
-        ],
-        correctOptionId: 'x',
-      ),
-      SuddenDeathQuestion(
-        id: '$topicId-sudden-death-5',
-        topicId: topicId,
-        prompt: 'Which tag creates a clickable link?',
-        points: 20,
-        options: const [
-          QuestionOption(id: 'x', text: '<a>'),
-          QuestionOption(id: 'y', text: '<link-only>'),
-        ],
-        correctOptionId: 'x',
-      ),
-    ];
+    return const SuddenDeathMockDatasource().getBundledQuestions(
+      topicId: topicId,
+    );
   }
 }

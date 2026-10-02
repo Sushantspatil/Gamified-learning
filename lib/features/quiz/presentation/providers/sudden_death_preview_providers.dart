@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/config/app_config.dart';
-import '../../../questions/data/datasources/mock/question_mock_datasource.dart';
+import '../../../questions/data/datasources/mock/sudden_death_mock_datasource.dart';
 import '../../../questions/domain/entities/question.dart';
 
 /// Dedicated development-only Sudden Death questions.
@@ -15,11 +15,10 @@ final suddenDeathPreviewQuestionsProvider =
     ) async {
       if (!AppConfig.developmentPreviewsEnabled) return const [];
 
-      final questions = await QuestionMockDatasource()
-          .getQuestionsForTopicAndType(topicId, QuestionType.suddenDeath);
+      final questions = await const SuddenDeathMockDatasource()
+          .getDevelopmentQuestions(topicId: topicId);
 
       return questions
-          .whereType<SuddenDeathQuestion>()
           .where((question) => question.options.length >= 2)
           .toList(growable: false);
     });
