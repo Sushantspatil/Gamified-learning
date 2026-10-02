@@ -249,7 +249,11 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   }
 
   void _useFiftyFifty() {
-    if (_hasSubmitted || _fiftyFiftyUsed) return;
+    if (_hasSubmitted ||
+        _fiftyFiftyUsed ||
+        widget.question.options.length <= 2) {
+      return;
+    }
     if (!widget.isPreviewMode) {
       widget.onFiftyFifty?.call();
       return;
@@ -257,7 +261,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
     final wrongOptions = widget.question.options
         .where((option) => option.id != widget.question.correctOptionId)
         .toList();
-    if (wrongOptions.isEmpty) return;
+    if (wrongOptions.length < 2) return;
 
     setState(() {
       _fiftyFiftyUsed = true;
@@ -481,13 +485,16 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                               GamePowerUpAction(
                                 id: 'sudden-50-50',
                                 label: '50:50',
-                                description: 'Hide two wrong answers.',
+                                description: widget.question.options.length <= 2
+                                    ? 'Not available for 2-choice questions.'
+                                    : 'Hide two wrong answers.',
                                 coinCost: 25,
                                 icon: Icons.call_split_rounded,
                                 isUsed: _fiftyFiftyUsed,
                                 isDisabled:
-                                    !widget.isPreviewMode &&
-                                    widget.onFiftyFifty == null,
+                                    widget.question.options.length <= 2 ||
+                                    (!widget.isPreviewMode &&
+                                        widget.onFiftyFifty == null),
                                 onUse: _useFiftyFifty,
                               ),
                               GamePowerUpAction(

@@ -60,29 +60,36 @@ class SuddenDeathMockDatasource {
   List<SuddenDeathQuestion> getBundledQuestions({
     String topicId = 'accounting',
   }) {
+    if (!isSuddenDeathDevelopmentAvailable) return const [];
     return parseQuestionsFromJson(bundledRawJson, topicId: topicId);
   }
 
-  /// Parses and validates Sudden Death questions from JSON string.
-  static List<SuddenDeathQuestion> parseQuestionsFromJson(
+  /// Parses and validates the Sudden Death question JSON payload according
+  /// to the backend-friendly DTO contracts.
+  List<SuddenDeathQuestion> parseQuestionsFromJson(
     String jsonString, {
     String topicId = 'accounting',
   }) {
-    final decoded = json.decode(jsonString);
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('Expected JSON object at root');
-    }
-
+    final Map<String, dynamic> decoded =
+        json.decode(jsonString) as Map<String, dynamic>;
     final responseDto = SuddenDeathQuestionsResponseDto.fromJson(decoded);
-    validateQuestions(responseDto.questions);
+
+    validateQuestionsContract(responseDto.questions);
 
     return responseDto.questions
         .map((dto) => dto.toDomain(topicId: topicId))
-        .toList(growable: false);
+        .toList();
   }
 
-  /// Validates the 10 dedicated development questions against contract rules.
-  static void validateQuestions(List<SuddenDeathQuestionDto> questions) {
+  /// Validates the 10-question contract:
+  /// - Exactly 10 questions
+  /// - Unique non-empty IDs
+  /// - Exactly 2 options per question
+  /// - Unique options per question
+  /// - One valid correct_option per question
+  /// - Difficulty distribution (4 easy, 4 medium, 2 hard)
+  /// - Question type equals sudden_death
+  static void validateQuestionsContract(List<SuddenDeathQuestionDto> questions) {
     if (questions.length != 10) {
       throw FormatException(
         'Expected exactly 10 Sudden Death questions, found ${questions.length}',
@@ -116,14 +123,14 @@ class SuddenDeathMockDatasource {
         );
       }
 
-      if (q.options.length != 4) {
+      if (q.options.length != 2) {
         throw FormatException(
-          'Question ${q.id} must have exactly 4 options, found ${q.options.length}',
+          'Question ${q.id} must have exactly 2 options, found ${q.options.length}',
         );
       }
 
       final optionIds = q.options.map((o) => o.option).toSet();
-      if (optionIds.length != 4) {
+      if (optionIds.length != 2) {
         throw FormatException(
           'Question ${q.id} contains duplicate option identifiers',
         );
@@ -154,7 +161,7 @@ class SuddenDeathMockDatasource {
 
     if (easyCount != 4 || mediumCount != 4 || hardCount != 2) {
       throw FormatException(
-        'Expected difficulty distribution 4 easy / 4 medium / 2 hard, but found $easyCount easy / $mediumCount medium / $hardCount hard',
+        'Invalid difficulty distribution: expected 4 easy, 4 medium, 2 hard; got $easyCount easy, $mediumCount medium, $hardCount hard',
       );
     }
   }
@@ -166,6 +173,11 @@ class SuddenDeathMockDatasource {
   "subject": "Book-Keeping & Accountancy",
   "total": 10,
   "time_limit_sec": 15,
+  "difficulty_distribution": {
+    "easy": 4,
+    "medium": 4,
+    "hard": 2
+  },
   "questions": [
     {
       "id": "sd_acc_001",
@@ -184,16 +196,6 @@ class SuddenDeathMockDatasource {
           "id": "b",
           "option": "b",
           "text": "Cash Account"
-        },
-        {
-          "id": "c",
-          "option": "c",
-          "text": "Sales Account"
-        },
-        {
-          "id": "d",
-          "option": "d",
-          "text": "Capital Account"
         }
       ],
       "correct_option": "a",
@@ -211,25 +213,15 @@ class SuddenDeathMockDatasource {
         {
           "id": "a",
           "option": "a",
-          "text": "Personal Account"
+          "text": "Real Account"
         },
         {
           "id": "b",
           "option": "b",
-          "text": "Real Account"
-        },
-        {
-          "id": "c",
-          "option": "c",
-          "text": "Nominal Account"
-        },
-        {
-          "id": "d",
-          "option": "d",
-          "text": "Valuation Account"
+          "text": "Personal Account"
         }
       ],
-      "correct_option": "b",
+      "correct_option": "a",
       "difficulty": "easy",
       "hint": "Tangible business assets are classified under this rule."
     },
@@ -244,25 +236,15 @@ class SuddenDeathMockDatasource {
         {
           "id": "a",
           "option": "a",
-          "text": "Nominal Account"
+          "text": "Real Account"
         },
         {
           "id": "b",
           "option": "b",
-          "text": "Real Account"
-        },
-        {
-          "id": "c",
-          "option": "c",
           "text": "Personal Account"
-        },
-        {
-          "id": "d",
-          "option": "d",
-          "text": "Representative Account"
         }
       ],
-      "correct_option": "c",
+      "correct_option": "b",
       "difficulty": "easy",
       "hint": "This rule applies to persons, firms, and institutions."
     },
@@ -277,25 +259,15 @@ class SuddenDeathMockDatasource {
         {
           "id": "a",
           "option": "a",
-          "text": "Ledger"
+          "text": "Journal"
         },
         {
           "id": "b",
           "option": "b",
-          "text": "Journal"
-        },
-        {
-          "id": "c",
-          "option": "c",
-          "text": "Trial Balance"
-        },
-        {
-          "id": "d",
-          "option": "d",
-          "text": "Balance Sheet"
+          "text": "Ledger"
         }
       ],
-      "correct_option": "b",
+      "correct_option": "a",
       "difficulty": "easy",
       "hint": "Transactions are recorded here chronologically first."
     },
@@ -315,20 +287,10 @@ class SuddenDeathMockDatasource {
         {
           "id": "b",
           "option": "b",
-          "text": "Landlord Account"
-        },
-        {
-          "id": "c",
-          "option": "c",
           "text": "Cash Account"
-        },
-        {
-          "id": "d",
-          "option": "d",
-          "text": "Outstanding Rent Account"
         }
       ],
-      "correct_option": "c",
+      "correct_option": "b",
       "difficulty": "medium",
       "hint": "Credit what goes out of the business."
     },
@@ -343,25 +305,15 @@ class SuddenDeathMockDatasource {
         {
           "id": "a",
           "option": "a",
-          "text": "Machinery Account"
+          "text": "Depreciation Account"
         },
         {
           "id": "b",
           "option": "b",
-          "text": "Depreciation Account"
-        },
-        {
-          "id": "c",
-          "option": "c",
-          "text": "Cash Account"
-        },
-        {
-          "id": "d",
-          "option": "d",
-          "text": "Provision Account"
+          "text": "Machinery Account"
         }
       ],
-      "correct_option": "b",
+      "correct_option": "a",
       "difficulty": "medium",
       "hint": "Debit all expenses and losses under the nominal rule."
     },
@@ -381,20 +333,10 @@ class SuddenDeathMockDatasource {
         {
           "id": "b",
           "option": "b",
-          "text": "Profit & Loss Account"
-        },
-        {
-          "id": "c",
-          "option": "c",
           "text": "Trial Balance"
-        },
-        {
-          "id": "d",
-          "option": "d",
-          "text": "Cash Flow Statement"
         }
       ],
-      "correct_option": "c",
+      "correct_option": "b",
       "difficulty": "medium",
       "hint": "It lists debit and credit totals before final accounts."
     },
@@ -409,25 +351,15 @@ class SuddenDeathMockDatasource {
         {
           "id": "a",
           "option": "a",
-          "text": "Purchases Returns Book"
+          "text": "Sales Returns Book"
         },
         {
           "id": "b",
           "option": "b",
-          "text": "Sales Returns Book"
-        },
-        {
-          "id": "c",
-          "option": "c",
-          "text": "Journal Proper"
-        },
-        {
-          "id": "d",
-          "option": "d",
-          "text": "Cash Book"
+          "text": "Purchases Returns Book"
         }
       ],
-      "correct_option": "b",
+      "correct_option": "a",
       "difficulty": "medium",
       "hint": "Also known as the return inwards book."
     },
@@ -448,16 +380,6 @@ class SuddenDeathMockDatasource {
           "id": "b",
           "option": "b",
           "text": "Completely or partially not recorded"
-        },
-        {
-          "id": "c",
-          "option": "c",
-          "text": "Posted with inverted debit and credit"
-        },
-        {
-          "id": "d",
-          "option": "d",
-          "text": "Violating fundamental capital principles"
         }
       ],
       "correct_option": "b",
@@ -475,25 +397,15 @@ class SuddenDeathMockDatasource {
         {
           "id": "a",
           "option": "a",
-          "text": "Capital minus Liabilities"
+          "text": "Total Liabilities plus Capital"
         },
         {
           "id": "b",
           "option": "b",
-          "text": "Total Liabilities plus Capital"
-        },
-        {
-          "id": "c",
-          "option": "c",
-          "text": "Net Profit plus Drawings"
-        },
-        {
-          "id": "d",
-          "option": "d",
-          "text": "Gross Revenue minus Expenses"
+          "text": "Capital minus Liabilities"
         }
       ],
-      "correct_option": "b",
+      "correct_option": "a",
       "difficulty": "hard",
       "hint": "This forms the fundamental accounting balance sheet equation."
     }

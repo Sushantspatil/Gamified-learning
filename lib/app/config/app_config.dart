@@ -8,6 +8,12 @@ class AppConfig {
 
   static bool? _developmentPreviewsOverride;
 
+  /// Explicit build-time flag (--dart-define=ENABLE_SUDDEN_DEATH_MOCK=true)
+  /// allowing testers to install and test release APK builds on physical devices
+  /// while keeping regular production builds backend-dependent and mock-free.
+  static const bool enableSuddenDeathMock =
+      bool.fromEnvironment('ENABLE_SUDDEN_DEATH_MOCK', defaultValue: false);
+
   static void initialize(Environment env) {
     _environment = env;
   }
@@ -21,7 +27,12 @@ class AppConfig {
     _developmentPreviewsOverride = value;
   }
 
-  /// Development previews may run in dev/debug builds, never release or production.
+  /// Development previews run in:
+  /// 1. Builds with explicit --dart-define=ENABLE_SUDDEN_DEATH_MOCK=true (test/QA APK builds)
+  /// 2. Local debug/development runs (!kReleaseMode && !isProduction)
+  /// 3. In automated tests where _developmentPreviewsOverride is set
+  /// Standard production release builds (without the flag) always evaluate to false.
   static bool get developmentPreviewsEnabled =>
-      _developmentPreviewsOverride ?? (!kReleaseMode && !isProduction);
+      _developmentPreviewsOverride ??
+      (enableSuddenDeathMock || (!kReleaseMode && !isProduction));
 }

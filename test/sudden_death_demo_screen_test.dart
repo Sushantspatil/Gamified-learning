@@ -55,7 +55,7 @@ void main() {
   ) async {
     await _pumpDemo(tester);
 
-    const correctAnswers = ['a', 'b', 'c', 'b', 'c', 'b', 'c', 'b', 'b', 'b'];
+    const correctAnswers = ['a', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a'];
     for (final answer in correctAnswers) {
       await _submitOption(tester, answer);
     }

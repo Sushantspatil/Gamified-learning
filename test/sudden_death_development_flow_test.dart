@@ -23,6 +23,7 @@ import 'package:skillverse_app/features/questions/domain/entities/question.dart'
 import 'package:skillverse_app/features/questions/presentation/providers/question_providers.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/sudden_death_preview_providers.dart';
 import 'package:skillverse_app/features/quiz/presentation/screens/sudden_death_demo_screen.dart';
+import 'package:skillverse_app/features/quiz/presentation/widgets/game_power_up_bar.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/quiz_celebration_overlay.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/sudden_death_question_view.dart';
 import 'package:skillverse_app/shared/widgets/app_button.dart';
@@ -64,7 +65,7 @@ void main() {
   });
 
   group('Sudden Death JSON Contract & Validation', () {
-    test('JSON asset exists and satisfies all contract requirements', () {
+    test('JSON asset exists and satisfies all 2-option contract requirements', () {
       final file = File('assets/mock/sudden_death_questions.json');
       expect(file.existsSync(), isTrue, reason: 'assets/mock/sudden_death_questions.json must exist');
 
@@ -84,7 +85,12 @@ void main() {
           .map(SuddenDeathQuestionDto.fromJson)
           .toList();
 
-      SuddenDeathMockDatasource.validateQuestions(dtos);
+      SuddenDeathMockDatasource.validateQuestionsContract(dtos);
+
+      for (final q in dtos) {
+        expect(q.options.length, 2, reason: 'Every Sudden Death question must have exactly 2 options');
+        expect(q.options.map((o) => o.option).toSet(), contains(q.correctOption));
+      }
 
       final easy = dtos.where((q) => q.difficulty?.toLowerCase() == 'easy').length;
       final medium = dtos.where((q) => q.difficulty?.toLowerCase() == 'medium').length;
@@ -94,7 +100,7 @@ void main() {
       expect(hard, 2, reason: 'Must have 2 hard questions');
     });
 
-    test('Loads 10 dedicated questions with NO MCQ questions reused', () {
+    test('Loads 10 dedicated questions with NO MCQ questions reused and exactly 2 options', () {
       final datasource = const SuddenDeathMockDatasource();
       final questions = datasource.getBundledQuestions(topicId: 'accounting');
 
@@ -103,7 +109,7 @@ void main() {
         expect(q, isA<SuddenDeathQuestion>());
         expect(q.type, QuestionType.suddenDeath);
         expect(q, isNot(isA<McqQuestion>()));
-        expect(q.options.length, 4);
+        expect(q.options.length, 2, reason: 'Sudden Death questions must have 2 options');
         expect(q.hint, isNotNull);
         expect(q.hint!.isNotEmpty, isTrue);
       }
@@ -154,17 +160,31 @@ void main() {
       expect(startButton.onPressed, isNotNull);
     });
 
-    test('Release/production mode does not use mock data automatically', () async {
+    test('Release/production mode does not use mock data automatically without flag', () async {
+      AppConfig.initialize(Environment.prod);
+      AppConfig.developmentPreviewsOverride = false;
+
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      AppConfig.initialize(Environment.prod);
-
-      // In production/release, preview questions provider returns empty
+      // In production without flag, preview questions provider returns empty
       final previewQuestions = await container.read(
         suddenDeathPreviewQuestionsProvider('accounting').future,
       );
-      expect(previewQuestions, isEmpty, reason: 'Release/production must not return mock questions');
+      expect(previewQuestions, isEmpty, reason: 'Release/production must not return mock questions without flag');
+    });
+
+    test('AppConfig.enableSuddenDeathMock or override activates previews even in release mode', () async {
+      AppConfig.initialize(Environment.prod);
+      AppConfig.developmentPreviewsOverride = true;
+
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final previewQuestions = await container.read(
+        suddenDeathPreviewQuestionsProvider('accounting').future,
+      );
+      expect(previewQuestions.length, 10, reason: 'When enabled via override or build flag, 10 questions are returned');
     });
   });
 
@@ -182,7 +202,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('shows Q1 of 10 and dedicated question prompt', (tester) async {
+    testWidgets('shows Q1 of 10 and dedicated question prompt with exactly 2 options', (tester) async {
       await pumpDemo(tester);
 
       expect(find.text('Sudden Death'), findsOneWidget);
@@ -193,8 +213,8 @@ void main() {
       );
       expect(find.text('Purchases Account'), findsOneWidget);
       expect(find.text('Cash Account'), findsOneWidget);
-      expect(find.text('Sales Account'), findsOneWidget);
-      expect(find.text('Capital Account'), findsOneWidget);
+      expect(find.text('Sales Account'), findsNothing);
+      expect(find.text('Capital Account'), findsNothing);
     });
 
     testWidgets('Hint power-up displays question-specific hint', (tester) async {
@@ -224,18 +244,13 @@ void main() {
       expect(boostedVisible, isTrue);
     });
 
-    testWidgets('50:50 hides two wrong options', (tester) async {
+    testWidgets('50:50 power-up is disabled for 2-choice questions', (tester) async {
       await pumpDemo(tester);
 
-      await tester.tap(find.byKey(const Key('powerup-sudden-50-50')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Buy & use'));
-      await tester.pumpAndSettle();
-
-      // Purchases Account is correct (a), Cash Account (b) & Sales Account (c) are hidden
-      expect(find.text('Purchases Account'), findsOneWidget);
-      expect(find.text('Cash Account'), findsNothing);
-      expect(find.text('Sales Account'), findsNothing);
+      final powerUpBar = tester.widget<GamePowerUpBar>(find.byType(GamePowerUpBar));
+      final fiftyFifty = powerUpBar.actions.firstWhere((a) => a.id == 'sudden-50-50');
+      expect(fiftyFifty.isDisabled, isTrue);
+      expect(fiftyFifty.description, 'Not available for 2-choice questions.');
     });
 
     testWidgets('Skip power-up moves to Q2 with neutral feedback and zero streak', (tester) async {
@@ -291,7 +306,7 @@ void main() {
     testWidgets('Full 10-question successful run leads to Sudden Death cleared', (tester) async {
       await pumpDemo(tester);
 
-      const correctAnswers = ['a', 'b', 'c', 'b', 'c', 'b', 'c', 'b', 'b', 'b'];
+      const correctAnswers = ['a', 'a', 'b', 'a', 'b', 'a', 'b', 'a', 'b', 'a'];
       for (var i = 0; i < correctAnswers.length; i++) {
         expect(find.text('${i + 1} / 10'), findsOneWidget);
         final option = find.byKey(Key('sudden-option-${correctAnswers[i]}'));
