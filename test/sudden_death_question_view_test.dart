@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skillverse_app/app/theme/app_theme.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
+import 'package:skillverse_app/features/quiz/data/models/sudden_death_ws_dto.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/sudden_death_question_view.dart';
 
 const _question = SuddenDeathQuestion(
@@ -24,6 +25,7 @@ const _question = SuddenDeathQuestion(
 Future<void> _pumpSuddenDeathView(
   WidgetTester tester, {
   void Function(Answer answer)? onSubmit,
+  void Function(String optionId)? onSelectOption,
   VoidCallback? onSkip,
   VoidCallback? onTimeout,
   bool isPreviewMode = true,
@@ -45,7 +47,8 @@ Future<void> _pumpSuddenDeathView(
             coins: 100,
             isPreviewMode: isPreviewMode,
             onExit: () {},
-            onSubmit: onSubmit ?? (_) {},
+            onSubmit: onSubmit,
+            onSelectOption: onSelectOption,
             onSkip: onSkip,
             onTimeout: onTimeout,
           ),
@@ -204,20 +207,157 @@ void main() {
   testWidgets('production path submits without calculating correctness', (
     tester,
   ) async {
-    SuddenDeathAnswer? submitted;
+    String? submittedOptionId;
     await _pumpSuddenDeathView(
       tester,
       isPreviewMode: false,
-      onSubmit: (answer) => submitted = answer as SuddenDeathAnswer,
+      onSelectOption: (optionId) => submittedOptionId = optionId,
     );
 
     await _tapOption(tester, '<p>');
-    await tester.tap(find.text('Submit'));
     await tester.pump();
 
-    expect(submitted?.selectedOptionId, 'b');
+    // Live mode hands the option straight to the WebSocket layer, which the
+    // server grades. The widget must not derive an outcome on its own.
+    expect(submittedOptionId, 'b');
     expect(find.text('Survived'), findsNothing);
     expect(find.text('Eliminated'), findsNothing);
+  });
+
+  testWidgets('production path hides no Submit button and locks after submit', (
+    tester,
+  ) async {
+    var submitCount = 0;
+    await _pumpSuddenDeathView(
+      tester,
+      isPreviewMode: false,
+      onSelectOption: (_) => submitCount++,
+    );
+
+    // The server owns the clock in live mode, so there is nothing to confirm.
+    expect(find.text('Submit'), findsNothing);
+
+    await _tapOption(tester, '<p>');
+    await tester.pump();
+    expect(submitCount, 1);
+  });
+
+  testWidgets('production path reveals the server verdict as feedback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          home: Scaffold(
+            body: SuddenDeathQuestionView(
+              question: _question,
+              currentIndex: 0,
+              totalQuestions: 5,
+              currentStreak: 1,
+              bestStreak: 1,
+              energy: 0,
+              coins: 100,
+              isPreviewMode: false,
+              onExit: () {},
+              onSelectOption: (_) {},
+              serverAnswerResult: WsAnswerResultPayload(
+                question: _question.id,
+                option: 'b',
+                correctOption: 'b',
+                isCorrect: true,
+                isSkipped: false,
+                pointsEarned: 10,
+                coinsEarned: 0,
+                yourScore: 10,
+                isTimeout: false,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Survival feedback is derived from the server's `answer_result`.
+    expect(find.text('Survived'), findsOneWidget);
+  });
+
+  testWidgets('production path maps server timeout to time up feedback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          home: Scaffold(
+            body: SuddenDeathQuestionView(
+              question: _question,
+              currentIndex: 0,
+              totalQuestions: 5,
+              currentStreak: 0,
+              bestStreak: 0,
+              energy: 0,
+              coins: 100,
+              isPreviewMode: false,
+              onExit: () {},
+              onSelectOption: (_) {},
+              serverAnswerResult: WsAnswerResultPayload(
+                question: _question.id,
+                option: 'timeout',
+                correctOption: 'b',
+                isCorrect: false,
+                isSkipped: false,
+                pointsEarned: 0,
+                coinsEarned: 0,
+                yourScore: 0,
+                isTimeout: true,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text("Time's up"), findsOneWidget);
+  });
+
+  testWidgets('production path applies server-driven 50:50 eliminations', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          home: Scaffold(
+            body: SuddenDeathQuestionView(
+              question: _question,
+              currentIndex: 0,
+              totalQuestions: 5,
+              currentStreak: 0,
+              bestStreak: 0,
+              energy: 0,
+              coins: 100,
+              isPreviewMode: false,
+              onExit: () {},
+              onSelectOption: (_) {},
+              externalHiddenOptionIds: const {'a', 'd'},
+              externalFiftyFiftyUsed: true,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('<p>'), findsOneWidget);
+    // 'a' and 'd' were eliminated by the server's `power_up_result`.
+    expect(find.text('<br>'), findsNothing);
+    expect(find.text('<hr>'), findsNothing);
   });
 
   testWidgets('low time state becomes visible under five seconds', (

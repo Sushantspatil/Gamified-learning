@@ -44,7 +44,9 @@ class AuthController extends AsyncNotifier<AppUser?> {
   }) async {
     state = const AsyncValue<AppUser?>.loading().copyWithPrevious(state);
     try {
-      await ref.read(authRepositoryProvider).requestSignUpOtp(
+      await ref
+          .read(authRepositoryProvider)
+          .requestSignUpOtp(
             email: email,
             password: password,
             displayName: displayName,

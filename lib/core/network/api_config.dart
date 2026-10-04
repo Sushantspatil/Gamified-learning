@@ -100,4 +100,3 @@ class ApiConfig {
     return ApiConfig(baseUrl: url);
   }
 }
-

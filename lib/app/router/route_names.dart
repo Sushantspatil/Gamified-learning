@@ -68,7 +68,21 @@ class RouteNames {
   static const String quiz = '/quiz';
   static const String quizPattern = '/quiz/:topicId';
   static const String typedQuizPattern = '/quiz/:topicId/:quizType';
-  static const String suddenDeathDemo = '/debug/sudden-death-preview';
+  static const String suddenDeathPattern = '/sudden-death/:topicId';
+
+  static String suddenDeathPath(
+    String topicId, {
+    String? subjectId,
+    String? chapterId,
+  }) {
+    final query = <String, String>{};
+    if (subjectId != null) query['subjectId'] = subjectId;
+    if (chapterId != null) query['chapterId'] = chapterId;
+    final basePath = '/sudden-death/$topicId';
+    if (query.isEmpty) return basePath;
+    return Uri(path: basePath, queryParameters: query).toString();
+  }
+
   static String quizPath(
     String topicId,
     QuestionType quizType, {

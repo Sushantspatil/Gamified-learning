@@ -7,11 +7,16 @@ class CreateSessionRequestDto {
   final bool abandonStale;
   final List<String>? questionCodes;
 
+  /// Server-side rules for the session. `sudden_death` ends the run on the
+  /// first wrong answer; omitted keeps the default `mcq` flow.
+  final String? gameMode;
+
   const CreateSessionRequestDto({
     required this.topic,
     this.questionCount = 10,
     this.abandonStale = true,
     this.questionCodes,
+    this.gameMode,
   });
 
   Map<String, dynamic> toJson() => {
@@ -20,6 +25,7 @@ class CreateSessionRequestDto {
     'abandon_stale': abandonStale,
     if (questionCodes != null && questionCodes!.isNotEmpty)
       'question_codes': questionCodes,
+    if (gameMode != null && gameMode!.isNotEmpty) 'game_mode': gameMode,
   };
 }
 
@@ -30,12 +36,16 @@ class SessionCreatedResponseDto {
   final int timeLimitSec;
   final List<Map<String, dynamic>> questions;
 
+  /// Mode the server actually persisted, echoed back for confirmation.
+  final String gameMode;
+
   const SessionCreatedResponseDto({
     required this.session,
     required this.topic,
     required this.totalQuestions,
     required this.timeLimitSec,
     required this.questions,
+    this.gameMode = 'mcq',
   });
 
   factory SessionCreatedResponseDto.fromJson(Map<String, dynamic> json) {
@@ -54,6 +64,7 @@ class SessionCreatedResponseDto {
       totalQuestions: json['total_questions'] as int? ?? qList.length,
       timeLimitSec: json['time_limit_sec'] as int? ?? 15,
       questions: qList,
+      gameMode: json['game_mode'] as String? ?? 'mcq',
     );
   }
 }

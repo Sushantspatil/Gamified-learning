@@ -1019,7 +1019,11 @@ class _QuickPracticeCards extends ConsumerWidget {
                     onTap: topic == null
                         ? null
                         : () => context.push(
-                            RouteNames.subjectPlayPath(selectedPathId!),
+                            RouteNames.suddenDeathPath(
+                              topic.id,
+                              subjectId: selectedPathId,
+                              chapterId: chapter.id,
+                            ),
                           ),
                   ),
                 ),

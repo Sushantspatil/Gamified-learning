@@ -18,8 +18,7 @@ class UserProfileModel extends UserProfile {
             json['avatarId'] as String? ??
             json['avatarUrl'] as String? ??
             'default',
-        classLevel:
-            json['classLevel'] as String? ?? json['class'] as String?,
+        classLevel: json['classLevel'] as String? ?? json['class'] as String?,
         board: json['board'] as String?,
         selectedSubjectIds:
             (json['selectedSubjectIds'] as List<dynamic>?)

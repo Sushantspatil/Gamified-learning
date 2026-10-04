@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../config/app_config.dart';
 import '../../features/authentication/presentation/providers/auth_providers.dart';
 import '../../features/authentication/presentation/screens/login_screen.dart';
 import '../../features/authentication/presentation/screens/signup_screen.dart';
@@ -24,7 +23,7 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/providers/profile_providers.dart';
 import '../../features/questions/domain/entities/question.dart';
 import '../../features/quiz/presentation/screens/quiz_screen.dart';
-import '../../features/quiz/presentation/screens/sudden_death_demo_screen.dart';
+import '../../features/quiz/presentation/screens/sudden_death_screen.dart';
 import '../../features/shop/presentation/screens/shop_screen.dart';
 import '../../features/spin_wheel/presentation/screens/spin_wheel_screen.dart';
 import '../../features/wallet/presentation/screens/wallet_screen.dart';
@@ -169,15 +168,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           topicId: state.pathParameters['topicId']!,
         ),
       ),
-      if (AppConfig.developmentPreviewsEnabled)
-        GoRoute(
-          path: RouteNames.suddenDeathDemo,
-          builder: (context, state) => SuddenDeathDemoScreen(
-            topicId: state.uri.queryParameters['topicId'],
-          ),
+      GoRoute(
+        path: RouteNames.suddenDeathPattern,
+        builder: (context, state) => SuddenDeathScreen(
+          topicId: state.pathParameters['topicId']!,
+          subjectId: state.uri.queryParameters['subjectId'],
+          chapterId: state.uri.queryParameters['chapterId'],
         ),
+      ),
       GoRoute(
         path: RouteNames.typedQuizPattern,
+        redirect: (context, state) {
+          final quizType = _quizTypeFromState(state);
+          if (quizType == QuestionType.suddenDeath) {
+            return RouteNames.suddenDeathPath(
+              state.pathParameters['topicId']!,
+              subjectId: state.uri.queryParameters['subjectId'],
+              chapterId: state.uri.queryParameters['chapterId'],
+            );
+          }
+          return null;
+        },
         builder: (context, state) => QuizScreen(
           topicId: state.pathParameters['topicId']!,
           quizType: _quizTypeFromState(state),

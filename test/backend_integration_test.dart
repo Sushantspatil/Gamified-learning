@@ -65,28 +65,31 @@ void main() {
   });
 
   group('ApiConfig Host Resolution', () {
-    test('defaultConfig produces valid base URL and WebSocket URL for production staging', () {
-      final config = ApiConfig.defaultConfig();
-      expect(
-        config.baseUrl,
-        'https://gamifiedquizappdigitalhq-production.up.railway.app/api/v1',
-      );
-      expect(config.baseUrl.startsWith('https://'), isTrue);
-      expect(
-        config.rootUrl,
-        'https://gamifiedquizappdigitalhq-production.up.railway.app',
-      );
-      expect(
-        config.wsRootUrl,
-        'wss://gamifiedquizappdigitalhq-production.up.railway.app',
-      );
-      expect(config.wsRootUrl.startsWith('wss://'), isTrue);
-      expect(
-        config.gameWsUrl,
-        'wss://gamifiedquizappdigitalhq-production.up.railway.app/ws/game',
-      );
-      expect(config.gameWsUrl.startsWith('wss://'), isTrue);
-    });
+    test(
+      'defaultConfig produces valid base URL and WebSocket URL for production staging',
+      () {
+        final config = ApiConfig.defaultConfig();
+        expect(
+          config.baseUrl,
+          'https://gamifiedquizappdigitalhq-production.up.railway.app/api/v1',
+        );
+        expect(config.baseUrl.startsWith('https://'), isTrue);
+        expect(
+          config.rootUrl,
+          'https://gamifiedquizappdigitalhq-production.up.railway.app',
+        );
+        expect(
+          config.wsRootUrl,
+          'wss://gamifiedquizappdigitalhq-production.up.railway.app',
+        );
+        expect(config.wsRootUrl.startsWith('wss://'), isTrue);
+        expect(
+          config.gameWsUrl,
+          'wss://gamifiedquizappdigitalhq-production.up.railway.app/ws/game',
+        );
+        expect(config.gameWsUrl.startsWith('wss://'), isTrue);
+      },
+    );
 
     test('customBaseUrl overrides default host', () {
       final config = ApiConfig.defaultConfig(
@@ -115,20 +118,15 @@ void main() {
       expect(config.gameWsUrl, 'ws://localhost:8080/ws/game');
     });
 
-    test('localhost without scheme normalizes to valid http URL with /api/v1', () {
-      final config = ApiConfig.defaultConfig(
-        customBaseUrl: 'localhost:8080',
-      );
-      expect(
-        config.baseUrl,
-        'http://localhost:8080/api/v1',
-      );
-      expect(config.baseUrl.startsWith('http://'), isTrue);
-      expect(
-        config.gameWsUrl,
-        'ws://localhost:8080/ws/game',
-      );
-      expect(config.gameWsUrl.startsWith('ws://'), isTrue);
-    });
+    test(
+      'localhost without scheme normalizes to valid http URL with /api/v1',
+      () {
+        final config = ApiConfig.defaultConfig(customBaseUrl: 'localhost:8080');
+        expect(config.baseUrl, 'http://localhost:8080/api/v1');
+        expect(config.baseUrl.startsWith('http://'), isTrue);
+        expect(config.gameWsUrl, 'ws://localhost:8080/ws/game');
+        expect(config.gameWsUrl.startsWith('ws://'), isTrue);
+      },
+    );
   });
 }

@@ -16,6 +16,8 @@ import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import 'game_power_up_bar.dart';
 
+import '../../data/models/sudden_death_ws_dto.dart';
+
 class SuddenDeathConfig {
   SuddenDeathConfig._();
 
@@ -33,7 +35,14 @@ class SuddenDeathQuestionView extends StatefulWidget {
   final int energy;
   final int coins;
   final VoidCallback onExit;
-  final void Function(Answer answer) onSubmit;
+
+  /// Preview/local-simulation answer sink. Only used when [isPreviewMode] is
+  /// true; the live WebSocket flow answers via [onSelectOption] instead.
+  final void Function(Answer answer)? onSubmit;
+
+  /// Live-mode answer sink. Tapping an option submits it straight to the
+  /// server, which grades the answer and answers with `answer_result`.
+  final void Function(String optionId)? onSelectOption;
   final VoidCallback? onSkip;
   final VoidCallback? onTimeout;
   final VoidCallback? onAddTime;
@@ -46,6 +55,32 @@ class SuddenDeathQuestionView extends StatefulWidget {
   final bool isSubmitting;
   final bool isPreviewMode;
 
+  // --- Live (server-authoritative) inputs -------------------------------
+  // In live mode the WebSocket session owns the clock, the 50:50 elimination
+  // set, which power-ups are spent and whether the run is over. These mirror
+  // `SuddenDeathViewState` and are ignored while [isPreviewMode] is true.
+
+  /// Authoritative countdown for the current question, in milliseconds.
+  /// The server only pushes this on `question` frames and on resync, so the
+  /// widget interpolates locally between updates.
+  final int? remainingTimeMs;
+
+  /// Option ids eliminated by the server (50:50 via `power_up_result`).
+  final Set<String>? externalHiddenOptionIds;
+  final bool externalFiftyFiftyUsed;
+  final bool externalSkipUsed;
+  final bool externalHintUsed;
+
+  /// Option id the server has recorded for this question, if any.
+  final String? externalSelectedOptionId;
+
+  /// Hint text supplied by the server for the current question.
+  final String? hint;
+
+  /// Latest `answer_result` frame, used to drive survival feedback and to
+  /// reveal the correct option once the run is decided.
+  final WsAnswerResultPayload? serverAnswerResult;
+
   const SuddenDeathQuestionView({
     super.key,
     required this.question,
@@ -56,7 +91,8 @@ class SuddenDeathQuestionView extends StatefulWidget {
     required this.energy,
     required this.coins,
     required this.onExit,
-    required this.onSubmit,
+    this.onSubmit,
+    this.onSelectOption,
     this.onSkip,
     this.onTimeout,
     this.onAddTime,
@@ -68,7 +104,20 @@ class SuddenDeathQuestionView extends StatefulWidget {
     this.feedback = SuddenDeathFeedbackState.none,
     this.isSubmitting = false,
     this.isPreviewMode = false,
+    this.remainingTimeMs,
+    this.externalHiddenOptionIds,
+    this.externalFiftyFiftyUsed = false,
+    this.externalSkipUsed = false,
+    this.externalHintUsed = false,
+    this.externalSelectedOptionId,
+    this.hint,
+    this.serverAnswerResult,
   });
+
+  /// True when this widget renders a live WebSocket session rather than the
+  /// local mock preview. Live mode never invents state locally: everything
+  /// that affects scoring or the outcome comes from the server.
+  bool get isLiveMode => !isPreviewMode;
 
   @override
   State<SuddenDeathQuestionView> createState() =>
@@ -104,9 +153,17 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
       vsync: this,
       duration: const Duration(milliseconds: 280),
     );
-    _remainingTime =
-        widget.remainingTime ?? SuddenDeathConfig.questionTimeLimit;
+    _remainingTime = _initialRemainingTime;
     if (widget.isPreviewMode) _startTimer();
+  }
+
+  /// Resolves the starting countdown. Live mode trusts the server's
+  /// `remaining_time_ms`; preview mode falls back to the configured limit.
+  Duration get _initialRemainingTime {
+    if (widget.remainingTimeMs != null) {
+      return Duration(milliseconds: widget.remainingTimeMs!);
+    }
+    return widget.remainingTime ?? SuddenDeathConfig.questionTimeLimit;
   }
 
   @override
@@ -139,15 +196,15 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
       _hintUsed = false;
       _previewFeedback = SuddenDeathFeedbackState.none;
       _showTimeBoost = false;
-      _remainingTime =
-          widget.remainingTime ?? SuddenDeathConfig.questionTimeLimit;
+      _remainingTime = _initialRemainingTime;
       _feedbackController.reset();
       _entryController.forward(from: 0);
-      if (widget.isPreviewMode) {
-        _startTimer();
-      } else {
-        _timer?.cancel();
-      }
+      _startTimer();
+    } else if (widget.isLiveMode &&
+        widget.remainingTimeMs != oldWidget.remainingTimeMs) {
+      // The server re-seeded the clock (new question or `join_game` resync).
+      // Trust it over our locally interpolated value.
+      _remainingTime = _initialRemainingTime;
     } else if (!widget.isPreviewMode &&
         widget.remainingTime != null &&
         widget.remainingTime != oldWidget.remainingTime) {
@@ -156,6 +213,12 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
 
     if (widget.feedback != oldWidget.feedback &&
         widget.feedback != SuddenDeathFeedbackState.none) {
+      _feedbackController.forward(from: 0);
+    }
+
+    // Live mode drives the survival banner off the server's `answer_result`.
+    if (widget.serverAnswerResult != null &&
+        !identical(widget.serverAnswerResult, oldWidget.serverAnswerResult)) {
       _feedbackController.forward(from: 0);
     }
   }
@@ -172,18 +235,91 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted || _hasSubmitted || !widget.isPreviewMode) return;
+      if (!mounted || _isInteractionLocked) return;
 
       final nextRemaining = _remainingTime - const Duration(seconds: 1);
       if (nextRemaining <= Duration.zero) {
         setState(() => _remainingTime = Duration.zero);
-        _submitTimeout();
+        _timer?.cancel();
+        if (widget.isPreviewMode) {
+          _submitTimeout();
+        } else {
+          widget.onTimeout?.call();
+        }
         return;
       }
 
       setState(() => _remainingTime = nextRemaining);
     });
   }
+
+  // --- Derived state ----------------------------------------------------
+  // Live mode never trusts locally mirrored flags; everything below is read
+  // from the server-owned state so the UI can never disagree with the grader.
+
+  /// Whether the run is decided from the user's side: an answer is in flight
+  /// or the server has already graded this question.
+  bool get _isServerAnswerPending {
+    final result = widget.serverAnswerResult;
+    if (result == null) return false;
+    if (result.question.isNotEmpty &&
+        result.question.toLowerCase() != widget.question.id.toLowerCase()) {
+      return false;
+    }
+    return true;
+  }
+
+  bool get _isInteractionLocked => widget.isLiveMode
+      ? widget.isSubmitting || _isServerAnswerPending
+      : _hasSubmitted ||
+            widget.isSubmitting ||
+            _previewFeedback != SuddenDeathFeedbackState.none;
+
+  String? get _effectiveSelectedOptionId {
+    if (!widget.isLiveMode) return _selectedOptionId;
+    final external = widget.externalSelectedOptionId;
+    if (external != null) return external;
+    return _selectedOptionId;
+  }
+
+  Set<String> get _effectiveHiddenOptionIds {
+    if (!widget.isLiveMode) return _previewHiddenOptionIds;
+    return widget.externalHiddenOptionIds ?? widget.hiddenOptionIds;
+  }
+
+  bool get _effectiveFiftyFiftyUsed =>
+      _fiftyFiftyUsed || widget.externalFiftyFiftyUsed;
+
+  bool get _effectiveSkipUsed => _skipUsed || widget.externalSkipUsed;
+
+  bool get _effectiveHintUsed => _hintUsed || widget.externalHintUsed;
+
+  /// Survival feedback for the current question.
+  ///
+  /// Preview mode simulates it locally; live mode derives it from the
+  /// server's verdict so the banner can never contradict the score.
+  SuddenDeathFeedbackState get _effectiveFeedback {
+    if (!widget.isLiveMode) return _previewFeedback;
+
+    final explicit = widget.feedback;
+    if (explicit != SuddenDeathFeedbackState.none) return explicit;
+
+    final result = widget.serverAnswerResult;
+    if (result == null) return SuddenDeathFeedbackState.none;
+    if (result.question.isNotEmpty &&
+        result.question.toLowerCase() != widget.question.id.toLowerCase()) {
+      return SuddenDeathFeedbackState.none;
+    }
+    if (result.isTimeout) return SuddenDeathFeedbackState.timeUp;
+    if (result.isSkipped) return SuddenDeathFeedbackState.skipped;
+    return result.isCorrect
+        ? SuddenDeathFeedbackState.survived
+        : SuddenDeathFeedbackState.eliminated;
+  }
+
+  String? get _effectiveHintText => widget.isLiveMode
+      ? widget.hint ?? widget.hintText ?? widget.question.hint
+      : widget.hintText ?? widget.question.hint;
 
   Future<void> _submitTimeout() async {
     if (_hasSubmitted || !widget.isPreviewMode) return;
@@ -197,21 +333,27 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
     widget.onTimeout?.call();
   }
 
+  /// Handles an option tap.
+  ///
+  /// Preview mode stages the selection and waits for the Submit button. Live
+  /// mode submits immediately, because the server grades the answer and owns
+  /// the countdown — staging a selection would just burn the player's clock.
+  void _handleOptionTap(String optionId) {
+    if (_isInteractionLocked) return;
+
+    if (widget.isLiveMode) {
+      setState(() => _selectedOptionId = optionId);
+      widget.onSelectOption?.call(optionId);
+      return;
+    }
+
+    setState(() => _selectedOptionId = optionId);
+  }
+
+  /// Preview-only: grades locally and reports through [SuddenDeathQuestionView.onSubmit].
   Future<void> _submitSelectedAnswer() async {
     final selectedOptionId = _selectedOptionId;
     if (selectedOptionId == null || _hasSubmitted) return;
-
-    if (!widget.isPreviewMode) {
-      setState(() => _hasSubmitted = true);
-      _timer?.cancel();
-      widget.onSubmit(
-        SuddenDeathAnswer(
-          questionId: widget.question.id,
-          selectedOptionId: selectedOptionId,
-        ),
-      );
-      return;
-    }
 
     final isCorrect = selectedOptionId == widget.question.correctOptionId;
     setState(() {
@@ -223,7 +365,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
     _timer?.cancel();
     await _playFeedbackAndExit();
     if (!mounted) return;
-    widget.onSubmit(
+    widget.onSubmit?.call(
       SuddenDeathAnswer(
         questionId: widget.question.id,
         selectedOptionId: selectedOptionId,
@@ -232,8 +374,8 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   }
 
   void _addFiveSeconds() {
-    if (_hasSubmitted || _extraTimeUsed) return;
-    if (!widget.isPreviewMode) {
+    if (_isInteractionLocked || _extraTimeUsed) return;
+    if (widget.isLiveMode) {
       widget.onAddTime?.call();
       return;
     }
@@ -249,12 +391,14 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   }
 
   void _useFiftyFifty() {
-    if (_hasSubmitted ||
-        _fiftyFiftyUsed ||
+    if (_isInteractionLocked ||
+        _effectiveFiftyFiftyUsed ||
         widget.question.options.length <= 2) {
       return;
     }
-    if (!widget.isPreviewMode) {
+    if (widget.isLiveMode) {
+      // Mark optimistically; the server's `power_up_result` confirms it.
+      setState(() => _fiftyFiftyUsed = true);
       widget.onFiftyFifty?.call();
       return;
     }
@@ -277,8 +421,9 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   }
 
   Future<void> _skipQuestion() async {
-    if (_hasSubmitted || _skipUsed || widget.onSkip == null) return;
-    if (!widget.isPreviewMode) {
+    if (_effectiveSkipUsed || widget.onSkip == null) return;
+    if (widget.isLiveMode) {
+      if (_isInteractionLocked) return;
       setState(() {
         _skipUsed = true;
         _hasSubmitted = true;
@@ -287,6 +432,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
       widget.onSkip!.call();
       return;
     }
+    if (_hasSubmitted) return;
     setState(() {
       _skipUsed = true;
       _hasSubmitted = true;
@@ -299,12 +445,15 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   }
 
   void _showHint() {
-    if (_hasSubmitted || _hintUsed) return;
-    if (!widget.isPreviewMode) {
+    if (_effectiveHintUsed) return;
+    if (widget.isLiveMode) {
+      setState(() => _hintUsed = true);
       widget.onHint?.call();
       return;
     }
+    if (_hasSubmitted) return;
     setState(() => _hintUsed = true);
+    widget.onHint?.call();
   }
 
   Future<void> _playFeedbackAndExit() async {
@@ -323,16 +472,14 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final feedback = widget.isPreviewMode ? _previewFeedback : widget.feedback;
-    final hiddenOptionIds = <String>{
-      ...widget.hiddenOptionIds,
-      if (widget.isPreviewMode) ..._previewHiddenOptionIds,
-    };
-    final isInteractionLocked =
-        _hasSubmitted ||
-        widget.isSubmitting ||
-        feedback != SuddenDeathFeedbackState.none;
-    final showHint = _hintUsed || widget.hintText != null;
+    final feedback = _effectiveFeedback;
+    final hiddenOptionIds = _effectiveHiddenOptionIds;
+    final selectedOptionId = _effectiveSelectedOptionId;
+    final isInteractionLocked = _isInteractionLocked;
+    // A hint is "shown" once the player spends it (preview) or as soon as the
+    // server ships one on the question frame (live).
+    final showHint =
+        _effectiveHintUsed || widget.hint != null || widget.hintText != null;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -411,15 +558,14 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                     ),
                                 child: _QuestionPanel(
                                   question: widget.question,
-                                  selectedOptionId: _selectedOptionId,
+                                  selectedOptionId: selectedOptionId,
                                   hiddenOptionIds: hiddenOptionIds,
                                   feedback: feedback,
                                   feedbackAnimation: _feedbackController,
+                                  serverAnswerResult: widget.serverAnswerResult,
                                   onSelected: isInteractionLocked
                                       ? null
-                                      : (optionId) => setState(
-                                          () => _selectedOptionId = optionId,
-                                        ),
+                                      : _handleOptionTap,
                                 ),
                               ),
                             ),
@@ -436,8 +582,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                       ),
                                       child: _SuddenDeathHint(
                                         text:
-                                            widget.hintText ??
-                                            widget.question.hint ??
+                                            _effectiveHintText ??
                                             'Eliminate choices that do not match the strongest clue in the prompt.',
                                       ),
                                     )
@@ -478,7 +623,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                 icon: Icons.timer_outlined,
                                 isUsed: _extraTimeUsed,
                                 isDisabled:
-                                    !widget.isPreviewMode &&
+                                    widget.isLiveMode &&
                                     widget.onAddTime == null,
                                 onUse: _addFiveSeconds,
                               ),
@@ -490,10 +635,10 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                     : 'Hide two wrong answers.',
                                 coinCost: 25,
                                 icon: Icons.call_split_rounded,
-                                isUsed: _fiftyFiftyUsed,
+                                isUsed: _effectiveFiftyFiftyUsed,
                                 isDisabled:
                                     widget.question.options.length <= 2 ||
-                                    (!widget.isPreviewMode &&
+                                    (widget.isLiveMode &&
                                         widget.onFiftyFifty == null),
                                 onUse: _useFiftyFifty,
                               ),
@@ -503,7 +648,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                 description: 'Skip this question safely.',
                                 coinCost: 35,
                                 icon: Icons.fast_forward_rounded,
-                                isUsed: _skipUsed,
+                                isUsed: _effectiveSkipUsed,
                                 isDisabled: widget.onSkip == null,
                                 onUse: _skipQuestion,
                               ),
@@ -516,22 +661,25 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                                 icon: Icons.lightbulb_outline,
                                 isUsed: showHint,
                                 isDisabled:
-                                    !widget.isPreviewMode &&
-                                    widget.onHint == null,
+                                    widget.isLiveMode && widget.onHint == null,
                                 onUse: _showHint,
                               ),
                             ],
                           ),
                           const SizedBox(height: AppSpacing.sm),
-                          AppButton(
-                            label: 'Submit',
-                            variant: AppButtonVariant.destructive,
-                            leadingIcon: const Icon(Icons.bolt_rounded),
-                            onPressed:
-                                _selectedOptionId == null || isInteractionLocked
-                                ? null
-                                : _submitSelectedAnswer,
-                          ),
+                          // Live mode answers on tap — the server owns the
+                          // clock, so there is nothing left to confirm.
+                          if (widget.isPreviewMode)
+                            AppButton(
+                              label: 'Submit',
+                              variant: AppButtonVariant.destructive,
+                              leadingIcon: const Icon(Icons.bolt_rounded),
+                              onPressed:
+                                  _selectedOptionId == null ||
+                                      isInteractionLocked
+                                  ? null
+                                  : _submitSelectedAnswer,
+                            ),
                         ],
                       ),
                     ),
@@ -1008,6 +1156,7 @@ class _QuestionPanel extends StatelessWidget {
   final SuddenDeathFeedbackState feedback;
   final Animation<double> feedbackAnimation;
   final ValueChanged<String>? onSelected;
+  final WsAnswerResultPayload? serverAnswerResult;
 
   const _QuestionPanel({
     required this.question,
@@ -1016,6 +1165,7 @@ class _QuestionPanel extends StatelessWidget {
     required this.feedback,
     required this.feedbackAnimation,
     required this.onSelected,
+    this.serverAnswerResult,
   });
 
   @override
@@ -1108,6 +1258,7 @@ class _QuestionPanel extends StatelessWidget {
                 option: question.options[i],
                 isSelected: selectedOptionId == question.options[i].id,
                 isHidden: hiddenOptionIds.contains(question.options[i].id),
+                serverAnswerResult: serverAnswerResult,
                 feedback: selectedOptionId == question.options[i].id
                     ? feedback
                     : SuddenDeathFeedbackState.none,
@@ -1286,14 +1437,28 @@ class _AnswerCard extends StatelessWidget {
   final SuddenDeathFeedbackState feedback;
   final VoidCallback? onTap;
 
+  /// Latest server verdict for the parent question. Used only to reveal the
+  /// correct option after the run is decided — the option ids in a live
+  /// payload are the server's shuffled letters, which do not necessarily match
+  /// the locally mapped ids.
+  final WsAnswerResultPayload? serverAnswerResult;
+
   const _AnswerCard({
     required this.label,
     required this.option,
     required this.isSelected,
     required this.isHidden,
     required this.feedback,
-    required this.onTap,
+    this.serverAnswerResult,
+    this.onTap,
   });
+
+  /// Whether this card is the correct answer, per the server verdict.
+  bool _matchesServerCorrect(String? correctOption) {
+    if (correctOption == null || correctOption.isEmpty) return false;
+    return correctOption.toLowerCase() == label.toLowerCase() ||
+        correctOption.toLowerCase() == option.id.toLowerCase();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1302,12 +1467,13 @@ class _AnswerCard extends StatelessWidget {
     final isFailure =
         feedback == SuddenDeathFeedbackState.eliminated ||
         feedback == SuddenDeathFeedbackState.timeUp;
+    final serverRevealsCorrect = _matchesServerCorrect(
+      serverAnswerResult?.correctOption,
+    );
     final accent = isHidden
         ? colors.textMuted
-        : hasFeedback && isFailure
-        ? colors.error
-        : hasFeedback && isSelected
-        ? colors.success
+        : (hasFeedback && (isSelected ? !isFailure : serverRevealsCorrect))
+        ? (isFailure && isSelected ? colors.error : colors.success)
         : isSelected
         ? colors.secondary
         : colors.primary;

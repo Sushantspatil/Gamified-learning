@@ -42,11 +42,18 @@ class AuthRemoteDatasource implements AuthDatasource {
           await _storage.setString(StorageKeys.authToken, resDto.accessToken);
         }
         if (resDto.refreshToken.isNotEmpty) {
-          await _storage.setString(StorageKeys.refreshToken, resDto.refreshToken);
+          await _storage.setString(
+            StorageKeys.refreshToken,
+            resDto.refreshToken,
+          );
         }
 
-        final clientId = resDto.client?.id.isNotEmpty == true ? resDto.client!.id : '1';
-        final clientEmail = resDto.client?.email.isNotEmpty == true ? resDto.client!.email : email;
+        final clientId = resDto.client?.id.isNotEmpty == true
+            ? resDto.client!.id
+            : '1';
+        final clientEmail = resDto.client?.email.isNotEmpty == true
+            ? resDto.client!.email
+            : email;
         final clientName = resDto.client?.username.isNotEmpty == true
             ? resDto.client!.username
             : clientEmail.split('@').first;
@@ -129,10 +136,7 @@ class AuthRemoteDatasource implements AuthDatasource {
     required String otp,
   }) async {
     final cleanEmail = email.trim();
-    final requestDto = SignupVerifyRequestDto(
-      email: cleanEmail,
-      code: otp,
-    );
+    final requestDto = SignupVerifyRequestDto(email: cleanEmail, code: otp);
 
     final response = await _apiClient.post(
       ApiEndpoints.signupVerify,
@@ -149,8 +153,12 @@ class AuthRemoteDatasource implements AuthDatasource {
         await _storage.setString(StorageKeys.refreshToken, resDto.refreshToken);
       }
 
-      final clientId = resDto.client?.id.isNotEmpty == true ? resDto.client!.id : '1';
-      final clientEmail = resDto.client?.email.isNotEmpty == true ? resDto.client!.email : cleanEmail;
+      final clientId = resDto.client?.id.isNotEmpty == true
+          ? resDto.client!.id
+          : '1';
+      final clientEmail = resDto.client?.email.isNotEmpty == true
+          ? resDto.client!.email
+          : cleanEmail;
       final clientName = resDto.client?.username.isNotEmpty == true
           ? resDto.client!.username
           : (_pendingSignupDisplayName ?? clientEmail.split('@').first);

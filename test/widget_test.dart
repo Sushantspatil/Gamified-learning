@@ -16,6 +16,10 @@ import 'package:skillverse_app/features/questions/data/datasources/mock/question
 import 'package:skillverse_app/features/questions/presentation/providers/question_providers.dart';
 import 'package:skillverse_app/features/quiz/data/datasources/mock/quiz_mock_datasource.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/quiz_providers.dart';
+import 'package:skillverse_app/features/chapters/data/datasources/mock/chapter_mock_datasource.dart';
+import 'package:skillverse_app/features/chapters/presentation/providers/chapter_providers.dart';
+import 'package:skillverse_app/features/learning_paths/data/datasources/mock/learning_path_mock_datasource.dart';
+import 'package:skillverse_app/features/learning_paths/presentation/providers/learning_path_providers.dart';
 import 'package:skillverse_app/features/profile/data/datasources/mock/profile_mock_datasource.dart';
 import 'package:skillverse_app/features/profile/presentation/providers/profile_providers.dart';
 import 'package:skillverse_app/features/streaks/data/datasources/mock/streak_mock_datasource.dart';
@@ -60,6 +64,12 @@ Future<void> _pumpAppWithInitialValues(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storageService),
         authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
+        learningPathDatasourceProvider.overrideWithValue(
+          LearningPathMockDatasource(),
+        ),
+        chapterDatasourceProvider.overrideWithValue(
+          ChapterMockDatasource(),
+        ),
         questionDatasourceProvider.overrideWithValue(QuestionMockDatasource()),
         quizDatasourceProvider.overrideWithValue(QuizMockDatasource()),
         profileDatasourceProvider.overrideWithValue(ProfileMockDatasource()),

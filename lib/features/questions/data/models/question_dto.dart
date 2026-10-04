@@ -14,10 +14,7 @@ class QuestionOptionDto {
   }
 
   QuestionOption toDomain() {
-    return QuestionOption(
-      id: option,
-      text: text,
-    );
+    return QuestionOption(id: option, text: text);
   }
 }
 
@@ -55,7 +52,8 @@ class QuestionDto {
 
   McqQuestion toDomain(String topicId) {
     final domainOptions = options.map((o) => o.toDomain()).toList();
-    final resolvedCorrectOptionId = correctOption ??
+    final resolvedCorrectOptionId =
+        correctOption ??
         (domainOptions.isNotEmpty ? domainOptions.first.id : 'a');
 
     return McqQuestion(
@@ -140,10 +138,12 @@ class SuddenDeathQuestionDto {
       correctOption: (json['correct_option'] ?? 'a').toString(),
       options: rawOptions
           .whereType<Map<String, dynamic>>()
-          .map((opt) => QuestionOptionDto(
-                option: (opt['id'] ?? opt['option'] ?? '').toString(),
-                text: (opt['text'] ?? '').toString(),
-              ))
+          .map(
+            (opt) => QuestionOptionDto(
+              option: (opt['id'] ?? opt['option'] ?? '').toString(),
+              text: (opt['text'] ?? '').toString(),
+            ),
+          )
           .toList(),
     );
   }
@@ -154,7 +154,8 @@ class SuddenDeathQuestionDto {
       id: id,
       topicId: topic ?? topicId,
       prompt: prompt.isNotEmpty ? prompt : question,
-      points: 20, // Compatibility value for demo rendering, clearly isolated from production scoring
+      points:
+          20, // Compatibility value for demo rendering, clearly isolated from production scoring
       options: domainOptions,
       correctOptionId: correctOption,
       hint: hint,

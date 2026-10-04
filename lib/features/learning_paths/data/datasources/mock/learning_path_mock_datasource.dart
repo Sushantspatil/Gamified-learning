@@ -13,7 +13,8 @@ class LearningPathMockDatasource implements LearningPathDatasource {
       LearningPathModel(
         id: 'accounting',
         title: 'Book-Keeping & Accountancy',
-        description: 'Double entry, debit/credit rules, ledger posting, and financial statements.',
+        description:
+            'Double entry, debit/credit rules, ledger posting, and financial statements.',
         difficulty: LearningPathDifficulty.beginner,
         topicCount: 16,
       ),

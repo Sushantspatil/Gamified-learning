@@ -1,6 +1,5 @@
 import '../../../domain/entities/question.dart';
 import '../question_datasource.dart';
-import 'sudden_death_mock_datasource.dart';
 
 /// MOCK DATA - replace the binding in question_providers.dart with a
 /// Firestore-backed implementation when the backend is ready. Every topic gets
@@ -19,10 +18,10 @@ class QuestionMockDatasource implements QuestionDatasource {
     QuestionType questionType,
   ) async {
     if (questionType == QuestionType.suddenDeath) {
+      // Sudden Death is served exclusively by the live backend over the
+      // WebSocket API, never by mock data.
       await Future.delayed(const Duration(milliseconds: 200));
-      return SuddenDeathMockDatasource().getDevelopmentQuestions(
-        topicId: topicId,
-      );
+      return const <Question>[];
     }
     final questions = await getQuestionsForTopic(topicId);
     return questions
@@ -56,7 +55,6 @@ class QuestionMockDatasource implements QuestionDatasource {
         hint:
             'Expenses usually increase on Debit. Income usually increases on Credit.',
       ),
-      ..._suddenDeathQuestions(topicId),
     ];
   }
 
@@ -145,9 +143,21 @@ class QuestionMockDatasource implements QuestionDatasource {
           prompt: 'Match each Account Type with its Golden Rule.',
           points: 15,
           pairs: const [
-            MatchPair(id: 'personal', left: 'Personal Account', right: 'Debit receiver, Credit giver'),
-            MatchPair(id: 'real', left: 'Real Account', right: 'Debit what comes in, Credit goes out'),
-            MatchPair(id: 'nominal', left: 'Nominal Account', right: 'Debit expenses, Credit gains'),
+            MatchPair(
+              id: 'personal',
+              left: 'Personal Account',
+              right: 'Debit receiver, Credit giver',
+            ),
+            MatchPair(
+              id: 'real',
+              left: 'Real Account',
+              right: 'Debit what comes in, Credit goes out',
+            ),
+            MatchPair(
+              id: 'nominal',
+              left: 'Nominal Account',
+              right: 'Debit expenses, Credit gains',
+            ),
           ],
         ),
         MatchTheFollowingQuestion(
@@ -157,8 +167,16 @@ class QuestionMockDatasource implements QuestionDatasource {
           points: 15,
           pairs: const [
             MatchPair(id: 'asset', left: 'Machinery', right: 'Real Account'),
-            MatchPair(id: 'expense', left: 'Salaries Paid', right: 'Nominal Account'),
-            MatchPair(id: 'bank', left: 'Bank of India', right: 'Personal Account'),
+            MatchPair(
+              id: 'expense',
+              left: 'Salaries Paid',
+              right: 'Nominal Account',
+            ),
+            MatchPair(
+              id: 'bank',
+              left: 'Bank of India',
+              right: 'Personal Account',
+            ),
           ],
         ),
       ];
@@ -220,11 +238,5 @@ class QuestionMockDatasource implements QuestionDatasource {
         ],
       ),
     ];
-  }
-
-  List<SuddenDeathQuestion> _suddenDeathQuestions(String topicId) {
-    return const SuddenDeathMockDatasource().getBundledQuestions(
-      topicId: topicId,
-    );
   }
 }

@@ -21,10 +21,7 @@ class WalletRemoteDatasource implements WalletDatasource {
       throw const ServerException('Invalid wallet response from backend.');
     }
     final dto = WalletBalanceResponseDto.fromJson(data);
-    return WalletBalanceModel(
-      coins: dto.coins,
-      gems: dto.gems,
-    );
+    return WalletBalanceModel(coins: dto.coins, gems: dto.gems);
   }
 
   @override
@@ -51,7 +48,9 @@ class WalletRemoteDatasource implements WalletDatasource {
 
     final dto = WalletTransactionResponseDto.fromJson(data);
     return WalletTransactionModel(
-      id: dto.id.isNotEmpty ? dto.id : 'txn-${DateTime.now().millisecondsSinceEpoch}',
+      id: dto.id.isNotEmpty
+          ? dto.id
+          : 'txn-${DateTime.now().millisecondsSinceEpoch}',
       userId: userId,
       currency: currency,
       direction: TransactionDirection.credit,
@@ -86,7 +85,9 @@ class WalletRemoteDatasource implements WalletDatasource {
 
     final dto = WalletTransactionResponseDto.fromJson(data);
     return WalletTransactionModel(
-      id: dto.id.isNotEmpty ? dto.id : 'txn-${DateTime.now().millisecondsSinceEpoch}',
+      id: dto.id.isNotEmpty
+          ? dto.id
+          : 'txn-${DateTime.now().millisecondsSinceEpoch}',
       userId: userId,
       currency: currency,
       direction: TransactionDirection.debit,
@@ -98,15 +99,21 @@ class WalletRemoteDatasource implements WalletDatasource {
   }
 
   @override
-  Future<List<WalletTransactionModel>> getTransactionHistory(String userId) async {
+  Future<List<WalletTransactionModel>> getTransactionHistory(
+    String userId,
+  ) async {
     final data = await _apiClient.get(ApiEndpoints.walletTransactions);
     if (data is! Map<String, dynamic>) {
       return const [];
     }
     final historyDto = WalletHistoryResponseDto.fromJson(data);
     return historyDto.transactions.map((tx) {
-      final curr = (tx.currency == 'gems') ? CurrencyType.gems : CurrencyType.coins;
-      final dir = (tx.direction == 'debit') ? TransactionDirection.debit : TransactionDirection.credit;
+      final curr = (tx.currency == 'gems')
+          ? CurrencyType.gems
+          : CurrencyType.coins;
+      final dir = (tx.direction == 'debit')
+          ? TransactionDirection.debit
+          : TransactionDirection.credit;
       return WalletTransactionModel(
         id: tx.id,
         userId: userId,

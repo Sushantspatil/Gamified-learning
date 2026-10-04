@@ -57,7 +57,8 @@ class ProfileRemoteDatasource implements ProfileDatasource {
     );
 
     final local = _localProfileFields(userId);
-    final userName = (local['name'] as String?) ??
+    final userName =
+        (local['name'] as String?) ??
         (local['displayName'] as String?) ??
         (local['username'] as String?) ??
         'Student';

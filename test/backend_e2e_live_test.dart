@@ -12,29 +12,43 @@ import 'package:skillverse_app/features/quiz/domain/entities/quiz_session.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
 
 import 'package:skillverse_app/features/profile/data/datasources/remote/profile_remote_datasource.dart';
+import 'dart:async';
+import 'package:skillverse_app/features/quiz/data/datasources/remote/sudden_death_remote_datasource.dart';
+import 'package:skillverse_app/features/quiz/data/models/sudden_death_ws_dto.dart';
 import 'package:skillverse_app/features/wallet/data/datasources/remote/wallet_remote_datasource.dart';
 import 'package:skillverse_app/features/wallet/domain/entities/currency_type.dart';
 
 void main() {
   group('Live Go Backend & Flutter End-to-End Integration', () {
     late LocalStorageService storage;
+    late ApiConfig config;
     late ApiClient apiClient;
     late AuthRemoteDatasource authRemote;
     late QuestionRemoteDatasource questionRemote;
     late QuizRemoteDatasource quizRemote;
+    late SuddenDeathRemoteDatasource suddenRemote;
     late ProfileRemoteDatasource profileRemote;
     late WalletRemoteDatasource walletRemote;
 
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
       storage = await LocalStorageService.create();
-      final config = ApiConfig.defaultConfig();
+      config = ApiConfig.defaultConfig(
+        customBaseUrl: 'http://localhost:8080/api/v1',
+      );
       apiClient = ApiClient(config: config, storage: storage);
       authRemote = AuthRemoteDatasource(apiClient: apiClient, storage: storage);
       questionRemote = QuestionRemoteDatasource(apiClient: apiClient);
       quizRemote = QuizRemoteDatasource(apiClient: apiClient);
-      profileRemote =
-          ProfileRemoteDatasource(apiClient: apiClient, storage: storage);
+      suddenRemote = SuddenDeathRemoteDatasource(
+        apiClient: apiClient,
+        storage: storage,
+        apiConfig: config,
+      );
+      profileRemote = ProfileRemoteDatasource(
+        apiClient: apiClient,
+        storage: storage,
+      );
       walletRemote = WalletRemoteDatasource(apiClient: apiClient);
     });
 
@@ -221,63 +235,141 @@ void main() {
       },
     );
 
-    test('Live Profile lifecycle: fetch profile, update avatar, and complete setup', () async {
-      final user = await authRemote.login(
-        email: 'player@example.com',
-        password: 'secretpassword123',
-      );
+    test(
+      'Live Profile lifecycle: fetch profile, update avatar, and complete setup',
+      () async {
+        final user = await authRemote.login(
+          email: 'player@example.com',
+          password: 'secretpassword123',
+        );
 
-      final initialProfile = await profileRemote.getProfile(user.id);
-      expect(initialProfile, isNotNull);
+        final initialProfile = await profileRemote.getProfile(user.id);
+        expect(initialProfile, isNotNull);
 
-      final updatedProfile = await profileRemote.updateAvatar(
-        userId: user.id,
-        avatarId: 'paw',
-      );
-      expect(updatedProfile.avatarId, 'paw');
+        final updatedProfile = await profileRemote.updateAvatar(
+          userId: user.id,
+          avatarId: 'paw',
+        );
+        expect(updatedProfile.avatarId, 'paw');
 
-      final completedProfile = await profileRemote.completeProfileSetup(
-        userId: user.id,
-        avatarId: 'paw',
-        classLevel: '12th',
-        board: 'CBSE',
-        selectedSubjectIds: ['accounting'],
-      );
-      expect(completedProfile.classLevel, '12th');
-      expect(completedProfile.board, 'CBSE');
-      expect(completedProfile.profileSetupCompleted, isTrue);
-    });
+        final completedProfile = await profileRemote.completeProfileSetup(
+          userId: user.id,
+          avatarId: 'paw',
+          classLevel: '12th',
+          board: 'CBSE',
+          selectedSubjectIds: ['accounting'],
+        );
+        expect(completedProfile.classLevel, '12th');
+        expect(completedProfile.board, 'CBSE');
+        expect(completedProfile.profileSetupCompleted, isTrue);
+      },
+    );
 
-    test('Live Wallet lifecycle: check balance, credit, debit, and fetch transactions', () async {
-      final user = await authRemote.login(
-        email: 'player@example.com',
-        password: 'secretpassword123',
-      );
+    test(
+      'Live Wallet lifecycle: check balance, credit, debit, and fetch transactions',
+      () async {
+        final user = await authRemote.login(
+          email: 'player@example.com',
+          password: 'secretpassword123',
+        );
 
-      final initialBalance = await walletRemote.getBalance(user.id);
-      expect(initialBalance.coins, greaterThanOrEqualTo(0));
+        final initialBalance = await walletRemote.getBalance(user.id);
+        expect(initialBalance.coins, greaterThanOrEqualTo(0));
 
-      final creditTxn = await walletRemote.credit(
-        userId: user.id,
-        currency: CurrencyType.coins,
-        amount: 50,
-        reason: 'Daily streak reward',
-      );
-      expect(creditTxn.amount, 50);
+        final creditTxn = await walletRemote.credit(
+          userId: user.id,
+          currency: CurrencyType.coins,
+          amount: 50,
+          reason: 'Daily streak reward',
+        );
+        expect(creditTxn.amount, 50);
 
-      final debitTxn = await walletRemote.debit(
-        userId: user.id,
-        currency: CurrencyType.coins,
-        amount: 20,
-        reason: 'Purchased power-up',
-      );
-      expect(debitTxn.amount, 20);
+        final debitTxn = await walletRemote.debit(
+          userId: user.id,
+          currency: CurrencyType.coins,
+          amount: 20,
+          reason: 'Purchased power-up',
+        );
+        expect(debitTxn.amount, 20);
 
-      final balanceAfter = await walletRemote.getBalance(user.id);
-      expect(balanceAfter.coins, equals(initialBalance.coins + 30));
+        final balanceAfter = await walletRemote.getBalance(user.id);
+        expect(balanceAfter.coins, equals(initialBalance.coins + 30));
 
-      final history = await walletRemote.getTransactionHistory(user.id);
-      expect(history, isNotEmpty);
-    });
+        final history = await walletRemote.getTransactionHistory(user.id);
+        expect(history, isNotEmpty);
+      },
+    );
+
+    test(
+      'Live Sudden Death WebSocket lifecycle: create session, connect socket, receive question, use 50:50, submit answer',
+      () async {
+        // 1. Authenticate user
+        final user = await authRemote.login(
+          email: 'player@example.com',
+          password: 'secretpassword123',
+        );
+        expect(user.id, isNotEmpty);
+
+        // 2. Create sudden death session on live Go backend
+        final sessionId = await suddenRemote.createSession(
+          topicId: 'accounting',
+          questionCount: 3,
+        );
+        expect(sessionId, isNotEmpty);
+        expect(suddenRemote.activeSessionId, sessionId);
+
+        final completerFirstQuestion = Completer<WsQuestionEvent>();
+        final completerPowerUp = Completer<WsPowerUpResultEvent>();
+        final completerAnswer = Completer<WsAnswerResultEvent>();
+
+        final sub = suddenRemote.events.listen((event) {
+          if (event is WsQuestionEvent && !completerFirstQuestion.isCompleted) {
+            completerFirstQuestion.complete(event);
+          } else if (event is WsPowerUpResultEvent &&
+              !completerPowerUp.isCompleted) {
+            completerPowerUp.complete(event);
+          } else if (event is WsAnswerResultEvent &&
+              !completerAnswer.isCompleted) {
+            completerAnswer.complete(event);
+          }
+        });
+
+        // 3. Connect to live WebSocket endpoint
+        await suddenRemote.connect(sessionId: sessionId);
+        expect(suddenRemote.isConnected, isTrue);
+
+        // 4. Server pushes authoritative first question
+        final qEvent = await completerFirstQuestion.future.timeout(
+          const Duration(seconds: 5),
+        );
+        expect(qEvent.payload.question, isNotEmpty);
+        expect(qEvent.payload.prompt, isNotEmpty);
+        expect(qEvent.payload.options.length, 4);
+        expect(qEvent.payload.remainingTimeMs, greaterThan(0));
+
+        // 5. Use 50:50 power-up
+        suddenRemote.useFiftyFifty(question: qEvent.payload.question);
+        final powerUpEvent = await completerPowerUp.future.timeout(
+          const Duration(seconds: 5),
+        );
+        expect(powerUpEvent.payload.hiddenOptions.length, 2);
+
+        // 6. Submit answer
+        suddenRemote.submitAnswer(
+          question: qEvent.payload.question,
+          option: qEvent.payload.options.first.option,
+          timeTakenMs: 1200,
+        );
+        final answerEvent = await completerAnswer.future.timeout(
+          const Duration(seconds: 5),
+        );
+        expect(answerEvent.payload.question, qEvent.payload.question);
+        expect(answerEvent.payload.yourScore, isA<int>());
+
+        // 7. Cleanup
+        await suddenRemote.disconnect();
+        await sub.cancel();
+      },
+    );
   });
 }

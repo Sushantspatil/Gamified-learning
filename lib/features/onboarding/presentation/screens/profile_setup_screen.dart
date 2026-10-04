@@ -512,4 +512,3 @@ class _StepFrame extends StatelessWidget {
     );
   }
 }
-

@@ -12,15 +12,14 @@ import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
-import '../../data/datasources/mock/quiz_mock_datasource.dart';
 import '../providers/quiz_providers.dart';
 import '../widgets/match_the_following_view.dart';
 import '../widgets/mcq_question_view.dart';
 import '../widgets/quiz_result_view.dart';
 import '../widgets/sort_it_right_view.dart';
-import '../widgets/sudden_death_question_view.dart';
 import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import 'sudden_death_screen.dart';
 
 class QuizScreen extends ConsumerWidget {
   final String topicId;
@@ -38,25 +37,30 @@ class QuizScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (quizType == QuestionType.suddenDeath) {
+      return SuddenDeathScreen(
+        topicId: topicId,
+        subjectId: subjectId,
+        chapterId: chapterId,
+      );
+    }
+
+    final colors = context.themeColors;
     final request = QuizSessionRequest(
       topicId: topicId,
       quizType: quizType,
       subjectId: subjectId,
       chapterId: chapterId,
     );
+
     final sessionAsync = ref.watch(quizControllerProvider(request));
     final currentQuestion = sessionAsync.valueOrNull?.currentQuestion;
     final isMatchQuestion = currentQuestion is MatchTheFollowingQuestion;
-    final isSuddenDeathQuestion = currentQuestion is SuddenDeathQuestion;
     final isMcqQuiz = quizType == QuestionType.mcq;
     final isSortItOutQuiz = quizType == QuestionType.sortItRight;
 
     return GameScaffold(
-      appBar:
-          isMcqQuiz ||
-              isSortItOutQuiz ||
-              isMatchQuestion ||
-              isSuddenDeathQuestion
+      appBar: isMcqQuiz || isSortItOutQuiz || isMatchQuestion
           ? null
           : AppBar(
               title: Text(quizType.label),
@@ -87,7 +91,32 @@ class QuizScreen extends ConsumerWidget {
           ),
           data: (session) {
             if (session.isSubmittingResult) {
-              return const Center(child: CircularProgressIndicator());
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: CircularProgressIndicator(strokeWidth: 3),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text(
+                      'Calculating quiz results...',
+                      style: context.appTextStyles.titleMedium.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Evaluating answers with the backend',
+                      style: context.appTextStyles.bodyMedium.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              );
             }
 
             if (session.result != null) {
@@ -177,49 +206,6 @@ class QuizScreen extends ConsumerWidget {
                 totalQuestions: session.questions.length,
                 onSubmit: handleAnswer,
                 onExit: () => Navigator.of(context).maybePop(),
-              );
-            }
-
-            if (question is SuddenDeathQuestion) {
-              final isMockPreview =
-                  ref.read(quizDatasourceProvider) is QuizMockDatasource;
-              final previewStreak = isMockPreview
-                  ? session.records
-                        .where((record) => record.evaluation.isCorrect)
-                        .length
-                  : 0;
-              final appStreak = isMockPreview
-                  ? ref
-                            .watch(streakControllerProvider)
-                            .valueOrNull
-                            ?.currentStreak ??
-                        0
-                  : 0;
-              final wallet = ref.watch(walletControllerProvider).valueOrNull;
-              final previewBestStreak = appStreak > previewStreak
-                  ? appStreak
-                  : previewStreak;
-
-              return SuddenDeathQuestionView(
-                key: ValueKey(question.id),
-                question: question,
-                currentIndex: session.currentIndex,
-                totalQuestions: session.questions.length,
-                currentStreak: previewStreak,
-                bestStreak: previewBestStreak,
-                energy: wallet?.gems ?? 0,
-                coins: wallet?.coins ?? 0,
-                isPreviewMode: isMockPreview,
-                onExit: () => Navigator.of(context).maybePop(),
-                onSubmit: handleAnswer,
-                onTimeout: isMockPreview
-                    ? () => handleAnswer(
-                        SuddenDeathAnswer(
-                          questionId: question.id,
-                          selectedOptionId: '__ui_preview_timeout__',
-                        ),
-                      )
-                    : null,
               );
             }
 

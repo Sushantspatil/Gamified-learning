@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../app/config/app_config.dart';
 import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
@@ -21,7 +20,6 @@ import '../../../learning_paths/domain/entities/learning_path.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
-import '../../../quiz/presentation/providers/sudden_death_preview_providers.dart';
 
 const _practiceModes = [
   QuestionType.mcq,
@@ -110,19 +108,24 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
           leadingIcon: const Icon(Icons.play_arrow_rounded),
           onPressed: _canStart
               ? () {
-                  final isSuddenDeathPreview =
-                      AppConfig.developmentPreviewsEnabled &&
-                      _selectedMode == QuestionType.suddenDeath;
-                  context.push(
-                    isSuddenDeathPreview
-                        ? '${RouteNames.suddenDeathDemo}?topicId=${Uri.encodeComponent(_selectedTopicId!)}'
-                        : RouteNames.quizPath(
-                            _selectedTopicId!,
-                            _selectedMode!,
-                            subjectId: _selectedSubjectId,
-                            chapterId: _selectedChapterId,
-                          ),
-                  );
+                  if (_selectedMode == QuestionType.suddenDeath) {
+                    context.push(
+                      RouteNames.suddenDeathPath(
+                        _selectedTopicId!,
+                        subjectId: _selectedSubjectId,
+                        chapterId: _selectedChapterId,
+                      ),
+                    );
+                  } else {
+                    context.push(
+                      RouteNames.quizPath(
+                        _selectedTopicId!,
+                        _selectedMode!,
+                        subjectId: _selectedSubjectId,
+                        chapterId: _selectedChapterId,
+                      ),
+                    );
+                  }
                 }
               : null,
         ),
@@ -509,33 +512,12 @@ class _GameModePicker extends ConsumerWidget {
     final questionsAsync = topicId == null
         ? const AsyncValue<List<Question>>.data([])
         : ref.watch(questionsForTopicProvider(topicId));
-    final previewQuestionsAsync = topicId == null
-        ? const AsyncValue<List<SuddenDeathQuestion>>.data([])
-        : ref.watch(suddenDeathPreviewQuestionsProvider(topicId));
-    final previewQuestions = previewQuestionsAsync.valueOrNull ?? const [];
-    final hasSuddenDeathPreview = previewQuestions.isNotEmpty;
 
     Widget buildModeGrid(List<Question> questions) {
       final availability = {
         for (final mode in _practiceModes)
           mode: _modeAvailability(mode, questions),
       };
-
-      if (topicId != null && AppConfig.developmentPreviewsEnabled) {
-        final productionAvailability = availability[QuestionType.suddenDeath]!;
-        if (hasSuddenDeathPreview) {
-          availability[QuestionType.suddenDeath] = _ModeAvailability(
-            isEnabled: true,
-            reason: '${previewQuestions.length} development preview questions',
-          );
-        } else if (!productionAvailability.isEnabled &&
-            previewQuestionsAsync.isLoading) {
-          availability[QuestionType.suddenDeath] = const _ModeAvailability(
-            isEnabled: false,
-            reason: 'Loading preview questions',
-          );
-        }
-      }
 
       return GridView.count(
         crossAxisCount: 2,
@@ -559,17 +541,11 @@ class _GameModePicker extends ConsumerWidget {
     return _SetupSection(
       title: 'Choose game mode',
       child: questionsAsync.when(
-        loading: () =>
-            AppConfig.developmentPreviewsEnabled && hasSuddenDeathPreview
-            ? buildModeGrid(const [])
-            : const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) =>
-            AppConfig.developmentPreviewsEnabled && topicId != null
-            ? buildModeGrid(const [])
-            : Text(
-                'No playable questions are available for this topic yet.',
-                style: context.appTextStyles.bodyMedium,
-              ),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stackTrace) => Text(
+          'No playable questions are available for this topic yet.',
+          style: context.appTextStyles.bodyMedium,
+        ),
         data: buildModeGrid,
       ),
     );
@@ -1236,10 +1212,14 @@ _ModeAvailability _modeAvailability(
       (question) =>
           question is SortItRightQuestion && question.itemsInOrder.length >= 2,
     ),
-    QuestionType.suddenDeath => matching.any(
-      (question) =>
-          question is SuddenDeathQuestion && question.options.length >= 2,
-    ),
+    QuestionType.suddenDeath =>
+      matching.isNotEmpty
+          ? matching.any(
+              (question) =>
+                  question is SuddenDeathQuestion &&
+                  question.options.length >= 2,
+            )
+          : questions.isNotEmpty,
   };
 
   if (canRun) return const _ModeAvailability(isEnabled: true);

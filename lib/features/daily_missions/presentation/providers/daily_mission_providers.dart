@@ -22,7 +22,9 @@ class EmptyDailyMissionDatasource implements DailyMissionDatasource {
 
   @override
   Future<DailyMissionModel> recordQuizCompleted(String userId) {
-    throw UnsupportedError('Daily missions are not available from the backend.');
+    throw UnsupportedError(
+      'Daily missions are not available from the backend.',
+    );
   }
 }
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../questions/domain/entities/answer.dart';
+import '../../../questions/domain/entities/answer_evaluation.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
@@ -129,68 +130,87 @@ class QuizController
 
     _isEvaluating = true;
     try {
-      final evaluation = await ref
-          .read(quizRepositoryProvider)
-          .evaluateAnswer(question, answer);
-      final record = QuestionAnswerRecord(
+      // 1. Record answer locally with provisional evaluation to avoid per-question network latency
+      final provisionalRecord = QuestionAnswerRecord(
         question: question,
         answer: answer,
-        evaluation: evaluation,
+        evaluation: const AnswerEvaluation(isCorrect: false, pointsEarned: 0),
       );
-      final updatedRecords = [...current.records, record];
-
-      final isSuddenDeathFailure =
-          question is SuddenDeathQuestion && !evaluation.isCorrect;
+      final updatedRecords = [...current.records, provisionalRecord];
       final nextIndex = current.currentIndex + 1;
       final reachedEnd = nextIndex >= current.questions.length;
 
-      if (isSuddenDeathFailure || reachedEnd) {
+      if (!reachedEnd) {
+        // Advance immediately to next question with zero network wait
         state = AsyncValue.data(
           current.copyWith(
             records: updatedRecords,
             currentIndex: nextIndex,
-            isSubmittingResult: true,
           ),
         );
+        return;
+      }
 
-        final session = QuizSession(
-          id: _sessionId,
-          userId: ref.read(authControllerProvider).valueOrNull?.id,
-          subjectId: _request.subjectId,
-          chapterId: _request.chapterId,
-          topicId: _request.topicId,
-          quizType: _request.quizType,
-          questions: current.questions,
-          answeredRecords: updatedRecords,
-          endedEarly: isSuddenDeathFailure,
-          startedAt: _startedAt,
-          completedAt: DateTime.now(),
+      // 2. Reached end of quiz: now evaluate all answers and finalize session with backend
+      state = AsyncValue.data(
+        current.copyWith(
+          records: updatedRecords,
+          currentIndex: nextIndex,
+          isSubmittingResult: true,
+        ),
+      );
+
+      final repository = ref.read(quizRepositoryProvider);
+      final evaluatedRecords = <QuestionAnswerRecord>[];
+
+      for (final rec in updatedRecords) {
+        final evaluation = await repository.evaluateAnswer(
+          rec.question,
+          rec.answer,
         );
-        final result = await ref
-            .read(quizRepositoryProvider)
-            .submitSession(session);
-
-        if (ref.read(quizDatasourceProvider) is QuizRemoteDatasource) {
-          ref.invalidate(profileControllerProvider);
-          ref.invalidate(walletControllerProvider);
-        }
-
-        state = AsyncValue.data(
-          current.copyWith(
-            records: updatedRecords,
-            currentIndex: nextIndex,
-            isSubmittingResult: false,
-            result: result,
-            rewardXp: result.xpAwarded,
-            rewardCoins: result.coinsAwarded,
-            leveledUp: result.didLevelUp,
+        evaluatedRecords.add(
+          QuestionAnswerRecord(
+            question: rec.question,
+            answer: rec.answer,
+            evaluation: evaluation,
           ),
-        );
-      } else {
-        state = AsyncValue.data(
-          current.copyWith(records: updatedRecords, currentIndex: nextIndex),
         );
       }
+
+      final session = QuizSession(
+        id: _sessionId,
+        userId: ref.read(authControllerProvider).valueOrNull?.id,
+        subjectId: _request.subjectId,
+        chapterId: _request.chapterId,
+        topicId: _request.topicId,
+        quizType: _request.quizType,
+        questions: current.questions,
+        answeredRecords: evaluatedRecords,
+        endedEarly: false,
+        startedAt: _startedAt,
+        completedAt: DateTime.now(),
+      );
+
+      final result = await repository.submitSession(session);
+
+      if (ref.read(quizDatasourceProvider) is QuizRemoteDatasource) {
+        ref.invalidate(profileControllerProvider);
+        ref.invalidate(walletControllerProvider);
+      }
+
+      state = AsyncValue.data(
+        current.copyWith(
+          records: evaluatedRecords,
+          currentIndex: nextIndex,
+          isSubmittingResult: false,
+          result: result,
+          rewardXp: result.xpAwarded,
+          rewardCoins: result.coinsAwarded,
+          leveledUp: result.didLevelUp,
+        ),
+      );
+    } catch (error, stackTrace) {
+      state = AsyncValue.error(error, stackTrace);
     } finally {
       _isEvaluating = false;
     }

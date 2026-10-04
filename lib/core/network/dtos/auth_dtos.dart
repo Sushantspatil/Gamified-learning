@@ -36,24 +36,16 @@ class SignupResendCodeRequestDto {
 
   const SignupResendCodeRequestDto({required this.email});
 
-  Map<String, dynamic> toJson() => {
-    'email': email.trim(),
-  };
+  Map<String, dynamic> toJson() => {'email': email.trim()};
 }
 
 class SignupVerifyRequestDto {
   final String email;
   final String code;
 
-  const SignupVerifyRequestDto({
-    required this.email,
-    required this.code,
-  });
+  const SignupVerifyRequestDto({required this.email, required this.code});
 
-  Map<String, dynamic> toJson() => {
-    'email': email.trim(),
-    'code': code.trim(),
-  };
+  Map<String, dynamic> toJson() => {'email': email.trim(), 'code': code.trim()};
 }
 
 class AuthTokensDto {
@@ -95,7 +87,9 @@ class AuthClientDto {
   factory AuthClientDto.fromJson(Map<String, dynamic> json) => AuthClientDto(
     id: json['id']?.toString() ?? '',
     email: json['email'] as String? ?? '',
-    username: json['username'] as String? ?? (json['email'] as String? ?? '').split('@').first,
+    username:
+        json['username'] as String? ??
+        (json['email'] as String? ?? '').split('@').first,
     phone: json['phone'] as String?,
     status: json['status'] as String? ?? 'active',
   );
