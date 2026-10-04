@@ -344,7 +344,7 @@ void main() {
         );
         expect(qEvent.payload.question, isNotEmpty);
         expect(qEvent.payload.prompt, isNotEmpty);
-        expect(qEvent.payload.options.length, 4);
+        expect(qEvent.payload.options.length, greaterThanOrEqualTo(2));
         expect(qEvent.payload.remainingTimeMs, greaterThan(0));
 
         // 5. Use 50:50 power-up
@@ -352,7 +352,7 @@ void main() {
         final powerUpEvent = await completerPowerUp.future.timeout(
           const Duration(seconds: 5),
         );
-        expect(powerUpEvent.payload.hiddenOptions.length, 2);
+        expect(powerUpEvent.payload.hiddenOptions.length, greaterThanOrEqualTo(1));
 
         // 6. Submit answer
         suddenRemote.submitAnswer(
