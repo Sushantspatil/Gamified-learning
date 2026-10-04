@@ -419,7 +419,7 @@ class SuddenDeathController
       );
 
       _transitionTimer?.cancel();
-      _transitionTimer = Timer(const Duration(milliseconds: 950), () {
+      _transitionTimer = Timer(const Duration(milliseconds: 1350), () {
         if (_disposed) return;
         _finalizeSession(isEliminated: true, isTimeout: false);
       });
@@ -470,7 +470,7 @@ class SuddenDeathController
     );
 
     _transitionTimer?.cancel();
-    _transitionTimer = Timer(const Duration(milliseconds: 950), () {
+    _transitionTimer = Timer(const Duration(milliseconds: 1350), () {
       if (_disposed) return;
       _finalizeSession(isEliminated: true, isTimeout: true);
     });

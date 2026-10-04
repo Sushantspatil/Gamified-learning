@@ -1,5 +1,14 @@
 # Sudden Death Question Handoff Documentation
 
+> **RETIRED — historical record only.**
+> The mock data this document describes (`assets/mock/sudden_death_questions.json`,
+> `SuddenDeathMockDatasource`, and the Sudden Death demo/preview screens) has been
+> removed. Sudden Death is now served exclusively by the live Go backend over the
+> `POST /quiz/sessions/create` + `/ws/game` flow, configured with
+> `game_mode: "sudden_death"`. Do not implement against the asset or the
+> 2-option mock contract below; questions arrive from the server's
+> `question` WebSocket frame.
+
 ## Overview
 This document specifies the handoff for the **10 dedicated Sudden Death development questions** prepared for the Flutter application.
 
@@ -9,7 +18,7 @@ This document specifies the handoff for the **10 dedicated Sudden Death developm
 - **Subject**: Book-Keeping & Accountancy
 - **Difficulty Distribution**: 4 Easy, 4 Medium, 2 Hard
 - **Timer Target**: 15 seconds per question
-- **Source JSON Asset**: `assets/mock/sudden_death_questions.json`
+- **Source JSON Asset**: `assets/mock/sudden_death_questions.json` *(removed)*
 
 ---
 

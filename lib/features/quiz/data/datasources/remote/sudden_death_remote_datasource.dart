@@ -38,7 +38,7 @@ class SuddenDeathRemoteDatasource {
   bool get isConnected => _socketClient.isConnected;
 
   /// Creates a live quiz session on the Go backend in PostgreSQL and preloads
-  /// all questions, options, and correct answers upfront to eliminate runtime latency.
+  /// all questions, options, and correct answers from the database.
   Future<String> createSession({
     required String topicId,
     int questionCount = 10,
@@ -57,6 +57,7 @@ class SuddenDeathRemoteDatasource {
       questionCodes: questionCodes,
       gameMode: gameMode,
     );
+
     final response = await _apiClient.post(
       ApiEndpoints.quizCreateSession,
       body: requestDto.toJson(),
@@ -73,10 +74,9 @@ class SuddenDeathRemoteDatasource {
                 q,
               ).toDomain(topicId: topicId),
             )
-            .where((q) => q.options.length >= 2)
             .toList();
 
-        // Fallback: If questions list was not populated in session creation, fetch for topic
+        // Fallback: If questions list was not populated in session creation, fetch from DB for topic
         if (questions.isEmpty) {
           questions = await getQuestionsForTopic(backendTopic);
         }
