@@ -100,6 +100,9 @@ class SuddenDeathViewState {
     String? errorMessage,
     bool? isSubmitting,
     String? selectedOptionId,
+    bool clearLastAnswerResult = false,
+    bool clearErrorMessage = false,
+    bool clearSelectedOptionId = false,
   }) {
     return SuddenDeathViewState(
       status: status ?? this.status,
@@ -117,14 +120,20 @@ class SuddenDeathViewState {
       isAddTimePending: isAddTimePending ?? this.isAddTimePending,
       skipUsed: skipUsed ?? this.skipUsed,
       hintUsed: hintUsed ?? this.hintUsed,
-      lastAnswerResult: lastAnswerResult ?? this.lastAnswerResult,
+      lastAnswerResult: clearLastAnswerResult
+          ? null
+          : lastAnswerResult ?? this.lastAnswerResult,
       currentStreak: currentStreak ?? this.currentStreak,
       bestStreak: bestStreak ?? this.bestStreak,
       currentScore: currentScore ?? this.currentScore,
       result: result ?? this.result,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: clearErrorMessage
+          ? null
+          : errorMessage ?? this.errorMessage,
       isSubmitting: isSubmitting ?? this.isSubmitting,
-      selectedOptionId: selectedOptionId ?? this.selectedOptionId,
+      selectedOptionId: clearSelectedOptionId
+          ? null
+          : selectedOptionId ?? this.selectedOptionId,
     );
   }
 }
@@ -153,60 +162,43 @@ final suddenDeathDatasourceProvider =
       return ds;
     });
 
-class SuddenDeathRecord {
-  final SuddenDeathQuestion question;
-  final String option;
-  final String? selectedText;
-  final bool isCorrect;
-  final bool isSkipped;
-  final bool isTimeout;
-  final int timeTakenMs;
-
-  const SuddenDeathRecord({
-    required this.question,
-    required this.option,
-    this.selectedText,
-    required this.isCorrect,
-    required this.isSkipped,
-    required this.isTimeout,
-    required this.timeTakenMs,
-  });
-}
-
 class SuddenDeathController
     extends
         AutoDisposeFamilyAsyncNotifier<
           SuddenDeathViewState,
           QuizSessionRequest
         > {
-  final List<SuddenDeathRecord> _recordedAnswers = [];
   StreamSubscription<WsServerEvent>? _eventsSub;
   late DateTime _startedAt;
   DateTime? _questionDisplayedAt;
-  Timer? _transitionTimer;
   Timer? _addTimeRequestTimer;
+  Timer? _answerRequestTimer;
+  Completer<WsQuestionPayload>? _firstQuestionCompleter;
+  Completer<WsQuestionPayload>? _resyncQuestionCompleter;
   bool _disposed = false;
 
   @override
   Future<SuddenDeathViewState> build(QuizSessionRequest request) async {
     _startedAt = DateTime.now();
-    _recordedAnswers.clear();
-    _transitionTimer?.cancel();
-    _transitionTimer = null;
     _addTimeRequestTimer?.cancel();
     _addTimeRequestTimer = null;
+    _answerRequestTimer?.cancel();
+    _answerRequestTimer = null;
+    _firstQuestionCompleter = Completer<WsQuestionPayload>();
+    _resyncQuestionCompleter = null;
     _disposed = false;
 
     final ds = ref.read(suddenDeathDatasourceProvider);
 
     ref.onDispose(() {
       _disposed = true;
-      _transitionTimer?.cancel();
-      _transitionTimer = null;
       _addTimeRequestTimer?.cancel();
       _addTimeRequestTimer = null;
+      _answerRequestTimer?.cancel();
+      _answerRequestTimer = null;
       _eventsSub?.cancel();
       _eventsSub = null;
+      _resyncQuestionCompleter = null;
     });
 
     final storage = ref.read(localStorageServiceProvider);
@@ -224,41 +216,41 @@ class SuddenDeathController
         questionCount: 10,
       );
 
-      var questions = ds.activeSessionQuestions;
-      if (questions == null || questions.isEmpty) {
-        questions = await ds.getQuestionsForTopic(request.topicId);
-      }
-
-      if (questions.isEmpty) {
-        return const SuddenDeathViewState(
-          status: SuddenDeathStatus.error,
-          errorMessage: 'No questions available for the selected topic.',
-        );
-      }
-
-      _questionDisplayedAt = DateTime.now();
-
-      // Listen to server events if WebSocket connects (for backward compatibility / resync)
+      // Subscribe before connecting because AttachPlayer immediately emits the
+      // server-authoritative active question.
       _eventsSub = ds.events.listen(
         _onServerEvent,
         onError: (Object error) {
-          // Non-fatal if client-side execution is driving
+          final completer = _firstQuestionCompleter;
+          if (completer != null && !completer.isCompleted) {
+            completer.completeError(error);
+          }
         },
       );
 
-      // Best-effort socket connect for live sync / monitoring without blocking gameplay
-      unawaited(ds.connect(sessionId: sessionId).catchError((_) {}));
+      await ds.connect(sessionId: sessionId);
+      final firstPayload = await _firstQuestionCompleter!.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => throw const ServerException(
+          'The server did not provide the active Sudden Death question.',
+          'sudden-death-question-timeout',
+        ),
+      );
+      final firstQuestion = firstPayload.toDomain(request.topicId);
+      _questionDisplayedAt = DateTime.now();
 
-      final firstQ = questions.first;
       return SuddenDeathViewState(
         status: SuddenDeathStatus.questionActive,
         sessionId: sessionId,
-        questions: questions,
-        currentQuestion: firstQ,
-        currentIndex: 0,
-        totalQuestions: questions.length,
-        remainingTimeMs: 15000,
-        timeLimitMs: 15000,
+        questions: [firstQuestion],
+        questionPayload: firstPayload,
+        currentQuestion: firstQuestion,
+        currentIndex: firstPayload.questionNumber - 1,
+        totalQuestions: firstPayload.totalQuestions,
+        remainingTimeMs: firstPayload.remainingTimeMs,
+        timeLimitMs: firstPayload.timeLimitMs,
+        addTimeUsed: firstPayload.addTimeUsed,
+        skipUsed: firstPayload.skipUsed,
       );
     } on AppException catch (e) {
       return SuddenDeathViewState(
@@ -274,25 +266,76 @@ class SuddenDeathController
   }
 
   void _onServerEvent(WsServerEvent event) {
-    // If server pushes game over or error, we integrate it
     switch (event) {
       case WsQuestionEvent(:final payload):
+        final firstQuestion = _firstQuestionCompleter;
+        if (firstQuestion != null && !firstQuestion.isCompleted) {
+          firstQuestion.complete(payload);
+          return;
+        }
+
         final current = state.valueOrNull;
-        if (current != null &&
-            current.status == SuddenDeathStatus.questionActive &&
+        if (current == null || current.status == SuddenDeathStatus.gameOver) {
+          return;
+        }
+
+        final currentNumber = current.currentIndex + 1;
+        if (payload.questionNumber < currentNumber) {
+          final resync = _resyncQuestionCompleter;
+          if (resync != null && !resync.isCompleted) {
+            resync.completeError(
+              const ServerException(
+                'The server returned a stale Sudden Death question.',
+                'stale_question',
+              ),
+            );
+          }
+          return;
+        }
+
+        final question = payload.toDomain(arg.topicId);
+        final isSameQuestion =
             current.currentQuestion?.id.toLowerCase() ==
-                payload.question.toLowerCase()) {
-          state = AsyncValue.data(
-            current.copyWith(
-              questionPayload: payload,
-              remainingTimeMs: payload.remainingTimeMs,
-              timeLimitMs: payload.timeLimitMs,
-              addTimeUsed: payload.addTimeUsed,
-              isAddTimePending: payload.addTimeUsed
-                  ? false
-                  : current.isAddTimePending,
-            ),
-          );
+            payload.question.toLowerCase();
+        final questions =
+            current.questions.any(
+              (item) => item.id.toLowerCase() == payload.question.toLowerCase(),
+            )
+            ? current.questions
+            : [...current.questions, question];
+
+        _answerRequestTimer?.cancel();
+        _answerRequestTimer = null;
+        if (payload.addTimeUsed) {
+          _addTimeRequestTimer?.cancel();
+          _addTimeRequestTimer = null;
+        }
+        _questionDisplayedAt = DateTime.now();
+        state = AsyncValue.data(
+          current.copyWith(
+            status: SuddenDeathStatus.questionActive,
+            questions: questions,
+            questionPayload: payload,
+            currentQuestion: question,
+            currentIndex: payload.questionNumber - 1,
+            totalQuestions: payload.totalQuestions,
+            remainingTimeMs: payload.remainingTimeMs,
+            timeLimitMs: payload.timeLimitMs,
+            hiddenOptionIds: const {},
+            addTimeUsed: payload.addTimeUsed,
+            isAddTimePending: isSameQuestion && !payload.addTimeUsed
+                ? current.isAddTimePending
+                : false,
+            skipUsed: payload.skipUsed,
+            isSubmitting: false,
+            clearLastAnswerResult: true,
+            clearSelectedOptionId: true,
+            clearErrorMessage: true,
+          ),
+        );
+        final resync = _resyncQuestionCompleter;
+        if (resync != null && !resync.isCompleted) {
+          resync.complete(payload);
         }
       case WsPowerUpResultEvent(:final payload):
         final current = state.valueOrNull;
@@ -313,15 +356,34 @@ class SuddenDeathController
         }
       case WsAnswerResultEvent(:final payload):
         final current = state.valueOrNull;
-        if (payload.isTimeout &&
-            current != null &&
-            current.status == SuddenDeathStatus.questionActive &&
-            current.currentQuestion?.id.toLowerCase() ==
+        if (current == null ||
+            current.status == SuddenDeathStatus.gameOver ||
+            current.currentQuestion?.id.toLowerCase() !=
                 payload.question.toLowerCase()) {
-          _addTimeRequestTimer?.cancel();
-          _addTimeRequestTimer = null;
-          handleTimeout();
+          return;
         }
+
+        _answerRequestTimer?.cancel();
+        _answerRequestTimer = null;
+        _addTimeRequestTimer?.cancel();
+        _addTimeRequestTimer = null;
+        final streak = payload.isCorrect ? current.currentStreak + 1 : 0;
+        state = AsyncValue.data(
+          current.copyWith(
+            status: SuddenDeathStatus.showingResult,
+            lastAnswerResult: payload,
+            currentStreak: streak,
+            bestStreak: streak > current.bestStreak
+                ? streak
+                : current.bestStreak,
+            currentScore: payload.yourScore,
+            skipUsed: current.skipUsed || payload.isSkipped,
+            isSubmitting: false,
+            isAddTimePending: false,
+            clearErrorMessage: true,
+            clearSelectedOptionId: payload.isSkipped || payload.isTimeout,
+          ),
+        );
       case WsGameOverEvent(:final payload):
         final current = state.valueOrNull;
         if (current != null && current.status != SuddenDeathStatus.gameOver) {
@@ -337,24 +399,43 @@ class SuddenDeathController
           );
           ref.invalidate(profileControllerProvider);
           ref.invalidate(walletControllerProvider);
+          _answerRequestTimer?.cancel();
+          _answerRequestTimer = null;
+          _addTimeRequestTimer?.cancel();
+          _addTimeRequestTimer = null;
           state = AsyncValue.data(
             current.copyWith(
               status: SuddenDeathStatus.gameOver,
               result: result,
               isSubmitting: false,
+              isAddTimePending: false,
             ),
           );
         }
       case WsErrorEvent(:final payload):
+        final firstQuestion = _firstQuestionCompleter;
+        if (firstQuestion != null && !firstQuestion.isCompleted) {
+          firstQuestion.completeError(
+            ServerException(payload.message, payload.code),
+          );
+          return;
+        }
+        final resync = _resyncQuestionCompleter;
+        if (resync != null && !resync.isCompleted) {
+          resync.completeError(ServerException(payload.message, payload.code));
+        }
         if (payload.code != 'transition_in_progress') {
           final current = state.valueOrNull;
           if (current != null) {
+            _answerRequestTimer?.cancel();
+            _answerRequestTimer = null;
             _addTimeRequestTimer?.cancel();
             _addTimeRequestTimer = null;
             state = AsyncValue.data(
               current.copyWith(
                 errorMessage: payload.message,
                 isAddTimePending: false,
+                isSubmitting: false,
               ),
             );
           }
@@ -391,8 +472,17 @@ class SuddenDeathController
         );
         return;
       }
+      final resync = Completer<WsQuestionPayload>();
+      _resyncQuestionCompleter = resync;
       try {
         await datasource.connect(sessionId: sessionId);
+        await resync.future.timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => throw const ServerException(
+            'The active question could not be synchronized.',
+            'sudden-death-resync-timeout',
+          ),
+        );
       } catch (_) {
         if (_disposed) return;
         final latest = state.valueOrNull;
@@ -406,6 +496,10 @@ class SuddenDeathController
           );
         }
         return;
+      } finally {
+        if (identical(_resyncQuestionCompleter, resync)) {
+          _resyncQuestionCompleter = null;
+        }
       }
     }
 
@@ -433,7 +527,11 @@ class SuddenDeathController
     });
   }
 
-  /// Instant, zero-latency answer submission evaluated locally.
+  /// Sends the answer for the server's currently active question.
+  ///
+  /// This deliberately does not grade or advance locally. The current
+  /// question remains active until the backend returns `answer_result`, and
+  /// the index changes only when the backend sends the next `question` frame.
   void submitAnswer(String option) {
     final current = state.valueOrNull;
     if (current == null ||
@@ -444,202 +542,43 @@ class SuddenDeathController
     }
 
     final question = current.currentQuestion!;
-    final now = DateTime.now();
-    final elapsedMs = _questionDisplayedAt != null
-        ? now.difference(_questionDisplayedAt!).inMilliseconds
-        : 1500;
-
-    String? selectedText;
-    for (final opt in question.options) {
-      if (opt.id.toLowerCase() == option.toLowerCase()) {
-        selectedText = opt.text;
-        break;
-      }
-    }
-
-    final isCorrect =
-        option.toLowerCase() == question.correctOptionId.toLowerCase();
-
-    _recordedAnswers.add(
-      SuddenDeathRecord(
-        question: question,
-        option: option.toLowerCase(),
-        selectedText: selectedText,
-        isCorrect: isCorrect,
-        isSkipped: false,
-        isTimeout: false,
-        timeTakenMs: elapsedMs,
-      ),
+    final normalizedOption = option.toLowerCase();
+    final selected = question.options.where(
+      (item) => item.id.toLowerCase() == normalizedOption,
     );
+    if (selected.isEmpty) return;
 
-    if (isCorrect) {
-      final newStreak = current.currentStreak + 1;
-      final bestStreak = newStreak > current.bestStreak
-          ? newStreak
-          : current.bestStreak;
-      final newScore = current.currentScore + 10;
-
-      final answerResult = WsAnswerResultPayload(
-        question: question.id,
-        option: option.toLowerCase(),
-        correctOption: question.correctOptionId.toLowerCase(),
-        isCorrect: true,
-        isSkipped: false,
-        isTimeout: false,
-        explanation: question.hint,
-        pointsEarned: 10,
-        coinsEarned: 0,
-        yourScore: newScore,
-      );
-
+    final datasource = ref.read(suddenDeathDatasourceProvider);
+    if (!datasource.isConnected) {
       state = AsyncValue.data(
         current.copyWith(
-          status: SuddenDeathStatus.showingResult,
-          lastAnswerResult: answerResult,
-          currentStreak: newStreak,
-          bestStreak: bestStreak,
-          currentScore: newScore,
-          selectedOptionId: option.toLowerCase(),
+          errorMessage: 'The live game connection is unavailable.',
         ),
       );
-
-      _transitionTimer?.cancel();
-      _transitionTimer = Timer(const Duration(milliseconds: 700), () {
-        if (_disposed) return;
-        final cur = state.valueOrNull;
-        if (cur == null) return;
-
-        final nextIndex = cur.currentIndex + 1;
-        if (nextIndex < cur.questions.length) {
-          _questionDisplayedAt = DateTime.now();
-          state = AsyncValue.data(
-            cur.copyWith(
-              status: SuddenDeathStatus.questionActive,
-              currentIndex: nextIndex,
-              currentQuestion: cur.questions[nextIndex],
-              hiddenOptionIds: const {},
-              selectedOptionId: null,
-              lastAnswerResult: null,
-              remainingTimeMs: 15000,
-              addTimeUsed: false,
-              isAddTimePending: false,
-            ),
-          );
-        } else {
-          // Survived all questions!
-          _finalizeSession(isEliminated: false, isTimeout: false);
-        }
-      });
-    } else {
-      // Wrong answer in Sudden Death -> Eliminated!
-      final answerResult = WsAnswerResultPayload(
-        question: question.id,
-        option: option.toLowerCase(),
-        correctOption: question.correctOptionId.toLowerCase(),
-        isCorrect: false,
-        isSkipped: false,
-        isTimeout: false,
-        explanation: question.hint,
-        pointsEarned: 0,
-        coinsEarned: 0,
-        yourScore: current.currentScore,
-      );
-
-      state = AsyncValue.data(
-        current.copyWith(
-          status: SuddenDeathStatus.showingResult,
-          lastAnswerResult: answerResult,
-          currentStreak: 0,
-          selectedOptionId: option.toLowerCase(),
-        ),
-      );
-
-      _transitionTimer?.cancel();
-      _transitionTimer = Timer(const Duration(milliseconds: 1350), () {
-        if (_disposed) return;
-        _finalizeSession(isEliminated: true, isTimeout: false);
-      });
-    }
-  }
-
-  /// Instant local handling when the countdown reaches 0.
-  void handleTimeout() {
-    final current = state.valueOrNull;
-    if (current == null ||
-        current.status != SuddenDeathStatus.questionActive ||
-        current.isSubmitting ||
-        current.currentQuestion == null) {
       return;
     }
 
-    final question = current.currentQuestion!;
-    _recordedAnswers.add(
-      SuddenDeathRecord(
-        question: question,
-        option: '__timeout__',
-        isCorrect: false,
-        isSkipped: false,
-        isTimeout: true,
-        timeTakenMs: 15000,
+    final elapsedMs = _questionDisplayedAt == null
+        ? 0
+        : DateTime.now().difference(_questionDisplayedAt!).inMilliseconds;
+    state = AsyncValue.data(
+      current.copyWith(
+        isSubmitting: true,
+        selectedOptionId: normalizedOption,
+        clearErrorMessage: true,
       ),
     );
-
-    final answerResult = WsAnswerResultPayload(
+    datasource.submitAnswer(
       question: question.id,
-      option: '',
-      correctOption: question.correctOptionId.toLowerCase(),
-      isCorrect: false,
-      isSkipped: false,
-      isTimeout: true,
-      explanation: question.hint,
-      pointsEarned: 0,
-      coinsEarned: 0,
-      yourScore: current.currentScore,
+      option: normalizedOption,
+      selectedText: selected.first.text,
+      timeTakenMs: elapsedMs,
     );
-
-    state = AsyncValue.data(
-      current.copyWith(
-        status: SuddenDeathStatus.showingResult,
-        lastAnswerResult: answerResult,
-        currentStreak: 0,
-      ),
-    );
-
-    _transitionTimer?.cancel();
-    _transitionTimer = Timer(const Duration(milliseconds: 1350), () {
-      if (_disposed) return;
-      _finalizeSession(isEliminated: true, isTimeout: true);
-    });
+    _startAnswerConfirmationTimer(question.id);
   }
 
-  /// Instant client-side 50:50 power-up hiding 2 incorrect options.
-  void useFiftyFifty() {
-    final current = state.valueOrNull;
-    if (current == null ||
-        current.fiftyFiftyUsed ||
-        current.currentQuestion == null) {
-      return;
-    }
-
-    final question = current.currentQuestion!;
-    final correct = question.correctOptionId.toLowerCase();
-    final wrongOptions = question.options
-        .where((opt) => opt.id.toLowerCase() != correct)
-        .map((opt) => opt.id.toLowerCase())
-        .toList();
-
-    wrongOptions.shuffle();
-    final toHide = wrongOptions.take(2).toSet();
-
-    state = AsyncValue.data(
-      current.copyWith(
-        fiftyFiftyUsed: true,
-        hiddenOptionIds: {...current.hiddenOptionIds, ...toHide},
-      ),
-    );
-  }
-
-  /// Instant client-side Skip power-up.
+  /// Requests Skip for the server's current question. The next question is
+  /// rendered only after the backend confirms the skip and emits `question`.
   void skipQuestion() {
     final current = state.valueOrNull;
     if (current == null ||
@@ -650,179 +589,48 @@ class SuddenDeathController
       return;
     }
 
-    final question = current.currentQuestion!;
-    _recordedAnswers.add(
-      SuddenDeathRecord(
-        question: question,
-        option: 'skip',
-        isCorrect: false,
-        isSkipped: true,
-        isTimeout: false,
-        timeTakenMs: 1000,
-      ),
-    );
-
-    final nextIndex = current.currentIndex + 1;
-    if (nextIndex < current.questions.length) {
-      _questionDisplayedAt = DateTime.now();
+    final datasource = ref.read(suddenDeathDatasourceProvider);
+    if (!datasource.isConnected) {
       state = AsyncValue.data(
         current.copyWith(
-          skipUsed: true,
-          currentStreak: 0,
-          currentIndex: nextIndex,
-          currentQuestion: current.questions[nextIndex],
-          hiddenOptionIds: const {},
-          selectedOptionId: null,
-          lastAnswerResult: null,
-          remainingTimeMs: 15000,
-          addTimeUsed: false,
-          isAddTimePending: false,
-        ),
-      );
-    } else {
-      _finalizeSession(isEliminated: false, isTimeout: false);
-    }
-  }
-
-  /// Instant client-side Hint revelation.
-  void revealHint() {
-    final current = state.valueOrNull;
-    if (current == null || current.hintUsed) return;
-    state = AsyncValue.data(current.copyWith(hintUsed: true));
-  }
-
-  /// Finalizes the Sudden Death session on the backend.
-  Future<void> _finalizeSession({
-    required bool isEliminated,
-    required bool isTimeout,
-  }) async {
-    final current = state.valueOrNull;
-    if (current == null || current.status == SuddenDeathStatus.gameOver) return;
-
-    state = AsyncValue.data(current.copyWith(isSubmitting: true));
-
-    final ds = ref.read(suddenDeathDatasourceProvider);
-    final sessionId = current.sessionId;
-
-    if (sessionId != null && sessionId.isNotEmpty) {
-      // 1. Submit all answered records sequentially to backend
-      for (final rec in _recordedAnswers) {
-        await ds.evaluateAnswer(
-          sessionId: sessionId,
-          question: rec.question.id,
-          option: rec.option,
-          selectedText: rec.selectedText,
-          timeTakenMs: rec.timeTakenMs,
-        );
-      }
-
-      // 2. Finalize session on backend to award coins, XP, gems, and update profile/wallet
-      final completeRes = await ds.completeSession(sessionId: sessionId);
-
-      ref.invalidate(profileControllerProvider);
-      ref.invalidate(walletControllerProvider);
-
-      final authUser = ref.read(authControllerProvider).valueOrNull;
-      final correctCount = _recordedAnswers.where((r) => r.isCorrect).length;
-      final finalScore = correctCount * 10;
-      final xpAwarded = completeRes?.xpAwarded ?? (10 + correctCount * 5);
-      final coinsAwarded = completeRes?.coinsAwarded ?? (5 + correctCount * 2);
-
-      final result = QuizResult(
-        sessionId: sessionId,
-        userId: authUser?.id,
-        subjectId: arg.subjectId,
-        chapterId: arg.chapterId,
-        topicId: arg.topicId,
-        quizType: QuestionType.suddenDeath,
-        score: Score(
-          earnedPoints: finalScore,
-          maxPoints: current.totalQuestions * 10,
-          correctCount: correctCount,
-          totalCount: current.totalQuestions,
-        ),
-        records: const [],
-        endedEarly: isEliminated || isTimeout,
-        streakCount: current.bestStreak,
-        xpAwarded: xpAwarded,
-        coinsAwarded: coinsAwarded,
-        gemsAwarded: completeRes?.gemsAwarded ?? 0,
-        didLevelUp: completeRes?.levelUpReward != null,
-        rewardBreakdown: QuizRewardBreakdown(
-          score: [
-            RewardBreakdownItem(key: 'sudden_death_score', amount: finalScore),
-          ],
-          xp: [RewardBreakdownItem(key: 'xp_earned', amount: xpAwarded)],
-          coins: [
-            RewardBreakdownItem(key: 'coins_earned', amount: coinsAwarded),
-          ],
-        ),
-        timeTaken: DateTime.now().difference(_startedAt),
-        createdAt: DateTime.now(),
-      );
-
-      state = AsyncValue.data(
-        current.copyWith(
-          status: SuddenDeathStatus.gameOver,
-          result: result,
-          isSubmitting: false,
+          errorMessage: 'The live game connection is unavailable.',
         ),
       );
       return;
     }
 
-    // Fallback if no sessionId
-    final correctCount = _recordedAnswers.where((r) => r.isCorrect).length;
-    final finalScore = correctCount * 10;
-    final result = QuizResult(
-      sessionId: 'local-${DateTime.now().millisecondsSinceEpoch}',
-      subjectId: arg.subjectId,
-      chapterId: arg.chapterId,
-      topicId: arg.topicId,
-      quizType: QuestionType.suddenDeath,
-      score: Score(
-        earnedPoints: finalScore,
-        maxPoints: current.totalQuestions * 10,
-        correctCount: correctCount,
-        totalCount: current.totalQuestions,
-      ),
-      records: const [],
-      endedEarly: isEliminated || isTimeout,
-      streakCount: current.bestStreak,
-      xpAwarded: 10 + correctCount * 5,
-      coinsAwarded: 5 + correctCount * 2,
-      gemsAwarded: 0,
-      didLevelUp: false,
-      rewardBreakdown: QuizRewardBreakdown(
-        score: [
-          RewardBreakdownItem(key: 'sudden_death_score', amount: finalScore),
-        ],
-        xp: [
-          RewardBreakdownItem(key: 'xp_earned', amount: 10 + correctCount * 5),
-        ],
-        coins: [
-          RewardBreakdownItem(
-            key: 'coins_earned',
-            amount: 5 + correctCount * 2,
-          ),
-        ],
-      ),
-      timeTaken: DateTime.now().difference(_startedAt),
-      createdAt: DateTime.now(),
-    );
-
+    final questionId = current.currentQuestion!.id;
     state = AsyncValue.data(
-      current.copyWith(
-        status: SuddenDeathStatus.gameOver,
-        result: result,
-        isSubmitting: false,
-      ),
+      current.copyWith(isSubmitting: true, clearErrorMessage: true),
     );
+    datasource.skipQuestion(question: questionId);
+    _startAnswerConfirmationTimer(questionId);
+  }
+
+  void _startAnswerConfirmationTimer(String questionId) {
+    _answerRequestTimer?.cancel();
+    _answerRequestTimer = Timer(const Duration(seconds: 5), () {
+      if (_disposed) return;
+      final current = state.valueOrNull;
+      if (current == null ||
+          !current.isSubmitting ||
+          current.currentQuestion?.id.toLowerCase() !=
+              questionId.toLowerCase()) {
+        return;
+      }
+      state = AsyncValue.data(
+        current.copyWith(
+          isSubmitting: false,
+          errorMessage: 'The answer could not be confirmed by the server.',
+        ),
+      );
+    });
   }
 
   /// Abandons an unfinished run.
   Future<void> abandon() async {
-    _transitionTimer?.cancel();
+    _answerRequestTimer?.cancel();
+    _addTimeRequestTimer?.cancel();
     final ds = ref.read(suddenDeathDatasourceProvider);
     final current = state.valueOrNull;
     if (current?.result == null && current?.sessionId != null) {

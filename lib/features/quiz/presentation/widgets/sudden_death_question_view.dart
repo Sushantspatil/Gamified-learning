@@ -219,6 +219,11 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
         widget.externalAddTimeUsed) {
       _playPowerUpEffect(_SuddenDeathPowerUpEffect.timeBoost);
     }
+    if (oldWidget.question.id == widget.question.id &&
+        !oldWidget.externalSkipUsed &&
+        widget.externalSkipUsed) {
+      _playPowerUpEffect(_SuddenDeathPowerUpEffect.skipping);
+    }
   }
 
   @override
@@ -405,12 +410,6 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
     if (_effectiveSkipUsed || widget.onSkip == null) return;
     if (widget.isLiveMode) {
       if (_isInteractionLocked) return;
-      setState(() {
-        _skipUsed = true;
-        _hasSubmitted = true;
-      });
-      _playPowerUpEffect(_SuddenDeathPowerUpEffect.skipping);
-      _timer?.cancel();
       widget.onSkip!.call();
       return;
     }

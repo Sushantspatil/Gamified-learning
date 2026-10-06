@@ -307,9 +307,6 @@ class SuddenDeathScreen extends ConsumerWidget {
                     onSelectOption: (opt) => ref
                         .read(suddenDeathControllerProvider(request).notifier)
                         .submitAnswer(opt),
-                    onTimeout: () => ref
-                        .read(suddenDeathControllerProvider(request).notifier)
-                        .handleTimeout(),
                     onAddTime: () => unawaited(
                       ref
                           .read(suddenDeathControllerProvider(request).notifier)

@@ -301,7 +301,7 @@ void main() {
     );
 
     test(
-      'Live Sudden Death WebSocket lifecycle: create session, connect socket, receive question, use 50:50, submit answer',
+      'Live Sudden Death WebSocket lifecycle: create session, connect socket, add time, submit answer',
       () async {
         // 1. Authenticate user
         final user = await authRemote.login(
@@ -347,12 +347,19 @@ void main() {
         expect(qEvent.payload.options.length, greaterThanOrEqualTo(2));
         expect(qEvent.payload.remainingTimeMs, greaterThan(0));
 
-        // 5. Use 50:50 power-up
-        suddenRemote.useFiftyFifty(question: qEvent.payload.question);
+        // 5. Extend the authoritative backend deadline.
+        final remainingBefore = qEvent.payload.remainingTimeMs;
+        suddenRemote.addTime(question: qEvent.payload.question);
         final powerUpEvent = await completerPowerUp.future.timeout(
           const Duration(seconds: 5),
         );
-        expect(powerUpEvent.payload.hiddenOptions.length, greaterThanOrEqualTo(1));
+        expect(powerUpEvent.payload.powerUp, 'add_time');
+        expect(powerUpEvent.payload.addedTimeMs, 5000);
+        expect(powerUpEvent.payload.question, qEvent.payload.question);
+        expect(
+          powerUpEvent.payload.remainingTimeMs,
+          greaterThan(remainingBefore),
+        );
 
         // 6. Submit answer
         suddenRemote.submitAnswer(

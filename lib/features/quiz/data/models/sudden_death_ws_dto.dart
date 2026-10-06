@@ -83,6 +83,7 @@ class WsQuestionPayload {
   final int timeLimitMs;
   final int remainingTimeMs;
   final bool addTimeUsed;
+  final bool skipUsed;
   final int questionNumber;
   final int totalQuestions;
 
@@ -95,6 +96,7 @@ class WsQuestionPayload {
     required this.timeLimitMs,
     required this.remainingTimeMs,
     this.addTimeUsed = false,
+    this.skipUsed = false,
     required this.questionNumber,
     required this.totalQuestions,
   });
@@ -112,6 +114,7 @@ class WsQuestionPayload {
       timeLimitMs: (json['time_limit_ms'] as num?)?.toInt() ?? 15000,
       remainingTimeMs: (json['remaining_time_ms'] as num?)?.toInt() ?? 15000,
       addTimeUsed: json['add_time_used'] as bool? ?? false,
+      skipUsed: json['skip_used'] as bool? ?? false,
       questionNumber: (json['question_number'] as num?)?.toInt() ?? 1,
       totalQuestions: (json['total_questions'] as num?)?.toInt() ?? 10,
     );
@@ -126,6 +129,7 @@ class WsQuestionPayload {
     'time_limit_ms': timeLimitMs,
     'remaining_time_ms': remainingTimeMs,
     'add_time_used': addTimeUsed,
+    'skip_used': skipUsed,
     'question_number': questionNumber,
     'total_questions': totalQuestions,
   };

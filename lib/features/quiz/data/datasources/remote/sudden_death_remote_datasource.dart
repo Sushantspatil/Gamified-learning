@@ -229,6 +229,17 @@ class SuddenDeathRemoteDatasource {
     );
   }
 
+  /// Requests the backend-owned Skip transition for the active question.
+  void skipQuestion({required String question}) {
+    _socketClient.send(
+      WsInboundMessage.usePowerUp(
+        question: question,
+        powerUp: 'skip',
+        session: _activeSessionId,
+      ),
+    );
+  }
+
   /// Re-synchronizes with the live game session.
   void joinGame() {
     _socketClient.send(WsInboundMessage.joinGame(session: _activeSessionId));
