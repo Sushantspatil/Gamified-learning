@@ -259,6 +259,36 @@ void main() {
       expect(msg.data['session'], 'sess-5050');
     });
 
+    test(
+      'addTime sends authoritative power-up inbound message frame',
+      () async {
+        final apiClient = ApiClient(
+          config: config,
+          storage: storage,
+          httpClient: MockClient((_) async => http.Response('{}', 200)),
+        );
+
+        final datasource = SuddenDeathRemoteDatasource(
+          apiClient: apiClient,
+          storage: storage,
+          apiConfig: config,
+          socketClient: socketClient,
+        );
+
+        await storage.setString(StorageKeys.authToken, 'token-123');
+        await datasource.connect(sessionId: 'sess-add-time');
+
+        datasource.addTime(question: 'q-code-2');
+
+        expect(socketClient.sentMessages.length, 1);
+        final msg = socketClient.sentMessages.first;
+        expect(msg.type, 'use_power_up');
+        expect(msg.data['power_up'], 'add_time');
+        expect(msg.data['question'], 'q-code-2');
+        expect(msg.data['session'], 'sess-add-time');
+      },
+    );
+
     test('joinGame sends join_game message frame with session', () async {
       final apiClient = ApiClient(
         config: config,

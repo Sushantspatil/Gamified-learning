@@ -82,6 +82,7 @@ class WsQuestionPayload {
   final List<WsOptionPayload> options;
   final int timeLimitMs;
   final int remainingTimeMs;
+  final bool addTimeUsed;
   final int questionNumber;
   final int totalQuestions;
 
@@ -93,6 +94,7 @@ class WsQuestionPayload {
     required this.options,
     required this.timeLimitMs,
     required this.remainingTimeMs,
+    this.addTimeUsed = false,
     required this.questionNumber,
     required this.totalQuestions,
   });
@@ -109,6 +111,7 @@ class WsQuestionPayload {
           .toList(growable: false),
       timeLimitMs: (json['time_limit_ms'] as num?)?.toInt() ?? 15000,
       remainingTimeMs: (json['remaining_time_ms'] as num?)?.toInt() ?? 15000,
+      addTimeUsed: json['add_time_used'] as bool? ?? false,
       questionNumber: (json['question_number'] as num?)?.toInt() ?? 1,
       totalQuestions: (json['total_questions'] as num?)?.toInt() ?? 10,
     );
@@ -122,6 +125,7 @@ class WsQuestionPayload {
     'options': options.map((o) => o.toJson()).toList(),
     'time_limit_ms': timeLimitMs,
     'remaining_time_ms': remainingTimeMs,
+    'add_time_used': addTimeUsed,
     'question_number': questionNumber,
     'total_questions': totalQuestions,
   };
@@ -199,17 +203,26 @@ class WsAnswerResultPayload {
 /// Outbound Power Up Result payload in 'power_up_result' frame (Server → Client)
 class WsPowerUpResultPayload {
   final String question;
+  final String powerUp;
+  final int addedTimeMs;
+  final int remainingTimeMs;
   final List<String> hiddenOptions;
 
   const WsPowerUpResultPayload({
     required this.question,
-    required this.hiddenOptions,
+    this.powerUp = '',
+    this.addedTimeMs = 0,
+    this.remainingTimeMs = 0,
+    this.hiddenOptions = const [],
   });
 
   factory WsPowerUpResultPayload.fromJson(Map<String, dynamic> json) {
     final rawHidden = json['hidden_options'] as List<dynamic>? ?? [];
     return WsPowerUpResultPayload(
       question: (json['question'] as dynamic)?.toString() ?? '',
+      powerUp: json['power_up'] as String? ?? '',
+      addedTimeMs: (json['added_time_ms'] as num?)?.toInt() ?? 0,
+      remainingTimeMs: (json['remaining_time_ms'] as num?)?.toInt() ?? 0,
       hiddenOptions: rawHidden
           .map((e) => e.toString().toLowerCase())
           .toList(growable: false),
@@ -218,6 +231,9 @@ class WsPowerUpResultPayload {
 
   Map<String, dynamic> toJson() => {
     'question': question,
+    if (powerUp.isNotEmpty) 'power_up': powerUp,
+    if (addedTimeMs > 0) 'added_time_ms': addedTimeMs,
+    if (remainingTimeMs > 0) 'remaining_time_ms': remainingTimeMs,
     'hidden_options': hiddenOptions,
   };
 }

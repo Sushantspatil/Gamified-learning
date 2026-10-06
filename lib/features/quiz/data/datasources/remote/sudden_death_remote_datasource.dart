@@ -70,9 +70,8 @@ class SuddenDeathRemoteDatasource {
 
         var questions = sessionDto.questions
             .map(
-              (q) => SuddenDeathQuestionDto.fromJson(
-                q,
-              ).toDomain(topicId: topicId),
+              (q) =>
+                  SuddenDeathQuestionDto.fromJson(q).toDomain(topicId: topicId),
             )
             .toList();
 
@@ -214,6 +213,17 @@ class SuddenDeathRemoteDatasource {
       WsInboundMessage.usePowerUp(
         question: question,
         powerUp: 'fifty_fifty',
+        session: _activeSessionId,
+      ),
+    );
+  }
+
+  /// Requests a server-authoritative five-second deadline extension.
+  void addTime({required String question}) {
+    _socketClient.send(
+      WsInboundMessage.usePowerUp(
+        question: question,
+        powerUp: 'add_time',
         session: _activeSessionId,
       ),
     );

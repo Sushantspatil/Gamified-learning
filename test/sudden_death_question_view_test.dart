@@ -44,7 +44,11 @@ Widget _buildSuddenDeathView({
   void Function(String optionId)? onSelectOption,
   VoidCallback? onSkip,
   VoidCallback? onTimeout,
+  VoidCallback? onAddTime,
   bool isPreviewMode = true,
+  int? remainingTimeMs,
+  bool externalAddTimeUsed = false,
+  bool isAddTimePending = false,
   String? externalSelectedOptionId,
   WsAnswerResultPayload? serverAnswerResult,
 }) {
@@ -68,6 +72,10 @@ Widget _buildSuddenDeathView({
           onSelectOption: onSelectOption,
           onSkip: onSkip,
           onTimeout: onTimeout,
+          onAddTime: onAddTime,
+          remainingTimeMs: remainingTimeMs,
+          externalAddTimeUsed: externalAddTimeUsed,
+          isAddTimePending: isAddTimePending,
           externalSelectedOptionId: externalSelectedOptionId,
           serverAnswerResult: serverAnswerResult,
         ),
@@ -85,7 +93,11 @@ Future<void> _pumpSuddenDeathView(
   void Function(String optionId)? onSelectOption,
   VoidCallback? onSkip,
   VoidCallback? onTimeout,
+  VoidCallback? onAddTime,
   bool isPreviewMode = true,
+  int? remainingTimeMs,
+  bool externalAddTimeUsed = false,
+  bool isAddTimePending = false,
   String? externalSelectedOptionId,
   WsAnswerResultPayload? serverAnswerResult,
 }) async {
@@ -98,7 +110,11 @@ Future<void> _pumpSuddenDeathView(
       onSelectOption: onSelectOption,
       onSkip: onSkip,
       onTimeout: onTimeout,
+      onAddTime: onAddTime,
       isPreviewMode: isPreviewMode,
+      remainingTimeMs: remainingTimeMs,
+      externalAddTimeUsed: externalAddTimeUsed,
+      isAddTimePending: isAddTimePending,
       externalSelectedOptionId: externalSelectedOptionId,
       serverAnswerResult: serverAnswerResult,
     ),
@@ -160,6 +176,41 @@ void main() {
     ].any((value) => find.text(value).evaluate().isNotEmpty);
     expect(boostedSecondIsVisible, isTrue);
     expect(find.byKey(const Key('sudden-power-up-feedback')), findsOneWidget);
+    expect(find.text('+5 seconds activated'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 800));
+  });
+
+  testWidgets('live +5 waits for server-confirmed remaining time', (
+    tester,
+  ) async {
+    const viewKey = ValueKey('authoritative-add-time-view');
+    var requested = false;
+    await _pumpSuddenDeathView(
+      tester,
+      viewKey: viewKey,
+      isPreviewMode: false,
+      remainingTimeMs: 5000,
+      onAddTime: () => requested = true,
+    );
+
+    await _buyPowerUp(tester, '+5 Seconds');
+
+    expect(requested, isTrue);
+    expect(find.text('10'), findsNothing);
+    expect(find.byKey(const Key('sudden-power-up-feedback')), findsNothing);
+
+    await tester.pumpWidget(
+      _buildSuddenDeathView(
+        viewKey: viewKey,
+        isPreviewMode: false,
+        remainingTimeMs: 9600,
+        externalAddTimeUsed: true,
+        onAddTime: () => requested = true,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('09'), findsOneWidget);
     expect(find.text('+5 seconds activated'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 800));
   });
@@ -349,6 +400,24 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("Time's up"), findsOneWidget);
+  });
+
+  testWidgets('live countdown waits for the server timeout verdict', (
+    tester,
+  ) async {
+    var timedOutLocally = false;
+    await _pumpSuddenDeathView(
+      tester,
+      isPreviewMode: false,
+      remainingTimeMs: 1000,
+      onTimeout: () => timedOutLocally = true,
+    );
+
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(timedOutLocally, isFalse);
+    expect(find.text('00'), findsOneWidget);
+    expect(find.text("Time's up"), findsNothing);
   });
 
   testWidgets('question change animates and clears stale option selection', (

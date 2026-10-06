@@ -63,6 +63,8 @@ class SuddenDeathQuestionView extends StatefulWidget {
   /// widget interpolates locally between updates.
   final int? remainingTimeMs;
 
+  final bool externalAddTimeUsed;
+  final bool isAddTimePending;
   final bool externalSkipUsed;
 
   /// Option id the server has recorded for this question, if any.
@@ -92,6 +94,8 @@ class SuddenDeathQuestionView extends StatefulWidget {
     this.isSubmitting = false,
     this.isPreviewMode = false,
     this.remainingTimeMs,
+    this.externalAddTimeUsed = false,
+    this.isAddTimePending = false,
     this.externalSkipUsed = false,
     this.externalSelectedOptionId,
     this.serverAnswerResult,
@@ -210,6 +214,11 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
         !identical(widget.serverAnswerResult, oldWidget.serverAnswerResult)) {
       _feedbackController.forward(from: 0);
     }
+    if (oldWidget.question.id == widget.question.id &&
+        !oldWidget.externalAddTimeUsed &&
+        widget.externalAddTimeUsed) {
+      _playPowerUpEffect(_SuddenDeathPowerUpEffect.timeBoost);
+    }
   }
 
   @override
@@ -233,8 +242,6 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
         _timer?.cancel();
         if (widget.isPreviewMode) {
           _submitTimeout();
-        } else {
-          widget.onTimeout?.call();
         }
         return;
       }
@@ -278,6 +285,9 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   }
 
   bool get _effectiveSkipUsed => _skipUsed || widget.externalSkipUsed;
+
+  bool get _effectiveAddTimeUsed =>
+      _extraTimeUsed || widget.externalAddTimeUsed;
 
   /// Survival feedback for the current question.
   ///
@@ -355,13 +365,17 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   }
 
   void _addFiveSeconds() {
-    if (_isInteractionLocked || _extraTimeUsed) return;
-    _playPowerUpEffect(_SuddenDeathPowerUpEffect.timeBoost);
-    setState(() => _extraTimeUsed = true);
-    if (widget.isLiveMode && widget.onAddTime != null) {
+    if (_isInteractionLocked ||
+        _effectiveAddTimeUsed ||
+        widget.isAddTimePending) {
+      return;
+    }
+    if (widget.isLiveMode) {
       widget.onAddTime?.call();
       return;
     }
+    _playPowerUpEffect(_SuddenDeathPowerUpEffect.timeBoost);
+    setState(() => _extraTimeUsed = true);
     setState(() {
       _remainingTime = _remainingTime + const Duration(seconds: 5);
     });
@@ -610,7 +624,10 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                             description: 'Add five seconds to this question.',
                             coinCost: 12,
                             icon: Icons.timer_outlined,
-                            isUsed: _extraTimeUsed,
+                            isUsed: _effectiveAddTimeUsed,
+                            isDisabled:
+                                widget.isAddTimePending ||
+                                (widget.isLiveMode && widget.onAddTime == null),
                             onUse: _addFiveSeconds,
                           ),
                           GamePowerUpAction(

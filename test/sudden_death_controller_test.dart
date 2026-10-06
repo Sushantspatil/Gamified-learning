@@ -224,97 +224,229 @@ void main() {
       container.dispose();
     });
 
-    test('build preloads all questions and starts with questionActive', () async {
-      final sub = container.listen(
-        suddenDeathControllerProvider(testRequest),
-        (_, _) {},
-      );
+    test(
+      'build preloads all questions and starts with questionActive',
+      () async {
+        final sub = container.listen(
+          suddenDeathControllerProvider(testRequest),
+          (_, _) {},
+        );
 
-      final initialVal = await container.read(
-        suddenDeathControllerProvider(testRequest).future,
-      );
+        final initialVal = await container.read(
+          suddenDeathControllerProvider(testRequest).future,
+        );
 
-      expect(initialVal.status, SuddenDeathStatus.questionActive);
-      expect(initialVal.sessionId, 'sess-riverpod-999');
-      expect(initialVal.questions.length, 2);
-      expect(initialVal.currentQuestion?.id, 'q-acc-01');
-      expect(initialVal.currentIndex, 0);
-      expect(initialVal.remainingTimeMs, 15000);
+        expect(initialVal.status, SuddenDeathStatus.questionActive);
+        expect(initialVal.sessionId, 'sess-riverpod-999');
+        expect(initialVal.questions.length, 2);
+        expect(initialVal.currentQuestion?.id, 'q-acc-01');
+        expect(initialVal.currentIndex, 0);
+        expect(initialVal.remainingTimeMs, 15000);
 
-      sub.close();
-    });
+        sub.close();
+      },
+    );
 
-    test('submitAnswer evaluates correct answer instantly without network wait', () async {
+    test(
+      'addFiveSeconds waits for authoritative remaining time and sends once',
+      () async {
+        final sub = container.listen(
+          suddenDeathControllerProvider(testRequest),
+          (_, _) {},
+        );
+        await container.read(suddenDeathControllerProvider(testRequest).future);
+
+        final controller = container.read(
+          suddenDeathControllerProvider(testRequest).notifier,
+        );
+        await controller.addFiveSeconds();
+        await controller.addFiveSeconds();
+
+        var current = container
+            .read(suddenDeathControllerProvider(testRequest))
+            .value!;
+        expect(current.isAddTimePending, isTrue);
+        expect(current.addTimeUsed, isFalse);
+        expect(current.remainingTimeMs, 15000);
+
+        final addTimeMessages = socketClient.sentMessages
+            .where((message) => message.type == 'use_power_up')
+            .toList();
+        expect(addTimeMessages, hasLength(1));
+        expect(addTimeMessages.single.data['power_up'], 'add_time');
+        expect(addTimeMessages.single.data['question'], 'q-acc-01');
+
+        socketClient.emitEvent(
+          const WsPowerUpResultEvent(
+            WsPowerUpResultPayload(
+              question: 'q-acc-01',
+              powerUp: 'add_time',
+              addedTimeMs: 5000,
+              remainingTimeMs: 9600,
+            ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        current = container
+            .read(suddenDeathControllerProvider(testRequest))
+            .value!;
+        expect(current.isAddTimePending, isFalse);
+        expect(current.addTimeUsed, isTrue);
+        expect(current.remainingTimeMs, 9600);
+
+        sub.close();
+      },
+    );
+
+    test(
+      'failed add_time does not change the displayed remaining time',
+      () async {
+        final sub = container.listen(
+          suddenDeathControllerProvider(testRequest),
+          (_, _) {},
+        );
+        await container.read(suddenDeathControllerProvider(testRequest).future);
+
+        final controller = container.read(
+          suddenDeathControllerProvider(testRequest).notifier,
+        );
+        await controller.addFiveSeconds();
+        socketClient.emitEvent(
+          const WsErrorEvent(
+            WsErrorPayload(
+              code: 'stale_question',
+              message: 'power-up question does not match the active question',
+            ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        final current = container
+            .read(suddenDeathControllerProvider(testRequest))
+            .value!;
+        expect(current.isAddTimePending, isFalse);
+        expect(current.addTimeUsed, isFalse);
+        expect(current.remainingTimeMs, 15000);
+
+        sub.close();
+      },
+    );
+
+    test('question resync restores extended time and usage state', () async {
       final sub = container.listen(
         suddenDeathControllerProvider(testRequest),
         (_, _) {},
       );
       await container.read(suddenDeathControllerProvider(testRequest).future);
 
-      final controller = container.read(
-        suddenDeathControllerProvider(testRequest).notifier,
+      socketClient.emitEvent(
+        const WsQuestionEvent(
+          WsQuestionPayload(
+            question: 'q-acc-01',
+            prompt: 'What is Double Entry Bookkeeping?',
+            points: 10,
+            options: [],
+            timeLimitMs: 15000,
+            remainingTimeMs: 8700,
+            addTimeUsed: true,
+            questionNumber: 1,
+            totalQuestions: 2,
+          ),
+        ),
       );
+      await Future<void>.delayed(Duration.zero);
 
-      // Submit correct answer 'b'
-      controller.submitAnswer('b');
-
-      final evaluatedState = container
+      final current = container
           .read(suddenDeathControllerProvider(testRequest))
           .value!;
-      expect(evaluatedState.status, SuddenDeathStatus.showingResult);
-      expect(evaluatedState.currentStreak, 1);
-      expect(evaluatedState.bestStreak, 1);
-      expect(evaluatedState.currentScore, 10);
-      expect(evaluatedState.lastAnswerResult?.isCorrect, isTrue);
+      expect(current.remainingTimeMs, 8700);
+      expect(current.addTimeUsed, isTrue);
+      expect(current.isAddTimePending, isFalse);
 
       sub.close();
     });
 
-    test('useFiftyFifty hides 2 incorrect choices client-side instantly', () async {
-      final sub = container.listen(
-        suddenDeathControllerProvider(testRequest),
-        (_, _) {},
-      );
-      await container.read(suddenDeathControllerProvider(testRequest).future);
+    test(
+      'submitAnswer evaluates correct answer instantly without network wait',
+      () async {
+        final sub = container.listen(
+          suddenDeathControllerProvider(testRequest),
+          (_, _) {},
+        );
+        await container.read(suddenDeathControllerProvider(testRequest).future);
 
-      final controller = container.read(
-        suddenDeathControllerProvider(testRequest).notifier,
-      );
-      controller.useFiftyFifty();
+        final controller = container.read(
+          suddenDeathControllerProvider(testRequest).notifier,
+        );
 
-      final powerUpState = container
-          .read(suddenDeathControllerProvider(testRequest))
-          .value!;
-      expect(powerUpState.fiftyFiftyUsed, isTrue);
-      expect(powerUpState.hiddenOptionIds.length, 2);
-      // Correct option 'b' must not be hidden
-      expect(powerUpState.hiddenOptionIds.contains('b'), isFalse);
+        // Submit correct answer 'b'
+        controller.submitAnswer('b');
 
-      sub.close();
-    });
+        final evaluatedState = container
+            .read(suddenDeathControllerProvider(testRequest))
+            .value!;
+        expect(evaluatedState.status, SuddenDeathStatus.showingResult);
+        expect(evaluatedState.currentStreak, 1);
+        expect(evaluatedState.bestStreak, 1);
+        expect(evaluatedState.currentScore, 10);
+        expect(evaluatedState.lastAnswerResult?.isCorrect, isTrue);
 
-    test('skipQuestion marks skipUsed and advances without eliminating', () async {
-      final sub = container.listen(
-        suddenDeathControllerProvider(testRequest),
-        (_, _) {},
-      );
-      await container.read(suddenDeathControllerProvider(testRequest).future);
+        sub.close();
+      },
+    );
 
-      final controller = container.read(
-        suddenDeathControllerProvider(testRequest).notifier,
-      );
-      controller.skipQuestion();
+    test(
+      'useFiftyFifty hides 2 incorrect choices client-side instantly',
+      () async {
+        final sub = container.listen(
+          suddenDeathControllerProvider(testRequest),
+          (_, _) {},
+        );
+        await container.read(suddenDeathControllerProvider(testRequest).future);
 
-      final state = container
-          .read(suddenDeathControllerProvider(testRequest))
-          .value!;
-      expect(state.skipUsed, isTrue);
-      expect(state.currentStreak, 0);
-      expect(state.currentIndex, 1);
-      expect(state.currentQuestion?.id, 'q-acc-02');
+        final controller = container.read(
+          suddenDeathControllerProvider(testRequest).notifier,
+        );
+        controller.useFiftyFifty();
 
-      sub.close();
-    });
+        final powerUpState = container
+            .read(suddenDeathControllerProvider(testRequest))
+            .value!;
+        expect(powerUpState.fiftyFiftyUsed, isTrue);
+        expect(powerUpState.hiddenOptionIds.length, 2);
+        // Correct option 'b' must not be hidden
+        expect(powerUpState.hiddenOptionIds.contains('b'), isFalse);
+
+        sub.close();
+      },
+    );
+
+    test(
+      'skipQuestion marks skipUsed and advances without eliminating',
+      () async {
+        final sub = container.listen(
+          suddenDeathControllerProvider(testRequest),
+          (_, _) {},
+        );
+        await container.read(suddenDeathControllerProvider(testRequest).future);
+
+        final controller = container.read(
+          suddenDeathControllerProvider(testRequest).notifier,
+        );
+        controller.skipQuestion();
+
+        final state = container
+            .read(suddenDeathControllerProvider(testRequest))
+            .value!;
+        expect(state.skipUsed, isTrue);
+        expect(state.currentStreak, 0);
+        expect(state.currentIndex, 1);
+        expect(state.currentQuestion?.id, 'q-acc-02');
+
+        sub.close();
+      },
+    );
 
     test('handleTimeout triggers elimination on countdown expiry', () async {
       final sub = container.listen(

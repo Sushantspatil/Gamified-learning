@@ -62,6 +62,19 @@ void main() {
       expect(json['data']['power_up'], 'fifty_fifty');
       expect(json['data']['session'], 'sess-1234');
     });
+
+    test('use_power_up serialization for authoritative add_time', () {
+      final msg = WsInboundMessage.usePowerUp(
+        question: 'ACC001',
+        powerUp: 'add_time',
+        session: 'sess-1234',
+      );
+      final json = msg.toJson();
+      expect(json['type'], 'use_power_up');
+      expect(json['data']['question'], 'ACC001');
+      expect(json['data']['power_up'], 'add_time');
+      expect(json['data']['session'], 'sess-1234');
+    });
   });
 
   group('Sudden Death Outbound Messages (Server -> Client)', () {
@@ -80,6 +93,7 @@ void main() {
         ],
         "time_limit_ms": 15000,
         "remaining_time_ms": 9500,
+        "add_time_used": true,
         "question_number": 1,
         "total_questions": 5
       }
@@ -98,6 +112,7 @@ void main() {
       expect(payload.options[0].text, 'Cash');
       expect(payload.timeLimitMs, 15000);
       expect(payload.remainingTimeMs, 9500);
+      expect(payload.addTimeUsed, isTrue);
       expect(payload.questionNumber, 1);
       expect(payload.totalQuestions, 5);
 
@@ -186,6 +201,27 @@ void main() {
 
       expect(payload.question, 'ACC001');
       expect(payload.hiddenOptions, ['a', 'd']);
+    });
+
+    test('WsPowerUpResultPayload parses authoritative add_time result', () {
+      const rawJson = '''
+      {
+        "question": "ACC001",
+        "power_up": "add_time",
+        "added_time_ms": 5000,
+        "remaining_time_ms": 9200
+      }
+      ''';
+
+      final payload = WsPowerUpResultPayload.fromJson(
+        jsonDecode(rawJson) as Map<String, dynamic>,
+      );
+
+      expect(payload.question, 'ACC001');
+      expect(payload.powerUp, 'add_time');
+      expect(payload.addedTimeMs, 5000);
+      expect(payload.remainingTimeMs, 9200);
+      expect(payload.hiddenOptions, isEmpty);
     });
 
     test('WsGameOverPayload deserialization and conversion to QuizResult', () {

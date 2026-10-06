@@ -37,6 +37,8 @@ class SuddenDeathViewState {
   final int timeLimitMs;
   final Set<String> hiddenOptionIds;
   final bool fiftyFiftyUsed;
+  final bool addTimeUsed;
+  final bool isAddTimePending;
   final bool skipUsed;
   final bool hintUsed;
   final WsAnswerResultPayload? lastAnswerResult;
@@ -60,6 +62,8 @@ class SuddenDeathViewState {
     this.timeLimitMs = 15000,
     this.hiddenOptionIds = const {},
     this.fiftyFiftyUsed = false,
+    this.addTimeUsed = false,
+    this.isAddTimePending = false,
     this.skipUsed = false,
     this.hintUsed = false,
     this.lastAnswerResult,
@@ -84,6 +88,8 @@ class SuddenDeathViewState {
     int? timeLimitMs,
     Set<String>? hiddenOptionIds,
     bool? fiftyFiftyUsed,
+    bool? addTimeUsed,
+    bool? isAddTimePending,
     bool? skipUsed,
     bool? hintUsed,
     WsAnswerResultPayload? lastAnswerResult,
@@ -107,6 +113,8 @@ class SuddenDeathViewState {
       timeLimitMs: timeLimitMs ?? this.timeLimitMs,
       hiddenOptionIds: hiddenOptionIds ?? this.hiddenOptionIds,
       fiftyFiftyUsed: fiftyFiftyUsed ?? this.fiftyFiftyUsed,
+      addTimeUsed: addTimeUsed ?? this.addTimeUsed,
+      isAddTimePending: isAddTimePending ?? this.isAddTimePending,
       skipUsed: skipUsed ?? this.skipUsed,
       hintUsed: hintUsed ?? this.hintUsed,
       lastAnswerResult: lastAnswerResult ?? this.lastAnswerResult,
@@ -176,6 +184,7 @@ class SuddenDeathController
   late DateTime _startedAt;
   DateTime? _questionDisplayedAt;
   Timer? _transitionTimer;
+  Timer? _addTimeRequestTimer;
   bool _disposed = false;
 
   @override
@@ -184,6 +193,8 @@ class SuddenDeathController
     _recordedAnswers.clear();
     _transitionTimer?.cancel();
     _transitionTimer = null;
+    _addTimeRequestTimer?.cancel();
+    _addTimeRequestTimer = null;
     _disposed = false;
 
     final ds = ref.read(suddenDeathDatasourceProvider);
@@ -192,6 +203,8 @@ class SuddenDeathController
       _disposed = true;
       _transitionTimer?.cancel();
       _transitionTimer = null;
+      _addTimeRequestTimer?.cancel();
+      _addTimeRequestTimer = null;
       _eventsSub?.cancel();
       _eventsSub = null;
     });
@@ -263,6 +276,52 @@ class SuddenDeathController
   void _onServerEvent(WsServerEvent event) {
     // If server pushes game over or error, we integrate it
     switch (event) {
+      case WsQuestionEvent(:final payload):
+        final current = state.valueOrNull;
+        if (current != null &&
+            current.status == SuddenDeathStatus.questionActive &&
+            current.currentQuestion?.id.toLowerCase() ==
+                payload.question.toLowerCase()) {
+          state = AsyncValue.data(
+            current.copyWith(
+              questionPayload: payload,
+              remainingTimeMs: payload.remainingTimeMs,
+              timeLimitMs: payload.timeLimitMs,
+              addTimeUsed: payload.addTimeUsed,
+              isAddTimePending: payload.addTimeUsed
+                  ? false
+                  : current.isAddTimePending,
+            ),
+          );
+        }
+      case WsPowerUpResultEvent(:final payload):
+        final current = state.valueOrNull;
+        if (current != null &&
+            payload.powerUp == 'add_time' &&
+            current.status == SuddenDeathStatus.questionActive &&
+            current.currentQuestion?.id.toLowerCase() ==
+                payload.question.toLowerCase()) {
+          _addTimeRequestTimer?.cancel();
+          _addTimeRequestTimer = null;
+          state = AsyncValue.data(
+            current.copyWith(
+              remainingTimeMs: payload.remainingTimeMs,
+              addTimeUsed: true,
+              isAddTimePending: false,
+            ),
+          );
+        }
+      case WsAnswerResultEvent(:final payload):
+        final current = state.valueOrNull;
+        if (payload.isTimeout &&
+            current != null &&
+            current.status == SuddenDeathStatus.questionActive &&
+            current.currentQuestion?.id.toLowerCase() ==
+                payload.question.toLowerCase()) {
+          _addTimeRequestTimer?.cancel();
+          _addTimeRequestTimer = null;
+          handleTimeout();
+        }
       case WsGameOverEvent(:final payload):
         final current = state.valueOrNull;
         if (current != null && current.status != SuddenDeathStatus.gameOver) {
@@ -290,14 +349,88 @@ class SuddenDeathController
         if (payload.code != 'transition_in_progress') {
           final current = state.valueOrNull;
           if (current != null) {
+            _addTimeRequestTimer?.cancel();
+            _addTimeRequestTimer = null;
             state = AsyncValue.data(
-              current.copyWith(errorMessage: payload.message),
+              current.copyWith(
+                errorMessage: payload.message,
+                isAddTimePending: false,
+              ),
             );
           }
         }
       default:
         break;
     }
+  }
+
+  /// Requests the server to extend the active question deadline by five
+  /// seconds. The displayed countdown changes only after power_up_result.
+  Future<void> addFiveSeconds() async {
+    final current = state.valueOrNull;
+    if (current == null ||
+        current.status != SuddenDeathStatus.questionActive ||
+        current.isSubmitting ||
+        current.isAddTimePending ||
+        current.addTimeUsed ||
+        current.currentQuestion == null) {
+      return;
+    }
+
+    state = AsyncValue.data(current.copyWith(isAddTimePending: true));
+
+    final datasource = ref.read(suddenDeathDatasourceProvider);
+    if (!datasource.isConnected) {
+      final sessionId = current.sessionId;
+      if (sessionId == null || sessionId.isEmpty) {
+        state = AsyncValue.data(
+          current.copyWith(
+            errorMessage:
+                'Unable to add time without an active live game session.',
+          ),
+        );
+        return;
+      }
+      try {
+        await datasource.connect(sessionId: sessionId);
+      } catch (_) {
+        if (_disposed) return;
+        final latest = state.valueOrNull;
+        if (latest != null) {
+          state = AsyncValue.data(
+            latest.copyWith(
+              isAddTimePending: false,
+              errorMessage:
+                  'Unable to add time while the live game connection is unavailable.',
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    if (_disposed) return;
+    final latest = state.valueOrNull;
+    if (latest == null ||
+        latest.status != SuddenDeathStatus.questionActive ||
+        latest.currentQuestion?.id != current.currentQuestion?.id ||
+        !latest.isAddTimePending) {
+      return;
+    }
+
+    datasource.addTime(question: current.currentQuestion!.id);
+    _addTimeRequestTimer?.cancel();
+    _addTimeRequestTimer = Timer(const Duration(seconds: 5), () {
+      if (_disposed) return;
+      final pending = state.valueOrNull;
+      if (pending == null || !pending.isAddTimePending) return;
+      state = AsyncValue.data(
+        pending.copyWith(
+          isAddTimePending: false,
+          errorMessage: 'The add-time request could not be confirmed.',
+        ),
+      );
+    });
   }
 
   /// Instant, zero-latency answer submission evaluated locally.
@@ -341,8 +474,9 @@ class SuddenDeathController
 
     if (isCorrect) {
       final newStreak = current.currentStreak + 1;
-      final bestStreak =
-          newStreak > current.bestStreak ? newStreak : current.bestStreak;
+      final bestStreak = newStreak > current.bestStreak
+          ? newStreak
+          : current.bestStreak;
       final newScore = current.currentScore + 10;
 
       final answerResult = WsAnswerResultPayload(
@@ -387,6 +521,8 @@ class SuddenDeathController
               selectedOptionId: null,
               lastAnswerResult: null,
               remainingTimeMs: 15000,
+              addTimeUsed: false,
+              isAddTimePending: false,
             ),
           );
         } else {
@@ -539,6 +675,8 @@ class SuddenDeathController
           selectedOptionId: null,
           lastAnswerResult: null,
           remainingTimeMs: 15000,
+          addTimeUsed: false,
+          isAddTimePending: false,
         ),
       );
     } else {
@@ -615,7 +753,9 @@ class SuddenDeathController
             RewardBreakdownItem(key: 'sudden_death_score', amount: finalScore),
           ],
           xp: [RewardBreakdownItem(key: 'xp_earned', amount: xpAwarded)],
-          coins: [RewardBreakdownItem(key: 'coins_earned', amount: coinsAwarded)],
+          coins: [
+            RewardBreakdownItem(key: 'coins_earned', amount: coinsAwarded),
+          ],
         ),
         timeTaken: DateTime.now().difference(_startedAt),
         createdAt: DateTime.now(),
@@ -657,8 +797,15 @@ class SuddenDeathController
         score: [
           RewardBreakdownItem(key: 'sudden_death_score', amount: finalScore),
         ],
-        xp: [RewardBreakdownItem(key: 'xp_earned', amount: 10 + correctCount * 5)],
-        coins: [RewardBreakdownItem(key: 'coins_earned', amount: 5 + correctCount * 2)],
+        xp: [
+          RewardBreakdownItem(key: 'xp_earned', amount: 10 + correctCount * 5),
+        ],
+        coins: [
+          RewardBreakdownItem(
+            key: 'coins_earned',
+            amount: 5 + correctCount * 2,
+          ),
+        ],
       ),
       timeTaken: DateTime.now().difference(_startedAt),
       createdAt: DateTime.now(),

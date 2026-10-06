@@ -291,6 +291,8 @@ class SuddenDeathScreen extends ConsumerWidget {
                     energy: wallet?.gems ?? 0,
                     coins: wallet?.coins ?? 0,
                     remainingTimeMs: suddenState.remainingTimeMs,
+                    externalAddTimeUsed: suddenState.addTimeUsed,
+                    isAddTimePending: suddenState.isAddTimePending,
                     externalSkipUsed: suddenState.skipUsed,
                     serverAnswerResult: suddenState.lastAnswerResult,
                     isSubmitting: suddenState.isSubmitting,
@@ -308,6 +310,11 @@ class SuddenDeathScreen extends ConsumerWidget {
                     onTimeout: () => ref
                         .read(suddenDeathControllerProvider(request).notifier)
                         .handleTimeout(),
+                    onAddTime: () => unawaited(
+                      ref
+                          .read(suddenDeathControllerProvider(request).notifier)
+                          .addFiveSeconds(),
+                    ),
                     onSkip: () => ref
                         .read(suddenDeathControllerProvider(request).notifier)
                         .skipQuestion(),
