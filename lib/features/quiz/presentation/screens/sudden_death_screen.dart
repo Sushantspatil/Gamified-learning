@@ -283,7 +283,6 @@ class SuddenDeathScreen extends ConsumerWidget {
                   ),
                 Expanded(
                   child: SuddenDeathQuestionView(
-                    key: ValueKey(question.id),
                     question: question,
                     currentIndex: suddenState.currentIndex,
                     totalQuestions: suddenState.totalQuestions,
@@ -292,11 +291,7 @@ class SuddenDeathScreen extends ConsumerWidget {
                     energy: wallet?.gems ?? 0,
                     coins: wallet?.coins ?? 0,
                     remainingTimeMs: suddenState.remainingTimeMs,
-                    externalHiddenOptionIds: suddenState.hiddenOptionIds,
-                    externalFiftyFiftyUsed: suddenState.fiftyFiftyUsed,
                     externalSkipUsed: suddenState.skipUsed,
-                    externalHintUsed: suddenState.hintUsed,
-                    hint: suddenState.currentQuestion?.hint,
                     serverAnswerResult: suddenState.lastAnswerResult,
                     isSubmitting: suddenState.isSubmitting,
                     externalSelectedOptionId: suddenState.selectedOptionId,
@@ -313,15 +308,9 @@ class SuddenDeathScreen extends ConsumerWidget {
                     onTimeout: () => ref
                         .read(suddenDeathControllerProvider(request).notifier)
                         .handleTimeout(),
-                    onFiftyFifty: () => ref
-                        .read(suddenDeathControllerProvider(request).notifier)
-                        .useFiftyFifty(),
                     onSkip: () => ref
                         .read(suddenDeathControllerProvider(request).notifier)
                         .skipQuestion(),
-                    onHint: () => ref
-                        .read(suddenDeathControllerProvider(request).notifier)
-                        .revealHint(),
                   ),
                 ),
               ],

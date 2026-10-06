@@ -22,38 +22,85 @@ const _question = SuddenDeathQuestion(
   correctOptionId: 'b',
 );
 
-Future<void> _pumpSuddenDeathView(
-  WidgetTester tester, {
+const _nextQuestion = SuddenDeathQuestion(
+  id: 'sudden-2',
+  topicId: 'web-dev-chapter-1-topic-1',
+  prompt: 'Which tag creates a link?',
+  points: 15,
+  options: [
+    QuestionOption(id: 'a', text: '<button>'),
+    QuestionOption(id: 'b', text: '<a>'),
+    QuestionOption(id: 'c', text: '<nav>'),
+    QuestionOption(id: 'd', text: '<link>'),
+  ],
+  correctOptionId: 'b',
+);
+
+Widget _buildSuddenDeathView({
+  Key? viewKey,
+  SuddenDeathQuestion question = _question,
+  int currentIndex = 0,
   void Function(Answer answer)? onSubmit,
   void Function(String optionId)? onSelectOption,
   VoidCallback? onSkip,
   VoidCallback? onTimeout,
   bool isPreviewMode = true,
-}) async {
-  await tester.pumpWidget(
-    ProviderScope(
-      child: MaterialApp(
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        home: Scaffold(
-          body: SuddenDeathQuestionView(
-            key: UniqueKey(),
-            question: _question,
-            currentIndex: 0,
-            totalQuestions: 5,
-            currentStreak: 0,
-            bestStreak: 0,
-            energy: 0,
-            coins: 100,
-            isPreviewMode: isPreviewMode,
-            onExit: () {},
-            onSubmit: onSubmit,
-            onSelectOption: onSelectOption,
-            onSkip: onSkip,
-            onTimeout: onTimeout,
-          ),
+  String? externalSelectedOptionId,
+  WsAnswerResultPayload? serverAnswerResult,
+}) {
+  return ProviderScope(
+    child: MaterialApp(
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      home: Scaffold(
+        body: SuddenDeathQuestionView(
+          key: viewKey ?? UniqueKey(),
+          question: question,
+          currentIndex: currentIndex,
+          totalQuestions: 5,
+          currentStreak: 0,
+          bestStreak: 0,
+          energy: 0,
+          coins: 100,
+          isPreviewMode: isPreviewMode,
+          onExit: () {},
+          onSubmit: onSubmit,
+          onSelectOption: onSelectOption,
+          onSkip: onSkip,
+          onTimeout: onTimeout,
+          externalSelectedOptionId: externalSelectedOptionId,
+          serverAnswerResult: serverAnswerResult,
         ),
       ),
+    ),
+  );
+}
+
+Future<void> _pumpSuddenDeathView(
+  WidgetTester tester, {
+  Key? viewKey,
+  SuddenDeathQuestion question = _question,
+  int currentIndex = 0,
+  void Function(Answer answer)? onSubmit,
+  void Function(String optionId)? onSelectOption,
+  VoidCallback? onSkip,
+  VoidCallback? onTimeout,
+  bool isPreviewMode = true,
+  String? externalSelectedOptionId,
+  WsAnswerResultPayload? serverAnswerResult,
+}) async {
+  await tester.pumpWidget(
+    _buildSuddenDeathView(
+      viewKey: viewKey,
+      question: question,
+      currentIndex: currentIndex,
+      onSubmit: onSubmit,
+      onSelectOption: onSelectOption,
+      onSkip: onSkip,
+      onTimeout: onTimeout,
+      isPreviewMode: isPreviewMode,
+      externalSelectedOptionId: externalSelectedOptionId,
+      serverAnswerResult: serverAnswerResult,
     ),
   );
   await tester.pumpAndSettle();
@@ -61,16 +108,14 @@ Future<void> _pumpSuddenDeathView(
 
 Future<void> _buyPowerUp(WidgetTester tester, String label) async {
   final key = switch (label) {
-    '+5 SEC' => const Key('powerup-sudden-time'),
-    '50:50' => const Key('powerup-sudden-50-50'),
+    '+5 Seconds' => const Key('powerup-sudden-time'),
     'Skip' => const Key('powerup-sudden-skip'),
-    'Hint' => const Key('powerup-sudden-hint'),
     _ => throw ArgumentError('Unknown power-up: $label'),
   };
   await tester.tap(find.byKey(key));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Buy & use'));
-  await tester.pumpAndSettle();
+  await tester.pump(const Duration(milliseconds: 400));
 }
 
 Future<void> _tapOption(WidgetTester tester, String label) async {
@@ -94,15 +139,17 @@ void main() {
     expect(find.text('Which tag creates a paragraph?'), findsOneWidget);
     expect(find.text('15'), findsOneWidget);
     expect(find.byKey(const Key('powerup-sudden-time')), findsOneWidget);
-    expect(find.byKey(const Key('powerup-sudden-50-50')), findsOneWidget);
     expect(find.byKey(const Key('powerup-sudden-skip')), findsOneWidget);
-    expect(find.byKey(const Key('powerup-sudden-hint')), findsOneWidget);
+    expect(find.byKey(const Key('powerup-sudden-50-50')), findsNothing);
+    expect(find.byKey(const Key('powerup-sudden-hint')), findsNothing);
   });
 
-  testWidgets('+5 SEC updates timer state', (tester) async {
+  testWidgets('+5 Seconds updates timer state and shows feedback', (
+    tester,
+  ) async {
     await _pumpSuddenDeathView(tester);
 
-    await _buyPowerUp(tester, '+5 SEC');
+    await _buyPowerUp(tester, '+5 Seconds');
 
     final boostedSecondIsVisible = [
       '16',
@@ -112,33 +159,9 @@ void main() {
       '20',
     ].any((value) => find.text(value).evaluate().isNotEmpty);
     expect(boostedSecondIsVisible, isTrue);
+    expect(find.byKey(const Key('sudden-power-up-feedback')), findsOneWidget);
+    expect(find.text('+5 seconds activated'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 800));
-  });
-
-  testWidgets('50:50 removes incorrect options without revealing correctness', (
-    tester,
-  ) async {
-    await _pumpSuddenDeathView(tester);
-
-    await _buyPowerUp(tester, '50:50');
-
-    expect(find.text('<p>'), findsOneWidget);
-    expect(find.text('<div>'), findsNothing);
-    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
-  });
-
-  testWidgets('hint does not reveal the correct answer', (tester) async {
-    await _pumpSuddenDeathView(tester);
-
-    await _buyPowerUp(tester, 'Hint');
-
-    expect(
-      find.text(
-        'Eliminate choices that do not match the strongest clue in the prompt.',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('Correct: <p>'), findsNothing);
   });
 
   testWidgets('skip stays neutral and does not submit a correct answer', (
@@ -154,8 +177,11 @@ void main() {
 
     await _buyPowerUp(tester, 'Skip');
 
-    expect(skipped, isTrue);
     expect(submitted, isNull);
+    expect(find.byKey(const Key('sudden-power-up-feedback')), findsOneWidget);
+    expect(find.text('Skipping question'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 800));
+    expect(skipped, isTrue);
   });
 
   testWidgets('correct and wrong answers submit after feedback', (
@@ -325,39 +351,57 @@ void main() {
     expect(find.text("Time's up"), findsOneWidget);
   });
 
-  testWidgets('production path applies server-driven 50:50 eliminations', (
+  testWidgets('question change animates and clears stale option selection', (
     tester,
   ) async {
+    final firstResult = WsAnswerResultPayload(
+      question: _question.id,
+      option: 'b',
+      correctOption: 'b',
+      isCorrect: true,
+      isSkipped: false,
+      pointsEarned: 10,
+      coinsEarned: 0,
+      yourScore: 10,
+      isTimeout: false,
+    );
+
+    await _pumpSuddenDeathView(
+      tester,
+      viewKey: const ValueKey('transitioning-sudden-death-view'),
+      isPreviewMode: false,
+      externalSelectedOptionId: 'b',
+      serverAnswerResult: firstResult,
+    );
+
+    expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+
     await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          home: Scaffold(
-            body: SuddenDeathQuestionView(
-              question: _question,
-              currentIndex: 0,
-              totalQuestions: 5,
-              currentStreak: 0,
-              bestStreak: 0,
-              energy: 0,
-              coins: 100,
-              isPreviewMode: false,
-              onExit: () {},
-              onSelectOption: (_) {},
-              externalHiddenOptionIds: const {'a', 'd'},
-              externalFiftyFiftyUsed: true,
-            ),
-          ),
-        ),
+      _buildSuddenDeathView(
+        viewKey: const ValueKey('transitioning-sudden-death-view'),
+        question: _nextQuestion,
+        currentIndex: 1,
+        isPreviewMode: false,
+        onSelectOption: (_) {},
+        // The provider can briefly retain the previous answer while the next
+        // question frame is being applied. The view must reject that stale
+        // state, even when both questions reuse the same option ids.
+        externalSelectedOptionId: 'b',
+        serverAnswerResult: firstResult,
       ),
     );
+    await tester.pump();
+
+    expect(find.byKey(const Key('sudden-question-transition')), findsOneWidget);
+    expect(find.text('Which tag creates a paragraph?'), findsOneWidget);
+    expect(find.text('Which tag creates a link?'), findsOneWidget);
+
     await tester.pumpAndSettle();
 
-    expect(find.text('<p>'), findsOneWidget);
-    // 'a' and 'd' were eliminated by the server's `power_up_result`.
-    expect(find.text('<br>'), findsNothing);
-    expect(find.text('<hr>'), findsNothing);
+    expect(find.text('Which tag creates a paragraph?'), findsNothing);
+    expect(find.text('Which tag creates a link?'), findsOneWidget);
+    expect(find.byIcon(Icons.radio_button_checked_rounded), findsNothing);
+    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
   });
 
   testWidgets('low time state becomes visible under five seconds', (
