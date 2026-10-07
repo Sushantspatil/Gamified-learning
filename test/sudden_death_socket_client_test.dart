@@ -54,4 +54,39 @@ void main() {
       await server.close(force: true);
     }
   });
+
+  test('malformed frame does not terminate the live event stream', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final acceptedSocket = Completer<WebSocket>();
+    final serverSubscription = server.listen((request) async {
+      final socket = await WebSocketTransformer.upgrade(request);
+      acceptedSocket.complete(socket);
+    });
+    final client = IoSuddenDeathSocketClient();
+    final questionEvent = client.events
+        .where((event) => event is WsQuestionEvent)
+        .cast<WsQuestionEvent>()
+        .first;
+
+    try {
+      await client.connect(
+        Uri.parse('ws://127.0.0.1:${server.port}/ws/game?session_id=test'),
+      );
+      final socket = await acceptedSocket.future;
+      socket.add('{invalid json');
+      socket.add(
+        '{"type":"question","data":{"question":"q-1",'
+        '"prompt":"Question 1","options":[],"remaining_time_ms":9000}}',
+      );
+
+      final event = await questionEvent.timeout(const Duration(seconds: 2));
+      expect(event.payload.question, 'q-1');
+      expect(event.payload.remainingTimeMs, 9000);
+      expect(client.isConnected, isTrue);
+    } finally {
+      await client.dispose();
+      await serverSubscription.cancel();
+      await server.close(force: true);
+    }
+  });
 }

@@ -84,6 +84,7 @@ class _FakeSuddenDeathSocketClient implements SuddenDeathSocketClient {
   int connectCount = 0;
   WsQuestionPayload questionOnConnect = _question(1);
   final List<WsInboundMessage> sentMessages = [];
+  bool failNextSend = false;
 
   @override
   Stream<WsServerEvent> get events => _events.stream;
@@ -97,7 +98,25 @@ class _FakeSuddenDeathSocketClient implements SuddenDeathSocketClient {
   }
 
   @override
-  void send(WsInboundMessage message) => sentMessages.add(message);
+  void send(WsInboundMessage message) {
+    if (failNextSend) {
+      failNextSend = false;
+      _connected = false;
+      scheduleMicrotask(
+        () => _events.add(
+          const WsErrorEvent(
+            WsErrorPayload(
+              code: 'socket_error',
+              message: 'simulated half-open socket',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+    sentMessages.add(message);
+  }
+
   @override
   Future<void> close([int? code, String? reason]) async {
     _connected = false;
@@ -170,6 +189,9 @@ void main() {
           apiClientProvider.overrideWithValue(apiClient),
           suddenDeathSocketClientProvider.overrideWithValue(socket),
           suddenDeathDatasourceProvider.overrideWithValue(datasource),
+          suddenDeathConfirmationTimeoutProvider.overrideWithValue(
+            const Duration(milliseconds: 100),
+          ),
         ],
       );
     });
@@ -224,12 +246,47 @@ void main() {
       expect(current().status, SuddenDeathStatus.showingResult);
       expect(current().currentQuestion?.id, 'q-1');
       expect(current().currentIndex, 0);
+      expect(current().errorMessage, isNull);
+      expect(current().connectionStatus, SuddenDeathConnectionStatus.connected);
 
       await emit(WsQuestionEvent(_question(2)));
       expect(current().status, SuddenDeathStatus.questionActive);
       expect(current().currentQuestion?.id, 'q-2');
       expect(current().currentIndex, 1);
       expect(current().selectedOptionId, isNull);
+      subscription.close();
+    });
+
+    test('wrong answer ends the run only after backend game_over', () async {
+      final subscription = await start();
+      final controller = container.read(
+        suddenDeathControllerProvider(request).notifier,
+      );
+
+      controller.submitAnswer('b');
+      await emit(WsAnswerResultEvent(_answerResult(1, isCorrect: false)));
+      expect(current().status, SuddenDeathStatus.showingResult);
+      expect(current().currentQuestion?.id, 'q-1');
+
+      await emit(
+        const WsGameOverEvent(
+          WsGameOverPayload(
+            finalScore: 0,
+            totalQuestions: 10,
+            correctCount: 0,
+            coinsEarned: 0,
+            xpEarned: 0,
+            gemsEarned: 0,
+            newLevel: 1,
+            didLevelUp: false,
+            gameMode: 'sudden_death',
+            endReason: 'eliminated',
+            endedEarly: true,
+          ),
+        ),
+      );
+      expect(current().status, SuddenDeathStatus.gameOver);
+      expect(current().result?.endedEarly, isTrue);
       subscription.close();
     });
 
@@ -301,6 +358,88 @@ void main() {
       expect(current().remainingTimeMs, 15000);
       expect(current().addTimeUsed, isFalse);
       expect(current().isAddTimePending, isFalse);
+      await Future<void>.delayed(Duration.zero);
+      expect(socket.sentMessages.last.type, 'join_game');
+      expect(current().errorMessage, isNot(contains('connection')));
+      socket.emit(WsQuestionEvent(_question(1)));
+      await Future<void>.delayed(Duration.zero);
+      subscription.close();
+    });
+
+    test('stale answer triggers authoritative resync', () async {
+      final subscription = await start();
+      final controller = container.read(
+        suddenDeathControllerProvider(request).notifier,
+      );
+      controller.submitAnswer('a');
+
+      await emit(
+        const WsErrorEvent(
+          WsErrorPayload(code: 'stale_answer', message: 'stale answer'),
+        ),
+      );
+      expect(current().isSubmitting, isFalse);
+      expect(socket.sentMessages.last.type, 'join_game');
+      expect(current().errorMessage, 'stale answer');
+
+      await emit(WsQuestionEvent(_question(1)));
+      expect(current().connectionStatus, SuddenDeathConnectionStatus.connected);
+      expect(current().errorMessage, isNull);
+      subscription.close();
+    });
+
+    test('stale power-up triggers authoritative resync', () async {
+      final subscription = await start();
+      final controller = container.read(
+        suddenDeathControllerProvider(request).notifier,
+      );
+      await controller.addFiveSeconds();
+
+      await emit(
+        const WsErrorEvent(
+          WsErrorPayload(code: 'stale_power_up', message: 'stale power-up'),
+        ),
+      );
+      expect(current().isAddTimePending, isFalse);
+      expect(socket.sentMessages.last.type, 'join_game');
+      expect(current().remainingTimeMs, 15000);
+
+      await emit(WsQuestionEvent(_question(1)));
+      expect(current().connectionStatus, SuddenDeathConnectionStatus.connected);
+      subscription.close();
+    });
+
+    test('missing answer confirmation triggers resync', () async {
+      final subscription = await start();
+      final controller = container.read(
+        suddenDeathControllerProvider(request).notifier,
+      );
+      controller.submitAnswer('a');
+
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      expect(current().isSubmitting, isFalse);
+      expect(socket.sentMessages.last.type, 'join_game');
+
+      await emit(WsQuestionEvent(_question(1)));
+      expect(current().connectionStatus, SuddenDeathConnectionStatus.connected);
+      subscription.close();
+    });
+
+    test('missing add-time confirmation triggers resync', () async {
+      final subscription = await start();
+      final controller = container.read(
+        suddenDeathControllerProvider(request).notifier,
+      );
+      await controller.addFiveSeconds();
+
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      expect(current().isAddTimePending, isFalse);
+      expect(current().remainingTimeMs, 15000);
+      expect(socket.sentMessages.last.type, 'join_game');
+
+      await emit(WsQuestionEvent(_question(1, addTimeUsed: true)));
+      expect(current().remainingTimeMs, 19800);
+      expect(current().addTimeUsed, isTrue);
       subscription.close();
     });
 
@@ -329,6 +468,29 @@ void main() {
       expect(current().currentQuestion?.id, 'q-2');
       expect(current().currentIndex, 1);
       expect(current().skipUsed, isTrue);
+      subscription.close();
+    });
+
+    test('wallet refresh does not recreate the active session', () async {
+      final subscription = await start();
+      final before = container.read(
+        suddenDeathControllerProvider(request).notifier,
+      );
+
+      before.skipQuestion();
+      await emit(
+        WsAnswerResultEvent(
+          _answerResult(1, isCorrect: false, isSkipped: true),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final after = container.read(
+        suddenDeathControllerProvider(request).notifier,
+      );
+      expect(identical(before, after), isTrue);
+      expect(socket.connectCount, 1);
+      expect(current().sessionId, 'session-1');
       subscription.close();
     });
 
@@ -440,6 +602,36 @@ void main() {
         expect(current().currentQuestion?.id, 'q-1');
         expect(current().remainingTimeMs, 19800);
         expect(current().addTimeUsed, isTrue);
+        subscription.close();
+      },
+    );
+
+    test(
+      'failed answer send reconnects and restores authoritative state',
+      () async {
+        final subscription = await start();
+        final controller = container.read(
+          suddenDeathControllerProvider(request).notifier,
+        );
+        socket.failNextSend = true;
+
+        controller.submitAnswer('a');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(socket.connectCount, 2);
+        expect(current().sessionId, 'session-1');
+        expect(current().currentQuestion?.id, 'q-1');
+        expect(current().isSubmitting, isFalse);
+        expect(
+          current().connectionStatus,
+          SuddenDeathConnectionStatus.connected,
+        );
+        expect(
+          socket.sentMessages.where(
+            (message) => message.type == 'submit_answer',
+          ),
+          isEmpty,
+        );
         subscription.close();
       },
     );

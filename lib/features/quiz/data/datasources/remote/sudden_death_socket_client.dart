@@ -27,6 +27,8 @@ abstract class SuddenDeathSocketClient {
 
 /// Standard production implementation using `dart:io` [WebSocket].
 class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
+  static const _heartbeatInterval = Duration(seconds: 20);
+
   WebSocket? _socket;
   StreamSubscription<dynamic>? _subscription;
   final StreamController<WsServerEvent> _eventsController =
@@ -59,6 +61,7 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
 
     try {
       final socket = await WebSocket.connect(uri.toString());
+      socket.pingInterval = _heartbeatInterval;
       _socket = socket;
       _debugLog('[SD] ws connected (HTTP 101)');
 
@@ -148,6 +151,7 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
     try {
       final jsonStr = jsonEncode(message.toJson());
       _socket!.add(jsonStr);
+      _debugLog('[SD] ${message.type} sent');
     } catch (e) {
       final socket = _socket;
       _socket = null;

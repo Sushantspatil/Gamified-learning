@@ -38,6 +38,12 @@ enum SuddenDeathConnectionStatus {
   gameOver,
 }
 
+/// Maximum time a live Sudden Death action may remain unconfirmed before the
+/// client asks the server for its authoritative state again.
+final suddenDeathConfirmationTimeoutProvider = Provider<Duration>(
+  (_) => const Duration(seconds: 5),
+);
+
 class SuddenDeathViewState {
   final SuddenDeathStatus status;
   final SuddenDeathConnectionStatus connectionStatus;
@@ -205,6 +211,16 @@ class SuddenDeathController
     Duration(seconds: 8),
   ];
 
+  static const _authoritativeResyncErrorCodes = <String>{
+    'stale_answer',
+    'stale_power_up',
+    'stale_question',
+    'stale_session',
+    'question_ended',
+    'question_timed_out',
+    'session_not_active',
+  };
+
   void _debugLog(String message, {Object? error, StackTrace? stackTrace}) {
     if (!kDebugMode) return;
     developer.log(
@@ -235,6 +251,13 @@ class SuddenDeathController
     _disposed = false;
 
     final ds = ref.read(suddenDeathDatasourceProvider);
+    final apiConfig = ref.read(apiConfigProvider);
+    final restUri = Uri.parse(apiConfig.baseUrl);
+    final wsUri = Uri.parse(apiConfig.gameWsUrl);
+    _debugLog(
+      'endpoint REST=${restUri.scheme}://${restUri.host}${restUri.path} '
+      'WS=${wsUri.scheme}://${wsUri.host}${wsUri.path}',
+    );
 
     ref.onDispose(() {
       _disposed = true;
@@ -371,6 +394,11 @@ class SuddenDeathController
           _addTimeRequestTimer = null;
         }
         _questionDisplayedAt = DateTime.now();
+        _debugLog(
+          isSameQuestion
+              ? 'resync question received: ${payload.question}'
+              : 'next question received: ${payload.question}',
+        );
         state = AsyncValue.data(
           current.copyWith(
             status: SuddenDeathStatus.questionActive,
@@ -455,6 +483,7 @@ class SuddenDeathController
         );
         _debugLog('answer_result received: ${payload.question}');
         if (payload.isSkipped) {
+          _debugLog('skip confirmed: ${payload.question}');
           ref.invalidate(walletControllerProvider);
         }
       case WsGameOverEvent(:final payload):
@@ -497,6 +526,7 @@ class SuddenDeathController
           _debugLog('game_over');
         }
       case WsErrorEvent(:final payload):
+        _debugLog('server error ${payload.code}: ${payload.message}');
         if (payload.code == 'socket_error' || payload.code == 'socket_closed') {
           _debugLog('socket disconnected: ${payload.message}');
           final firstQuestion = _firstQuestionCompleter;
@@ -519,6 +549,26 @@ class SuddenDeathController
         final resync = _resyncQuestionCompleter;
         if (resync != null && !resync.isCompleted) {
           resync.completeError(ServerException(payload.message, payload.code));
+        }
+        if (_authoritativeResyncErrorCodes.contains(payload.code)) {
+          final current = state.valueOrNull;
+          if (current != null) {
+            _answerRequestTimer?.cancel();
+            _answerRequestTimer = null;
+            _addTimeRequestTimer?.cancel();
+            _addTimeRequestTimer = null;
+            state = AsyncValue.data(
+              current.copyWith(
+                errorMessage: payload.message,
+                isAddTimePending: false,
+                isSubmitting: false,
+              ),
+            );
+          }
+          unawaited(
+            _startAuthoritativeResync('server rejected stale live action'),
+          );
+          return;
         }
         if (payload.code != 'transition_in_progress') {
           final current = state.valueOrNull;
@@ -678,7 +728,10 @@ class SuddenDeathController
         synchronized?.status == SuddenDeathStatus.questionActive &&
         synchronized?.currentQuestion?.id.toLowerCase() ==
             current.currentQuestion?.id.toLowerCase();
-    if (!isReady && synchronized != null) {
+    final connectionUnavailable =
+        !datasource.isConnected ||
+        synchronized?.connectionStatus != SuddenDeathConnectionStatus.connected;
+    if (!isReady && connectionUnavailable && synchronized != null) {
       state = AsyncValue.data(
         synchronized.copyWith(
           errorMessage: 'The live game connection is unavailable.',
@@ -729,7 +782,7 @@ class SuddenDeathController
       ),
     );
     try {
-      _debugLog('$reason; requesting authoritative resync');
+      _debugLog('$reason; resync sent');
       datasource.joinGame();
       await resync.future.timeout(const Duration(seconds: 5));
     } catch (error, stackTrace) {
@@ -797,20 +850,23 @@ class SuddenDeathController
       latest.copyWith(isAddTimePending: true, clearErrorMessage: true),
     );
     datasource.addTime(question: latest.currentQuestion!.id);
-    _debugLog('+5 request sent');
+    _debugLog('+5 requested: ${latest.currentQuestion!.id}');
     _addTimeRequestTimer?.cancel();
-    _addTimeRequestTimer = Timer(const Duration(seconds: 5), () {
-      if (_disposed) return;
-      final pending = state.valueOrNull;
-      if (pending == null || !pending.isAddTimePending) return;
-      state = AsyncValue.data(
-        pending.copyWith(
-          isAddTimePending: false,
-          errorMessage: 'The add-time request could not be confirmed.',
-        ),
-      );
-      unawaited(_startAuthoritativeResync('add-time confirmation timed out'));
-    });
+    _addTimeRequestTimer = Timer(
+      ref.read(suddenDeathConfirmationTimeoutProvider),
+      () {
+        if (_disposed) return;
+        final pending = state.valueOrNull;
+        if (pending == null || !pending.isAddTimePending) return;
+        state = AsyncValue.data(
+          pending.copyWith(
+            isAddTimePending: false,
+            errorMessage: 'The add-time request could not be confirmed.',
+          ),
+        );
+        unawaited(_startAuthoritativeResync('add-time confirmation timed out'));
+      },
+    );
   }
 
   /// Sends the answer for the server's currently active question.
@@ -834,6 +890,12 @@ class SuddenDeathController
       (item) => item.id.toLowerCase() == normalizedOption,
     );
     if (selected.isEmpty) return;
+
+    _debugLog(
+      'displayed question=${question.id}; '
+      'authoritative question=${current.questionPayload?.question}; '
+      'selected option=$normalizedOption',
+    );
 
     final datasource = ref.read(suddenDeathDatasourceProvider);
     if (!datasource.isConnected) {
@@ -863,7 +925,7 @@ class SuddenDeathController
       selectedText: selected.first.text,
       timeTakenMs: elapsedMs,
     );
-    _debugLog('answer sent: ${question.id}');
+    _debugLog('submit_answer sent: ${question.id}');
     _startAnswerConfirmationTimer(question.id);
   }
 
@@ -897,29 +959,32 @@ class SuddenDeathController
       current.copyWith(isSubmitting: true, clearErrorMessage: true),
     );
     datasource.skipQuestion(question: questionId);
-    _debugLog('skip request sent: $questionId');
+    _debugLog('skip requested: $questionId');
     _startAnswerConfirmationTimer(questionId);
   }
 
   void _startAnswerConfirmationTimer(String questionId) {
     _answerRequestTimer?.cancel();
-    _answerRequestTimer = Timer(const Duration(seconds: 5), () {
-      if (_disposed) return;
-      final current = state.valueOrNull;
-      if (current == null ||
-          !current.isSubmitting ||
-          current.currentQuestion?.id.toLowerCase() !=
-              questionId.toLowerCase()) {
-        return;
-      }
-      state = AsyncValue.data(
-        current.copyWith(
-          isSubmitting: false,
-          errorMessage: 'The answer could not be confirmed by the server.',
-        ),
-      );
-      unawaited(_startAuthoritativeResync('answer confirmation timed out'));
-    });
+    _answerRequestTimer = Timer(
+      ref.read(suddenDeathConfirmationTimeoutProvider),
+      () {
+        if (_disposed) return;
+        final current = state.valueOrNull;
+        if (current == null ||
+            !current.isSubmitting ||
+            current.currentQuestion?.id.toLowerCase() !=
+                questionId.toLowerCase()) {
+          return;
+        }
+        state = AsyncValue.data(
+          current.copyWith(
+            isSubmitting: false,
+            errorMessage: 'The answer could not be confirmed by the server.',
+          ),
+        );
+        unawaited(_startAuthoritativeResync('answer confirmation timed out'));
+      },
+    );
   }
 
   /// Abandons an unfinished run.
