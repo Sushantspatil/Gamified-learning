@@ -193,6 +193,7 @@ class SuddenDeathController
   Completer<WsQuestionPayload>? _firstQuestionCompleter;
   Completer<WsQuestionPayload>? _resyncQuestionCompleter;
   Future<void>? _reconnectTask;
+  Future<void>? _resyncTask;
   int _connectionGeneration = 0;
   bool _disposed = false;
 
@@ -229,6 +230,7 @@ class SuddenDeathController
     _firstQuestionCompleter = Completer<WsQuestionPayload>();
     _resyncQuestionCompleter = null;
     _reconnectTask = null;
+    _resyncTask = null;
     _connectionGeneration++;
     _disposed = false;
 
@@ -245,6 +247,7 @@ class SuddenDeathController
       _resyncQuestionCompleter = null;
       _connectionGeneration++;
       _reconnectTask = null;
+      _resyncTask = null;
     });
 
     final storage = ref.read(localStorageServiceProvider);
@@ -653,9 +656,16 @@ class SuddenDeathController
       return false;
     }
 
+    final activeResync = _resyncTask;
+    if (activeResync != null) {
+      await activeResync;
+    }
+
     final datasource = ref.read(suddenDeathDatasourceProvider);
+    final latestBeforeReconnect = state.valueOrNull;
     if (!datasource.isConnected ||
-        current.connectionStatus != SuddenDeathConnectionStatus.connected) {
+        latestBeforeReconnect?.connectionStatus !=
+            SuddenDeathConnectionStatus.connected) {
       await _startReconnect();
     }
 
@@ -679,7 +689,24 @@ class SuddenDeathController
   }
 
   /// Revalidates the same active session when Android returns to foreground.
-  Future<void> resyncAfterResume() async {
+  Future<void> resyncAfterResume() => _startAuthoritativeResync('app resumed');
+
+  Future<void> _startAuthoritativeResync(String reason) {
+    if (_disposed) return Future<void>.value();
+    final existing = _resyncTask;
+    if (existing != null) return existing;
+
+    late final Future<void> task;
+    task = _runAuthoritativeResync(reason).whenComplete(() {
+      if (identical(_resyncTask, task)) {
+        _resyncTask = null;
+      }
+    });
+    _resyncTask = task;
+    return task;
+  }
+
+  Future<void> _runAuthoritativeResync(String reason) async {
     final current = state.valueOrNull;
     if (_disposed ||
         current == null ||
@@ -702,12 +729,12 @@ class SuddenDeathController
       ),
     );
     try {
-      _debugLog('app resumed; requesting authoritative resync');
+      _debugLog('$reason; requesting authoritative resync');
       datasource.joinGame();
       await resync.future.timeout(const Duration(seconds: 5));
     } catch (error, stackTrace) {
       _debugLog(
-        'resume resync failed: $error',
+        '$reason resync failed: $error',
         error: error,
         stackTrace: stackTrace,
       );
@@ -719,13 +746,10 @@ class SuddenDeathController
     }
   }
 
-  /// The visual clock never decides timeout. At zero, it only ensures a lost
-  /// connection starts reconnecting while awaiting the backend verdict.
+  /// The visual clock never decides timeout. At zero it requests an
+  /// authoritative resync, including when a mobile socket is half-open.
   void handleDisplayedTimerExpired() {
-    final datasource = ref.read(suddenDeathDatasourceProvider);
-    if (!datasource.isConnected) {
-      unawaited(_startReconnect());
-    }
+    unawaited(_startAuthoritativeResync('displayed timer reached zero'));
   }
 
   bool _hasCurrentAuthoritativeQuestion(SuddenDeathViewState current) {
@@ -785,6 +809,7 @@ class SuddenDeathController
           errorMessage: 'The add-time request could not be confirmed.',
         ),
       );
+      unawaited(_startAuthoritativeResync('add-time confirmation timed out'));
     });
   }
 
@@ -893,6 +918,7 @@ class SuddenDeathController
           errorMessage: 'The answer could not be confirmed by the server.',
         ),
       );
+      unawaited(_startAuthoritativeResync('answer confirmation timed out'));
     });
   }
 

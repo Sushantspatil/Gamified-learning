@@ -6,6 +6,23 @@ import 'package:skillverse_app/features/quiz/data/datasources/remote/sudden_deat
 import 'package:skillverse_app/features/quiz/data/models/sudden_death_ws_dto.dart';
 
 void main() {
+  test('send on a closed socket emits a reconnectable event', () async {
+    final client = IoSuddenDeathSocketClient();
+    final errorEvent = client.events
+        .where((event) => event is WsErrorEvent)
+        .cast<WsErrorEvent>()
+        .first;
+
+    try {
+      client.send(WsInboundMessage.joinGame(session: 'session-1'));
+
+      final event = await errorEvent.timeout(const Duration(seconds: 1));
+      expect(event.payload.code, 'socket_closed');
+    } finally {
+      await client.dispose();
+    }
+  });
+
   test('server close becomes a reconnectable socket_closed event', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final acceptedSocket = Completer<WebSocket>();

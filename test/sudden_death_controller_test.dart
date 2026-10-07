@@ -480,5 +480,33 @@ void main() {
       expect(current().remainingTimeMs, 19800);
       subscription.close();
     });
+
+    test(
+      'displayed zero requests resync even when socket looks connected',
+      () async {
+        final subscription = await start();
+        final controller = container.read(
+          suddenDeathControllerProvider(request).notifier,
+        );
+
+        controller.handleDisplayedTimerExpired();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          current().connectionStatus,
+          SuddenDeathConnectionStatus.reconnecting,
+        );
+        expect(socket.sentMessages.last.type, 'join_game');
+        expect(socket.sentMessages.last.data['session'], 'session-1');
+
+        socket.emit(WsQuestionEvent(_question(1)));
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          current().connectionStatus,
+          SuddenDeathConnectionStatus.connected,
+        );
+        subscription.close();
+      },
+    );
   });
 }

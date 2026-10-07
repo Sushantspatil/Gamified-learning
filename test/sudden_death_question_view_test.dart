@@ -232,6 +232,7 @@ void main() {
       tester,
       isPreviewMode: false,
       remainingTimeMs: 5000,
+      isLiveConnectionReady: false,
       onAddTime: () => requested = true,
       onPowerUpPreflight: () async {
         preflightChecks++;
@@ -436,17 +437,17 @@ void main() {
   testWidgets('live countdown waits for the server timeout verdict', (
     tester,
   ) async {
-    var timedOutLocally = false;
+    var requestedAuthoritativeResync = false;
     await _pumpSuddenDeathView(
       tester,
       isPreviewMode: false,
       remainingTimeMs: 1000,
-      onTimeout: () => timedOutLocally = true,
+      onTimeout: () => requestedAuthoritativeResync = true,
     );
 
     await tester.pump(const Duration(seconds: 2));
 
-    expect(timedOutLocally, isFalse);
+    expect(requestedAuthoritativeResync, isTrue);
     expect(find.text('00'), findsOneWidget);
     expect(find.text("Time's up"), findsNothing);
   });

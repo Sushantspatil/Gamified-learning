@@ -132,6 +132,16 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
   void send(WsInboundMessage message) {
     if (!isConnected) {
       _debugLog('[SD] send rejected: WebSocket is not open');
+      if (!_eventsController.isClosed) {
+        _eventsController.add(
+          const WsErrorEvent(
+            WsErrorPayload(
+              code: 'socket_closed',
+              message: 'The live game connection is unavailable.',
+            ),
+          ),
+        );
+      }
       return;
     }
 
@@ -139,7 +149,17 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
       final jsonStr = jsonEncode(message.toJson());
       _socket!.add(jsonStr);
     } catch (e) {
+      final socket = _socket;
+      _socket = null;
+      if (socket != null) unawaited(socket.close());
       _debugLog('[SD] send failed: $e', error: e);
+      if (!_eventsController.isClosed) {
+        _eventsController.add(
+          WsErrorEvent(
+            WsErrorPayload(code: 'socket_error', message: e.toString()),
+          ),
+        );
+      }
     }
   }
 

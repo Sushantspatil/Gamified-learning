@@ -251,7 +251,10 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
         _timer?.cancel();
         if (widget.isPreviewMode) {
           _submitTimeout();
-        } else if (!widget.isLiveConnectionReady) {
+        } else {
+          // Revalidate with the backend even when dart:io still reports an
+          // open socket. Mobile TCP connections can be half-open, which would
+          // otherwise leave an authoritative question stuck at 00 forever.
           widget.onTimeout?.call();
         }
         return;
@@ -284,6 +287,12 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
       : _hasSubmitted ||
             widget.isSubmitting ||
             _previewFeedback != SuddenDeathFeedbackState.none;
+
+  /// Keeps answer/result transitions locked while allowing a paid action to
+  /// run its reconnect-and-resync preflight before any purchase is attempted.
+  bool get _arePowerUpsLocked => widget.isLiveMode
+      ? widget.isSubmitting || _isServerAnswerPending
+      : _isInteractionLocked;
 
   String? get _effectiveSelectedOptionId {
     if (!widget.isLiveMode) return _selectedOptionId;
@@ -378,7 +387,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   }
 
   void _addFiveSeconds() {
-    if (_isInteractionLocked ||
+    if (_arePowerUpsLocked ||
         _effectiveAddTimeUsed ||
         widget.isAddTimePending) {
       return;
@@ -417,7 +426,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   Future<void> _skipQuestion() async {
     if (_effectiveSkipUsed || widget.onSkip == null) return;
     if (widget.isLiveMode) {
-      if (_isInteractionLocked) return;
+      if (_arePowerUpsLocked) return;
       widget.onSkip!.call();
       return;
     }
@@ -620,7 +629,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                       animation: _powerUpController,
                       child: GamePowerUpBar(
                         coinBalanceOverride: widget.coins,
-                        isDisabled: isInteractionLocked,
+                        isDisabled: _arePowerUpsLocked,
                         isPreviewMode: widget.isPreviewMode,
                         isDense: constraints.maxWidth < 380,
                         wrapOnCompact: true,
@@ -634,9 +643,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                             isUsed: _effectiveAddTimeUsed,
                             isDisabled:
                                 widget.isAddTimePending ||
-                                (widget.isLiveMode &&
-                                    (widget.onAddTime == null ||
-                                        !widget.isLiveConnectionReady)),
+                                (widget.isLiveMode && widget.onAddTime == null),
                             beforePurchase: widget.isLiveMode
                                 ? widget.onPowerUpPreflight
                                 : null,
@@ -650,10 +657,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                             coinCost: 35,
                             icon: Icons.fast_forward_rounded,
                             isUsed: _effectiveSkipUsed,
-                            isDisabled:
-                                widget.onSkip == null ||
-                                (widget.isLiveMode &&
-                                    !widget.isLiveConnectionReady),
+                            isDisabled: widget.onSkip == null,
                             beforePurchase: widget.isLiveMode
                                 ? widget.onPowerUpPreflight
                                 : null,
