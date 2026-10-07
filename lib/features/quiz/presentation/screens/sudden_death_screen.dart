@@ -21,7 +21,7 @@ import '../widgets/sudden_death_question_view.dart';
 ///
 /// Decoupled from standard quiz screens to provide an isolated game loop,
 /// authoritative WebSocket sync, survival feedback, and dedicated lifecycle.
-class SuddenDeathScreen extends ConsumerWidget {
+class SuddenDeathScreen extends ConsumerStatefulWidget {
   final String topicId;
   final String? subjectId;
   final String? chapterId;
@@ -34,14 +34,45 @@ class SuddenDeathScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final colors = context.themeColors;
-    final request = QuizSessionRequest(
-      topicId: topicId,
+  ConsumerState<SuddenDeathScreen> createState() => _SuddenDeathScreenState();
+}
+
+class _SuddenDeathScreenState extends ConsumerState<SuddenDeathScreen>
+    with WidgetsBindingObserver {
+  late final QuizSessionRequest _request;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _request = QuizSessionRequest(
+      topicId: widget.topicId,
       quizType: QuestionType.suddenDeath,
-      subjectId: subjectId,
-      chapterId: chapterId,
+      subjectId: widget.subjectId,
+      chapterId: widget.chapterId,
     );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    unawaited(
+      ref
+          .read(suddenDeathControllerProvider(_request).notifier)
+          .resyncAfterResume(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    final request = _request;
 
     final suddenAsync = ref.watch(suddenDeathControllerProvider(request));
 
@@ -294,6 +325,9 @@ class SuddenDeathScreen extends ConsumerWidget {
                     externalAddTimeUsed: suddenState.addTimeUsed,
                     isAddTimePending: suddenState.isAddTimePending,
                     externalSkipUsed: suddenState.skipUsed,
+                    isLiveConnectionReady:
+                        suddenState.connectionStatus ==
+                        SuddenDeathConnectionStatus.connected,
                     serverAnswerResult: suddenState.lastAnswerResult,
                     isSubmitting: suddenState.isSubmitting,
                     externalSelectedOptionId: suddenState.selectedOptionId,
@@ -312,6 +346,12 @@ class SuddenDeathScreen extends ConsumerWidget {
                           .read(suddenDeathControllerProvider(request).notifier)
                           .addFiveSeconds(),
                     ),
+                    onPowerUpPreflight: () => ref
+                        .read(suddenDeathControllerProvider(request).notifier)
+                        .ensureLiveConnection(),
+                    onTimeout: () => ref
+                        .read(suddenDeathControllerProvider(request).notifier)
+                        .handleDisplayedTimerExpired(),
                     onSkip: () => ref
                         .read(suddenDeathControllerProvider(request).notifier)
                         .skipQuestion(),

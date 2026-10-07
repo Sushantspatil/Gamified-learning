@@ -21,7 +21,7 @@ class ApiConfig {
   /// The root host URL without the /api/v1 suffix.
   /// Uses http:// for local hosts and https:// for production hosts.
   String get rootUrl {
-    var url = baseUrl;
+    var url = baseUrl.trim().replaceFirst(RegExp(r'/+$'), '');
     if (url.endsWith('/api/v1')) {
       url = url.substring(0, url.length - 7);
     }
@@ -68,6 +68,8 @@ class ApiConfig {
       return const ApiConfig(baseUrl: defaultProductionBaseUrl);
     }
 
+    url = url.replaceFirst(RegExp(r'/+$'), '');
+
     final isLocal = isLocalUrl(url);
 
     if (isLocal) {
@@ -93,9 +95,7 @@ class ApiConfig {
     }
 
     // Ensure it ends with /api/v1
-    if (!url.endsWith('/api/v1')) {
-      url = url.endsWith('/') ? '${url}api/v1' : '$url/api/v1';
-    }
+    if (!url.endsWith('/api/v1')) url = '$url/api/v1';
 
     return ApiConfig(baseUrl: url);
   }

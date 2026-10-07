@@ -20,6 +20,8 @@ class GamePowerUpAction {
   final IconData icon;
   final bool isUsed;
   final bool isDisabled;
+  final Future<bool> Function()? beforePurchase;
+  final bool isPurchaseServerManaged;
   final VoidCallback onUse;
 
   const GamePowerUpAction({
@@ -31,6 +33,8 @@ class GamePowerUpAction {
     required this.onUse,
     this.isUsed = false,
     this.isDisabled = false,
+    this.beforePurchase,
+    this.isPurchaseServerManaged = false,
   });
 }
 
@@ -85,6 +89,14 @@ class _GamePowerUpBarState extends ConsumerState<GamePowerUpBar> {
         ),
       );
       if (confirmed != true || !mounted) return;
+
+      final beforePurchase = action.beforePurchase;
+      if (beforePurchase != null && !await beforePurchase()) return;
+      if (!mounted) return;
+      if (action.isPurchaseServerManaged) {
+        action.onUse();
+        return;
+      }
       setState(() => _isCharging = true);
 
       final overrideCoins = widget.coinBalanceOverride;

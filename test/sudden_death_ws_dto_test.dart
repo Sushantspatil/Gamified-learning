@@ -87,9 +87,7 @@ void main() {
         "hint": "Obligation to pay in future",
         "options": [
           {"option": "a", "text": "Cash"},
-          {"option": "b", "text": "Accounts Payable"},
-          {"option": "c", "text": "Inventory"},
-          {"option": "d", "text": "Building"}
+          {"option": "b", "text": "Accounts Payable"}
         ],
         "time_limit_ms": 15000,
         "remaining_time_ms": 9500,
@@ -107,7 +105,7 @@ void main() {
       expect(payload.prompt, 'Which of the following is a liability?');
       expect(payload.points, 10);
       expect(payload.hint, 'Obligation to pay in future');
-      expect(payload.options.length, 4);
+      expect(payload.options.length, 2);
       expect(payload.options[0].option, 'a');
       expect(payload.options[0].text, 'Cash');
       expect(payload.timeLimitMs, 15000);
@@ -120,7 +118,7 @@ void main() {
       expect(domain, isA<SuddenDeathQuestion>());
       expect(domain.id, 'ACC001');
       expect(domain.topicId, 'accounting');
-      expect(domain.options.length, 4);
+      expect(domain.options.length, 2);
       expect(domain.options[1].id, 'b');
       expect(domain.options[1].text, 'Accounts Payable');
       expect(

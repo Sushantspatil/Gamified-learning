@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../../models/sudden_death_ws_dto.dart';
 
 /// Contract for WebSocket communication in Sudden Death.
@@ -37,18 +39,28 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
   bool get isConnected =>
       _socket != null && _socket!.readyState == WebSocket.open;
 
+  void _debugLog(String message, {Object? error, StackTrace? stackTrace}) {
+    if (!kDebugMode) return;
+    developer.log(
+      message,
+      name: 'SuddenDeathSocket',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+
   @override
   Future<void> connect(Uri uri) async {
     await close();
 
-    developer.log(
-      'Connecting to WebSocket: ${uri.replace(queryParameters: {...uri.queryParameters, if (uri.queryParameters.containsKey('token')) 'token': '***'})}',
-      name: 'SuddenDeathSocket',
+    _debugLog(
+      '[SD] ws connecting: ${uri.replace(queryParameters: {...uri.queryParameters, if (uri.queryParameters.containsKey('token')) 'token': '***'})}',
     );
 
     try {
       final socket = await WebSocket.connect(uri.toString());
       _socket = socket;
+      _debugLog('[SD] ws connected (HTTP 101)');
 
       _subscription = socket.listen(
         (data) {
@@ -62,39 +74,53 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
               _eventsController.add(event);
             }
           } catch (e, st) {
-            developer.log(
-              'Error decoding WebSocket frame: $e',
-              name: 'SuddenDeathSocket',
+            _debugLog(
+              '[SD] invalid WebSocket frame: $e',
               error: e,
               stackTrace: st,
             );
           }
         },
-        onError: (Object error, StackTrace st) {
-          developer.log(
-            'WebSocket stream error: $error',
-            name: 'SuddenDeathSocket',
-            error: error,
-            stackTrace: st,
-          );
-          _eventsController.add(
-            WsErrorEvent(
-              WsErrorPayload(code: 'socket_error', message: error.toString()),
-            ),
-          );
-        },
         onDone: () {
-          developer.log(
-            'WebSocket connection closed by server (code: ${socket.closeCode}, reason: ${socket.closeReason})',
-            name: 'SuddenDeathSocket',
-          );
+          if (identical(_socket, socket)) {
+            _socket = null;
+          }
+          final reason = socket.closeReason?.trim();
+          final detail = reason == null || reason.isEmpty
+              ? 'code ${socket.closeCode ?? 'unknown'}'
+              : 'code ${socket.closeCode ?? 'unknown'}, $reason';
+          _debugLog('[SD] socket disconnected: $detail');
+          if (!_eventsController.isClosed) {
+            _eventsController.add(
+              WsErrorEvent(
+                WsErrorPayload(
+                  code: 'socket_closed',
+                  message: 'The live game connection closed ($detail).',
+                ),
+              ),
+            );
+          }
         },
-        cancelOnError: false,
+        onError: (Object error, StackTrace st) {
+          if (identical(_socket, socket)) {
+            _socket = null;
+          }
+          unawaited(socket.close());
+          _debugLog('[SD] socket error: $error', error: error, stackTrace: st);
+          if (!_eventsController.isClosed) {
+            _eventsController.add(
+              WsErrorEvent(
+                WsErrorPayload(code: 'socket_error', message: error.toString()),
+              ),
+            );
+          }
+        },
+        cancelOnError: true,
       );
     } catch (e, st) {
-      developer.log(
-        'WebSocket connect failed: $e',
-        name: 'SuddenDeathSocket',
+      _socket = null;
+      _debugLog(
+        '[SD] WebSocket handshake failed (${e.runtimeType}): $e',
         error: e,
         stackTrace: st,
       );
@@ -105,10 +131,7 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
   @override
   void send(WsInboundMessage message) {
     if (!isConnected) {
-      developer.log(
-        'Cannot send message: WebSocket is not open',
-        name: 'SuddenDeathSocket',
-      );
+      _debugLog('[SD] send rejected: WebSocket is not open');
       return;
     }
 
@@ -116,11 +139,7 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
       final jsonStr = jsonEncode(message.toJson());
       _socket!.add(jsonStr);
     } catch (e) {
-      developer.log(
-        'Failed to send WebSocket message: $e',
-        name: 'SuddenDeathSocket',
-        error: e,
-      );
+      _debugLog('[SD] send failed: $e', error: e);
     }
   }
 

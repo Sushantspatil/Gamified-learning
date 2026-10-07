@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:developer' as developer;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/app_exception.dart';
@@ -25,8 +28,19 @@ enum SuddenDeathStatus {
   error,
 }
 
+enum SuddenDeathConnectionStatus {
+  idle,
+  connecting,
+  connected,
+  reconnecting,
+  disconnected,
+  failed,
+  gameOver,
+}
+
 class SuddenDeathViewState {
   final SuddenDeathStatus status;
+  final SuddenDeathConnectionStatus connectionStatus;
   final String? sessionId;
   final List<SuddenDeathQuestion> questions;
   final WsQuestionPayload? questionPayload;
@@ -52,6 +66,7 @@ class SuddenDeathViewState {
 
   const SuddenDeathViewState({
     this.status = SuddenDeathStatus.initial,
+    this.connectionStatus = SuddenDeathConnectionStatus.idle,
     this.sessionId,
     this.questions = const [],
     this.questionPayload,
@@ -78,6 +93,7 @@ class SuddenDeathViewState {
 
   SuddenDeathViewState copyWith({
     SuddenDeathStatus? status,
+    SuddenDeathConnectionStatus? connectionStatus,
     String? sessionId,
     List<SuddenDeathQuestion>? questions,
     WsQuestionPayload? questionPayload,
@@ -106,6 +122,7 @@ class SuddenDeathViewState {
   }) {
     return SuddenDeathViewState(
       status: status ?? this.status,
+      connectionStatus: connectionStatus ?? this.connectionStatus,
       sessionId: sessionId ?? this.sessionId,
       questions: questions ?? this.questions,
       questionPayload: questionPayload ?? this.questionPayload,
@@ -175,7 +192,32 @@ class SuddenDeathController
   Timer? _answerRequestTimer;
   Completer<WsQuestionPayload>? _firstQuestionCompleter;
   Completer<WsQuestionPayload>? _resyncQuestionCompleter;
+  Future<void>? _reconnectTask;
+  int _connectionGeneration = 0;
   bool _disposed = false;
+
+  static const _reconnectDelays = <Duration>[
+    Duration.zero,
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+    Duration(seconds: 4),
+    Duration(seconds: 8),
+  ];
+
+  void _debugLog(String message, {Object? error, StackTrace? stackTrace}) {
+    if (!kDebugMode) return;
+    developer.log(
+      '[SD] $message',
+      name: 'SuddenDeathController',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+
+  String _maskedSessionId(String sessionId) {
+    if (sessionId.length <= 8) return sessionId;
+    return '${sessionId.substring(0, 4)}...${sessionId.substring(sessionId.length - 4)}';
+  }
 
   @override
   Future<SuddenDeathViewState> build(QuizSessionRequest request) async {
@@ -186,6 +228,8 @@ class SuddenDeathController
     _answerRequestTimer = null;
     _firstQuestionCompleter = Completer<WsQuestionPayload>();
     _resyncQuestionCompleter = null;
+    _reconnectTask = null;
+    _connectionGeneration++;
     _disposed = false;
 
     final ds = ref.read(suddenDeathDatasourceProvider);
@@ -199,6 +243,8 @@ class SuddenDeathController
       _eventsSub?.cancel();
       _eventsSub = null;
       _resyncQuestionCompleter = null;
+      _connectionGeneration++;
+      _reconnectTask = null;
     });
 
     final storage = ref.read(localStorageServiceProvider);
@@ -215,6 +261,7 @@ class SuddenDeathController
         topicId: request.topicId,
         questionCount: 10,
       );
+      _debugLog('session created: ${_maskedSessionId(sessionId)}');
 
       // Subscribe before connecting because AttachPlayer immediately emits the
       // server-authoritative active question.
@@ -241,6 +288,7 @@ class SuddenDeathController
 
       return SuddenDeathViewState(
         status: SuddenDeathStatus.questionActive,
+        connectionStatus: SuddenDeathConnectionStatus.connected,
         sessionId: sessionId,
         questions: [firstQuestion],
         questionPayload: firstPayload,
@@ -255,11 +303,13 @@ class SuddenDeathController
     } on AppException catch (e) {
       return SuddenDeathViewState(
         status: SuddenDeathStatus.error,
+        connectionStatus: SuddenDeathConnectionStatus.failed,
         errorMessage: e.message,
       );
     } catch (e) {
       return SuddenDeathViewState(
         status: SuddenDeathStatus.error,
+        connectionStatus: SuddenDeathConnectionStatus.failed,
         errorMessage: 'Failed to start Sudden Death session: $e',
       );
     }
@@ -268,6 +318,10 @@ class SuddenDeathController
   void _onServerEvent(WsServerEvent event) {
     switch (event) {
       case WsQuestionEvent(:final payload):
+        _debugLog(
+          'question received: ${payload.question} '
+          '(remaining_time_ms=${payload.remainingTimeMs})',
+        );
         final firstQuestion = _firstQuestionCompleter;
         if (firstQuestion != null && !firstQuestion.isCompleted) {
           firstQuestion.complete(payload);
@@ -297,6 +351,9 @@ class SuddenDeathController
         final isSameQuestion =
             current.currentQuestion?.id.toLowerCase() ==
             payload.question.toLowerCase();
+        final serverAcceptedPaidPowerUp =
+            (!current.addTimeUsed && payload.addTimeUsed) ||
+            (!current.skipUsed && payload.skipUsed);
         final questions =
             current.questions.any(
               (item) => item.id.toLowerCase() == payload.question.toLowerCase(),
@@ -314,6 +371,7 @@ class SuddenDeathController
         state = AsyncValue.data(
           current.copyWith(
             status: SuddenDeathStatus.questionActive,
+            connectionStatus: SuddenDeathConnectionStatus.connected,
             questions: questions,
             questionPayload: payload,
             currentQuestion: question,
@@ -335,7 +393,11 @@ class SuddenDeathController
         );
         final resync = _resyncQuestionCompleter;
         if (resync != null && !resync.isCompleted) {
+          _debugLog('resync complete');
           resync.complete(payload);
+        }
+        if (serverAcceptedPaidPowerUp) {
+          ref.invalidate(walletControllerProvider);
         }
       case WsPowerUpResultEvent(:final payload):
         final current = state.valueOrNull;
@@ -353,6 +415,10 @@ class SuddenDeathController
               isAddTimePending: false,
             ),
           );
+          _debugLog(
+            '+5 confirmed: remaining_time_ms=${payload.remainingTimeMs}',
+          );
+          ref.invalidate(walletControllerProvider);
         }
       case WsAnswerResultEvent(:final payload):
         final current = state.valueOrNull;
@@ -384,9 +450,22 @@ class SuddenDeathController
             clearSelectedOptionId: payload.isSkipped || payload.isTimeout,
           ),
         );
+        _debugLog('answer_result received: ${payload.question}');
+        if (payload.isSkipped) {
+          ref.invalidate(walletControllerProvider);
+        }
       case WsGameOverEvent(:final payload):
         final current = state.valueOrNull;
         if (current != null && current.status != SuddenDeathStatus.gameOver) {
+          final resync = _resyncQuestionCompleter;
+          if (resync != null && !resync.isCompleted) {
+            resync.completeError(
+              const ServerException(
+                'The Sudden Death session has ended.',
+                'session_ended',
+              ),
+            );
+          }
           final authUser = ref.read(authControllerProvider).valueOrNull;
           final result = payload.toQuizResult(
             sessionId: current.sessionId ?? 'session-${arg.topicId}',
@@ -406,13 +485,27 @@ class SuddenDeathController
           state = AsyncValue.data(
             current.copyWith(
               status: SuddenDeathStatus.gameOver,
+              connectionStatus: SuddenDeathConnectionStatus.gameOver,
               result: result,
               isSubmitting: false,
               isAddTimePending: false,
             ),
           );
+          _debugLog('game_over');
         }
       case WsErrorEvent(:final payload):
+        if (payload.code == 'socket_error' || payload.code == 'socket_closed') {
+          _debugLog('socket disconnected: ${payload.message}');
+          final firstQuestion = _firstQuestionCompleter;
+          if (firstQuestion != null && !firstQuestion.isCompleted) {
+            firstQuestion.completeError(
+              ServerException(payload.message, payload.code),
+            );
+            return;
+          }
+          unawaited(_startReconnect());
+          return;
+        }
         final firstQuestion = _firstQuestionCompleter;
         if (firstQuestion != null && !firstQuestion.isCompleted) {
           firstQuestion.completeError(
@@ -445,35 +538,56 @@ class SuddenDeathController
     }
   }
 
-  /// Requests the server to extend the active question deadline by five
-  /// seconds. The displayed countdown changes only after power_up_result.
-  Future<void> addFiveSeconds() async {
-    final current = state.valueOrNull;
-    if (current == null ||
-        current.status != SuddenDeathStatus.questionActive ||
-        current.isSubmitting ||
-        current.isAddTimePending ||
-        current.addTimeUsed ||
-        current.currentQuestion == null) {
+  Future<void> _startReconnect() {
+    if (_disposed) return Future<void>.value();
+    final existing = _reconnectTask;
+    if (existing != null) return existing;
+
+    late final Future<void> task;
+    task = _runReconnect().whenComplete(() {
+      if (identical(_reconnectTask, task)) {
+        _reconnectTask = null;
+      }
+    });
+    _reconnectTask = task;
+    return task;
+  }
+
+  Future<void> _runReconnect() async {
+    final initial = state.valueOrNull;
+    final sessionId = initial?.sessionId;
+    if (initial == null ||
+        sessionId == null ||
+        sessionId.isEmpty ||
+        initial.status == SuddenDeathStatus.gameOver ||
+        initial.status == SuddenDeathStatus.error) {
       return;
     }
 
-    state = AsyncValue.data(current.copyWith(isAddTimePending: true));
-
+    final generation = _connectionGeneration;
     final datasource = ref.read(suddenDeathDatasourceProvider);
-    if (!datasource.isConnected) {
-      final sessionId = current.sessionId;
-      if (sessionId == null || sessionId.isEmpty) {
-        state = AsyncValue.data(
-          current.copyWith(
-            errorMessage:
-                'Unable to add time without an active live game session.',
-          ),
-        );
+    state = AsyncValue.data(
+      initial.copyWith(
+        connectionStatus: SuddenDeathConnectionStatus.reconnecting,
+        isAddTimePending: false,
+        isSubmitting: false,
+      ),
+    );
+
+    for (var attempt = 0; attempt < _reconnectDelays.length; attempt++) {
+      if (_disposed || generation != _connectionGeneration) return;
+      final delay = _reconnectDelays[attempt];
+      if (delay > Duration.zero) await Future<void>.delayed(delay);
+      if (_disposed || generation != _connectionGeneration) return;
+
+      final current = state.valueOrNull;
+      if (current == null || current.status == SuddenDeathStatus.gameOver) {
         return;
       }
+
       final resync = Completer<WsQuestionPayload>();
       _resyncQuestionCompleter = resync;
+      _debugLog('reconnecting (attempt ${attempt + 1})');
       try {
         await datasource.connect(sessionId: sessionId);
         await resync.future.timeout(
@@ -483,19 +597,33 @@ class SuddenDeathController
             'sudden-death-resync-timeout',
           ),
         );
-      } catch (_) {
-        if (_disposed) return;
-        final latest = state.valueOrNull;
-        if (latest != null) {
+        if (_disposed || generation != _connectionGeneration) return;
+        final synchronized = state.valueOrNull;
+        if (synchronized != null &&
+            synchronized.status != SuddenDeathStatus.gameOver) {
           state = AsyncValue.data(
-            latest.copyWith(
-              isAddTimePending: false,
-              errorMessage:
-                  'Unable to add time while the live game connection is unavailable.',
+            synchronized.copyWith(
+              connectionStatus: SuddenDeathConnectionStatus.connected,
+              clearErrorMessage: true,
             ),
           );
         }
         return;
+      } catch (error, stackTrace) {
+        _debugLog(
+          'reconnect attempt ${attempt + 1} failed: $error',
+          error: error,
+          stackTrace: stackTrace,
+        );
+        final latest = state.valueOrNull;
+        if (latest == null || latest.status == SuddenDeathStatus.gameOver) {
+          return;
+        }
+        state = AsyncValue.data(
+          latest.copyWith(
+            connectionStatus: SuddenDeathConnectionStatus.disconnected,
+          ),
+        );
       } finally {
         if (identical(_resyncQuestionCompleter, resync)) {
           _resyncQuestionCompleter = null;
@@ -503,16 +631,149 @@ class SuddenDeathController
       }
     }
 
+    if (_disposed || generation != _connectionGeneration) return;
+    final latest = state.valueOrNull;
+    if (latest != null && latest.status != SuddenDeathStatus.gameOver) {
+      state = AsyncValue.data(
+        latest.copyWith(
+          connectionStatus: SuddenDeathConnectionStatus.failed,
+          errorMessage: 'The live game connection is unavailable.',
+        ),
+      );
+    }
+  }
+
+  /// Confirms the socket is connected and the displayed question has been
+  /// authoritatively resynchronized before a paid action may debit the wallet.
+  Future<bool> ensureLiveConnection() async {
+    final current = state.valueOrNull;
+    if (current == null ||
+        current.status != SuddenDeathStatus.questionActive ||
+        current.currentQuestion == null) {
+      return false;
+    }
+
+    final datasource = ref.read(suddenDeathDatasourceProvider);
+    if (!datasource.isConnected ||
+        current.connectionStatus != SuddenDeathConnectionStatus.connected) {
+      await _startReconnect();
+    }
+
+    if (_disposed) return false;
+    final synchronized = state.valueOrNull;
+    final isReady =
+        datasource.isConnected &&
+        synchronized?.connectionStatus ==
+            SuddenDeathConnectionStatus.connected &&
+        synchronized?.status == SuddenDeathStatus.questionActive &&
+        synchronized?.currentQuestion?.id.toLowerCase() ==
+            current.currentQuestion?.id.toLowerCase();
+    if (!isReady && synchronized != null) {
+      state = AsyncValue.data(
+        synchronized.copyWith(
+          errorMessage: 'The live game connection is unavailable.',
+        ),
+      );
+    }
+    return isReady;
+  }
+
+  /// Revalidates the same active session when Android returns to foreground.
+  Future<void> resyncAfterResume() async {
+    final current = state.valueOrNull;
+    if (_disposed ||
+        current == null ||
+        current.status != SuddenDeathStatus.questionActive ||
+        current.sessionId == null) {
+      return;
+    }
+
+    final datasource = ref.read(suddenDeathDatasourceProvider);
+    if (!datasource.isConnected) {
+      await _startReconnect();
+      return;
+    }
+
+    final resync = Completer<WsQuestionPayload>();
+    _resyncQuestionCompleter = resync;
+    state = AsyncValue.data(
+      current.copyWith(
+        connectionStatus: SuddenDeathConnectionStatus.reconnecting,
+      ),
+    );
+    try {
+      _debugLog('app resumed; requesting authoritative resync');
+      datasource.joinGame();
+      await resync.future.timeout(const Duration(seconds: 5));
+    } catch (error, stackTrace) {
+      _debugLog(
+        'resume resync failed: $error',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await _startReconnect();
+    } finally {
+      if (identical(_resyncQuestionCompleter, resync)) {
+        _resyncQuestionCompleter = null;
+      }
+    }
+  }
+
+  /// The visual clock never decides timeout. At zero, it only ensures a lost
+  /// connection starts reconnecting while awaiting the backend verdict.
+  void handleDisplayedTimerExpired() {
+    final datasource = ref.read(suddenDeathDatasourceProvider);
+    if (!datasource.isConnected) {
+      unawaited(_startReconnect());
+    }
+  }
+
+  bool _hasCurrentAuthoritativeQuestion(SuddenDeathViewState current) {
+    final questionId = current.currentQuestion?.id.toLowerCase();
+    final authoritativeId = current.questionPayload?.question.toLowerCase();
+    final matches =
+        questionId != null &&
+        authoritativeId != null &&
+        questionId == authoritativeId;
+    assert(
+      matches,
+      'Displayed Sudden Death question must match the latest server frame.',
+    );
+    return matches;
+  }
+
+  /// Requests the server to extend the active question deadline by five
+  /// seconds. The displayed countdown changes only after power_up_result.
+  Future<void> addFiveSeconds() async {
+    final current = state.valueOrNull;
+    if (current == null ||
+        current.status != SuddenDeathStatus.questionActive ||
+        current.isSubmitting ||
+        current.isAddTimePending ||
+        current.addTimeUsed ||
+        current.currentQuestion == null ||
+        !_hasCurrentAuthoritativeQuestion(current)) {
+      return;
+    }
+
+    final datasource = ref.read(suddenDeathDatasourceProvider);
+    if (!await ensureLiveConnection()) return;
+
     if (_disposed) return;
     final latest = state.valueOrNull;
     if (latest == null ||
         latest.status != SuddenDeathStatus.questionActive ||
-        latest.currentQuestion?.id != current.currentQuestion?.id ||
-        !latest.isAddTimePending) {
+        latest.currentQuestion?.id.toLowerCase() !=
+            current.currentQuestion?.id.toLowerCase() ||
+        latest.addTimeUsed) {
       return;
     }
 
-    datasource.addTime(question: current.currentQuestion!.id);
+    state = AsyncValue.data(
+      latest.copyWith(isAddTimePending: true, clearErrorMessage: true),
+    );
+    datasource.addTime(question: latest.currentQuestion!.id);
+    _debugLog('+5 request sent');
     _addTimeRequestTimer?.cancel();
     _addTimeRequestTimer = Timer(const Duration(seconds: 5), () {
       if (_disposed) return;
@@ -537,7 +798,8 @@ class SuddenDeathController
     if (current == null ||
         current.status != SuddenDeathStatus.questionActive ||
         current.isSubmitting ||
-        current.currentQuestion == null) {
+        current.currentQuestion == null ||
+        !_hasCurrentAuthoritativeQuestion(current)) {
       return;
     }
 
@@ -552,9 +814,11 @@ class SuddenDeathController
     if (!datasource.isConnected) {
       state = AsyncValue.data(
         current.copyWith(
+          connectionStatus: SuddenDeathConnectionStatus.disconnected,
           errorMessage: 'The live game connection is unavailable.',
         ),
       );
+      unawaited(_startReconnect());
       return;
     }
 
@@ -574,6 +838,7 @@ class SuddenDeathController
       selectedText: selected.first.text,
       timeTakenMs: elapsedMs,
     );
+    _debugLog('answer sent: ${question.id}');
     _startAnswerConfirmationTimer(question.id);
   }
 
@@ -585,7 +850,8 @@ class SuddenDeathController
         current.skipUsed ||
         current.status != SuddenDeathStatus.questionActive ||
         current.isSubmitting ||
-        current.currentQuestion == null) {
+        current.currentQuestion == null ||
+        !_hasCurrentAuthoritativeQuestion(current)) {
       return;
     }
 
@@ -593,9 +859,11 @@ class SuddenDeathController
     if (!datasource.isConnected) {
       state = AsyncValue.data(
         current.copyWith(
+          connectionStatus: SuddenDeathConnectionStatus.disconnected,
           errorMessage: 'The live game connection is unavailable.',
         ),
       );
+      unawaited(_startReconnect());
       return;
     }
 
@@ -604,6 +872,7 @@ class SuddenDeathController
       current.copyWith(isSubmitting: true, clearErrorMessage: true),
     );
     datasource.skipQuestion(question: questionId);
+    _debugLog('skip request sent: $questionId');
     _startAnswerConfirmationTimer(questionId);
   }
 
@@ -629,6 +898,7 @@ class SuddenDeathController
 
   /// Abandons an unfinished run.
   Future<void> abandon() async {
+    _connectionGeneration++;
     _answerRequestTimer?.cancel();
     _addTimeRequestTimer?.cancel();
     final ds = ref.read(suddenDeathDatasourceProvider);

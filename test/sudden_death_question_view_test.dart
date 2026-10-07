@@ -45,10 +45,12 @@ Widget _buildSuddenDeathView({
   VoidCallback? onSkip,
   VoidCallback? onTimeout,
   VoidCallback? onAddTime,
+  Future<bool> Function()? onPowerUpPreflight,
   bool isPreviewMode = true,
   int? remainingTimeMs,
   bool externalAddTimeUsed = false,
   bool isAddTimePending = false,
+  bool isLiveConnectionReady = true,
   String? externalSelectedOptionId,
   WsAnswerResultPayload? serverAnswerResult,
 }) {
@@ -73,9 +75,11 @@ Widget _buildSuddenDeathView({
           onSkip: onSkip,
           onTimeout: onTimeout,
           onAddTime: onAddTime,
+          onPowerUpPreflight: onPowerUpPreflight,
           remainingTimeMs: remainingTimeMs,
           externalAddTimeUsed: externalAddTimeUsed,
           isAddTimePending: isAddTimePending,
+          isLiveConnectionReady: isLiveConnectionReady,
           externalSelectedOptionId: externalSelectedOptionId,
           serverAnswerResult: serverAnswerResult,
         ),
@@ -94,10 +98,12 @@ Future<void> _pumpSuddenDeathView(
   VoidCallback? onSkip,
   VoidCallback? onTimeout,
   VoidCallback? onAddTime,
+  Future<bool> Function()? onPowerUpPreflight,
   bool isPreviewMode = true,
   int? remainingTimeMs,
   bool externalAddTimeUsed = false,
   bool isAddTimePending = false,
+  bool isLiveConnectionReady = true,
   String? externalSelectedOptionId,
   WsAnswerResultPayload? serverAnswerResult,
 }) async {
@@ -111,10 +117,12 @@ Future<void> _pumpSuddenDeathView(
       onSkip: onSkip,
       onTimeout: onTimeout,
       onAddTime: onAddTime,
+      onPowerUpPreflight: onPowerUpPreflight,
       isPreviewMode: isPreviewMode,
       remainingTimeMs: remainingTimeMs,
       externalAddTimeUsed: externalAddTimeUsed,
       isAddTimePending: isAddTimePending,
+      isLiveConnectionReady: isLiveConnectionReady,
       externalSelectedOptionId: externalSelectedOptionId,
       serverAnswerResult: serverAnswerResult,
     ),
@@ -213,6 +221,29 @@ void main() {
     expect(find.text('09'), findsOneWidget);
     expect(find.text('+5 seconds activated'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 800));
+  });
+
+  testWidgets('failed live preflight stops +5 before the paid action', (
+    tester,
+  ) async {
+    var requested = false;
+    var preflightChecks = 0;
+    await _pumpSuddenDeathView(
+      tester,
+      isPreviewMode: false,
+      remainingTimeMs: 5000,
+      onAddTime: () => requested = true,
+      onPowerUpPreflight: () async {
+        preflightChecks++;
+        return false;
+      },
+    );
+
+    await _buyPowerUp(tester, '+5 Seconds');
+
+    expect(preflightChecks, 1);
+    expect(requested, isFalse);
+    expect(find.byKey(const Key('sudden-power-up-feedback')), findsNothing);
   });
 
   testWidgets('skip stays neutral and does not submit a correct answer', (

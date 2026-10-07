@@ -100,6 +100,14 @@ void main() {
       expect(config.gameWsUrl, 'wss://custom-backend.up.railway.app/ws/game');
     });
 
+    test('trailing slash cannot duplicate the API path in socket URL', () {
+      final config = ApiConfig.defaultConfig(
+        customBaseUrl: 'https://custom-backend.up.railway.app/api/v1/',
+      );
+      expect(config.baseUrl, 'https://custom-backend.up.railway.app/api/v1');
+      expect(config.gameWsUrl, 'wss://custom-backend.up.railway.app/ws/game');
+    });
+
     test('remote customBaseUrl with http is upgraded to https and wss', () {
       final config = ApiConfig.defaultConfig(
         customBaseUrl: 'http://custom-backend.up.railway.app/api/v1',

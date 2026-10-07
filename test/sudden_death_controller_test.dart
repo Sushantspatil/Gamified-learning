@@ -51,8 +51,6 @@ WsQuestionPayload _question(
   options: const [
     WsOptionPayload(option: 'a', text: 'A'),
     WsOptionPayload(option: 'b', text: 'B'),
-    WsOptionPayload(option: 'c', text: 'C'),
-    WsOptionPayload(option: 'd', text: 'D'),
   ],
   timeLimitMs: 15000,
   remainingTimeMs: addTimeUsed ? 19800 : 15000,
@@ -83,6 +81,7 @@ class _FakeSuddenDeathSocketClient implements SuddenDeathSocketClient {
   final StreamController<WsServerEvent> _events =
       StreamController<WsServerEvent>.broadcast();
   bool _connected = false;
+  int connectCount = 0;
   WsQuestionPayload questionOnConnect = _question(1);
   final List<WsInboundMessage> sentMessages = [];
 
@@ -92,6 +91,7 @@ class _FakeSuddenDeathSocketClient implements SuddenDeathSocketClient {
   bool get isConnected => _connected;
   @override
   Future<void> connect(Uri uri) async {
+    connectCount++;
     _connected = true;
     scheduleMicrotask(() => _events.add(WsQuestionEvent(questionOnConnect)));
   }
@@ -104,6 +104,15 @@ class _FakeSuddenDeathSocketClient implements SuddenDeathSocketClient {
   }
 
   void emit(WsServerEvent event) => _events.add(event);
+  void disconnectUnexpectedly() {
+    _connected = false;
+    _events.add(
+      const WsErrorEvent(
+        WsErrorPayload(code: 'socket_closed', message: 'connection dropped'),
+      ),
+    );
+  }
+
   Future<void> dispose() => _events.close();
 }
 
@@ -405,6 +414,70 @@ void main() {
         socket.sentMessages.where((message) => message.type == 'use_power_up'),
         isEmpty,
       );
+      subscription.close();
+    });
+
+    test(
+      'socket drop reconnects the same session and requires resync',
+      () async {
+        final subscription = await start();
+        expect(
+          current().connectionStatus,
+          SuddenDeathConnectionStatus.connected,
+        );
+        expect(socket.connectCount, 1);
+
+        socket.questionOnConnect = _question(1, addTimeUsed: true);
+        socket.disconnectUnexpectedly();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(socket.connectCount, 2);
+        expect(current().sessionId, 'session-1');
+        expect(
+          current().connectionStatus,
+          SuddenDeathConnectionStatus.connected,
+        );
+        expect(current().currentQuestion?.id, 'q-1');
+        expect(current().remainingTimeMs, 19800);
+        expect(current().addTimeUsed, isTrue);
+        subscription.close();
+      },
+    );
+
+    test('paid action preflight reconnects before allowing debit', () async {
+      final subscription = await start();
+      await socket.close();
+      socket.questionOnConnect = _question(1);
+      final controller = container.read(
+        suddenDeathControllerProvider(request).notifier,
+      );
+
+      expect(await controller.ensureLiveConnection(), isTrue);
+      expect(socket.connectCount, 2);
+      expect(current().connectionStatus, SuddenDeathConnectionStatus.connected);
+      expect(socket.sentMessages, isEmpty);
+      subscription.close();
+    });
+
+    test('app resume requests and waits for authoritative resync', () async {
+      final subscription = await start();
+      final controller = container.read(
+        suddenDeathControllerProvider(request).notifier,
+      );
+
+      final resume = controller.resyncAfterResume();
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        current().connectionStatus,
+        SuddenDeathConnectionStatus.reconnecting,
+      );
+      expect(socket.sentMessages.last.type, 'join_game');
+      expect(socket.sentMessages.last.data['session'], 'session-1');
+
+      socket.emit(WsQuestionEvent(_question(1, addTimeUsed: true)));
+      await resume;
+      expect(current().connectionStatus, SuddenDeathConnectionStatus.connected);
+      expect(current().remainingTimeMs, 19800);
       subscription.close();
     });
   });

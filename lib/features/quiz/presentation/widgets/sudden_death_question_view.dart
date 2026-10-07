@@ -48,6 +48,7 @@ class SuddenDeathQuestionView extends StatefulWidget {
   final VoidCallback? onSkip;
   final VoidCallback? onTimeout;
   final VoidCallback? onAddTime;
+  final Future<bool> Function()? onPowerUpPreflight;
   final Duration? remainingTime;
   final SuddenDeathFeedbackState feedback;
   final bool isSubmitting;
@@ -66,6 +67,7 @@ class SuddenDeathQuestionView extends StatefulWidget {
   final bool externalAddTimeUsed;
   final bool isAddTimePending;
   final bool externalSkipUsed;
+  final bool isLiveConnectionReady;
 
   /// Option id the server has recorded for this question, if any.
   final String? externalSelectedOptionId;
@@ -89,6 +91,7 @@ class SuddenDeathQuestionView extends StatefulWidget {
     this.onSkip,
     this.onTimeout,
     this.onAddTime,
+    this.onPowerUpPreflight,
     this.remainingTime,
     this.feedback = SuddenDeathFeedbackState.none,
     this.isSubmitting = false,
@@ -97,6 +100,7 @@ class SuddenDeathQuestionView extends StatefulWidget {
     this.externalAddTimeUsed = false,
     this.isAddTimePending = false,
     this.externalSkipUsed = false,
+    this.isLiveConnectionReady = true,
     this.externalSelectedOptionId,
     this.serverAnswerResult,
   });
@@ -239,7 +243,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted || _isInteractionLocked) return;
+      if (!mounted || widget.isSubmitting || _isServerAnswerPending) return;
 
       final nextRemaining = _remainingTime - const Duration(seconds: 1);
       if (nextRemaining <= Duration.zero) {
@@ -247,6 +251,8 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
         _timer?.cancel();
         if (widget.isPreviewMode) {
           _submitTimeout();
+        } else if (!widget.isLiveConnectionReady) {
+          widget.onTimeout?.call();
         }
         return;
       }
@@ -272,7 +278,9 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   }
 
   bool get _isInteractionLocked => widget.isLiveMode
-      ? widget.isSubmitting || _isServerAnswerPending
+      ? widget.isSubmitting ||
+            _isServerAnswerPending ||
+            !widget.isLiveConnectionReady
       : _hasSubmitted ||
             widget.isSubmitting ||
             _previewFeedback != SuddenDeathFeedbackState.none;
@@ -626,7 +634,13 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                             isUsed: _effectiveAddTimeUsed,
                             isDisabled:
                                 widget.isAddTimePending ||
-                                (widget.isLiveMode && widget.onAddTime == null),
+                                (widget.isLiveMode &&
+                                    (widget.onAddTime == null ||
+                                        !widget.isLiveConnectionReady)),
+                            beforePurchase: widget.isLiveMode
+                                ? widget.onPowerUpPreflight
+                                : null,
+                            isPurchaseServerManaged: widget.isLiveMode,
                             onUse: _addFiveSeconds,
                           ),
                           GamePowerUpAction(
@@ -636,7 +650,14 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
                             coinCost: 35,
                             icon: Icons.fast_forward_rounded,
                             isUsed: _effectiveSkipUsed,
-                            isDisabled: widget.onSkip == null,
+                            isDisabled:
+                                widget.onSkip == null ||
+                                (widget.isLiveMode &&
+                                    !widget.isLiveConnectionReady),
+                            beforePurchase: widget.isLiveMode
+                                ? widget.onPowerUpPreflight
+                                : null,
+                            isPurchaseServerManaged: widget.isLiveMode,
                             onUse: _skipQuestion,
                           ),
                         ],

@@ -344,7 +344,7 @@ void main() {
         );
         expect(qEvent.payload.question, isNotEmpty);
         expect(qEvent.payload.prompt, isNotEmpty);
-        expect(qEvent.payload.options.length, greaterThanOrEqualTo(2));
+        expect(qEvent.payload.options.length, 2);
         expect(qEvent.payload.remainingTimeMs, greaterThan(0));
 
         // 5. Extend the authoritative backend deadline.
