@@ -162,27 +162,25 @@ class SuddenDeathViewState {
 }
 
 final suddenDeathSocketClientProvider =
-    Provider.autoDispose<SuddenDeathSocketClient>((ref) {
+    Provider<SuddenDeathSocketClient>((ref) {
       final client = IoSuddenDeathSocketClient();
-      ref.onDispose(client.close);
+      ref.onDispose(client.dispose);
       return client;
     });
 
 final suddenDeathDatasourceProvider =
-    Provider.autoDispose<SuddenDeathRemoteDatasource>((ref) {
+    Provider<SuddenDeathRemoteDatasource>((ref) {
       final apiClient = ref.watch(apiClientProvider);
       final storage = ref.watch(localStorageServiceProvider);
       final apiConfig = ref.watch(apiConfigProvider);
       final socketClient = ref.watch(suddenDeathSocketClientProvider);
 
-      final ds = SuddenDeathRemoteDatasource(
+      return SuddenDeathRemoteDatasource(
         apiClient: apiClient,
         storage: storage,
         apiConfig: apiConfig,
         socketClient: socketClient,
       );
-      ref.onDispose(ds.disconnect);
-      return ds;
     });
 
 class SuddenDeathController
@@ -191,6 +189,7 @@ class SuddenDeathController
           SuddenDeathViewState,
           QuizSessionRequest
         > {
+  late SuddenDeathRemoteDatasource _datasource;
   StreamSubscription<WsServerEvent>? _eventsSub;
   late DateTime _startedAt;
   DateTime? _questionDisplayedAt;
@@ -250,7 +249,8 @@ class SuddenDeathController
     _connectionGeneration++;
     _disposed = false;
 
-    final ds = ref.read(suddenDeathDatasourceProvider);
+    _datasource = ref.read(suddenDeathDatasourceProvider);
+    final ds = _datasource;
     final apiConfig = ref.read(apiConfigProvider);
     final restUri = Uri.parse(apiConfig.baseUrl);
     final wsUri = Uri.parse(apiConfig.gameWsUrl);
@@ -271,6 +271,7 @@ class SuddenDeathController
       _connectionGeneration++;
       _reconnectTask = null;
       _resyncTask = null;
+      unawaited(ds.disconnect());
     });
 
     final storage = ref.read(localStorageServiceProvider);
@@ -345,7 +346,8 @@ class SuddenDeathController
     switch (event) {
       case WsQuestionEvent(:final payload):
         _debugLog(
-          'question received: ${payload.question} '
+          'incoming frame type: question; '
+          '[SD] question frame received: ${payload.question} '
           '(remaining_time_ms=${payload.remainingTimeMs})',
         );
         final firstQuestion = _firstQuestionCompleter;
@@ -452,6 +454,8 @@ class SuddenDeathController
           ref.invalidate(walletControllerProvider);
         }
       case WsAnswerResultEvent(:final payload):
+        _debugLog('incoming frame type: answer_result');
+        _debugLog('answer_result parsed: ${payload.question}');
         final current = state.valueOrNull;
         if (current == null ||
             current.status == SuddenDeathStatus.gameOver ||
@@ -481,12 +485,15 @@ class SuddenDeathController
             clearSelectedOptionId: payload.isSkipped || payload.isTimeout,
           ),
         );
-        _debugLog('answer_result received: ${payload.question}');
         if (payload.isSkipped) {
           _debugLog('skip confirmed: ${payload.question}');
           ref.invalidate(walletControllerProvider);
         }
       case WsGameOverEvent(:final payload):
+        _debugLog('incoming frame type: game_over');
+        _debugLog(
+          'game_over parsed: finalScore=${payload.finalScore}, endReason=${payload.endReason}',
+        );
         final current = state.valueOrNull;
         if (current != null && current.status != SuddenDeathStatus.gameOver) {
           final resync = _resyncQuestionCompleter;
@@ -526,8 +533,18 @@ class SuddenDeathController
           _debugLog('game_over');
         }
       case WsErrorEvent(:final payload):
-        _debugLog('server error ${payload.code}: ${payload.message}');
+        _debugLog('backend error code: ${payload.code}');
+        _debugLog('backend error message: ${payload.message}');
+        if (payload.code == 'socket_closed_normal') {
+          _debugLog('socket closed normally');
+          return;
+        }
         if (payload.code == 'socket_error' || payload.code == 'socket_closed') {
+          final current = state.valueOrNull;
+          if (current?.status == SuddenDeathStatus.gameOver) {
+            _debugLog('socket closed after game over: ${payload.message}');
+            return;
+          }
           _debugLog('socket disconnected: ${payload.message}');
           final firstQuestion = _firstQuestionCompleter;
           if (firstQuestion != null && !firstQuestion.isCompleted) {
@@ -618,7 +635,7 @@ class SuddenDeathController
     }
 
     final generation = _connectionGeneration;
-    final datasource = ref.read(suddenDeathDatasourceProvider);
+    final datasource = _datasource;
     state = AsyncValue.data(
       initial.copyWith(
         connectionStatus: SuddenDeathConnectionStatus.reconnecting,
@@ -711,7 +728,7 @@ class SuddenDeathController
       await activeResync;
     }
 
-    final datasource = ref.read(suddenDeathDatasourceProvider);
+    final datasource = _datasource;
     final latestBeforeReconnect = state.valueOrNull;
     if (!datasource.isConnected ||
         latestBeforeReconnect?.connectionStatus !=
@@ -768,7 +785,7 @@ class SuddenDeathController
       return;
     }
 
-    final datasource = ref.read(suddenDeathDatasourceProvider);
+    final datasource = _datasource;
     if (!datasource.isConnected) {
       await _startReconnect();
       return;
@@ -802,6 +819,12 @@ class SuddenDeathController
   /// The visual clock never decides timeout. At zero it requests an
   /// authoritative resync, including when a mobile socket is half-open.
   void handleDisplayedTimerExpired() {
+    final current = state.valueOrNull;
+    if (current == null ||
+        current.status == SuddenDeathStatus.gameOver ||
+        current.isSubmitting) {
+      return;
+    }
     unawaited(_startAuthoritativeResync('displayed timer reached zero'));
   }
 
@@ -833,7 +856,7 @@ class SuddenDeathController
       return;
     }
 
-    final datasource = ref.read(suddenDeathDatasourceProvider);
+    final datasource = _datasource;
     if (!await ensureLiveConnection()) return;
 
     if (_disposed) return;
@@ -891,14 +914,11 @@ class SuddenDeathController
     );
     if (selected.isEmpty) return;
 
-    _debugLog(
-      'displayed question=${question.id}; '
-      'authoritative question=${current.questionPayload?.question}; '
-      'selected option=$normalizedOption',
-    );
+    _debugLog('option selected: $normalizedOption');
+    _debugLog('displayed question: ${question.id}');
+    _debugLog('socket state before send: ${_datasource.isConnected ? "open" : "closed"}');
 
-    final datasource = ref.read(suddenDeathDatasourceProvider);
-    if (!datasource.isConnected) {
+    if (!_datasource.isConnected) {
       state = AsyncValue.data(
         current.copyWith(
           connectionStatus: SuddenDeathConnectionStatus.disconnected,
@@ -919,7 +939,8 @@ class SuddenDeathController
         clearErrorMessage: true,
       ),
     );
-    datasource.submitAnswer(
+    _debugLog('submit_answer sending: ${question.id}');
+    _datasource.submitAnswer(
       question: question.id,
       option: normalizedOption,
       selectedText: selected.first.text,
@@ -942,8 +963,7 @@ class SuddenDeathController
       return;
     }
 
-    final datasource = ref.read(suddenDeathDatasourceProvider);
-    if (!datasource.isConnected) {
+    if (!_datasource.isConnected) {
       state = AsyncValue.data(
         current.copyWith(
           connectionStatus: SuddenDeathConnectionStatus.disconnected,
@@ -954,13 +974,22 @@ class SuddenDeathController
       return;
     }
 
-    final questionId = current.currentQuestion!.id;
+    final question = current.currentQuestion!;
+    final elapsedMs = _questionDisplayedAt == null
+        ? 0
+        : DateTime.now().difference(_questionDisplayedAt!).inMilliseconds;
+
+    _debugLog('option selected: skip');
+    _debugLog('displayed question: ${question.id}');
+    _debugLog('socket state before send: ${_datasource.isConnected ? "open" : "closed"}');
+
     state = AsyncValue.data(
       current.copyWith(isSubmitting: true, clearErrorMessage: true),
     );
-    datasource.skipQuestion(question: questionId);
-    _debugLog('skip requested: $questionId');
-    _startAnswerConfirmationTimer(questionId);
+    _debugLog('submit_answer sending (skip): ${question.id}');
+    _datasource.skipQuestion(question: question.id, timeTakenMs: elapsedMs);
+    _debugLog('submit_answer sent (skip): ${question.id}');
+    _startAnswerConfirmationTimer(question.id);
   }
 
   void _startAnswerConfirmationTimer(String questionId) {
@@ -992,7 +1021,7 @@ class SuddenDeathController
     _connectionGeneration++;
     _answerRequestTimer?.cancel();
     _addTimeRequestTimer?.cancel();
-    final ds = ref.read(suddenDeathDatasourceProvider);
+    final ds = _datasource;
     final current = state.valueOrNull;
     if (current?.result == null && current?.sessionId != null) {
       await ds.abandonSession(sessionId: current?.sessionId);

@@ -88,6 +88,7 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
           if (identical(_socket, socket)) {
             _socket = null;
           }
+          final isNormal = socket.closeCode == WebSocketStatus.normalClosure;
           final reason = socket.closeReason?.trim();
           final detail = reason == null || reason.isEmpty
               ? 'code ${socket.closeCode ?? 'unknown'}'
@@ -97,7 +98,7 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
             _eventsController.add(
               WsErrorEvent(
                 WsErrorPayload(
-                  code: 'socket_closed',
+                  code: isNormal ? 'socket_closed_normal' : 'socket_closed',
                   message: 'The live game connection closed ($detail).',
                 ),
               ),

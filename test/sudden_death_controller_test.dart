@@ -452,7 +452,7 @@ void main() {
       expect(current().currentIndex, 0);
       expect(current().skipUsed, isFalse);
       expect(current().isSubmitting, isTrue);
-      expect(socket.sentMessages.single.data['power_up'], 'skip');
+      expect(socket.sentMessages.single.data['option'], 'skip');
       expect(socket.sentMessages.single.data['question'], 'q-1');
 
       await emit(

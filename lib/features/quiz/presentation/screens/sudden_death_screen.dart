@@ -10,7 +10,6 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../questions/domain/entities/question.dart';
-import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../providers/quiz_providers.dart';
 import '../providers/sudden_death_providers.dart';
@@ -253,7 +252,8 @@ class _SuddenDeathScreenState extends ConsumerState<SuddenDeathScreen>
               );
             }
 
-            if (suddenState.isSubmitting && suddenState.result == null) {
+            if (suddenState.status == SuddenDeathStatus.gameOver &&
+                suddenState.result == null) {
               return Center(
                 child: Padding(
                   padding: AppSpacing.paddingLg,
@@ -293,16 +293,6 @@ class _SuddenDeathScreenState extends ConsumerState<SuddenDeathScreen>
               return const Center(child: CircularProgressIndicator());
             }
 
-            final appStreak =
-                ref
-                    .watch(streakControllerProvider)
-                    .valueOrNull
-                    ?.currentStreak ??
-                0;
-            final bestStreak = appStreak > suddenState.currentStreak
-                ? appStreak
-                : suddenState.currentStreak;
-
             final wallet = ref.watch(walletControllerProvider).valueOrNull;
 
             return Column(
@@ -318,7 +308,7 @@ class _SuddenDeathScreenState extends ConsumerState<SuddenDeathScreen>
                     currentIndex: suddenState.currentIndex,
                     totalQuestions: suddenState.totalQuestions,
                     currentStreak: suddenState.currentStreak,
-                    bestStreak: bestStreak,
+                    bestStreak: suddenState.bestStreak,
                     energy: wallet?.gems ?? 0,
                     coins: wallet?.coins ?? 0,
                     remainingTimeMs: suddenState.remainingTimeMs,

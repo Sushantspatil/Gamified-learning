@@ -230,13 +230,11 @@ class SuddenDeathRemoteDatasource {
   }
 
   /// Requests the backend-owned Skip transition for the active question.
-  void skipQuestion({required String question}) {
-    _socketClient.send(
-      WsInboundMessage.usePowerUp(
-        question: question,
-        powerUp: 'skip',
-        session: _activeSessionId,
-      ),
+  void skipQuestion({required String question, int timeTakenMs = 0}) {
+    submitAnswer(
+      question: question,
+      option: 'skip',
+      timeTakenMs: timeTakenMs,
     );
   }
 
