@@ -42,7 +42,7 @@ class _FakeLocalStorage implements LocalStorageService {
 
 WsQuestionPayload _question(
   int number, {
-  bool addTimeUsed = false,
+  bool? addTimeUsed,
   bool skipUsed = false,
 }) => WsQuestionPayload(
   question: 'q-$number',
@@ -53,7 +53,7 @@ WsQuestionPayload _question(
     WsOptionPayload(option: 'b', text: 'B'),
   ],
   timeLimitMs: 15000,
-  remainingTimeMs: addTimeUsed ? 19800 : 15000,
+  remainingTimeMs: addTimeUsed == true ? 19800 : 15000,
   addTimeUsed: addTimeUsed,
   skipUsed: skipUsed,
   questionNumber: number,
@@ -280,13 +280,14 @@ void main() {
             newLevel: 1,
             didLevelUp: false,
             gameMode: 'sudden_death',
-            endReason: 'eliminated',
+            endReason: 'wrong_answer',
             endedEarly: true,
           ),
         ),
       );
       expect(current().status, SuddenDeathStatus.gameOver);
       expect(current().result?.endedEarly, isTrue);
+      expect(current().result?.endReason, 'wrong_answer');
       subscription.close();
     });
 
@@ -332,6 +333,131 @@ void main() {
       expect(current().remainingTimeMs, 9600);
       subscription.close();
     });
+
+    test('updated game_over fields survive controller mapping', () async {
+      final subscription = await start();
+      final event = WsServerEvent.fromJson(
+        jsonDecode('''
+          {
+            "type": "game_over",
+            "data": {
+              "final_score": 115,
+              "total_questions": 10,
+              "correct_count": 10,
+              "skipped_count": 0,
+              "best_streak": 10,
+              "xp_earned": 90,
+              "coins_earned": 44,
+              "gems_earned": 3,
+              "new_level": 2,
+              "did_level_up": true,
+              "level_up_reward": {"coins": 50, "xp": 0, "gems": 1},
+              "game_mode": "sudden_death",
+              "end_reason": "completed",
+              "completed_successfully": true,
+              "ended_early": false
+            }
+          }
+        ''')
+            as Map<String, dynamic>,
+      );
+
+      await emit(event);
+
+      final result = current().result;
+      expect(current().status, SuddenDeathStatus.gameOver);
+      expect(result?.score.earnedPoints, 115);
+      expect(result?.score.maxPoints, 0);
+      expect(result?.skippedCount, 0);
+      expect(result?.streakCount, 10);
+      expect(result?.xpAwarded, 90);
+      expect(result?.coinsAwarded, 44);
+      expect(result?.gemsAwarded, 3);
+      expect(result?.endReason, 'completed');
+      expect(result?.completedSuccessfully, isTrue);
+      expect(result?.endedEarly, isFalse);
+      expect(result?.rewardBreakdown.levelUp, hasLength(3));
+      subscription.close();
+    });
+
+    test(
+      'confirmed add time remains used when the next question omits the flag',
+      () async {
+        final subscription = await start();
+        final controller = container.read(
+          suddenDeathControllerProvider(request).notifier,
+        );
+
+        await controller.addFiveSeconds();
+        await emit(
+          const WsPowerUpResultEvent(
+            WsPowerUpResultPayload(
+              question: 'q-1',
+              powerUp: 'add_time',
+              addedTimeMs: 5000,
+              remainingTimeMs: 9600,
+            ),
+          ),
+        );
+        await emit(WsAnswerResultEvent(_answerResult(1)));
+        await emit(WsQuestionEvent(_question(2)));
+
+        expect(current().addTimeUsed, isTrue);
+        final requestsBeforeRetry = socket.sentMessages
+            .where((message) => message.type == 'use_power_up')
+            .length;
+        await controller.addFiveSeconds();
+        expect(
+          socket.sentMessages
+              .where((message) => message.type == 'use_power_up')
+              .length,
+          requestsBeforeRetry,
+        );
+        subscription.close();
+      },
+    );
+
+    test(
+      'power_up_already_used marks add time used without retrying',
+      () async {
+        final subscription = await start();
+        final controller = container.read(
+          suddenDeathControllerProvider(request).notifier,
+        );
+
+        await controller.addFiveSeconds();
+        await emit(
+          const WsErrorEvent(
+            WsErrorPayload(
+              code: 'power_up_already_used',
+              message: 'add_time power-up has already been used',
+            ),
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(current().addTimeUsed, isTrue);
+        expect(current().isAddTimePending, isFalse);
+        expect(current().errorMessage, contains('already been used'));
+        expect(socket.sentMessages.last.type, 'join_game');
+
+        socket.emit(WsQuestionEvent(_question(1)));
+        await Future<void>.delayed(Duration.zero);
+        expect(current().addTimeUsed, isTrue);
+
+        final addTimeRequests = socket.sentMessages
+            .where((message) => message.type == 'use_power_up')
+            .length;
+        await controller.addFiveSeconds();
+        expect(
+          socket.sentMessages
+              .where((message) => message.type == 'use_power_up')
+              .length,
+          addTimeRequests,
+        );
+        subscription.close();
+      },
+    );
 
     test('failed or stale add time never changes displayed time', () async {
       final subscription = await start();
@@ -517,13 +643,14 @@ void main() {
               newLevel: 1,
               didLevelUp: false,
               gameMode: 'sudden_death',
-              endReason: 'eliminated',
+              endReason: 'timeout',
               endedEarly: true,
             ),
           ),
         );
         expect(current().status, SuddenDeathStatus.gameOver);
         expect(current().result?.endedEarly, isTrue);
+        expect(current().result?.endReason, 'timeout');
         subscription.close();
       },
     );
@@ -550,13 +677,45 @@ void main() {
             newLevel: 1,
             didLevelUp: false,
             gameMode: 'sudden_death',
-            endReason: 'cleared',
+            endReason: 'completed',
+            completedSuccessfully: true,
             endedEarly: false,
           ),
         ),
       );
       expect(current().status, SuddenDeathStatus.gameOver);
       expect(current().result?.endedEarly, isFalse);
+      expect(current().result?.endReason, 'completed');
+      subscription.close();
+    });
+
+    test('abandoned game_over reaches the result state', () async {
+      final subscription = await start();
+
+      await emit(
+        const WsGameOverEvent(
+          WsGameOverPayload(
+            finalScore: 0,
+            totalQuestions: 10,
+            correctCount: 0,
+            skippedCount: 0,
+            bestStreak: 0,
+            coinsEarned: 0,
+            xpEarned: 0,
+            gemsEarned: 0,
+            newLevel: 1,
+            didLevelUp: false,
+            gameMode: 'sudden_death',
+            endReason: 'abandoned',
+            completedSuccessfully: false,
+            endedEarly: true,
+          ),
+        ),
+      );
+
+      expect(current().status, SuddenDeathStatus.gameOver);
+      expect(current().result?.endReason, 'abandoned');
+      expect(current().result?.completedSuccessfully, isFalse);
       subscription.close();
     });
 
@@ -578,6 +737,38 @@ void main() {
       );
       subscription.close();
     });
+
+    test(
+      'reconnect preserves confirmed add time when resync omits the flag',
+      () async {
+        final subscription = await start();
+        final controller = container.read(
+          suddenDeathControllerProvider(request).notifier,
+        );
+        await controller.addFiveSeconds();
+        await emit(
+          const WsPowerUpResultEvent(
+            WsPowerUpResultPayload(
+              question: 'q-1',
+              powerUp: 'add_time',
+              addedTimeMs: 5000,
+              remainingTimeMs: 9600,
+            ),
+          ),
+        );
+
+        socket.questionOnConnect = _question(1);
+        socket.disconnectUnexpectedly();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+
+        expect(
+          current().connectionStatus,
+          SuddenDeathConnectionStatus.connected,
+        );
+        expect(current().addTimeUsed, isTrue);
+        subscription.close();
+      },
+    );
 
     test(
       'socket drop reconnects the same session and requires resync',
@@ -700,5 +891,31 @@ void main() {
         subscription.close();
       },
     );
+
+    test('session_not_active terminates without a reconnect loop', () async {
+      final subscription = await start();
+      final controller = container.read(
+        suddenDeathControllerProvider(request).notifier,
+      );
+      await controller.addFiveSeconds();
+
+      await emit(
+        const WsErrorEvent(
+          WsErrorPayload(
+            code: 'session_not_active',
+            message: 'session has finished or been abandoned',
+          ),
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(current().status, SuddenDeathStatus.error);
+      expect(current().connectionStatus, SuddenDeathConnectionStatus.gameOver);
+      expect(current().isSubmitting, isFalse);
+      expect(current().isAddTimePending, isFalse);
+      expect(current().errorMessage, contains('finished or been abandoned'));
+      expect(socket.connectCount, 1);
+      subscription.close();
+    });
   });
 }

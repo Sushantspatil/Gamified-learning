@@ -161,27 +161,29 @@ class SuddenDeathViewState {
   }
 }
 
-final suddenDeathSocketClientProvider =
-    Provider<SuddenDeathSocketClient>((ref) {
-      final client = IoSuddenDeathSocketClient();
-      ref.onDispose(client.dispose);
-      return client;
-    });
+final suddenDeathSocketClientProvider = Provider<SuddenDeathSocketClient>((
+  ref,
+) {
+  final client = IoSuddenDeathSocketClient();
+  ref.onDispose(client.dispose);
+  return client;
+});
 
-final suddenDeathDatasourceProvider =
-    Provider<SuddenDeathRemoteDatasource>((ref) {
-      final apiClient = ref.watch(apiClientProvider);
-      final storage = ref.watch(localStorageServiceProvider);
-      final apiConfig = ref.watch(apiConfigProvider);
-      final socketClient = ref.watch(suddenDeathSocketClientProvider);
+final suddenDeathDatasourceProvider = Provider<SuddenDeathRemoteDatasource>((
+  ref,
+) {
+  final apiClient = ref.watch(apiClientProvider);
+  final storage = ref.watch(localStorageServiceProvider);
+  final apiConfig = ref.watch(apiConfigProvider);
+  final socketClient = ref.watch(suddenDeathSocketClientProvider);
 
-      return SuddenDeathRemoteDatasource(
-        apiClient: apiClient,
-        storage: storage,
-        apiConfig: apiConfig,
-        socketClient: socketClient,
-      );
-    });
+  return SuddenDeathRemoteDatasource(
+    apiClient: apiClient,
+    storage: storage,
+    apiConfig: apiConfig,
+    socketClient: socketClient,
+  );
+});
 
 class SuddenDeathController
     extends
@@ -217,7 +219,6 @@ class SuddenDeathController
     'stale_session',
     'question_ended',
     'question_timed_out',
-    'session_not_active',
   };
 
   void _debugLog(String message, {Object? error, StackTrace? stackTrace}) {
@@ -324,7 +325,7 @@ class SuddenDeathController
         totalQuestions: firstPayload.totalQuestions,
         remainingTimeMs: firstPayload.remainingTimeMs,
         timeLimitMs: firstPayload.timeLimitMs,
-        addTimeUsed: firstPayload.addTimeUsed,
+        addTimeUsed: firstPayload.addTimeUsed ?? false,
         skipUsed: firstPayload.skipUsed,
       );
     } on AppException catch (e) {
@@ -379,8 +380,9 @@ class SuddenDeathController
         final isSameQuestion =
             current.currentQuestion?.id.toLowerCase() ==
             payload.question.toLowerCase();
+        final mergedAddTimeUsed = payload.addTimeUsed ?? current.addTimeUsed;
         final serverAcceptedPaidPowerUp =
-            (!current.addTimeUsed && payload.addTimeUsed) ||
+            (!current.addTimeUsed && payload.addTimeUsed == true) ||
             (!current.skipUsed && payload.skipUsed);
         final questions =
             current.questions.any(
@@ -391,7 +393,7 @@ class SuddenDeathController
 
         _answerRequestTimer?.cancel();
         _answerRequestTimer = null;
-        if (payload.addTimeUsed) {
+        if (payload.addTimeUsed == true) {
           _addTimeRequestTimer?.cancel();
           _addTimeRequestTimer = null;
         }
@@ -413,8 +415,10 @@ class SuddenDeathController
             remainingTimeMs: payload.remainingTimeMs,
             timeLimitMs: payload.timeLimitMs,
             hiddenOptionIds: const {},
-            addTimeUsed: payload.addTimeUsed,
-            isAddTimePending: isSameQuestion && !payload.addTimeUsed
+            addTimeUsed: mergedAddTimeUsed,
+            isAddTimePending: mergedAddTimeUsed
+                ? false
+                : isSameQuestion
                 ? current.isAddTimePending
                 : false,
             skipUsed: payload.skipUsed,
@@ -567,6 +571,30 @@ class SuddenDeathController
         if (resync != null && !resync.isCompleted) {
           resync.completeError(ServerException(payload.message, payload.code));
         }
+        if (payload.code == 'session_not_active') {
+          _handleSessionNotActive(payload.message);
+          return;
+        }
+        if (payload.code == 'power_up_already_used') {
+          final current = state.valueOrNull;
+          if (current != null && current.isAddTimePending) {
+            _addTimeRequestTimer?.cancel();
+            _addTimeRequestTimer = null;
+            state = AsyncValue.data(
+              current.copyWith(
+                addTimeUsed: true,
+                isAddTimePending: false,
+                errorMessage: payload.message,
+              ),
+            );
+            unawaited(
+              _startAuthoritativeResync(
+                'server reported add-time already used',
+              ),
+            );
+            return;
+          }
+        }
         if (_authoritativeResyncErrorCodes.contains(payload.code)) {
           final current = state.valueOrNull;
           if (current != null) {
@@ -606,6 +634,30 @@ class SuddenDeathController
       default:
         break;
     }
+  }
+
+  void _handleSessionNotActive(String message) {
+    final current = state.valueOrNull;
+    if (current == null || current.status == SuddenDeathStatus.gameOver) return;
+
+    _connectionGeneration++;
+    _answerRequestTimer?.cancel();
+    _answerRequestTimer = null;
+    _addTimeRequestTimer?.cancel();
+    _addTimeRequestTimer = null;
+    _resyncQuestionCompleter = null;
+    state = AsyncValue.data(
+      current.copyWith(
+        status: SuddenDeathStatus.error,
+        connectionStatus: SuddenDeathConnectionStatus.gameOver,
+        isSubmitting: false,
+        isAddTimePending: false,
+        errorMessage: message.trim().isEmpty
+            ? 'This Sudden Death session is no longer active.'
+            : message,
+      ),
+    );
+    unawaited(_datasource.disconnect());
   }
 
   Future<void> _startReconnect() {
@@ -916,7 +968,9 @@ class SuddenDeathController
 
     _debugLog('option selected: $normalizedOption');
     _debugLog('displayed question: ${question.id}');
-    _debugLog('socket state before send: ${_datasource.isConnected ? "open" : "closed"}');
+    _debugLog(
+      'socket state before send: ${_datasource.isConnected ? "open" : "closed"}',
+    );
 
     if (!_datasource.isConnected) {
       state = AsyncValue.data(
@@ -981,7 +1035,9 @@ class SuddenDeathController
 
     _debugLog('option selected: skip');
     _debugLog('displayed question: ${question.id}');
-    _debugLog('socket state before send: ${_datasource.isConnected ? "open" : "closed"}');
+    _debugLog(
+      'socket state before send: ${_datasource.isConnected ? "open" : "closed"}',
+    );
 
     state = AsyncValue.data(
       current.copyWith(isSubmitting: true, clearErrorMessage: true),

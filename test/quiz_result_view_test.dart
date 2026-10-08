@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skillverse_app/app/theme/app_theme.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
+import 'package:skillverse_app/features/quiz/data/models/sudden_death_ws_dto.dart';
 import 'package:skillverse_app/features/quiz/domain/entities/quiz_result.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/quiz_result_view.dart';
 
@@ -104,6 +105,41 @@ void main() {
     expect(find.text('+50 Coins'), findsOneWidget);
     expect(find.text('+1 Gems'), findsOneWidget);
   });
+
+  testWidgets(
+    'renders authoritative Sudden Death totals without a fake maximum',
+    (tester) async {
+      const payload = WsGameOverPayload(
+        finalScore: 115,
+        totalQuestions: 10,
+        correctCount: 10,
+        skippedCount: 0,
+        bestStreak: 10,
+        coinsEarned: 44,
+        xpEarned: 90,
+        gemsEarned: 3,
+        newLevel: 2,
+        didLevelUp: false,
+        gameMode: 'sudden_death',
+        endReason: 'completed',
+        completedSuccessfully: true,
+        endedEarly: false,
+      );
+      final result = payload.toQuizResult(
+        sessionId: 'sudden-death-session',
+        topicId: 'accounting',
+        startedAt: DateTime(2026),
+        completedAt: DateTime(2026),
+      );
+
+      await _pumpResult(tester, result);
+
+      expect(find.text('115'), findsOneWidget);
+      expect(find.text('115 / 100'), findsNothing);
+      expect(find.text('+90 XP'), findsWidgets);
+      expect(find.text('+44 Coins'), findsWidgets);
+    },
+  );
 }
 
 Future<void> _pumpResult(WidgetTester tester, QuizResult result) async {
