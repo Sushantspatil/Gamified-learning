@@ -82,7 +82,10 @@ class WsQuestionPayload {
   final List<WsOptionPayload> options;
   final int timeLimitMs;
   final int remainingTimeMs;
-  final bool addTimeUsed;
+
+  /// Null means the server omitted the session-wide usage flag. Callers must
+  /// preserve the usage state they already observed in that case.
+  final bool? addTimeUsed;
   final bool skipUsed;
   final int questionNumber;
   final int totalQuestions;
@@ -95,7 +98,7 @@ class WsQuestionPayload {
     required this.options,
     required this.timeLimitMs,
     required this.remainingTimeMs,
-    this.addTimeUsed = false,
+    this.addTimeUsed,
     this.skipUsed = false,
     required this.questionNumber,
     required this.totalQuestions,
@@ -113,7 +116,7 @@ class WsQuestionPayload {
           .toList(growable: false),
       timeLimitMs: (json['time_limit_ms'] as num?)?.toInt() ?? 15000,
       remainingTimeMs: (json['remaining_time_ms'] as num?)?.toInt() ?? 15000,
-      addTimeUsed: json['add_time_used'] as bool? ?? false,
+      addTimeUsed: json['add_time_used'] as bool?,
       skipUsed: json['skip_used'] as bool? ?? false,
       questionNumber: (json['question_number'] as num?)?.toInt() ?? 1,
       totalQuestions: (json['total_questions'] as num?)?.toInt() ?? 10,
@@ -128,7 +131,7 @@ class WsQuestionPayload {
     'options': options.map((o) => o.toJson()).toList(),
     'time_limit_ms': timeLimitMs,
     'remaining_time_ms': remainingTimeMs,
-    'add_time_used': addTimeUsed,
+    if (addTimeUsed != null) 'add_time_used': addTimeUsed,
     'skip_used': skipUsed,
     'question_number': questionNumber,
     'total_questions': totalQuestions,
@@ -270,6 +273,8 @@ class WsGameOverPayload {
   final int finalScore;
   final int totalQuestions;
   final int correctCount;
+  final int? skippedCount;
+  final int? bestStreak;
   final int coinsEarned;
   final int xpEarned;
   final int gemsEarned;
@@ -287,11 +292,14 @@ class WsGameOverPayload {
   /// answered". Null when talking to a server that predates the field, in
   /// which case callers fall back to a score-based heuristic.
   final bool? endedEarly;
+  final bool? completedSuccessfully;
 
   const WsGameOverPayload({
     required this.finalScore,
     required this.totalQuestions,
     required this.correctCount,
+    this.skippedCount,
+    this.bestStreak,
     required this.coinsEarned,
     required this.xpEarned,
     required this.gemsEarned,
@@ -301,13 +309,18 @@ class WsGameOverPayload {
     this.gameMode = 'mcq',
     this.endReason = '',
     this.endedEarly,
+    this.completedSuccessfully,
   });
 
   /// True when the player was knocked out rather than completing the set.
   ///
   /// Prefers the server's verdict; falls back to comparing answered questions
   /// only when the field is absent.
-  bool get wasEliminated => endedEarly ?? (correctCount < totalQuestions);
+  bool get wasEliminated =>
+      endedEarly ??
+      (completedSuccessfully != null
+          ? !completedSuccessfully!
+          : correctCount < totalQuestions);
 
   /// True when the player survived every question in the set.
   bool get wasCleared => !wasEliminated;
@@ -318,6 +331,8 @@ class WsGameOverPayload {
       finalScore: (json['final_score'] as num?)?.toInt() ?? 0,
       totalQuestions: (json['total_questions'] as num?)?.toInt() ?? 0,
       correctCount: (json['correct_count'] as num?)?.toInt() ?? 0,
+      skippedCount: (json['skipped_count'] as num?)?.toInt(),
+      bestStreak: (json['best_streak'] as num?)?.toInt(),
       coinsEarned: (json['coins_earned'] as num?)?.toInt() ?? 0,
       xpEarned: (json['xp_earned'] as num?)?.toInt() ?? 0,
       gemsEarned: (json['gems_earned'] as num?)?.toInt() ?? 0,
@@ -329,6 +344,7 @@ class WsGameOverPayload {
       gameMode: json['game_mode'] as String? ?? 'mcq',
       endReason: json['end_reason'] as String? ?? '',
       endedEarly: json['ended_early'] as bool?,
+      completedSuccessfully: json['completed_successfully'] as bool?,
     );
   }
 
@@ -336,6 +352,8 @@ class WsGameOverPayload {
     'final_score': finalScore,
     'total_questions': totalQuestions,
     'correct_count': correctCount,
+    if (skippedCount != null) 'skipped_count': skippedCount,
+    if (bestStreak != null) 'best_streak': bestStreak,
     'coins_earned': coinsEarned,
     'xp_earned': xpEarned,
     'gems_earned': gemsEarned,
@@ -345,6 +363,8 @@ class WsGameOverPayload {
     'game_mode': gameMode,
     'end_reason': endReason,
     if (endedEarly != null) 'ended_early': endedEarly,
+    if (completedSuccessfully != null)
+      'completed_successfully': completedSuccessfully,
   };
 
   /// Constructs the domain [QuizResult] from this authoritative game-over frame.
@@ -357,7 +377,7 @@ class WsGameOverPayload {
     required DateTime startedAt,
     required DateTime completedAt,
   }) {
-    final maxScore = totalQuestions * 10;
+    final levelReward = levelUpReward;
     return QuizResult(
       sessionId: sessionId,
       userId: userId,
@@ -367,7 +387,10 @@ class WsGameOverPayload {
       quizType: QuestionType.suddenDeath,
       score: Score(
         earnedPoints: finalScore,
-        maxPoints: maxScore,
+        // The backend does not currently send an authoritative Sudden Death
+        // maximum. Omitting the denominator avoids presenting streak-inclusive
+        // scores such as 115 as "115 / 100" without duplicating scoring rules.
+        maxPoints: 0,
         correctCount: correctCount,
         totalCount: totalQuestions,
       ),
@@ -376,7 +399,10 @@ class WsGameOverPayload {
       // MCQ run can finish with fewer correct answers than total questions
       // without ever having been eliminated.
       endedEarly: wasEliminated,
-      streakCount: correctCount,
+      completedSuccessfully: completedSuccessfully,
+      endReason: endReason.isEmpty ? null : endReason,
+      skippedCount: skippedCount ?? 0,
+      streakCount: bestStreak ?? correctCount,
       xpAwarded: xpEarned,
       coinsAwarded: coinsEarned,
       gemsAwarded: gemsEarned,
@@ -387,6 +413,22 @@ class WsGameOverPayload {
         ],
         xp: [RewardBreakdownItem(key: 'xp_earned', amount: xpEarned)],
         coins: [RewardBreakdownItem(key: 'coins_earned', amount: coinsEarned)],
+        levelUp: levelReward == null
+            ? const []
+            : [
+                RewardBreakdownItem(
+                  key: 'level_up_bonus_coins',
+                  amount: levelReward.coins,
+                ),
+                RewardBreakdownItem(
+                  key: 'level_up_bonus_xp',
+                  amount: levelReward.xp,
+                ),
+                RewardBreakdownItem(
+                  key: 'level_up_bonus_gems',
+                  amount: levelReward.gems,
+                ),
+              ],
       ),
       levelProgress: QuizLevelProgress(
         currentLevel: newLevel,

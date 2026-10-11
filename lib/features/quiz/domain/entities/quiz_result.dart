@@ -93,6 +93,9 @@ class QuizResult extends Equatable {
   final Score score;
   final List<QuestionAnswerRecord> records;
   final bool endedEarly;
+  final bool? completedSuccessfully;
+  final String? endReason;
+  final int skippedCount;
   final int streakCount;
   final int xpAwarded;
   final int coinsAwarded;
@@ -113,6 +116,9 @@ class QuizResult extends Equatable {
     required this.score,
     required this.records,
     required this.endedEarly,
+    this.completedSuccessfully,
+    this.endReason,
+    this.skippedCount = 0,
     required this.streakCount,
     this.xpAwarded = 0,
     this.coinsAwarded = 0,
@@ -139,6 +145,9 @@ class QuizResult extends Equatable {
     score,
     records,
     endedEarly,
+    completedSuccessfully,
+    endReason,
+    skippedCount,
     streakCount,
     xpAwarded,
     coinsAwarded,

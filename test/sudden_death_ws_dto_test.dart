@@ -127,6 +127,23 @@ void main() {
       ); // Correct option hidden server-side
     });
 
+    test('WsQuestionPayload preserves add_time_used field presence', () {
+      final omitted = WsQuestionPayload.fromJson({
+        'question': 'ACC001',
+        'options': <Map<String, dynamic>>[],
+      });
+      final explicitFalse = WsQuestionPayload.fromJson({
+        'question': 'ACC001',
+        'options': <Map<String, dynamic>>[],
+        'add_time_used': false,
+      });
+
+      expect(omitted.addTimeUsed, isNull);
+      expect(omitted.toJson(), isNot(contains('add_time_used')));
+      expect(explicitFalse.addTimeUsed, isFalse);
+      expect(explicitFalse.toJson()['add_time_used'], isFalse);
+    });
+
     test('WsAnswerResultPayload deserialization for correct answer', () {
       const rawJson = '''
       {
@@ -276,6 +293,59 @@ void main() {
       expect(result.gemsAwarded, 1);
       expect(result.didLevelUp, isTrue);
       expect(result.quizType, QuestionType.suddenDeath);
+      expect(result.rewardBreakdown.levelUp, hasLength(3));
+    });
+
+    test('updated game_over contract survives DTO and domain conversion', () {
+      final event = WsServerEvent.fromJson(
+        jsonDecode('''
+          {
+            "type": "game_over",
+            "data": {
+              "final_score": 115,
+              "total_questions": 10,
+              "correct_count": 10,
+              "skipped_count": 0,
+              "best_streak": 10,
+              "xp_earned": 90,
+              "coins_earned": 44,
+              "gems_earned": 3,
+              "new_level": 2,
+              "did_level_up": true,
+              "game_mode": "sudden_death",
+              "end_reason": "completed",
+              "completed_successfully": true,
+              "ended_early": false
+            }
+          }
+        ''')
+            as Map<String, dynamic>,
+      );
+
+      expect(event, isA<WsGameOverEvent>());
+      final payload = (event as WsGameOverEvent).payload;
+      expect(payload.finalScore, 115);
+      expect(payload.skippedCount, 0);
+      expect(payload.bestStreak, 10);
+      expect(payload.completedSuccessfully, isTrue);
+      expect(payload.endReason, 'completed');
+
+      final result = payload.toQuizResult(
+        sessionId: 'perfect-session',
+        topicId: 'accounting',
+        startedAt: DateTime(2026),
+        completedAt: DateTime(2026),
+      );
+      expect(result.score.earnedPoints, 115);
+      expect(result.score.maxPoints, 0);
+      expect(result.skippedCount, 0);
+      expect(result.streakCount, 10);
+      expect(result.xpAwarded, 90);
+      expect(result.coinsAwarded, 44);
+      expect(result.gemsAwarded, 3);
+      expect(result.completedSuccessfully, isTrue);
+      expect(result.endReason, 'completed');
+      expect(result.endedEarly, isFalse);
     });
 
     test('WsErrorPayload deserialization with machine-readable code', () {
@@ -435,6 +505,73 @@ void main() {
         );
         expect(result.endedEarly, isFalse);
       });
+
+      test('completed-with-skip uses backend completion verdict', () {
+        final payload = parse({
+          'final_score': 95,
+          'total_questions': 10,
+          'correct_count': 9,
+          'skipped_count': 1,
+          'best_streak': 6,
+          'coins_earned': 39,
+          'xp_earned': 80,
+          'gems_earned': 2,
+          'new_level': 2,
+          'did_level_up': false,
+          'game_mode': 'sudden_death',
+          'end_reason': 'completed',
+          'completed_successfully': true,
+        });
+
+        expect(payload.wasEliminated, isFalse);
+        final result = payload.toQuizResult(
+          sessionId: 'skip-session',
+          topicId: 'accounting',
+          startedAt: DateTime(2026),
+          completedAt: DateTime(2026),
+        );
+        expect(result.endedEarly, isFalse);
+        expect(result.completedSuccessfully, isTrue);
+        expect(result.skippedCount, 1);
+        expect(result.streakCount, 6);
+      });
+
+      for (final reason in const [
+        'wrong_answer',
+        'timeout',
+        'completed',
+        'abandoned',
+      ]) {
+        test('preserves $reason end reason', () {
+          final completed = reason == 'completed';
+          final payload = parse({
+            'final_score': completed ? 115 : 0,
+            'total_questions': 10,
+            'correct_count': completed ? 10 : 0,
+            'skipped_count': 0,
+            'best_streak': completed ? 10 : 0,
+            'coins_earned': completed ? 44 : 5,
+            'xp_earned': completed ? 90 : 10,
+            'gems_earned': 0,
+            'new_level': 1,
+            'did_level_up': false,
+            'game_mode': 'sudden_death',
+            'end_reason': reason,
+            'completed_successfully': completed,
+            'ended_early': !completed,
+          });
+          final result = payload.toQuizResult(
+            sessionId: 'reason-session',
+            topicId: 'accounting',
+            startedAt: DateTime(2026),
+            completedAt: DateTime(2026),
+          );
+
+          expect(result.endReason, reason);
+          expect(result.completedSuccessfully, completed);
+          expect(result.endedEarly, !completed);
+        });
+      }
 
       test('falls back to the heuristic when ended_early is absent', () {
         final payload = parse({
