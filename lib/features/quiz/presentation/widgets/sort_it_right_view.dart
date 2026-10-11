@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/motion/app_motion.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../../core/audio/audio_providers.dart';
+import '../../../../core/audio/game_sound.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_choice_card.dart';
@@ -23,7 +26,7 @@ enum SortTimeoutBehavior { miss, waitForAnswer }
 
 enum _SortPhase { intro, falling, exiting, feedback, finished }
 
-class SortItRightView extends StatefulWidget {
+class SortItRightView extends ConsumerStatefulWidget {
   final SortItRightQuestion question;
   final int currentIndex;
   final int totalQuestions;
@@ -50,10 +53,10 @@ class SortItRightView extends StatefulWidget {
   }) : assert(fallDuration > Duration.zero);
 
   @override
-  State<SortItRightView> createState() => _SortItRightViewState();
+  ConsumerState<SortItRightView> createState() => _SortItRightViewState();
 }
 
-class _SortItRightViewState extends State<SortItRightView>
+class _SortItRightViewState extends ConsumerState<SortItRightView>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   // A null choice is an explicit miss, keeping item indexes and Undo aligned.
   final List<SortSide?> _history = [];
@@ -187,6 +190,7 @@ class _SortItRightViewState extends State<SortItRightView>
     _exitStart = Offset(_dragX.value, _fallY);
     _exitTarget = _exitStart;
     if (side != null) {
+      ref.read(gameAudioServiceProvider).play(GameSound.cardDrop);
       final stage = _stageKey.currentContext?.findRenderObject();
       final category = (side == SortSide.left ? _leftKey : _rightKey)
           .currentContext

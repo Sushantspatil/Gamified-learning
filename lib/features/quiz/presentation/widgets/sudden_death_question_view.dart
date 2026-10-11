@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/audio/audio_providers.dart';
+import '../../../../core/audio/game_sound.dart';
 
 import '../../../../app/motion/app_motion.dart';
 import '../../../../app/theme/app_colors.dart';
@@ -28,7 +31,7 @@ enum SuddenDeathFeedbackState { none, survived, eliminated, timeUp, skipped }
 
 enum _SuddenDeathPowerUpEffect { none, timeBoost, skipping }
 
-class SuddenDeathQuestionView extends StatefulWidget {
+class SuddenDeathQuestionView extends ConsumerStatefulWidget {
   final SuddenDeathQuestion question;
   final int currentIndex;
   final int totalQuestions;
@@ -111,11 +114,12 @@ class SuddenDeathQuestionView extends StatefulWidget {
   bool get isLiveMode => !isPreviewMode;
 
   @override
-  State<SuddenDeathQuestionView> createState() =>
+  ConsumerState<SuddenDeathQuestionView> createState() =>
       _SuddenDeathQuestionViewState();
 }
 
-class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
+class _SuddenDeathQuestionViewState
+    extends ConsumerState<SuddenDeathQuestionView>
     with TickerProviderStateMixin {
   late final AnimationController _entryController;
   late final AnimationController _feedbackController;
@@ -130,6 +134,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   bool _hasSubmitted = false;
   bool _extraTimeUsed = false;
   bool _skipUsed = false;
+  int? _lastTickSecond;
 
   @override
   void initState() {
@@ -185,6 +190,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   void didUpdateWidget(covariant SuddenDeathQuestionView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.question.id != widget.question.id) {
+      _lastTickSecond = null;
       _selectedOptionId = null;
       _hasSubmitted = false;
       _extraTimeUsed = false;
@@ -258,6 +264,12 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
           widget.onTimeout?.call();
         }
         return;
+      }
+
+      final seconds = nextRemaining.inSeconds;
+      if (seconds >= 1 && seconds <= 5 && _lastTickSecond != seconds) {
+        _lastTickSecond = seconds;
+        ref.read(gameAudioServiceProvider).play(GameSound.countdownTick);
       }
 
       setState(() => _remainingTime = nextRemaining);
@@ -336,6 +348,7 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
 
   Future<void> _submitTimeout() async {
     if (_hasSubmitted || !widget.isPreviewMode) return;
+    ref.read(gameAudioServiceProvider).play(GameSound.timeout);
     setState(() {
       _hasSubmitted = true;
       _previewFeedback = SuddenDeathFeedbackState.timeUp;
@@ -353,6 +366,8 @@ class _SuddenDeathQuestionViewState extends State<SuddenDeathQuestionView>
   /// the countdown — staging a selection would just burn the player's clock.
   void _handleOptionTap(String optionId) {
     if (_isInteractionLocked) return;
+
+    ref.read(gameAudioServiceProvider).play(GameSound.answerSelect);
 
     if (widget.isLiveMode) {
       setState(() => _selectedOptionId = optionId);

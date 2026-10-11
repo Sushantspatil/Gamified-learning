@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/motion/app_motion.dart';
 import '../../../../app/theme/app_colors.dart';
@@ -7,6 +8,8 @@ import '../../../../app/theme/app_elevation.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../../core/audio/audio_providers.dart';
+import '../../../../core/audio/game_sound.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
@@ -14,7 +17,7 @@ import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import 'game_power_up_bar.dart';
 
-class McqQuestionView extends StatefulWidget {
+class McqQuestionView extends ConsumerStatefulWidget {
   final McqQuestion question;
   final int currentIndex;
   final int totalQuestions;
@@ -37,10 +40,10 @@ class McqQuestionView extends StatefulWidget {
   });
 
   @override
-  State<McqQuestionView> createState() => _McqQuestionViewState();
+  ConsumerState<McqQuestionView> createState() => _McqQuestionViewState();
 }
 
-class _McqQuestionViewState extends State<McqQuestionView>
+class _McqQuestionViewState extends ConsumerState<McqQuestionView>
     with SingleTickerProviderStateMixin {
   static const String _skippedOptionId = '__mcq_skipped__';
 
@@ -99,6 +102,7 @@ class _McqQuestionViewState extends State<McqQuestionView>
 
   void _useFiftyFifty() {
     if (_isSubmitted || _isFiftyFiftyUsed) return;
+    ref.read(gameAudioServiceProvider).play(GameSound.powerUp);
 
     final incorrectOptions =
         widget.question.options
@@ -124,11 +128,13 @@ class _McqQuestionViewState extends State<McqQuestionView>
 
   void _showHint() {
     if (_isSubmitted || _isHintVisible) return;
+    ref.read(gameAudioServiceProvider).play(GameSound.powerUp);
     setState(() => _isHintVisible = true);
   }
 
   void _skipQuestion() {
     if (_isSubmitted || _isSkipUsed) return;
+    ref.read(gameAudioServiceProvider).play(GameSound.skip);
     setState(() => _isSkipUsed = true);
     _submitAnswer(_skippedOptionId);
   }
@@ -136,6 +142,9 @@ class _McqQuestionViewState extends State<McqQuestionView>
   Future<void> _submitSelectedAnswer() async {
     final selectedOptionId = _selectedOptionId;
     if (selectedOptionId == null) return;
+    if (!_isFinalQuestion) {
+      ref.read(gameAudioServiceProvider).play(GameSound.nextQuestion);
+    }
     await _submitAnswer(selectedOptionId);
   }
 
@@ -250,6 +259,9 @@ class _McqQuestionViewState extends State<McqQuestionView>
                                     _hiddenOptionIds.contains(indexed.$2.id)) {
                                   return;
                                 }
+                                ref
+                                    .read(gameAudioServiceProvider)
+                                    .play(GameSound.answerSelect);
                                 setState(
                                   () => _selectedOptionId = indexed.$2.id,
                                 );

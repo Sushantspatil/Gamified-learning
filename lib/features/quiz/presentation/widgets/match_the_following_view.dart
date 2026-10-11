@@ -21,6 +21,8 @@ import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
+import '../../../../core/audio/audio_providers.dart';
+import '../../../../core/audio/game_sound.dart';
 import 'game_power_up_bar.dart';
 
 class MatchTheFollowingView extends ConsumerStatefulWidget {
@@ -142,6 +144,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     if (_isLocked) return;
 
     HapticFeedback.selectionClick();
+    ref.read(gameAudioServiceProvider).play(GameSound.answerSelect);
     setState(() {
       final hadMatch = _matches.containsKey(pairId);
       if (_selectedLeftPairId == pairId && !hadMatch) {
@@ -161,6 +164,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     if (_isLocked || selectedLeft == null) return;
 
     HapticFeedback.selectionClick();
+    ref.read(gameAudioServiceProvider).play(GameSound.matchConnect);
     setState(() {
       _matches.removeWhere(
         (leftPairId, rightPairId) =>
@@ -197,6 +201,11 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   void _submitIfReady() {
     if (_matches.length != widget.question.pairs.length || _isLocked) return;
     HapticFeedback.mediumImpact();
+    if (_correctPairCount == widget.question.pairs.length) {
+      ref.read(gameAudioServiceProvider).play(GameSound.correct);
+    } else {
+      ref.read(gameAudioServiceProvider).play(GameSound.wrong);
+    }
     setState(() {
       _phase = _MatchFlowPhase.analysis;
       _selectedLeftPairId = null;
@@ -221,6 +230,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     if (pair == null) return;
     final selectedPair = pair;
 
+    ref.read(gameAudioServiceProvider).play(GameSound.matchConnect);
     setState(() {
       _isAutoMatchUsed = true;
       _matches.removeWhere(

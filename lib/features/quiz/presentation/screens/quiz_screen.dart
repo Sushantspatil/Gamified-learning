@@ -13,10 +13,12 @@ import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../providers/quiz_providers.dart';
+import '../providers/quiz_session_view_state.dart';
 import '../widgets/match_the_following_view.dart';
 import '../widgets/mcq_question_view.dart';
 import '../widgets/quiz_result_view.dart';
 import '../widgets/sort_it_right_view.dart';
+import '../../../../core/audio/audio_providers.dart';
 import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import 'sudden_death_screen.dart';
@@ -51,6 +53,24 @@ class QuizScreen extends ConsumerWidget {
       quizType: quizType,
       subjectId: subjectId,
       chapterId: chapterId,
+    );
+
+    ref.listen<AsyncValue<QuizSessionViewState>>(
+      quizControllerProvider(request),
+      (previous, next) {
+        final prevResult = previous?.valueOrNull?.result;
+        final nextResult = next.valueOrNull?.result;
+        if (prevResult == null && nextResult != null) {
+          final isPerfect = nextResult.score.percentage >= 1.0 &&
+              !nextResult.endedEarly &&
+              nextResult.score.correctCount == nextResult.score.totalCount;
+          final leveledUp = next.valueOrNull?.leveledUp ?? false;
+          ref.read(gameAudioServiceProvider).playQuizCompletion(
+                isPerfect: isPerfect,
+                leveledUp: leveledUp,
+              );
+        }
+      },
     );
 
     final sessionAsync = ref.watch(quizControllerProvider(request));

@@ -19,6 +19,7 @@ import '../../../cosmetics/presentation/providers/cosmetics_providers.dart';
 import '../../../learning_paths/domain/entities/learning_path.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import '../../../../core/audio/audio_providers.dart';
 import '../avatar_catalog.dart';
 import '../providers/profile_providers.dart';
 import '../widgets/profile_stat_chip.dart';
@@ -202,6 +203,8 @@ class ProfileScreen extends ConsumerWidget {
                     title: 'Cosmetics',
                     onTap: () => context.push(RouteNames.cosmetics),
                   ),
+                  const SizedBox(height: AppSpacing.md),
+                  const _AudioSettingsSection(),
                   const SizedBox(height: AppSpacing.xl),
                   AppButton(
                     label: 'Logout',
@@ -283,6 +286,56 @@ class _NavSection extends StatelessWidget {
             Icon(Icons.chevron_right, color: colors.textSecondary),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AudioSettingsSection extends ConsumerWidget {
+  const _AudioSettingsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.themeColors;
+    final soundSettings = ref.watch(soundSettingsControllerProvider);
+
+    return AppCard(
+      padding: AppSpacing.paddingMd,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.volume_up_rounded, color: colors.primary, size: 20),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Sound Settings',
+                  style: context.appTextStyles.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              'Sound Effects',
+              style: context.appTextStyles.bodyMedium,
+            ),
+            subtitle: Text(
+              'Game audio and interactive feedback',
+              style: context.appTextStyles.bodySmall.copyWith(
+                color: colors.textSecondary,
+              ),
+            ),
+            value: soundSettings.sfxEnabled,
+            activeThumbColor: colors.primary,
+            onChanged: (val) {
+              ref.read(soundSettingsControllerProvider.notifier).toggleSfx(val);
+            },
+          ),
+        ],
       ),
     );
   }

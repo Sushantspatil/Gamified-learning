@@ -15,6 +15,8 @@ import '../providers/quiz_providers.dart';
 import '../providers/sudden_death_providers.dart';
 import '../widgets/quiz_result_view.dart';
 import '../widgets/sudden_death_question_view.dart';
+import '../../../../core/audio/audio_providers.dart';
+import '../../../../core/audio/game_sound.dart';
 
 /// Dedicated standalone screen for the real-time Sudden Death survival mode.
 ///
@@ -72,6 +74,51 @@ class _SuddenDeathScreenState extends ConsumerState<SuddenDeathScreen>
   Widget build(BuildContext context) {
     final colors = context.themeColors;
     final request = _request;
+
+    ref.listen<AsyncValue<SuddenDeathViewState>>(
+      suddenDeathControllerProvider(request),
+      (previous, next) {
+        final prevVal = previous?.valueOrNull;
+        final nextVal = next.valueOrNull;
+        if (nextVal == null) return;
+
+        // 1. Authoritative +5 seconds confirmed by backend
+        if (prevVal != null && !prevVal.addTimeUsed && nextVal.addTimeUsed) {
+          ref.read(gameAudioServiceProvider).play(GameSound.addTime);
+        }
+
+        // 2. Authoritative answer result
+        if (nextVal.lastAnswerResult != null &&
+            (prevVal == null ||
+                prevVal.lastAnswerResult != nextVal.lastAnswerResult)) {
+          final answer = nextVal.lastAnswerResult!;
+          if (answer.isTimeout) {
+            ref.read(gameAudioServiceProvider).play(GameSound.timeout);
+          } else if (answer.isSkipped) {
+            ref.read(gameAudioServiceProvider).play(GameSound.skip);
+          } else {
+            ref.read(gameAudioServiceProvider).playAuthoritativeAnswerResult(
+                  isCorrect: answer.isCorrect,
+                  streak: nextVal.currentStreak,
+                );
+          }
+        }
+
+        // 3. Authoritative quiz completion / game over
+        if (nextVal.result != null &&
+            (prevVal == null || prevVal.result == null)) {
+          final result = nextVal.result!;
+          final isPerfect = result.score.percentage >= 1.0 &&
+              !result.endedEarly &&
+              result.score.correctCount == result.score.totalCount;
+          final leveledUp = result.didLevelUp;
+          ref.read(gameAudioServiceProvider).playQuizCompletion(
+                isPerfect: isPerfect,
+                leveledUp: leveledUp,
+              );
+        }
+      },
+    );
 
     final suddenAsync = ref.watch(suddenDeathControllerProvider(request));
 
