@@ -1,10 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/authentication/presentation/providers/auth_providers.dart';
 import '../../features/authentication/presentation/screens/login_screen.dart';
 import '../../features/authentication/presentation/screens/signup_screen.dart';
-import '../../features/authentication/presentation/screens/splash_screen.dart';
+import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/chapters/presentation/screens/chapter_list_screen.dart';
 import '../../features/chapters/presentation/screens/chapter_summary_screen.dart';
 import '../../features/chapters/presentation/screens/topic_learning_screen.dart';
@@ -48,7 +49,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: RouteNames.splash,
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (context, state) => CustomTransitionPage<void>(
+          key: state.pageKey,
+          child: const SplashScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 350),
+        ),
       ),
       GoRoute(
         path: RouteNames.login,

@@ -6,7 +6,7 @@ import '../../features/profile/presentation/providers/profile_providers.dart';
 import 'route_names.dart';
 
 final splashMinimumDurationProvider = FutureProvider<void>((ref) {
-  return Future<void>.delayed(const Duration(seconds: 3));
+  return Future<void>.delayed(const Duration(milliseconds: 2200));
 });
 
 class RouteGuards {
