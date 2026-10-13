@@ -223,7 +223,7 @@ void main() {
 
       // Now routed to Login screen
       expect(find.byType(SplashScreen), findsNothing);
-      expect(find.text('Log in to continue your streak.'), findsOneWidget);
+      expect(find.text('Log in to continue your learning adventure.'), findsOneWidget);
     });
 
     testWidgets('Authenticated user with profile routes from splash to dashboard', (
@@ -304,7 +304,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify on Login
-      expect(find.text('Log in to continue your streak.'), findsOneWidget);
+      expect(find.text('Log in to continue your learning adventure.'), findsOneWidget);
 
       // Back navigation should not return to splash
       final navigatorState = tester.state<NavigatorState>(find.byType(Navigator).first);
