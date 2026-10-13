@@ -3,184 +3,244 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
 
-class _ParticleData {
-  final double xRatio; // 0.0 to 1.0
-  final double yBaseRatio; // 0.0 to 1.0
+enum ParticleShape { circle, sparkle }
+
+class _ParticleSpec {
+  final double xRatio; // 0.0 to 1.0 (screen width)
+  final double yBaseRatio; // 0.0 to 1.0 (screen height)
   final double radius;
   final double speed;
   final double phase;
   final Color color;
+  final ParticleShape shape;
 
-  const _ParticleData({
+  const _ParticleSpec({
     required this.xRatio,
     required this.yBaseRatio,
     required this.radius,
     required this.speed,
     required this.phase,
     required this.color,
+    this.shape = ParticleShape.circle,
   });
 }
 
-/// 12 curated glowing particles floating gently around the magical world.
-const List<_ParticleData> _kSplashParticles = [
-  _ParticleData(
-    xRatio: 0.18,
-    yBaseRatio: 0.62,
+/// 11 deterministic floating magic particles and subtle ambient sparkles.
+/// Kept under the 15-particle limit for 60/90/120 Hz efficiency.
+const List<_ParticleSpec> _kDeterministicParticles = [
+  // Floating around the central character & glowing book
+  _ParticleSpec(
+    xRatio: 0.22,
+    yBaseRatio: 0.60,
     radius: 3.2,
-    speed: 0.8,
+    speed: 0.85,
     phase: 0.1,
     color: AppColors.gemCyan,
+    shape: ParticleShape.circle,
   ),
-  _ParticleData(
-    xRatio: 0.28,
-    yBaseRatio: 0.75,
-    radius: 2.2,
-    speed: 1.1,
-    phase: 0.45,
-    color: AppColors.primary,
-  ),
-  _ParticleData(
-    xRatio: 0.82,
-    yBaseRatio: 0.68,
-    radius: 3.5,
-    speed: 0.9,
-    phase: 0.25,
-    color: AppColors.violet,
-  ),
-  _ParticleData(
-    xRatio: 0.72,
-    yBaseRatio: 0.54,
-    radius: 2.5,
-    speed: 1.2,
-    phase: 0.7,
-    color: AppColors.coinGold,
-  ),
-  _ParticleData(
-    xRatio: 0.38,
-    yBaseRatio: 0.48,
-    radius: 3.0,
-    speed: 0.7,
-    phase: 0.3,
-    color: AppColors.gemCyan,
-  ),
-  _ParticleData(
-    xRatio: 0.62,
-    yBaseRatio: 0.42,
-    radius: 2.0,
-    speed: 1.0,
-    phase: 0.85,
-    color: AppColors.coinGold,
-  ),
-  _ParticleData(
-    xRatio: 0.15,
-    yBaseRatio: 0.45,
-    radius: 2.8,
-    speed: 0.95,
-    phase: 0.6,
-    color: AppColors.violet,
-  ),
-  _ParticleData(
-    xRatio: 0.88,
-    yBaseRatio: 0.40,
-    radius: 2.4,
-    speed: 0.85,
-    phase: 0.15,
-    color: AppColors.gemCyan,
-  ),
-  _ParticleData(
-    xRatio: 0.50,
-    yBaseRatio: 0.72,
-    radius: 3.4,
-    speed: 1.0,
-    phase: 0.9,
-    color: AppColors.gemCyan,
-  ),
-  _ParticleData(
-    xRatio: 0.32,
-    yBaseRatio: 0.32,
-    radius: 2.2,
-    speed: 0.75,
-    phase: 0.4,
-    color: AppColors.coinGold,
-  ),
-  _ParticleData(
+  _ParticleSpec(
     xRatio: 0.78,
-    yBaseRatio: 0.30,
+    yBaseRatio: 0.65,
     radius: 3.0,
-    speed: 1.15,
-    phase: 0.55,
-    color: AppColors.primary,
-  ),
-  _ParticleData(
-    xRatio: 0.45,
-    yBaseRatio: 0.25,
-    radius: 2.6,
-    speed: 0.8,
-    phase: 0.05,
+    speed: 0.95,
+    phase: 0.35,
     color: AppColors.violet,
+    shape: ParticleShape.sparkle,
+  ),
+  _ParticleSpec(
+    xRatio: 0.50,
+    yBaseRatio: 0.68,
+    radius: 3.4,
+    speed: 1.05,
+    phase: 0.75,
+    color: AppColors.gemCyan,
+    shape: ParticleShape.circle,
+  ),
+  _ParticleSpec(
+    xRatio: 0.35,
+    yBaseRatio: 0.48,
+    radius: 2.5,
+    speed: 0.75,
+    phase: 0.25,
+    color: AppColors.coinGold,
+    shape: ParticleShape.sparkle,
+  ),
+  _ParticleSpec(
+    xRatio: 0.65,
+    yBaseRatio: 0.52,
+    radius: 2.2,
+    speed: 1.10,
+    phase: 0.60,
+    color: AppColors.coinGold,
+    shape: ParticleShape.circle,
+  ),
+
+  // Ambient sparkles near the gamification elements (Trophy, Gem, Quiz card)
+  _ParticleSpec(
+    xRatio: 0.24,
+    yBaseRatio: 0.34, // Near Trophy
+    radius: 2.8,
+    speed: 0.70,
+    phase: 0.45,
+    color: AppColors.coinGold,
+    shape: ParticleShape.sparkle,
+  ),
+  _ParticleSpec(
+    xRatio: 0.76,
+    yBaseRatio: 0.32, // Near Purple Gem
+    radius: 3.2,
+    speed: 0.80,
+    phase: 0.15,
+    color: AppColors.violet,
+    shape: ParticleShape.sparkle,
+  ),
+  _ParticleSpec(
+    xRatio: 0.16,
+    yBaseRatio: 0.46, // Near Quiz Card
+    radius: 2.4,
+    speed: 0.90,
+    phase: 0.85,
+    color: AppColors.gemCyan,
+    shape: ParticleShape.circle,
+  ),
+  _ParticleSpec(
+    xRatio: 0.84,
+    yBaseRatio: 0.42, // Near Lightning / Stats
+    radius: 2.6,
+    speed: 1.15,
+    phase: 0.50,
+    color: AppColors.primary,
+    shape: ParticleShape.sparkle,
+  ),
+
+  // Subtle upper floating islands atmosphere
+  _ParticleSpec(
+    xRatio: 0.32,
+    yBaseRatio: 0.24,
+    radius: 2.0,
+    speed: 0.80,
+    phase: 0.30,
+    color: Colors.white,
+    shape: ParticleShape.circle,
+  ),
+  _ParticleSpec(
+    xRatio: 0.68,
+    yBaseRatio: 0.22,
+    radius: 2.2,
+    speed: 0.90,
+    phase: 0.70,
+    color: AppColors.gemCyan,
+    shape: ParticleShape.sparkle,
   ),
 ];
 
 class SplashParticlesPainter extends CustomPainter {
-  final double animationValue;
+  final double animationProgress; // 0.0 to 1.0 (continuous time-driven)
 
-  SplashParticlesPainter({required this.animationValue});
+  SplashParticlesPainter({required this.animationProgress});
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final p in _kSplashParticles) {
-      // Gentle vertical float upward (30 - 55 pixels)
-      final cycle = (animationValue * p.speed + p.phase) % 1.0;
-      final verticalTravel = 48.0;
+    for (final p in _kDeterministicParticles) {
+      final cycle = (animationProgress * p.speed + p.phase) % 1.0;
+
+      // Vertical drift: upward 35px from base position
+      const verticalTravel = 35.0;
       final y = (p.yBaseRatio * size.height) - (cycle * verticalTravel);
-      final x = p.xRatio * size.width + math.sin(cycle * math.pi * 2) * 5.0;
+
+      // Horizontal subtle wobble (-4px to +4px)
+      final x = p.xRatio * size.width + math.sin(cycle * math.pi * 2) * 4.0;
 
       // Soft alpha breathing (fade in, peak, fade out)
-      final alpha = (math.sin(cycle * math.pi) * 0.75).clamp(0.0, 1.0);
-      if (alpha <= 0.01) continue;
+      final alpha = (math.sin(cycle * math.pi) * 0.85).clamp(0.0, 1.0);
+      if (alpha <= 0.02) continue;
 
-      // Outer glow
-      final glowPaint = Paint()
-        ..color = p.color.withValues(alpha: alpha * 0.45)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0);
-      canvas.drawCircle(Offset(x, y), p.radius * 2.0, glowPaint);
-
-      // Core particle
-      final corePaint = Paint()
-        ..color = p.color.withValues(alpha: alpha * 0.9);
-      canvas.drawCircle(Offset(x, y), p.radius, corePaint);
-
-      // Bright pinpoint center
-      final centerPaint = Paint()
-        ..color = Colors.white.withValues(alpha: alpha * 0.85);
-      canvas.drawCircle(Offset(x, y), p.radius * 0.45, centerPaint);
+      if (p.shape == ParticleShape.sparkle) {
+        _drawSparkle(canvas, Offset(x, y), p.radius, p.color, alpha);
+      } else {
+        _drawGlowCircle(canvas, Offset(x, y), p.radius, p.color, alpha);
+      }
     }
+  }
+
+  void _drawGlowCircle(
+    Canvas canvas,
+    Offset center,
+    double radius,
+    Color color,
+    double alpha,
+  ) {
+    // Soft outer glow
+    final glowPaint = Paint()
+      ..color = color.withValues(alpha: alpha * 0.40)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5);
+    canvas.drawCircle(center, radius * 1.8, glowPaint);
+
+    // Core body
+    final corePaint = Paint()
+      ..color = color.withValues(alpha: alpha * 0.90);
+    canvas.drawCircle(center, radius, corePaint);
+
+    // Pinpoint center
+    final centerPaint = Paint()
+      ..color = Colors.white.withValues(alpha: alpha * 0.80);
+    canvas.drawCircle(center, radius * 0.45, centerPaint);
+  }
+
+  void _drawSparkle(
+    Canvas canvas,
+    Offset center,
+    double size,
+    Color color,
+    double alpha,
+  ) {
+    final arm = size * 1.5;
+
+    // Cross arms
+    final linePaint = Paint()
+      ..color = color.withValues(alpha: alpha * 0.85)
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+      Offset(center.dx - arm, center.dy),
+      Offset(center.dx + arm, center.dy),
+      linePaint,
+    );
+    canvas.drawLine(
+      Offset(center.dx, center.dy - arm),
+      Offset(center.dx, center.dy + arm),
+      linePaint,
+    );
+
+    // Glowing core
+    final corePaint = Paint()
+      ..color = Colors.white.withValues(alpha: alpha * 0.95);
+    canvas.drawCircle(center, size * 0.55, corePaint);
   }
 
   @override
   bool shouldRepaint(covariant SplashParticlesPainter oldDelegate) {
-    return oldDelegate.animationValue != animationValue;
+    return oldDelegate.animationProgress != animationProgress;
   }
 }
 
 class SplashParticlesOverlay extends StatelessWidget {
-  final Animation<double> animation;
+  final double animationProgress;
 
-  const SplashParticlesOverlay({super.key, required this.animation});
+  const SplashParticlesOverlay({
+    super.key,
+    required this.animationProgress,
+  });
 
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: animation,
-        builder: (context, _) {
-          return CustomPaint(
-            painter: SplashParticlesPainter(
-              animationValue: animation.value,
-            ),
-            size: Size.infinite,
-          );
-        },
+      child: CustomPaint(
+        painter: SplashParticlesPainter(
+          animationProgress: animationProgress,
+        ),
+        size: Size.infinite,
       ),
     );
   }

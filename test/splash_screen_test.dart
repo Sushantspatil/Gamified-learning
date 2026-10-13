@@ -71,8 +71,8 @@ Future<void> _pumpAppWithValues(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('SplashScreen UI & Widgets', () {
-    testWidgets('SplashScreen renders full screen with artwork, loading bar, and text', (
+  group('SplashScreen UI & Cross-Device Widgets', () {
+    testWidgets('SplashScreen renders full screen with artwork and animated existing loading bar', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -94,28 +94,34 @@ void main() {
         'assets/images/splash/skillverse_splash.png',
       );
 
-      // Verify animated loading indicator
+      // Verify animated loading indicator overlaid on existing capsule with RepaintBoundary
       expect(find.byType(SplashLoadingBar), findsOneWidget);
 
-      // Verify adventure text
-      expect(find.text('Loading your adventure...'), findsOneWidget);
+      // Verify accessibility semantics label for loading adventure is active
+      expect(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Loading your adventure'), findsOneWidget);
 
       // Verify ambient particles overlay
       expect(find.byType(SplashParticlesOverlay), findsOneWidget);
 
       // Advance animation slightly and verify stable render
       await tester.pump(const Duration(milliseconds: 500));
-      expect(find.text('Loading your adventure...'), findsOneWidget);
+      expect(find.byType(SplashLoadingBar), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Loading your adventure'), findsOneWidget);
     });
 
-    testWidgets('SplashLoadingBar renders correct visual progress', (
+    testWidgets('SplashLoadingBar renders correct visual progress and shimmer', (
       tester,
     ) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
             body: Center(
-              child: SplashLoadingBar(progress: 0.5, width: 250, height: 16),
+              child: SplashLoadingBar(
+                progress: 0.5,
+                shimmerProgress: 0.3,
+                width: 250,
+                height: 16,
+              ),
             ),
           ),
         ),
@@ -127,11 +133,12 @@ void main() {
 
       final barWidget = tester.widget<SplashLoadingBar>(barFinder);
       expect(barWidget.progress, 0.5);
+      expect(barWidget.shimmerProgress, 0.3);
       expect(barWidget.width, 250);
       expect(barWidget.height, 16);
     });
 
-    testWidgets('SplashScreen disposes all controllers cleanly on unmount', (
+    testWidgets('SplashScreen disposes all controllers and lifecycle observer cleanly', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -153,6 +160,50 @@ void main() {
       expect(find.text('Replaced'), findsOneWidget);
       expect(find.byType(SplashScreen), findsNothing);
     });
+
+    testWidgets('SplashScreen handles app lifecycle pause and resume safely', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: SplashScreen(),
+        ),
+      );
+
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Simulate App Lifecycle pause (e.g. user goes to home screen or receives call)
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Simulate App Lifecycle resume
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.byType(SplashScreen), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Loading your adventure'), findsOneWidget);
+    });
+
+    testWidgets('SplashScreen respects accessibility reduced motion setting', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MediaQuery(
+          data: MediaQueryData(disableAnimations: true),
+          child: MaterialApp(
+            home: SplashScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+
+      // Particles and glow pulses are omitted when reduceMotion is active
+      expect(find.byType(SplashParticlesOverlay), findsNothing);
+      expect(find.byType(SplashScreen), findsOneWidget);
+      expect(find.byType(SplashLoadingBar), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Loading your adventure'), findsOneWidget);
+    });
   });
 
   group('Startup Routing Integration', () {
@@ -163,7 +214,7 @@ void main() {
 
       // Initially on SplashScreen
       expect(find.byType(SplashScreen), findsOneWidget);
-      expect(find.text('Loading your adventure...'), findsOneWidget);
+      expect(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Loading your adventure'), findsOneWidget);
 
       // Advance through splash minimum duration and settle
       await tester.pump(const Duration(milliseconds: 2400));
