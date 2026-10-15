@@ -91,7 +91,7 @@ void main() {
       expect(imageWidget.image, isA<AssetImage>());
       expect(
         (imageWidget.image as AssetImage).assetName,
-        'assets/images/splash/skillverse_splash.png',
+        'assets/images/splash/skillverse_splash_no_loader.png',
       );
 
       // Verify animated loading indicator overlaid on existing capsule with RepaintBoundary

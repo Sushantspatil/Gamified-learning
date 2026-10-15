@@ -13,6 +13,7 @@ class AnimatedLoginField extends StatefulWidget {
   final Iterable<String>? autofillHints;
   final String? Function(String?)? validator;
   final VoidCallback? onFieldSubmitted;
+  final FocusNode? focusNode;
 
   const AnimatedLoginField({
     super.key,
@@ -25,6 +26,7 @@ class AnimatedLoginField extends StatefulWidget {
     this.autofillHints,
     this.validator,
     this.onFieldSubmitted,
+    this.focusNode,
   });
 
   @override
@@ -32,7 +34,10 @@ class AnimatedLoginField extends StatefulWidget {
 }
 
 class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
-  final FocusNode _focusNode = FocusNode();
+  FocusNode? _internalFocusNode;
+  FocusNode get _effectiveFocusNode =>
+      widget.focusNode ?? (_internalFocusNode ??= FocusNode());
+
   bool _isFocused = false;
   bool _obscureText = true;
 
@@ -40,17 +45,31 @@ class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
   void initState() {
     super.initState();
     _obscureText = widget.isPassword;
-    _focusNode.addListener(_onFocusChange);
+    _effectiveFocusNode.addListener(_onFocusChange);
+    _isFocused = _effectiveFocusNode.hasFocus;
+  }
+
+  @override
+  void didUpdateWidget(covariant AnimatedLoginField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusNode != widget.focusNode) {
+      (oldWidget.focusNode ?? _internalFocusNode)
+          ?.removeListener(_onFocusChange);
+      _effectiveFocusNode.addListener(_onFocusChange);
+      _isFocused = _effectiveFocusNode.hasFocus;
+    }
   }
 
   void _onFocusChange() {
-    setState(() => _isFocused = _focusNode.hasFocus);
+    if (mounted) {
+      setState(() => _isFocused = _effectiveFocusNode.hasFocus);
+    }
   }
 
   @override
   void dispose() {
-    _focusNode.removeListener(_onFocusChange);
-    _focusNode.dispose();
+    (widget.focusNode ?? _internalFocusNode)?.removeListener(_onFocusChange);
+    _internalFocusNode?.dispose();
     super.dispose();
   }
 
@@ -89,7 +108,7 @@ class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
       ),
       child: TextFormField(
         controller: widget.controller,
-        focusNode: _focusNode,
+        focusNode: _effectiveFocusNode,
         obscureText: widget.isPassword && _obscureText,
         keyboardType: widget.keyboardType,
         textInputAction: widget.textInputAction,
@@ -150,9 +169,9 @@ class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
           errorBorder: InputBorder.none,
           focusedErrorBorder: InputBorder.none,
           errorStyle: const TextStyle(
-            color: AppColors.accentNeon,
+            color: Color(0xFFFF6B8B),
             fontSize: 12,
-            height: 1.1,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),

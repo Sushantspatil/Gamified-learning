@@ -14,15 +14,16 @@ import '../widgets/animated_login_field.dart';
 import '../widgets/skillverse_auth_background.dart';
 import '../widgets/skillverse_login_hero.dart';
 
-/// Premium animated SkillVerse login screen matching the magical cosmic design.
+/// Premium animated SkillVerse login screen with interactive password-reactive character.
 ///
 /// Features:
-/// - Staggered entrance animation for all visual elements
-/// - Animated cosmic background with glowing orbs and floating particles
-/// - Central student hero with glowing book pulse, floating motion, and magic orbital ring
-/// - Keyboard-aware responsive collapse preventing overflow on all screen sizes
-/// - Error shake micro-interaction on authentication failures
-/// - Preserves 100% of existing authentication endpoints, payload, and router navigation.
+/// - Interactive student mascot that playfully closes his eyes when Password is focused
+/// - Smooth eye transition with zero layout shift via AnimatedSwitcher
+/// - Clean dark cosmic background (no duplicate Splash artwork, castle, or splash logo)
+/// - Keyboard-aware responsive collapse keeping the character face visible
+/// - Exactly 3 AnimationControllers for optimal 60/90/120 Hz performance
+/// - Error shake micro-interaction on authentication failure
+/// - Preserves 100% of existing authentication endpoints, state, and router navigation.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -35,12 +36,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
 
-  // Exactly 3 AnimationControllers as mandated for optimal mobile performance:
-  // 1. Entrance animation (runs once upon screen build)
+  // Exactly 3 AnimationControllers for 60/90/120 Hz efficiency:
+  // 1. Entrance animation (staggered entrance)
   late final AnimationController _entranceController;
 
-  // 2. Continuous ambient loop (orbs, particles, hero floating, glowing book, ring)
+  // 2. Continuous ambient loop (particles, orbs, character floating & breathing)
   late final AnimationController _ambientController;
 
   // 3. Error shake interaction (triggered on failed authentication)
@@ -58,10 +60,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       duration: const Duration(milliseconds: 700),
     );
 
-    // 2. Ambient Loop Controller (4500ms continuous loop in app, single pass in tests)
+    // 2. Ambient Loop Controller (4200ms continuous loop in app, single pass in tests)
     _ambientController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 4500),
+      duration: const Duration(milliseconds: 4200),
     );
 
     final isTestEnvironment =
@@ -72,7 +74,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       _ambientController.forward();
     }
 
-    // 3. Error Shake Controller (300ms sequence: 0 -> -4 -> +4 -> -3 -> +3 -> 0)
+    // 3. Error Shake Controller (320ms sequence)
     _errorShakeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 320),
@@ -111,6 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     WidgetsBinding.instance.removeObserver(this);
     _emailController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     _entranceController.dispose();
     _ambientController.dispose();
     _errorShakeController.dispose();
@@ -200,13 +203,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         statusBarBrightness: Brightness.dark,
         systemNavigationBarColor: Color(0xFF060814),
         systemNavigationBarIconBrightness: Brightness.light,
+        systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: Scaffold(
         backgroundColor: const Color(0xFF060814),
         body: Stack(
           fit: StackFit.expand,
           children: [
-            // 1. Cosmic Animated Background Layer (orbs, particles, horizon)
+            // 1. Clean Cosmic Background Layer (soft orbs & stars, no splash artwork)
             SkillverseAuthBackground(
               ambientAnimation: _ambientController,
               reduceMotion: reduceMotion,
@@ -244,13 +248,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
-                            // Hero Character & Glowing Book section
+                            // Interactive Character Hero reacting to Password Focus
                             _buildStaggeredSection(
                               startInterval: 0.0,
                               endInterval: 0.60,
                               reduceMotion: reduceMotion,
                               child: SkillverseLoginHero(
                                 ambientAnimation: _ambientController,
+                                passwordFocusNode: _passwordFocusNode,
                                 isKeyboardVisible: isKeyboardVisible,
                                 reduceMotion: reduceMotion,
                               ),
@@ -263,7 +268,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               reduceMotion: reduceMotion,
                               child: Column(
                                 children: [
-                                  SizedBox(height: isCompact ? 6 : 12),
+                                  SizedBox(height: isCompact ? 6 : 10),
                                   Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -291,14 +296,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   Text(
                                     'Log in to continue your learning adventure.',
                                     style: TextStyle(
-                                      color: const Color(0xFF9AA3C8).withValues(alpha: 0.90),
+                                      color: const Color(0xFF9AA3C8)
+                                          .withValues(alpha: 0.90),
                                       fontSize: isCompact ? 13.5 : 14.5,
                                       fontWeight: FontWeight.w400,
                                       letterSpacing: 0.1,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),
-                                  SizedBox(height: isCompact ? 14 : 22),
+                                  SizedBox(height: isCompact ? 14 : 20),
                                 ],
                               ),
                             ),
@@ -341,13 +347,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
                                     SizedBox(height: isCompact ? 10 : 14),
 
-                                    // Password Field
+                                    // Password Field (wires to _passwordFocusNode)
                                     _buildStaggeredSection(
                                       startInterval: 0.45,
                                       endInterval: 0.88,
                                       reduceMotion: reduceMotion,
                                       child: AnimatedLoginField(
                                         controller: _passwordController,
+                                        focusNode: _passwordFocusNode,
                                         hintText: 'Password',
                                         prefixIcon: Icons.lock_outline_rounded,
                                         isPassword: true,
@@ -387,9 +394,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                       reduceMotion: reduceMotion,
                                       child: Center(
                                         child: TextButton(
-                                          onPressed: () => context.go(RouteNames.signup),
+                                          onPressed: () =>
+                                              context.go(RouteNames.signup),
                                           style: TextButton.styleFrom(
-                                            foregroundColor: const Color(0xFFB052FF),
+                                            foregroundColor:
+                                                const Color(0xFFB052FF),
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 16,
                                               vertical: 8,

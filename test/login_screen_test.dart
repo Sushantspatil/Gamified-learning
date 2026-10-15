@@ -10,6 +10,7 @@ import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
 import 'package:skillverse_app/features/authentication/presentation/screens/login_screen.dart';
+import 'package:skillverse_app/features/authentication/presentation/widgets/skillverse_login_hero.dart';
 
 Widget _createTestLoginApp({
   GoRouter? customRouter,
@@ -24,11 +25,13 @@ Widget _createTestLoginApp({
           ),
           GoRoute(
             path: '/signup',
-            builder: (context, state) => const Scaffold(body: Text('Sign Up Screen')),
+            builder: (context, state) =>
+                const Scaffold(body: Text('Sign Up Screen')),
           ),
           GoRoute(
             path: '/dashboard',
-            builder: (context, state) => const Scaffold(body: Text('Dashboard Screen')),
+            builder: (context, state) =>
+                const Scaffold(body: Text('Dashboard Screen')),
           ),
         ],
       );
@@ -49,7 +52,9 @@ void main() {
     storageService = await LocalStorageService.create();
   });
 
-  testWidgets('LoginScreen renders core UI elements correctly', (tester) async {
+  testWidgets('LoginScreen renders core UI elements correctly with character-only hero', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -68,9 +73,156 @@ void main() {
     expect(find.text('Password'), findsOneWidget);
     expect(find.text('Log In'), findsOneWidget);
     expect(find.text("Don't have an account? Sign up"), findsOneWidget);
+
+    // Verify character-only hero is used and full Splash artwork is NOT used in Login
+    expect(find.byType(SkillverseLoginHero), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/images/auth/character_open.png',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/images/splash/skillverse_splash.png',
+      ),
+      findsNothing,
+    );
   });
 
-  testWidgets('Email and password input fields accept text and toggle visibility', (tester) async {
+  testWidgets('Character closes eyes when Password gains focus and reopens when unfocused', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storageService),
+          authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
+        ],
+        child: _createTestLoginApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    final textFields = find.byType(TextFormField);
+    expect(textFields, findsNWidgets(2));
+
+    // Initially open
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/images/auth/character_open.png',
+      ),
+      findsOneWidget,
+    );
+
+    // Tap Email field: character remains open
+    await tester.tap(textFields.first);
+    await tester.pumpAndSettle();
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/images/auth/character_open.png',
+      ),
+      findsOneWidget,
+    );
+
+    // Tap Password field: character switches to eyes-closed state
+    await tester.tap(textFields.last);
+    await tester.pumpAndSettle();
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/images/auth/character_closed.png',
+      ),
+      findsOneWidget,
+    );
+
+    // Tap Email field again: character reopens eyes
+    await tester.tap(textFields.first);
+    await tester.pumpAndSettle();
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/images/auth/character_open.png',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Password visibility toggle works without reopening character eyes while focused', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storageService),
+          authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
+        ],
+        child: _createTestLoginApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    final textFields = find.byType(TextFormField);
+    // Tap Password field to focus it
+    await tester.tap(textFields.last);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/images/auth/character_closed.png',
+      ),
+      findsOneWidget,
+    );
+
+    // Tap Show Password button
+    final eyeButton = find.byTooltip('Show password');
+    expect(eyeButton, findsOneWidget);
+    await tester.tap(eyeButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Hide password'), findsOneWidget);
+    // Eyes still closed because password field retains focus
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Image &&
+            w.image is AssetImage &&
+            (w.image as AssetImage).assetName ==
+                'assets/images/auth/character_closed.png',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Email and password input fields accept text', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -93,13 +245,6 @@ void main() {
     // Enter password
     await tester.enterText(textFields.last, 'secret123');
     expect(find.text('secret123'), findsOneWidget);
-
-    // Toggle password visibility eye icon
-    final eyeButton = find.byTooltip('Show password');
-    expect(eyeButton, findsOneWidget);
-    await tester.tap(eyeButton);
-    await tester.pump();
-    expect(find.byTooltip('Hide password'), findsOneWidget);
   });
 
   testWidgets('Validation shows errors for empty or invalid inputs', (tester) async {
@@ -123,7 +268,9 @@ void main() {
     expect(find.text('Password must be at least 6 characters'), findsOneWidget);
   });
 
-  testWidgets('Login invokes existing auth controller and shows error on failure', (tester) async {
+  testWidgets('Login invokes existing auth controller and shows error on failure', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -172,7 +319,9 @@ void main() {
     expect(find.text('Sign Up Screen'), findsOneWidget);
   });
 
-  testWidgets('Reduced motion mode disables repeating ticker without errors', (tester) async {
+  testWidgets('Reduced motion mode disables repeating ticker without errors', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MediaQuery(
         data: const MediaQueryData(disableAnimations: true),
@@ -190,7 +339,9 @@ void main() {
     expect(find.text('Welcome back'), findsOneWidget);
   });
 
-  testWidgets('Small screen and keyboard viewInsets do not cause RenderFlex overflow', (tester) async {
+  testWidgets('Small screen and keyboard viewInsets do not cause RenderFlex overflow', (
+    tester,
+  ) async {
     tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
