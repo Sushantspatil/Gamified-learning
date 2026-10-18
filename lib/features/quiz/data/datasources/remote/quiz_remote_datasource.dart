@@ -10,6 +10,7 @@ import 'package:skillverse_app/features/questions/domain/entities/question.dart'
 import 'package:skillverse_app/features/questions/data/models/question_dto.dart';
 import '../../../domain/entities/quiz_result.dart';
 import '../../../domain/entities/quiz_session.dart';
+import '../../../domain/entities/sort_it_out_models.dart';
 import '../quiz_datasource.dart';
 
 class QuizRemoteDatasource implements QuizDatasource {
@@ -18,22 +19,34 @@ class QuizRemoteDatasource implements QuizDatasource {
   String? _backendSessionId;
   String? _activeTopicId;
   List<Question>? _activeSessionQuestions;
+  List<SortItOutCard>? _activeSortItOutCards;
+  String? _activePairType;
+  int? _activeTimeLimitPerQuestionSec;
   DateTime? _questionStartTime;
 
   QuizRemoteDatasource({required ApiClient apiClient}) : _apiClient = apiClient;
 
   String? get activeSessionId => _backendSessionId;
   List<Question>? get activeSessionQuestions => _activeSessionQuestions;
+  List<SortItOutCard>? get activeSortItOutCards => _activeSortItOutCards;
+  String? get activePairType => _activePairType;
+  int? get activeTimeLimitPerQuestionSec => _activeTimeLimitPerQuestionSec;
 
   /// Creates a new server-side session in PostgreSQL.
   Future<String> createSession({
     required String topicId,
     int questionCount = 10,
     List<String>? questionCodes,
+    String? gameMode,
+    String? pairType,
+    int? timeLimitPerQuestionSec,
   }) async {
     _backendSessionId = null;
     _activeTopicId = null;
     _activeSessionQuestions = null;
+    _activeSortItOutCards = null;
+    _activePairType = null;
+    _activeTimeLimitPerQuestionSec = null;
     final backendTopic = topicId.contains('accounting')
         ? 'accounting'
         : topicId;
@@ -42,6 +55,9 @@ class QuizRemoteDatasource implements QuizDatasource {
       questionCount: questionCount,
       abandonStale: true,
       questionCodes: questionCodes,
+      gameMode: gameMode,
+      pairType: pairType,
+      timeLimitPerQuestionSec: timeLimitPerQuestionSec,
     );
     final response = await _apiClient.post(
       ApiEndpoints.quizCreateSession,
@@ -53,12 +69,30 @@ class QuizRemoteDatasource implements QuizDatasource {
       if (sessionDto.session.isNotEmpty) {
         _backendSessionId = sessionDto.session;
         _activeTopicId = topicId;
+        _activePairType = sessionDto.pairType;
+        _activeTimeLimitPerQuestionSec = sessionDto.timeLimitPerQuestionSec;
         _questionStartTime = DateTime.now();
 
         if (sessionDto.questions.isNotEmpty) {
           _activeSessionQuestions = sessionDto.questions
               .map((q) => QuestionDto.fromJson(q).toDomain(topicId))
               .toList();
+
+          _activeSortItOutCards = sessionDto.questions.map((q) {
+            final dto = QuestionDto.fromJson(q);
+            return SortItOutCard(
+              id: dto.question,
+              prompt: dto.prompt,
+              points: dto.points,
+              hint: dto.hint,
+              timeLimitSec:
+                  dto.timeLimitSec ?? sessionDto.timeLimitPerQuestionSec,
+              options: dto.options.map((o) => o.toDomain()).toList(),
+              correctOption: dto.correctOption,
+              pairType: dto.pairType ?? sessionDto.pairType,
+              explanation: dto.explanation,
+            );
+          }).toList();
         }
 
         return _backendSessionId!;
@@ -286,6 +320,45 @@ class QuizRemoteDatasource implements QuizDatasource {
       );
     }
     return null;
+  }
+
+  /// Completes a Sort It Out session authoritatively via batch submission.
+  Future<CompleteSortItOutResponseDto> completeSortItOut({
+    required String session,
+    required List<SortItOutAnswerSubmissionDto> answers,
+  }) async {
+    final body = CompleteSortItOutRequestDto(
+      session: session,
+      answers: answers,
+    ).toJson();
+
+    final data = await _apiClient.post(
+      ApiEndpoints.quizSortItOutComplete,
+      body: body,
+    );
+
+    if (data is Map<String, dynamic>) {
+      return CompleteSortItOutResponseDto.fromJson(data);
+    }
+
+    throw const ServerException(
+      'Invalid response while completing Sort It Out session.',
+      'invalid-sort-it-out-result',
+    );
+  }
+
+  /// Explicitly abandons an in-progress session.
+  Future<void> abandonSession([String? sessionId]) async {
+    final id = sessionId ?? _backendSessionId;
+    if (id == null || id.isEmpty) return;
+    try {
+      await _apiClient.post(
+        ApiEndpoints.quizAbandonSession,
+        body: {'session': id},
+      );
+    } catch (e) {
+      developer.log('Abandon session failed: $e', name: 'QuizRemote');
+    }
   }
 
   List<RewardBreakdownItem> _parseBreakdown(

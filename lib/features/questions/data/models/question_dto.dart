@@ -25,6 +25,9 @@ class QuestionDto {
   final String? hint;
   final List<QuestionOptionDto> options;
   final String? correctOption;
+  final String? pairType;
+  final int? timeLimitSec;
+  final String? explanation;
 
   const QuestionDto({
     required this.question,
@@ -33,6 +36,9 @@ class QuestionDto {
     this.hint,
     required this.options,
     this.correctOption,
+    this.pairType,
+    this.timeLimitSec,
+    this.explanation,
   });
 
   factory QuestionDto.fromJson(Map<String, dynamic> json) {
@@ -47,6 +53,9 @@ class QuestionDto {
           .map(QuestionOptionDto.fromJson)
           .toList(),
       correctOption: json['correct_option'] as String?,
+      pairType: json['pair_type'] as String?,
+      timeLimitSec: json['time_limit_sec'] as int?,
+      explanation: json['explanation'] as String?,
     );
   }
 
@@ -72,12 +81,14 @@ class TopicQuestionsResponseDto {
   final String topic;
   final int total;
   final int timeLimitSec;
+  final int? timeLimitPerQuestionSec;
   final List<QuestionDto> questions;
 
   const TopicQuestionsResponseDto({
     required this.topic,
     required this.total,
     required this.timeLimitSec,
+    this.timeLimitPerQuestionSec,
     required this.questions,
   });
 
@@ -87,6 +98,7 @@ class TopicQuestionsResponseDto {
       topic: json['topic'] as String? ?? '',
       total: json['total'] as int? ?? 0,
       timeLimitSec: json['time_limit_sec'] as int? ?? 15,
+      timeLimitPerQuestionSec: json['time_limit_per_question_sec'] as int?,
       questions: rawQuestions
           .whereType<Map<String, dynamic>>()
           .map(QuestionDto.fromJson)

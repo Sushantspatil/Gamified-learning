@@ -91,7 +91,7 @@ void main() {
       expect(imageWidget.image, isA<AssetImage>());
       expect(
         (imageWidget.image as AssetImage).assetName,
-        'assets/images/splash/skillverse_splash.png',
+        'assets/images/splash/skillverse_splash_no_loader.png',
       );
 
       // Verify animated loading indicator overlaid on existing capsule with RepaintBoundary
@@ -223,7 +223,7 @@ void main() {
 
       // Now routed to Login screen
       expect(find.byType(SplashScreen), findsNothing);
-      expect(find.text('Log in to continue your streak.'), findsOneWidget);
+      expect(find.text('Log in to continue your learning adventure.'), findsOneWidget);
     });
 
     testWidgets('Authenticated user with profile routes from splash to dashboard', (
@@ -304,7 +304,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify on Login
-      expect(find.text('Log in to continue your streak.'), findsOneWidget);
+      expect(find.text('Log in to continue your learning adventure.'), findsOneWidget);
 
       // Back navigation should not return to splash
       final navigatorState = tester.state<NavigatorState>(find.byType(Navigator).first);
