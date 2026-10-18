@@ -57,12 +57,16 @@ class SessionCreatedResponseDto {
   /// Per-question timer limit returned by backend for rapid-fire cards.
   final int? timeLimitPerQuestionSec;
 
+  /// Match the Following boards returned upfront for multi-board sessions.
+  final List<MatchBoardDto>? boards;
+
   const SessionCreatedResponseDto({
     required this.session,
     required this.topic,
     required this.totalQuestions,
     required this.timeLimitSec,
     required this.questions,
+    this.boards,
     this.gameMode = 'mcq',
     this.pairType,
     this.timeLimitPerQuestionSec,
@@ -78,12 +82,25 @@ class SessionCreatedResponseDto {
         }
       }
     }
+
+    final boardList = json['boards'];
+    final bList = <MatchBoardDto>[];
+    if (boardList is List) {
+      for (final item in boardList) {
+        if (item is Map<String, dynamic>) {
+          bList.add(MatchBoardDto.fromJson(item));
+        }
+      }
+    }
+
     return SessionCreatedResponseDto(
       session: json['session'] as String? ?? '',
       topic: json['topic'] as String? ?? '',
-      totalQuestions: json['total_questions'] as int? ?? qList.length,
+      totalQuestions: json['total_questions'] as int? ??
+          (qList.isNotEmpty ? qList.length : bList.length),
       timeLimitSec: json['time_limit_sec'] as int? ?? 15,
       questions: qList,
+      boards: bList.isNotEmpty ? bList : null,
       gameMode: json['game_mode'] as String? ?? 'mcq',
       pairType: json['pair_type'] as String?,
       timeLimitPerQuestionSec: json['time_limit_per_question_sec'] as int?,
@@ -507,4 +524,319 @@ class CompleteSortItOutResponseDto {
     );
   }
 }
+
+// --- Match the Following Mini-Game DTOs ---
+
+class MatchPairItemDto {
+  final String id;
+  final String text;
+
+  const MatchPairItemDto({
+    required this.id,
+    required this.text,
+  });
+
+  factory MatchPairItemDto.fromJson(Map<String, dynamic> json) =>
+      MatchPairItemDto(
+        id: json['id'] as String? ?? '',
+        text: json['text'] as String? ?? '',
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'text': text,
+      };
+}
+
+class MatchBoardDto {
+  final String questionCode;
+  final String prompt;
+  final int timeLimitSec;
+  final List<MatchPairItemDto> leftItems;
+  final List<MatchPairItemDto> rightItems;
+  final Map<String, String> solutionMap;
+  final String? hint;
+  final String? explanation;
+
+  const MatchBoardDto({
+    required this.questionCode,
+    required this.prompt,
+    required this.timeLimitSec,
+    required this.leftItems,
+    required this.rightItems,
+    this.solutionMap = const {},
+    this.hint,
+    this.explanation,
+  });
+
+  factory MatchBoardDto.fromJson(Map<String, dynamic> json) {
+    final leftList = json['left_items'];
+    final lefts = <MatchPairItemDto>[];
+    if (leftList is List) {
+      for (final item in leftList) {
+        if (item is Map<String, dynamic>) {
+          lefts.add(MatchPairItemDto.fromJson(item));
+        }
+      }
+    }
+
+    final rightList = json['right_items'];
+    final rights = <MatchPairItemDto>[];
+    if (rightList is List) {
+      for (final item in rightList) {
+        if (item is Map<String, dynamic>) {
+          rights.add(MatchPairItemDto.fromJson(item));
+        }
+      }
+    }
+
+    final sol = <String, String>{};
+    final solMap = json['solution_map'];
+    if (solMap is Map) {
+      solMap.forEach((k, v) {
+        sol[k.toString()] = v.toString();
+      });
+    }
+
+    return MatchBoardDto(
+      questionCode: json['question_code'] as String? ?? '',
+      prompt: json['prompt'] as String? ?? '',
+      timeLimitSec: json['time_limit_sec'] as int? ?? 25,
+      leftItems: lefts,
+      rightItems: rights,
+      solutionMap: sol,
+      hint: json['hint'] as String?,
+      explanation: json['explanation'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'question_code': questionCode,
+        'prompt': prompt,
+        'time_limit_sec': timeLimitSec,
+        'left_items': leftItems.map((i) => i.toJson()).toList(),
+        'right_items': rightItems.map((i) => i.toJson()).toList(),
+        'solution_map': solutionMap,
+        if (hint != null) 'hint': hint,
+        if (explanation != null) 'explanation': explanation,
+      };
+}
+
+class MatchBoardAnswerSubmissionDto {
+  final String questionCode;
+  final Map<String, String> matches;
+  final int mistakes;
+  final int timeTakenMs;
+  final bool isTimeout;
+
+  const MatchBoardAnswerSubmissionDto({
+    required this.questionCode,
+    required this.matches,
+    this.mistakes = 0,
+    required this.timeTakenMs,
+    this.isTimeout = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'question_code': questionCode,
+        'matches': matches,
+        'mistakes': mistakes,
+        'time_taken_ms': timeTakenMs,
+        if (isTimeout) 'is_timeout': true,
+      };
+
+  factory MatchBoardAnswerSubmissionDto.fromJson(Map<String, dynamic> json) {
+    final matchesMap = <String, String>{};
+    final m = json['matches'];
+    if (m is Map) {
+      m.forEach((k, v) => matchesMap[k.toString()] = v.toString());
+    }
+    return MatchBoardAnswerSubmissionDto(
+      questionCode: json['question_code'] as String? ?? '',
+      matches: matchesMap,
+      mistakes: json['mistakes'] as int? ?? 0,
+      timeTakenMs: json['time_taken_ms'] as int? ?? 0,
+      isTimeout: json['is_timeout'] as bool? ?? false,
+    );
+  }
+}
+
+class CompleteMatchTheFollowingRequestDto {
+  final String session;
+  final List<MatchBoardAnswerSubmissionDto> boards;
+
+  const CompleteMatchTheFollowingRequestDto({
+    required this.session,
+    required this.boards,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'session': session,
+        'boards': boards.map((b) => b.toJson()).toList(),
+      };
+}
+
+class MatchBoardReviewDto {
+  final String questionCode;
+  final String prompt;
+  final int pairsMatched;
+  final int totalPairs;
+  final int mistakes;
+  final int timeTakenMs;
+  final bool isFlawless;
+  final bool isTimeout;
+  final int basePoints;
+  final int flawlessBonus;
+  final int speedBonus;
+  final int mistakePenalty;
+  final int totalBoardScore;
+  final String? explanation;
+
+  const MatchBoardReviewDto({
+    required this.questionCode,
+    required this.prompt,
+    required this.pairsMatched,
+    required this.totalPairs,
+    required this.mistakes,
+    required this.timeTakenMs,
+    required this.isFlawless,
+    required this.isTimeout,
+    required this.basePoints,
+    required this.flawlessBonus,
+    required this.speedBonus,
+    required this.mistakePenalty,
+    required this.totalBoardScore,
+    this.explanation,
+  });
+
+  factory MatchBoardReviewDto.fromJson(Map<String, dynamic> json) =>
+      MatchBoardReviewDto(
+        questionCode: json['question_code'] as String? ?? '',
+        prompt: json['prompt'] as String? ?? '',
+        pairsMatched: json['pairs_matched'] as int? ?? 0,
+        totalPairs: json['total_pairs'] as int? ?? 0,
+        mistakes: json['mistakes'] as int? ?? 0,
+        timeTakenMs: json['time_taken_ms'] as int? ?? 0,
+        isFlawless: json['is_flawless'] as bool? ?? false,
+        isTimeout: json['is_timeout'] as bool? ?? false,
+        basePoints: json['base_points'] as int? ?? 0,
+        flawlessBonus: json['flawless_bonus'] as int? ?? 0,
+        speedBonus: json['speed_bonus'] as int? ?? 0,
+        mistakePenalty: json['mistake_penalty'] as int? ?? 0,
+        totalBoardScore: json['total_board_score'] as int? ?? 0,
+        explanation: json['explanation'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'question_code': questionCode,
+        'prompt': prompt,
+        'pairs_matched': pairsMatched,
+        'total_pairs': totalPairs,
+        'mistakes': mistakes,
+        'time_taken_ms': timeTakenMs,
+        'is_flawless': isFlawless,
+        'is_timeout': isTimeout,
+        'base_points': basePoints,
+        'flawless_bonus': flawlessBonus,
+        'speed_bonus': speedBonus,
+        'mistake_penalty': mistakePenalty,
+        'total_board_score': totalBoardScore,
+        if (explanation != null) 'explanation': explanation,
+      };
+}
+
+class CompleteMatchTheFollowingResponseDto {
+  final String session;
+  final int totalBoards;
+  final int clearedBoards;
+  final int totalPairsMatched;
+  final int totalPairsCount;
+  final int totalMistakes;
+  final double accuracyPercentage;
+  final int finalScore;
+  final int coinsAwarded;
+  final int xpAwarded;
+  final int gemsAwarded;
+  final Map<String, int> scoreBreakdown;
+  final Map<String, int> coinBreakdown;
+  final Map<String, int> xpBreakdown;
+  final LevelUpRewardDto? levelUpReward;
+  final LevelProgressDto? level;
+  final StreakSummaryDto? streak;
+  final List<MatchBoardReviewDto> boardsReview;
+
+  const CompleteMatchTheFollowingResponseDto({
+    required this.session,
+    required this.totalBoards,
+    required this.clearedBoards,
+    required this.totalPairsMatched,
+    required this.totalPairsCount,
+    required this.totalMistakes,
+    required this.accuracyPercentage,
+    required this.finalScore,
+    required this.coinsAwarded,
+    required this.xpAwarded,
+    required this.gemsAwarded,
+    this.scoreBreakdown = const {},
+    this.coinBreakdown = const {},
+    this.xpBreakdown = const {},
+    this.levelUpReward,
+    this.level,
+    this.streak,
+    this.boardsReview = const [],
+  });
+
+  factory CompleteMatchTheFollowingResponseDto.fromJson(
+      Map<String, dynamic> json) {
+    Map<String, int> parseBreakdown(Object? val) {
+      if (val is! Map) return const {};
+      final map = <String, int>{};
+      val.forEach((k, v) {
+        if (v is num) map[k.toString()] = v.round();
+      });
+      return map;
+    }
+
+    final reviewList = json['boards_review'];
+    final parsedReviews = <MatchBoardReviewDto>[];
+    if (reviewList is List) {
+      for (final item in reviewList) {
+        if (item is Map<String, dynamic>) {
+          parsedReviews.add(MatchBoardReviewDto.fromJson(item));
+        }
+      }
+    }
+
+    return CompleteMatchTheFollowingResponseDto(
+      session: json['session'] as String? ?? '',
+      totalBoards: json['total_boards'] as int? ?? parsedReviews.length,
+      clearedBoards: json['cleared_boards'] as int? ?? 0,
+      totalPairsMatched: json['total_pairs_matched'] as int? ?? 0,
+      totalPairsCount: json['total_pairs_count'] as int? ?? 0,
+      totalMistakes: json['total_mistakes'] as int? ?? 0,
+      accuracyPercentage:
+          (json['accuracy_percentage'] as num?)?.toDouble() ?? 0.0,
+      finalScore: json['final_score'] as int? ?? 0,
+      coinsAwarded: json['coins_awarded'] as int? ?? 0,
+      xpAwarded: json['xp_awarded'] as int? ?? 0,
+      gemsAwarded: json['gems_awarded'] as int? ?? 0,
+      scoreBreakdown: parseBreakdown(json['score_breakdown']),
+      coinBreakdown: parseBreakdown(json['coin_breakdown']),
+      xpBreakdown: parseBreakdown(json['xp_breakdown']),
+      levelUpReward: json['level_up_reward'] is Map<String, dynamic>
+          ? LevelUpRewardDto.fromJson(
+              json['level_up_reward'] as Map<String, dynamic>,
+            )
+          : null,
+      level: json['level'] is Map<String, dynamic>
+          ? LevelProgressDto.fromJson(json['level'] as Map<String, dynamic>)
+          : null,
+      streak: json['streak'] is Map<String, dynamic>
+          ? StreakSummaryDto.fromJson(json['streak'] as Map<String, dynamic>)
+          : null,
+      boardsReview: parsedReviews,
+    );
+  }
+}
+
 

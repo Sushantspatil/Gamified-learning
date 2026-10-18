@@ -11,6 +11,7 @@ import 'package:skillverse_app/features/questions/data/models/question_dto.dart'
 import '../../../domain/entities/quiz_result.dart';
 import '../../../domain/entities/quiz_session.dart';
 import '../../../domain/entities/sort_it_out_models.dart';
+import '../../../domain/entities/match_the_following_models.dart';
 import '../quiz_datasource.dart';
 
 class QuizRemoteDatasource implements QuizDatasource {
@@ -20,6 +21,7 @@ class QuizRemoteDatasource implements QuizDatasource {
   String? _activeTopicId;
   List<Question>? _activeSessionQuestions;
   List<SortItOutCard>? _activeSortItOutCards;
+  List<MatchBoard>? _activeMatchBoards;
   String? _activePairType;
   int? _activeTimeLimitPerQuestionSec;
   DateTime? _questionStartTime;
@@ -29,6 +31,7 @@ class QuizRemoteDatasource implements QuizDatasource {
   String? get activeSessionId => _backendSessionId;
   List<Question>? get activeSessionQuestions => _activeSessionQuestions;
   List<SortItOutCard>? get activeSortItOutCards => _activeSortItOutCards;
+  List<MatchBoard>? get activeMatchBoards => _activeMatchBoards;
   String? get activePairType => _activePairType;
   int? get activeTimeLimitPerQuestionSec => _activeTimeLimitPerQuestionSec;
 
@@ -45,6 +48,7 @@ class QuizRemoteDatasource implements QuizDatasource {
     _activeTopicId = null;
     _activeSessionQuestions = null;
     _activeSortItOutCards = null;
+    _activeMatchBoards = null;
     _activePairType = null;
     _activeTimeLimitPerQuestionSec = null;
     final backendTopic = topicId.contains('accounting')
@@ -91,6 +95,25 @@ class QuizRemoteDatasource implements QuizDatasource {
               correctOption: dto.correctOption,
               pairType: dto.pairType ?? sessionDto.pairType,
               explanation: dto.explanation,
+            );
+          }).toList();
+        }
+
+        if (sessionDto.boards != null && sessionDto.boards!.isNotEmpty) {
+          _activeMatchBoards = sessionDto.boards!.map((b) {
+            return MatchBoard(
+              questionCode: b.questionCode,
+              prompt: b.prompt,
+              timeLimitSec: b.timeLimitSec,
+              leftItems: b.leftItems
+                  .map((i) => MatchPairItem(id: i.id, text: i.text))
+                  .toList(),
+              rightItems: b.rightItems
+                  .map((i) => MatchPairItem(id: i.id, text: i.text))
+                  .toList(),
+              solutionMap: b.solutionMap,
+              hint: b.hint,
+              explanation: b.explanation,
             );
           }).toList();
         }
@@ -344,6 +367,31 @@ class QuizRemoteDatasource implements QuizDatasource {
     throw const ServerException(
       'Invalid response while completing Sort It Out session.',
       'invalid-sort-it-out-result',
+    );
+  }
+
+  /// Completes a Match the Following session with batch board submissions.
+  Future<CompleteMatchTheFollowingResponseDto> completeMatchTheFollowing({
+    required String session,
+    required List<MatchBoardAnswerSubmissionDto> boards,
+  }) async {
+    final body = CompleteMatchTheFollowingRequestDto(
+      session: session,
+      boards: boards,
+    ).toJson();
+
+    final data = await _apiClient.post(
+      ApiEndpoints.quizMatchTheFollowingComplete,
+      body: body,
+    );
+
+    if (data is Map<String, dynamic>) {
+      return CompleteMatchTheFollowingResponseDto.fromJson(data);
+    }
+
+    throw const ServerException(
+      'Invalid response while completing Match the Following session.',
+      'invalid-match-the-following-result',
     );
   }
 

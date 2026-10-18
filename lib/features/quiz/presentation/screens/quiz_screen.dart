@@ -21,6 +21,7 @@ import '../widgets/sort_it_right_view.dart';
 import '../../../../core/audio/audio_providers.dart';
 import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import 'match_the_following_screen.dart';
 import 'sort_it_out_screen.dart';
 import 'sudden_death_screen.dart';
 
@@ -49,6 +50,13 @@ class QuizScreen extends ConsumerWidget {
     }
     if (quizType == QuestionType.sortItRight) {
       return SortItOutScreen(
+        topicId: topicId,
+        subjectId: subjectId,
+        chapterId: chapterId,
+      );
+    }
+    if (quizType == QuestionType.matchTheFollowing) {
+      return MatchTheFollowingScreen(
         topicId: topicId,
         subjectId: subjectId,
         chapterId: chapterId,
