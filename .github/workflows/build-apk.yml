@@ -11,7 +11,7 @@ jobs:
     name: Build Flutter APK
     runs-on: ubuntu-latest
     env:
-      DEFAULT_BASE_URL: https://gamifiedquizappdigitalhq-production.up.railway.app
+      DEFAULT_BASE_URL: https://quiz-api-50046981183.development.catalystappsail.in/api/v1
       BASE_URL: ${{ secrets.BASE_URL }}
 
     steps:
