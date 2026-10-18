@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
@@ -27,7 +28,7 @@ abstract class SuddenDeathSocketClient {
 
 /// Standard production implementation using `dart:io` [WebSocket].
 class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
-  static const _heartbeatInterval = Duration(seconds: 20);
+  static const _heartbeatInterval = Duration(seconds: 15);
 
   WebSocket? _socket;
   StreamSubscription<dynamic>? _subscription;
@@ -51,6 +52,51 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
     );
   }
 
+  Future<WebSocket> _connectSocket(Uri uri) async {
+    try {
+      return await WebSocket.connect(uri.toString());
+    } catch (e, st) {
+      _debugLog(
+        '[SD] standard WebSocket.connect failed ($e); attempting proxy-compatible upgrade handshake',
+      );
+      try {
+        final httpUri = uri.replace(
+          scheme: uri.scheme == 'wss'
+              ? 'https'
+              : (uri.scheme == 'ws' ? 'http' : uri.scheme),
+        );
+        final client = HttpClient();
+        final request = await client.getUrl(httpUri);
+        final random = math.Random();
+        final nonceBytes = List<int>.generate(16, (_) => random.nextInt(256));
+        final nonce = base64Encode(nonceBytes);
+
+        request.headers.set(HttpHeaders.connectionHeader, 'Upgrade');
+        request.headers.set(HttpHeaders.upgradeHeader, 'websocket');
+        request.headers.set('Sec-WebSocket-Key', nonce);
+        request.headers.set('Sec-WebSocket-Version', '13');
+
+        final response = await request.close();
+        if (response.statusCode != HttpStatus.switchingProtocols) {
+          throw WebSocketException(
+            'Connection to \'$uri\' was not upgraded to websocket',
+            response.statusCode,
+          );
+        }
+
+        final socket = await response.detachSocket();
+        return WebSocket.fromUpgradedSocket(socket, serverSide: false);
+      } catch (fallbackError, fallbackStackTrace) {
+        _debugLog(
+          '[SD] proxy-compatible handshake also failed: $fallbackError',
+          error: fallbackError,
+          stackTrace: fallbackStackTrace,
+        );
+        Error.throwWithStackTrace(e, st);
+      }
+    }
+  }
+
   @override
   Future<void> connect(Uri uri) async {
     await close();
@@ -60,7 +106,7 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
     );
 
     try {
-      final socket = await WebSocket.connect(uri.toString());
+      final socket = await _connectSocket(uri);
       socket.pingInterval = _heartbeatInterval;
       _socket = socket;
       _debugLog('[SD] ws connected (HTTP 101)');
