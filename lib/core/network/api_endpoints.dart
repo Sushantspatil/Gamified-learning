@@ -33,6 +33,7 @@ class ApiEndpoints {
   static const String quizEvaluateAnswer = '/quiz/answers/evaluate';
   static const String quizFiftyFifty = '/quiz/power-ups/fifty-fifty';
   static const String quizCompleteSession = '/quiz/sessions/complete';
+  static const String quizSortItOutComplete = '/quiz/sort-it-out/complete';
   static const String quizAbandonSession = '/quiz/sessions/abandon';
   static const String quizHistory = '/quiz/history';
   static const String gameWs = '/ws/game';

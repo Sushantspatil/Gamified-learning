@@ -8,8 +8,15 @@ class CreateSessionRequestDto {
   final List<String>? questionCodes;
 
   /// Server-side rules for the session. `sudden_death` ends the run on the
-  /// first wrong answer; omitted keeps the default `mcq` flow.
+  /// first wrong answer; `sort_it_out` provides rapid-fire binary swipes;
+  /// omitted keeps the default `mcq` flow.
   final String? gameMode;
+
+  /// Optional classification pair type for `sort_it_out` (e.g. 'credit_debit').
+  final String? pairType;
+
+  /// Optional per-question timer limit for `sort_it_out` in seconds (5-10, default 7).
+  final int? timeLimitPerQuestionSec;
 
   const CreateSessionRequestDto({
     required this.topic,
@@ -17,6 +24,8 @@ class CreateSessionRequestDto {
     this.abandonStale = true,
     this.questionCodes,
     this.gameMode,
+    this.pairType,
+    this.timeLimitPerQuestionSec,
   });
 
   Map<String, dynamic> toJson() => {
@@ -26,6 +35,9 @@ class CreateSessionRequestDto {
     if (questionCodes != null && questionCodes!.isNotEmpty)
       'question_codes': questionCodes,
     if (gameMode != null && gameMode!.isNotEmpty) 'game_mode': gameMode,
+    if (pairType != null && pairType!.isNotEmpty) 'pair_type': pairType,
+    if (timeLimitPerQuestionSec != null)
+      'time_limit_per_question_sec': timeLimitPerQuestionSec,
   };
 }
 
@@ -39,6 +51,12 @@ class SessionCreatedResponseDto {
   /// Mode the server actually persisted, echoed back for confirmation.
   final String gameMode;
 
+  /// Pair classification for Sort It Out mode (e.g. 'credit_debit').
+  final String? pairType;
+
+  /// Per-question timer limit returned by backend for rapid-fire cards.
+  final int? timeLimitPerQuestionSec;
+
   const SessionCreatedResponseDto({
     required this.session,
     required this.topic,
@@ -46,6 +64,8 @@ class SessionCreatedResponseDto {
     required this.timeLimitSec,
     required this.questions,
     this.gameMode = 'mcq',
+    this.pairType,
+    this.timeLimitPerQuestionSec,
   });
 
   factory SessionCreatedResponseDto.fromJson(Map<String, dynamic> json) {
@@ -65,6 +85,8 @@ class SessionCreatedResponseDto {
       timeLimitSec: json['time_limit_sec'] as int? ?? 15,
       questions: qList,
       gameMode: json['game_mode'] as String? ?? 'mcq',
+      pairType: json['pair_type'] as String?,
+      timeLimitPerQuestionSec: json['time_limit_per_question_sec'] as int?,
     );
   }
 }
@@ -300,3 +322,189 @@ class SessionCompleteResponseDto {
     );
   }
 }
+
+// --- Sort It Out Mini-Game DTOs ---
+
+class SortItOutAnswerSubmissionDto {
+  final String question;
+  final String option;
+  final int timeTakenMs;
+  final bool isTimeout;
+
+  const SortItOutAnswerSubmissionDto({
+    required this.question,
+    required this.option,
+    required this.timeTakenMs,
+    this.isTimeout = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'question': question,
+    'option': option,
+    'time_taken_ms': timeTakenMs,
+    if (isTimeout) 'is_timeout': true,
+  };
+
+  factory SortItOutAnswerSubmissionDto.fromJson(Map<String, dynamic> json) =>
+      SortItOutAnswerSubmissionDto(
+        question: json['question'] as String? ?? '',
+        option: json['option'] as String? ?? '',
+        timeTakenMs: json['time_taken_ms'] as int? ?? 0,
+        isTimeout: json['is_timeout'] as bool? ?? false,
+      );
+}
+
+class CompleteSortItOutRequestDto {
+  final String session;
+  final List<SortItOutAnswerSubmissionDto> answers;
+
+  const CompleteSortItOutRequestDto({
+    required this.session,
+    required this.answers,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'session': session,
+    'answers': answers.map((a) => a.toJson()).toList(),
+  };
+}
+
+class SortItOutCardReviewDto {
+  final String question;
+  final String prompt;
+  final String selectedOption;
+  final String correctOption;
+  final bool isCorrect;
+  final bool isTimeout;
+  final int timeTakenMs;
+  final int basePoints;
+  final int speedBonus;
+  final int comboBonus;
+  final int pointsEarned;
+  final String? explanation;
+
+  const SortItOutCardReviewDto({
+    required this.question,
+    required this.prompt,
+    required this.selectedOption,
+    required this.correctOption,
+    required this.isCorrect,
+    required this.isTimeout,
+    required this.timeTakenMs,
+    required this.basePoints,
+    required this.speedBonus,
+    required this.comboBonus,
+    required this.pointsEarned,
+    this.explanation,
+  });
+
+  factory SortItOutCardReviewDto.fromJson(Map<String, dynamic> json) =>
+      SortItOutCardReviewDto(
+        question: json['question'] as String? ?? '',
+        prompt: json['prompt'] as String? ?? '',
+        selectedOption: json['selected_option'] as String? ?? '',
+        correctOption: json['correct_option'] as String? ?? '',
+        isCorrect: json['is_correct'] as bool? ?? false,
+        isTimeout: json['is_timeout'] as bool? ?? false,
+        timeTakenMs: json['time_taken_ms'] as int? ?? 0,
+        basePoints: json['base_points'] as int? ?? 0,
+        speedBonus: json['speed_bonus'] as int? ?? 0,
+        comboBonus: json['combo_bonus'] as int? ?? 0,
+        pointsEarned: json['points_earned'] as int? ?? 0,
+        explanation: json['explanation'] as String?,
+      );
+}
+
+class CompleteSortItOutResponseDto {
+  final String session;
+  final String pairType;
+  final int totalQuestions;
+  final int correctCount;
+  final int timeoutCount;
+  final int bestStreak;
+  final double accuracyPercentage;
+  final int finalScore;
+  final int coinsAwarded;
+  final int xpAwarded;
+  final int gemsAwarded;
+  final Map<String, int> scoreBreakdown;
+  final Map<String, int> coinBreakdown;
+  final Map<String, int> xpBreakdown;
+  final LevelUpRewardDto? levelUpReward;
+  final LevelProgressDto? level;
+  final StreakSummaryDto? streak;
+  final List<SortItOutCardReviewDto> cardsReview;
+
+  const CompleteSortItOutResponseDto({
+    required this.session,
+    required this.pairType,
+    required this.totalQuestions,
+    required this.correctCount,
+    required this.timeoutCount,
+    required this.bestStreak,
+    required this.accuracyPercentage,
+    required this.finalScore,
+    required this.coinsAwarded,
+    required this.xpAwarded,
+    required this.gemsAwarded,
+    this.scoreBreakdown = const {},
+    this.coinBreakdown = const {},
+    this.xpBreakdown = const {},
+    this.levelUpReward,
+    this.level,
+    this.streak,
+    this.cardsReview = const [],
+  });
+
+  factory CompleteSortItOutResponseDto.fromJson(Map<String, dynamic> json) {
+    Map<String, int> parseBreakdown(Object? val) {
+      if (val is! Map) return const {};
+      final map = <String, int>{};
+      val.forEach((k, v) {
+        if (v is num) map[k.toString()] = v.round();
+      });
+      return map;
+    }
+
+    final reviewList = json['cards_review'];
+    final parsedReviews = <SortItOutCardReviewDto>[];
+    if (reviewList is List) {
+      for (final item in reviewList) {
+        if (item is Map<String, dynamic>) {
+          parsedReviews.add(SortItOutCardReviewDto.fromJson(item));
+        }
+      }
+    }
+
+    return CompleteSortItOutResponseDto(
+      session: json['session'] as String? ?? '',
+      pairType: json['pair_type'] as String? ?? '',
+      totalQuestions: json['total_questions'] as int? ?? parsedReviews.length,
+      correctCount: json['correct_count'] as int? ?? 0,
+      timeoutCount: json['timeout_count'] as int? ?? 0,
+      bestStreak: json['best_streak'] as int? ?? 0,
+      accuracyPercentage:
+          (json['accuracy_percentage'] as num?)?.toDouble() ?? 0.0,
+      finalScore: json['final_score'] as int? ?? 0,
+      coinsAwarded: json['coins_awarded'] as int? ?? 0,
+      xpAwarded: json['xp_awarded'] as int? ?? 0,
+      gemsAwarded: json['gems_awarded'] as int? ?? 0,
+      scoreBreakdown: parseBreakdown(json['score_breakdown']),
+      coinBreakdown: parseBreakdown(json['coin_breakdown']),
+      xpBreakdown: parseBreakdown(json['xp_breakdown']),
+      levelUpReward: json['level_up_reward'] is Map<String, dynamic>
+          ? LevelUpRewardDto.fromJson(
+              json['level_up_reward'] as Map<String, dynamic>,
+            )
+          : null,
+      level: json['level'] is Map<String, dynamic>
+          ? LevelProgressDto.fromJson(json['level'] as Map<String, dynamic>)
+          : null,
+      streak: json['streak'] is Map<String, dynamic>
+          ? StreakSummaryDto.fromJson(json['streak'] as Map<String, dynamic>)
+          : null,
+      cardsReview: parsedReviews,
+    );
+  }
+}
+
