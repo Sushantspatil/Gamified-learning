@@ -71,21 +71,21 @@ void main() {
         final config = ApiConfig.defaultConfig();
         expect(
           config.baseUrl,
-          'https://gamifiedquizappdigitalhq-production.up.railway.app/api/v1',
+          'https://quiz-api-50046981183.development.catalystappsail.in/api/v1',
         );
         expect(config.baseUrl.startsWith('https://'), isTrue);
         expect(
           config.rootUrl,
-          'https://gamifiedquizappdigitalhq-production.up.railway.app',
+          'https://quiz-api-50046981183.development.catalystappsail.in',
         );
         expect(
           config.wsRootUrl,
-          'wss://gamifiedquizappdigitalhq-production.up.railway.app',
+          'wss://quiz-api-50046981183.development.catalystappsail.in',
         );
         expect(config.wsRootUrl.startsWith('wss://'), isTrue);
         expect(
           config.gameWsUrl,
-          'wss://gamifiedquizappdigitalhq-production.up.railway.app/ws/game',
+          'wss://quiz-api-50046981183.development.catalystappsail.in/ws/game',
         );
         expect(config.gameWsUrl.startsWith('wss://'), isTrue);
       },

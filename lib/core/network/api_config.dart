@@ -1,6 +1,6 @@
 class ApiConfig {
   static const String defaultProductionBaseUrl =
-      'https://gamifiedquizappdigitalhq-production.up.railway.app/api/v1';
+      'https://quiz-api-50046981183.development.catalystappsail.in/api/v1';
 
   final String baseUrl;
   final Duration timeout;
