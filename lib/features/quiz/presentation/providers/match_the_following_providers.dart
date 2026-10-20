@@ -154,14 +154,25 @@ class MatchTheFollowingController
       );
     }
 
-    // Create session using backend default board timer (25s) and 3 boards
-    final sessionId = await ds.createSession(
-      topicId: arg.topicId,
-      gameMode: 'match_the_following',
-      questionCount: 3,
-    );
+    final String sessionId;
+    final List<MatchBoard>? boards;
 
-    final boards = ds.activeMatchBoards;
+    if (ds.activeSessionId != null &&
+        ds.activeMatchBoards != null &&
+        ds.activeMatchBoards!.isNotEmpty &&
+        ds.activeGameMode == 'match_the_following' &&
+        ds.activeTopicId == arg.topicId) {
+      sessionId = ds.activeSessionId!;
+      boards = ds.activeMatchBoards;
+    } else {
+      // Create session using backend default board timer (25s) and 3 boards
+      sessionId = await ds.createSession(
+        topicId: arg.topicId,
+        gameMode: 'match_the_following',
+        questionCount: 3,
+      );
+      boards = ds.activeMatchBoards;
+    }
     if (boards == null || boards.isEmpty) {
       throw const ValidationException(
         "Match the Following isn't available for this topic yet.",

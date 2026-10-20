@@ -1,6 +1,7 @@
 import 'package:skillverse_app/core/errors/app_exception.dart';
 import 'package:skillverse_app/core/network/api_client.dart';
 import 'package:skillverse_app/core/network/api_endpoints.dart';
+import 'package:skillverse_app/core/network/backend_topic_mapper.dart';
 import '../../../domain/entities/question.dart';
 import '../../models/question_dto.dart';
 import '../question_datasource.dart';
@@ -25,9 +26,7 @@ class QuestionRemoteDatasource implements QuestionDatasource {
       return const [];
     }
 
-    final backendTopic = topicId.contains('accounting')
-        ? 'accounting'
-        : topicId;
+    final backendTopic = mapToBackendTopicId(topicId);
     final responseData = await _apiClient.get(
       ApiEndpoints.topicQuestions(backendTopic),
       queryParams: {'limit': '10'},

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/audio/audio_providers.dart';
 import '../../../../core/audio/game_sound.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
@@ -139,33 +140,51 @@ class SortItOutController
     List<SortItOutCard> cards = const [];
 
     if (datasource is QuizRemoteDatasource) {
-      try {
-        sessionId = await datasource.createSession(
-          topicId: request.topicId,
-          questionCount: 10,
-          gameMode: 'sort_it_out',
-        );
-        if (datasource.activeSortItOutCards != null &&
-            datasource.activeSortItOutCards!.isNotEmpty) {
-          cards = datasource.activeSortItOutCards!;
+      if (datasource.activeSessionId != null &&
+          datasource.activeSortItOutCards != null &&
+          datasource.activeSortItOutCards!.isNotEmpty &&
+          datasource.activeGameMode == 'sort_it_out' &&
+          datasource.activeTopicId == request.topicId) {
+        sessionId = datasource.activeSessionId;
+        cards = datasource.activeSortItOutCards!;
+        pairType = datasource.activePairType ?? 'credit_debit';
+        timeLimitPerQuestion = datasource.activeTimeLimitPerQuestionSec ?? 7;
+      } else {
+        try {
+          sessionId = await datasource.createSession(
+            topicId: request.topicId,
+            questionCount: 10,
+            gameMode: 'sort_it_out',
+          );
+          if (datasource.activeSortItOutCards != null &&
+              datasource.activeSortItOutCards!.isNotEmpty) {
+            cards = datasource.activeSortItOutCards!;
+          }
+          if (datasource.activePairType != null &&
+              datasource.activePairType!.isNotEmpty) {
+            pairType = datasource.activePairType!;
+          }
+          if (datasource.activeTimeLimitPerQuestionSec != null &&
+              datasource.activeTimeLimitPerQuestionSec! > 0) {
+            timeLimitPerQuestion = datasource.activeTimeLimitPerQuestionSec!;
+          }
+        } catch (e) {
+          developer.log(
+            'Failed to create remote sort_it_out session: $e',
+            name: 'SortItOutController',
+          );
+          rethrow;
         }
-        if (datasource.activePairType != null &&
-            datasource.activePairType!.isNotEmpty) {
-          pairType = datasource.activePairType!;
-        }
-        if (datasource.activeTimeLimitPerQuestionSec != null &&
-            datasource.activeTimeLimitPerQuestionSec! > 0) {
-          timeLimitPerQuestion = datasource.activeTimeLimitPerQuestionSec!;
-        }
-      } catch (e) {
-        developer.log(
-          'Failed to create remote sort_it_out session: $e',
-          name: 'SortItOutController',
+      }
+
+      if (cards.isEmpty) {
+        throw const ValidationException(
+          'No Sort It Out cards available for the selected topic.',
+          'no-sort-cards',
         );
       }
-    }
-
-    if (cards.isEmpty) {
+    } else {
+      // Mock mode fallback only for test environments with QuizMockDatasource
       final questionsRequest = QuestionsForTopicAndTypeRequest(
         topicId: request.topicId,
         questionType: QuestionType.sortItRight,
@@ -199,7 +218,8 @@ class SortItOutController
         }
       }
       cards = convertedCards;
-      sessionId ??= 'mock-sort-session-${DateTime.now().millisecondsSinceEpoch}';
+      sessionId ??=
+          'mock-sort-session-${DateTime.now().millisecondsSinceEpoch}';
     }
 
     final initialLimit = cards.isNotEmpty

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'package:skillverse_app/core/errors/app_exception.dart';
 import 'package:skillverse_app/core/network/api_client.dart';
 import 'package:skillverse_app/core/network/api_endpoints.dart';
+import 'package:skillverse_app/core/network/backend_topic_mapper.dart';
 import '../../../../../core/network/dtos/quiz_dtos.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer_evaluation.dart';
@@ -19,6 +20,7 @@ class QuizRemoteDatasource implements QuizDatasource {
 
   String? _backendSessionId;
   String? _activeTopicId;
+  String? _activeGameMode;
   List<Question>? _activeSessionQuestions;
   List<SortItOutCard>? _activeSortItOutCards;
   List<MatchBoard>? _activeMatchBoards;
@@ -29,11 +31,25 @@ class QuizRemoteDatasource implements QuizDatasource {
   QuizRemoteDatasource({required ApiClient apiClient}) : _apiClient = apiClient;
 
   String? get activeSessionId => _backendSessionId;
+  String? get activeTopicId => _activeTopicId;
+  String? get activeGameMode => _activeGameMode;
   List<Question>? get activeSessionQuestions => _activeSessionQuestions;
   List<SortItOutCard>? get activeSortItOutCards => _activeSortItOutCards;
   List<MatchBoard>? get activeMatchBoards => _activeMatchBoards;
   String? get activePairType => _activePairType;
   int? get activeTimeLimitPerQuestionSec => _activeTimeLimitPerQuestionSec;
+
+  void clearActiveSession() {
+    _backendSessionId = null;
+    _activeTopicId = null;
+    _activeGameMode = null;
+    _activeSessionQuestions = null;
+    _activeSortItOutCards = null;
+    _activeMatchBoards = null;
+    _activePairType = null;
+    _activeTimeLimitPerQuestionSec = null;
+    _questionStartTime = null;
+  }
 
   /// Creates a new server-side session in PostgreSQL.
   Future<String> createSession({
@@ -46,20 +62,20 @@ class QuizRemoteDatasource implements QuizDatasource {
   }) async {
     _backendSessionId = null;
     _activeTopicId = null;
+    _activeGameMode = null;
     _activeSessionQuestions = null;
     _activeSortItOutCards = null;
     _activeMatchBoards = null;
     _activePairType = null;
     _activeTimeLimitPerQuestionSec = null;
-    final backendTopic = topicId.contains('accounting')
-        ? 'accounting'
-        : topicId;
+    final backendTopic = mapToBackendTopicId(topicId);
+    final selectedGameMode = gameMode ?? 'mcq';
     final requestDto = CreateSessionRequestDto(
       topic: backendTopic,
       questionCount: questionCount,
       abandonStale: true,
       questionCodes: questionCodes,
-      gameMode: gameMode,
+      gameMode: selectedGameMode,
       pairType: pairType,
       timeLimitPerQuestionSec: timeLimitPerQuestionSec,
     );
@@ -73,6 +89,7 @@ class QuizRemoteDatasource implements QuizDatasource {
       if (sessionDto.session.isNotEmpty) {
         _backendSessionId = sessionDto.session;
         _activeTopicId = topicId;
+        _activeGameMode = sessionDto.gameMode.isNotEmpty ? sessionDto.gameMode : selectedGameMode;
         _activePairType = sessionDto.pairType;
         _activeTimeLimitPerQuestionSec = sessionDto.timeLimitPerQuestionSec;
         _questionStartTime = DateTime.now();

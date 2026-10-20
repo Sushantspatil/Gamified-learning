@@ -13,20 +13,19 @@ import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../chapters/domain/entities/chapter.dart';
 import '../../../chapters/domain/entities/topic.dart';
 import '../../../chapters/presentation/providers/chapter_providers.dart';
 import '../../../learning_paths/domain/entities/learning_path.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../questions/domain/entities/question.dart';
-import '../../../questions/presentation/providers/question_providers.dart';
+import '../../../quiz/data/datasources/remote/quiz_remote_datasource.dart';
+import '../../../quiz/presentation/providers/quiz_providers.dart';
+import '../../../quiz/presentation/providers/sudden_death_providers.dart';
+import '../providers/practice_providers.dart';
 
-const _practiceModes = [
-  QuestionType.mcq,
-  QuestionType.matchTheFollowing,
-  QuestionType.sortItRight,
-  QuestionType.suddenDeath,
-];
+const _practiceModes = practicePlayableModes;
 
 class PlaySetupScreen extends ConsumerStatefulWidget {
   final String? initialSubjectId;
@@ -51,6 +50,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
   String? _selectedChapterId;
   String? _selectedTopicId;
   QuestionType? _selectedMode;
+  bool _isStartingGame = false;
 
   @override
   void initState() {
@@ -88,6 +88,159 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
     });
   }
 
+  Future<void> _onStartGame() async {
+    if (!_canStart || _isStartingGame) return;
+    final topicId = _selectedTopicId!;
+    final mode = _selectedMode!;
+    final subjectId = _selectedSubjectId;
+    final chapterId = _selectedChapterId;
+
+    setState(() {
+      _isStartingGame = true;
+    });
+
+    try {
+      await _initializeGameSession(topicId, mode);
+
+      if (!mounted) return;
+
+      if (mode == QuestionType.suddenDeath) {
+        context.push(
+          RouteNames.suddenDeathPath(
+            topicId,
+            subjectId: subjectId,
+            chapterId: chapterId,
+          ),
+        );
+      } else {
+        context.push(
+          RouteNames.quizPath(
+            topicId,
+            mode,
+            subjectId: subjectId,
+            chapterId: chapterId,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      final errorMessage = _resolveUserFriendlyError(e, mode);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Theme.of(context).colorScheme.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isStartingGame = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _initializeGameSession(String topicId, QuestionType mode) async {
+    final quizDatasource = ref.read(quizDatasourceProvider);
+    final suddenDeathDatasource = ref.read(suddenDeathDatasourceProvider);
+
+    switch (mode) {
+      case QuestionType.mcq:
+        if (quizDatasource is QuizRemoteDatasource) {
+          final sessionId = await quizDatasource.createSession(
+            topicId: topicId,
+            questionCount: 10,
+            gameMode: mode.backendGameMode,
+          );
+          final questions = quizDatasource.activeSessionQuestions;
+          if (sessionId.isEmpty || questions == null || questions.isEmpty) {
+            throw const ValidationException(
+              'No MCQ questions available for this topic yet.',
+              'no-mcq-questions',
+            );
+          }
+        }
+      case QuestionType.sortItRight:
+        if (quizDatasource is QuizRemoteDatasource) {
+          final sessionId = await quizDatasource.createSession(
+            topicId: topicId,
+            questionCount: 10,
+            gameMode: mode.backendGameMode,
+          );
+          final cards = quizDatasource.activeSortItOutCards;
+          if (sessionId.isEmpty || cards == null || cards.isEmpty) {
+            throw const ValidationException(
+              'Sort It Out is not available for this topic yet.',
+              'no-sort-cards',
+            );
+          }
+        }
+      case QuestionType.matchTheFollowing:
+        if (quizDatasource is QuizRemoteDatasource) {
+          final sessionId = await quizDatasource.createSession(
+            topicId: topicId,
+            questionCount: 3,
+            gameMode: mode.backendGameMode,
+          );
+          final boards = quizDatasource.activeMatchBoards;
+          if (sessionId.isEmpty || boards == null || boards.isEmpty) {
+            throw const ValidationException(
+              'Match the Following is not available for this topic yet.',
+              'no-match-boards',
+            );
+          }
+        }
+      case QuestionType.suddenDeath:
+        final sessionId = await suddenDeathDatasource.createSession(
+          topicId: topicId,
+          questionCount: 10,
+          gameMode: mode.backendGameMode,
+        );
+        if (sessionId.isEmpty) {
+          throw const ValidationException(
+            'Sudden Death is not available for this topic yet.',
+            'no-sudden-death-questions',
+          );
+        }
+    }
+  }
+
+  String _resolveUserFriendlyError(Object error, QuestionType mode) {
+    if (error is AuthException) {
+      return 'Your session has expired. Please log in again.';
+    }
+    if (error is NetworkException) {
+      return 'Network unavailable. Please check your internet connection and try again.';
+    }
+    final modeLabel = _modeShortName(mode);
+    if (error is NotFoundException ||
+        (error is AppException &&
+            (error.message.toLowerCase().contains('not found') ||
+                error.message.toLowerCase().contains('no questions') ||
+                error.message.toLowerCase().contains('no sort_it_out') ||
+                error.message.toLowerCase().contains('no match_the_following')))) {
+      return '$modeLabel is not available for this topic yet.';
+    }
+    if (error is ValidationException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('active session already exists')) {
+        return 'An active game session already exists. Please finish or abandon it first.';
+      }
+      if (msg.contains('not available') ||
+          msg.contains('no questions') ||
+          msg.contains('no sort') ||
+          msg.contains('no match')) {
+        return '$modeLabel is not available for this topic yet.';
+      }
+      return error.message;
+    }
+    if (error is AppException) {
+      return error.message;
+    }
+    return 'Could not start game. Please try again.';
+  }
+
   @override
   Widget build(BuildContext context) {
     final pathsAsync = ref.watch(learningPathsProvider);
@@ -104,30 +257,18 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
       bottomNavigationBar: SafeArea(
         minimum: AppSpacing.paddingMd,
         child: AppButton(
-          label: 'Start game',
-          leadingIcon: const Icon(Icons.play_arrow_rounded),
-          onPressed: _canStart
-              ? () {
-                  if (_selectedMode == QuestionType.suddenDeath) {
-                    context.push(
-                      RouteNames.suddenDeathPath(
-                        _selectedTopicId!,
-                        subjectId: _selectedSubjectId,
-                        chapterId: _selectedChapterId,
-                      ),
-                    );
-                  } else {
-                    context.push(
-                      RouteNames.quizPath(
-                        _selectedTopicId!,
-                        _selectedMode!,
-                        subjectId: _selectedSubjectId,
-                        chapterId: _selectedChapterId,
-                      ),
-                    );
-                  }
-                }
-              : null,
+          label: _isStartingGame ? 'Starting game...' : 'Start game',
+          leadingIcon: _isStartingGame
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              : const Icon(Icons.play_arrow_rounded),
+          onPressed: _canStart ? _onStartGame : null,
         ),
       ),
       body: SafeArea(
@@ -214,11 +355,18 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
     );
   }
 
-  bool get _canStart =>
-      _selectedSubjectId != null &&
-      _selectedChapterId != null &&
-      _selectedTopicId != null &&
-      _selectedMode != null;
+  bool get _canStart {
+    if (_selectedSubjectId == null ||
+        _selectedChapterId == null ||
+        _selectedTopicId == null ||
+        _selectedMode == null ||
+        _isStartingGame) {
+      return false;
+    }
+    final availability =
+        ref.read(gameModeAvailabilityProvider(_selectedTopicId));
+    return availability[_selectedMode]?.isEnabled ?? false;
+  }
 }
 
 class _SetupContent extends StatelessWidget {
@@ -508,18 +656,14 @@ class _GameModePicker extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final topicId = selectedTopicId;
-    final questionsAsync = topicId == null
-        ? const AsyncValue<List<Question>>.data([])
-        : ref.watch(questionsForTopicProvider(topicId));
+    // Mode availability is evaluated directly based on topic capability
+    // rather than relying on the generic MCQ question endpoint.
+    final availability =
+        ref.watch(gameModeAvailabilityProvider(selectedTopicId));
 
-    Widget buildModeGrid(List<Question> questions) {
-      final availability = {
-        for (final mode in _practiceModes)
-          mode: _modeAvailability(mode, questions),
-      };
-
-      return GridView.count(
+    return _SetupSection(
+      title: 'Choose game mode',
+      child: GridView.count(
         crossAxisCount: 2,
         childAspectRatio: 1.22,
         crossAxisSpacing: AppSpacing.sm,
@@ -535,18 +679,6 @@ class _GameModePicker extends ConsumerWidget {
               onTap: () => onChanged(mode),
             ),
         ],
-      );
-    }
-
-    return _SetupSection(
-      title: 'Choose game mode',
-      child: questionsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Text(
-          'No playable questions are available for this topic yet.',
-          style: context.appTextStyles.bodyMedium,
-        ),
-        data: buildModeGrid,
       ),
     );
   }
@@ -555,7 +687,7 @@ class _GameModePicker extends ConsumerWidget {
 class _SelectableQuizModeCard extends StatelessWidget {
   final QuestionType mode;
   final bool isSelected;
-  final _ModeAvailability availability;
+  final GameModeAvailability availability;
   final VoidCallback onTap;
 
   const _SelectableQuizModeCard({
@@ -1185,59 +1317,4 @@ String _modeShortName(QuestionType mode) {
     QuestionType.sortItRight => 'Sort It Out',
     QuestionType.suddenDeath => 'Sudden Death',
   };
-}
-
-_ModeAvailability _modeAvailability(
-  QuestionType mode,
-  List<Question> questions,
-) {
-  final hasTopic = questions.isNotEmpty;
-  if (!hasTopic) {
-    return const _ModeAvailability(
-      isEnabled: false,
-      reason: 'Select a topic first',
-    );
-  }
-
-  final matching = questions.where((question) => question.type == mode);
-  final canRun = switch (mode) {
-    QuestionType.mcq => matching.any(
-      (question) => question is McqQuestion && question.options.length >= 2,
-    ),
-    QuestionType.matchTheFollowing => matching.any(
-      (question) =>
-          question is MatchTheFollowingQuestion && question.pairs.length >= 2,
-    ),
-    QuestionType.sortItRight => matching.any(
-      (question) =>
-          question is SortItRightQuestion && question.itemsInOrder.length >= 2,
-    ),
-    QuestionType.suddenDeath =>
-      matching.isNotEmpty
-          ? matching.any(
-              (question) =>
-                  question is SuddenDeathQuestion &&
-                  question.options.length >= 2,
-            )
-          : questions.isNotEmpty,
-  };
-
-  if (canRun) return const _ModeAvailability(isEnabled: true);
-
-  return _ModeAvailability(
-    isEnabled: false,
-    reason: switch (mode) {
-      QuestionType.mcq => 'No MCQ questions yet',
-      QuestionType.matchTheFollowing => 'Not enough matching pairs yet',
-      QuestionType.sortItRight => 'Not enough sortable items yet',
-      QuestionType.suddenDeath => 'No timed questions yet',
-    },
-  );
-}
-
-class _ModeAvailability {
-  final bool isEnabled;
-  final String? reason;
-
-  const _ModeAvailability({required this.isEnabled, this.reason});
 }

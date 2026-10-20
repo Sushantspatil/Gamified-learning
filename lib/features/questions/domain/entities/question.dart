@@ -44,6 +44,16 @@ extension QuestionTypeX on QuestionType {
   }
 }
 
+extension QuestionTypeBackendValue on QuestionType {
+  /// Explicit backend game mode wire values.
+  String get backendGameMode => switch (this) {
+    QuestionType.mcq => 'mcq',
+    QuestionType.suddenDeath => 'sudden_death',
+    QuestionType.sortItRight => 'sort_it_out',
+    QuestionType.matchTheFollowing => 'match_the_following',
+  };
+}
+
 class QuestionOption extends Equatable {
   final String id;
   final String text;

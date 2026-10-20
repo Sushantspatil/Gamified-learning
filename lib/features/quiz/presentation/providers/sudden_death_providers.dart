@@ -285,10 +285,15 @@ class SuddenDeathController
     }
 
     try {
-      final sessionId = await ds.createSession(
-        topicId: request.topicId,
-        questionCount: 10,
-      );
+      final String sessionId;
+      if (ds.activeSessionId != null && ds.activeTopicId == request.topicId) {
+        sessionId = ds.activeSessionId!;
+      } else {
+        sessionId = await ds.createSession(
+          topicId: request.topicId,
+          questionCount: 10,
+        );
+      }
       _debugLog('session created: ${_maskedSessionId(sessionId)}');
 
       // Subscribe before connecting because AttachPlayer immediately emits the

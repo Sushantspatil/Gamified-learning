@@ -4,6 +4,7 @@ import 'package:skillverse_app/core/errors/app_exception.dart';
 import 'package:skillverse_app/core/network/api_client.dart';
 import 'package:skillverse_app/core/network/api_config.dart';
 import 'package:skillverse_app/core/network/api_endpoints.dart';
+import 'package:skillverse_app/core/network/backend_topic_mapper.dart';
 import 'package:skillverse_app/core/network/dtos/quiz_dtos.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/core/storage/storage_keys.dart';
@@ -19,6 +20,7 @@ class SuddenDeathRemoteDatasource {
   final SuddenDeathSocketClient _socketClient;
 
   String? _activeSessionId;
+  String? _activeTopicId;
   List<SuddenDeathQuestion>? _activeSessionQuestions;
 
   SuddenDeathRemoteDatasource({
@@ -32,10 +34,17 @@ class SuddenDeathRemoteDatasource {
        _socketClient = socketClient ?? IoSuddenDeathSocketClient();
 
   String? get activeSessionId => _activeSessionId;
+  String? get activeTopicId => _activeTopicId;
   List<SuddenDeathQuestion>? get activeSessionQuestions =>
       _activeSessionQuestions;
   Stream<WsServerEvent> get events => _socketClient.events;
   bool get isConnected => _socketClient.isConnected;
+
+  void clearActiveSession() {
+    _activeSessionId = null;
+    _activeTopicId = null;
+    _activeSessionQuestions = null;
+  }
 
   /// Creates a live quiz session on the Go backend in PostgreSQL and preloads
   /// all questions, options, and correct answers from the database.
@@ -46,10 +55,9 @@ class SuddenDeathRemoteDatasource {
     String gameMode = 'sudden_death',
   }) async {
     _activeSessionId = null;
+    _activeTopicId = null;
     _activeSessionQuestions = null;
-    final backendTopic = topicId.contains('accounting')
-        ? 'accounting'
-        : topicId;
+    final backendTopic = mapToBackendTopicId(topicId);
     final requestDto = CreateSessionRequestDto(
       topic: backendTopic,
       questionCount: questionCount,
@@ -67,6 +75,7 @@ class SuddenDeathRemoteDatasource {
       final sessionDto = SessionCreatedResponseDto.fromJson(response);
       if (sessionDto.session.isNotEmpty) {
         _activeSessionId = sessionDto.session;
+        _activeTopicId = topicId;
 
         var questions = sessionDto.questions
             .map(

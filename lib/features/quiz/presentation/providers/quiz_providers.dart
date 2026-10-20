@@ -7,6 +7,7 @@ import '../../../questions/domain/entities/answer_evaluation.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/network/network_providers.dart';
 import '../../data/datasources/quiz_datasource.dart';
 import '../../data/datasources/remote/quiz_remote_datasource.dart';
@@ -80,21 +81,38 @@ class QuizController
     // For MCQ quizzes with remote backend, create session first to ensure 1:1 question & option state
     if (datasource is QuizRemoteDatasource &&
         request.quizType == QuestionType.mcq) {
-      try {
-        await datasource.createSession(
-          topicId: request.topicId,
-          questionCount: 10,
-        );
-        if (datasource.activeSessionQuestions != null &&
-            datasource.activeSessionQuestions!.isNotEmpty) {
-          questions = datasource.activeSessionQuestions!;
+      if (datasource.activeSessionId != null &&
+          datasource.activeSessionQuestions != null &&
+          datasource.activeSessionQuestions!.isNotEmpty &&
+          datasource.activeGameMode == 'mcq' &&
+          datasource.activeTopicId == request.topicId) {
+        questions = datasource.activeSessionQuestions!;
+        _sessionId = datasource.activeSessionId!;
+      } else {
+        try {
+          final id = await datasource.createSession(
+            topicId: request.topicId,
+            questionCount: 10,
+            gameMode: 'mcq',
+          );
+          if (datasource.activeSessionQuestions != null &&
+              datasource.activeSessionQuestions!.isNotEmpty) {
+            questions = datasource.activeSessionQuestions!;
+            _sessionId = id;
+          }
+        } catch (_) {
+          // If session creation fails in remote mode, do not proceed with empty questions
         }
-      } catch (_) {
-        // Fall back to question provider if session creation fails
       }
-    }
 
-    if (questions.isEmpty) {
+      if (questions.isEmpty) {
+        throw const ValidationException(
+          'No MCQ questions available for this topic yet.',
+          'no-mcq-questions',
+        );
+      }
+    } else if (datasource is! QuizRemoteDatasource) {
+      // Mock mode fallback only for local widget tests with QuizMockDatasource
       final questionsRequest = QuestionsForTopicAndTypeRequest(
         topicId: request.topicId,
         questionType: request.quizType,
