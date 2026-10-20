@@ -26,12 +26,14 @@ class SuddenDeathScreen extends ConsumerStatefulWidget {
   final String topicId;
   final String? subjectId;
   final String? chapterId;
+  final String? sessionId;
 
   const SuddenDeathScreen({
     super.key,
     required this.topicId,
     this.subjectId,
     this.chapterId,
+    this.sessionId,
   });
 
   @override
@@ -51,6 +53,7 @@ class _SuddenDeathScreenState extends ConsumerState<SuddenDeathScreen>
       quizType: QuestionType.suddenDeath,
       subjectId: widget.subjectId,
       chapterId: widget.chapterId,
+      sessionId: widget.sessionId,
     );
   }
 

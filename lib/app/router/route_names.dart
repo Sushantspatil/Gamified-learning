@@ -74,10 +74,12 @@ class RouteNames {
     String topicId, {
     String? subjectId,
     String? chapterId,
+    String? sessionId,
   }) {
     final query = <String, String>{};
     if (subjectId != null) query['subjectId'] = subjectId;
     if (chapterId != null) query['chapterId'] = chapterId;
+    if (sessionId != null) query['sessionId'] = sessionId;
     final basePath = '/sudden-death/$topicId';
     if (query.isEmpty) return basePath;
     return Uri(path: basePath, queryParameters: query).toString();

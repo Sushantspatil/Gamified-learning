@@ -100,7 +100,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
     });
 
     try {
-      await _initializeGameSession(topicId, mode);
+      final sessionId = await _initializeGameSession(topicId, mode);
 
       if (!mounted) return;
 
@@ -110,6 +110,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
             topicId,
             subjectId: subjectId,
             chapterId: chapterId,
+            sessionId: sessionId,
           ),
         );
       } else {
@@ -141,7 +142,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
     }
   }
 
-  Future<void> _initializeGameSession(String topicId, QuestionType mode) async {
+  Future<String?> _initializeGameSession(String topicId, QuestionType mode) async {
     final quizDatasource = ref.read(quizDatasourceProvider);
     final suddenDeathDatasource = ref.read(suddenDeathDatasourceProvider);
 
@@ -160,7 +161,9 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
               'no-mcq-questions',
             );
           }
+          return sessionId;
         }
+        return null;
       case QuestionType.sortItRight:
         if (quizDatasource is QuizRemoteDatasource) {
           final sessionId = await quizDatasource.createSession(
@@ -175,7 +178,9 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
               'no-sort-cards',
             );
           }
+          return sessionId;
         }
+        return null;
       case QuestionType.matchTheFollowing:
         if (quizDatasource is QuizRemoteDatasource) {
           final sessionId = await quizDatasource.createSession(
@@ -190,7 +195,9 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
               'no-match-boards',
             );
           }
+          return sessionId;
         }
+        return null;
       case QuestionType.suddenDeath:
         final sessionId = await suddenDeathDatasource.createSession(
           topicId: topicId,
@@ -203,6 +210,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
             'no-sudden-death-questions',
           );
         }
+        return sessionId;
     }
   }
 

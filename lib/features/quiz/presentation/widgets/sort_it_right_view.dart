@@ -16,6 +16,7 @@ import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
+import '../../domain/entities/sort_it_out_models.dart';
 import 'game_power_up_bar.dart';
 
 const sortFallDuration = Duration(seconds: 4);
@@ -27,30 +28,39 @@ enum SortTimeoutBehavior { miss, waitForAnswer }
 enum _SortPhase { intro, falling, exiting, feedback, finished }
 
 class SortItRightView extends ConsumerStatefulWidget {
-  final SortItRightQuestion question;
+  final SortItRightQuestion? question;
   final int currentIndex;
   final int totalQuestions;
   final int currentStreak;
   final int coins;
   final int energy;
   final VoidCallback onExit;
-  final void Function(Answer answer) onSubmit;
+  final void Function(Answer answer)? onSubmit;
   final Duration fallDuration;
   final SortTimeoutBehavior timeoutBehavior;
 
+  // Controlled backend props:
+  final List<SortItOutCard>? cards;
+  final void Function(String optionId)? onOptionSubmitted;
+  final VoidCallback? onTimeout;
+
   const SortItRightView({
     super.key,
-    required this.question,
+    this.question,
     required this.currentIndex,
     required this.totalQuestions,
     required this.currentStreak,
     required this.coins,
     required this.energy,
     required this.onExit,
-    required this.onSubmit,
+    this.onSubmit,
     this.fallDuration = sortFallDuration,
     this.timeoutBehavior = SortTimeoutBehavior.miss,
-  }) : assert(fallDuration > Duration.zero);
+    this.cards,
+    this.onOptionSubmitted,
+    this.onTimeout,
+  }) : assert(fallDuration > Duration.zero),
+       assert(question != null || cards != null, 'Either question or cards must be provided');
 
   @override
   ConsumerState<SortItRightView> createState() => _SortItRightViewState();
@@ -84,9 +94,13 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
   int? _revealedIndex;
   SortSide? _activeSide;
 
+  bool get _isBackendMode => widget.cards != null && widget.cards!.isNotEmpty;
+
+  int get _totalItems =>
+      _isBackendMode ? widget.cards!.length : widget.question?.itemsInOrder.length ?? 0;
+
   int get _currentItemIndex => _history.length;
-  bool get _complete =>
-      _currentItemIndex >= widget.question.itemsInOrder.length;
+  bool get _complete => _currentItemIndex >= _totalItems;
   bool get _canClassify =>
       _phase == _SortPhase.falling &&
       !_complete &&
@@ -96,8 +110,65 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
   double get _fallDistance => math.max(0, _stageSize.height - _cardHeight);
   double get _fallY =>
       _reducedMotion ? 0 : _fallController.value * _fallDistance;
+
+  String _itemAt(int index) {
+    if (_isBackendMode) {
+      if (index >= 0 && index < widget.cards!.length) {
+        return widget.cards![index].prompt;
+      }
+      return '';
+    }
+    if (widget.question != null &&
+        index >= 0 &&
+        index < widget.question!.itemsInOrder.length) {
+      return widget.question!.itemsInOrder[index];
+    }
+    return '';
+  }
+
+  String _categoryLabel(SortSide side) {
+    final index = _phase == _SortPhase.feedback || _phase == _SortPhase.finished
+        ? (_currentItemIndex - 1).clamp(0, _totalItems > 0 ? _totalItems - 1 : 0)
+        : _currentItemIndex.clamp(0, _totalItems > 0 ? _totalItems - 1 : 0);
+
+    if (_isBackendMode) {
+      if (widget.cards!.isNotEmpty) {
+        return widget.cards![index].categoryLabel(side);
+      }
+      return side == SortSide.left ? 'Option A' : 'Option B';
+    }
+    return widget.question?.categoryLabel(side) ??
+        (side == SortSide.left ? 'Left' : 'Right');
+  }
+
+  SortSide _correctSideAt(int index) {
+    if (_isBackendMode) {
+      if (index >= 0 && index < widget.cards!.length) {
+        final card = widget.cards![index];
+        final correctOption = card.correctOption?.toLowerCase();
+        final optionAId = card.optionA?.id.toLowerCase();
+        return correctOption == optionAId ? SortSide.left : SortSide.right;
+      }
+      return SortSide.left;
+    }
+    if (widget.question != null &&
+        index >= 0 &&
+        index < widget.question!.correctSides.length) {
+      return widget.question!.correctSides[index];
+    }
+    return SortSide.left;
+  }
+
+  Duration _durationForIndex(int index) {
+    if (_isBackendMode && index >= 0 && index < widget.cards!.length) {
+      final sec = widget.cards![index].timeLimitSec;
+      if (sec != null && sec > 0) return Duration(seconds: sec);
+    }
+    return widget.fallDuration;
+  }
+
   int get _correctCount => _history.indexed
-      .where((move) => widget.question.correctSides[move.$1] == move.$2)
+      .where((move) => _correctSideAt(move.$1) == move.$2)
       .length;
 
   @override
@@ -106,7 +177,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
     WidgetsBinding.instance.addObserver(this);
     _fallController = AnimationController(
       vsync: this,
-      duration: widget.fallDuration,
+      duration: _durationForIndex(0),
     )..addStatusListener(_onFallStatus);
     _exitController = AnimationController(
       vsync: this,
@@ -114,6 +185,10 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
     );
     // Only the card's transform builder listens to ticks, never the quiz tree.
     _cardMotion = Listenable.merge([_fallController, _exitController, _dragX]);
+    if (_isBackendMode) {
+      _phase = _SortPhase.falling;
+      _resumeFall();
+    }
   }
 
   @override
@@ -126,7 +201,8 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
   @override
   void didUpdateWidget(covariant SortItRightView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.question != widget.question) {
+    if ((widget.cards != null && oldWidget.cards != widget.cards) ||
+        (widget.question != null && oldWidget.question != widget.question)) {
       _feedbackTimer?.cancel();
       _fallController.reset();
       _exitController.reset();
@@ -136,9 +212,11 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
       _hintUsed = _revealUsed = _helpVisible = _isDragging = false;
       _hintIndex = _revealedIndex = null;
       _activeSide = null;
-      _phase = widget.currentIndex > 0 ? _SortPhase.falling : _SortPhase.intro;
+      _phase = _isBackendMode
+          ? _SortPhase.falling
+          : (widget.currentIndex > 0 ? _SortPhase.falling : _SortPhase.intro);
     }
-    _fallController.duration = widget.fallDuration;
+    _fallController.duration = _durationForIndex(_currentItemIndex);
     _resumeFall();
   }
 
@@ -171,6 +249,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
   }
 
   void _spawn() {
+    _fallController.duration = _durationForIndex(_currentItemIndex);
     _fallController.reset();
     _exitController.reset();
     _dragX.value = 0;
@@ -187,6 +266,22 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
   Future<void> _resolve(SortSide? side) async {
     if (!_canClassify) return;
     _fallController.stop();
+
+    if (_isBackendMode) {
+      final index = _currentItemIndex;
+      if (index < widget.cards!.length) {
+        final card = widget.cards![index];
+        if (side == null) {
+          widget.onTimeout?.call();
+        } else {
+          final optionId = side == SortSide.left
+              ? (card.optionA?.id ?? 'a')
+              : (card.optionB?.id ?? 'b');
+          widget.onOptionSubmitted?.call(optionId);
+        }
+      }
+    }
+
     _exitStart = Offset(_dragX.value, _fallY);
     _exitTarget = _exitStart;
     if (side != null) {
@@ -225,13 +320,15 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
       if (!mounted) return;
       if (_complete) {
         setState(() => _phase = _SortPhase.finished);
-        widget.onSubmit(
-          SortAnswer(
-            questionId: widget.question.id,
-            orderedItems: List.of(widget.question.itemsInOrder),
-            selectedSides: List.unmodifiable(_history),
-          ),
-        );
+        if (!_isBackendMode && widget.question != null) {
+          widget.onSubmit?.call(
+            SortAnswer(
+              questionId: widget.question!.id,
+              orderedItems: List.of(widget.question!.itemsInOrder),
+              selectedSides: List.unmodifiable(_history),
+            ),
+          );
+        }
       } else {
         _spawn();
       }
@@ -290,7 +387,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
   @override
   Widget build(BuildContext context) {
     final question = widget.question;
-    if (!question.hasCategories) {
+    if (!_isBackendMode && question != null && !question.hasCategories) {
       return AppEmptyState(
         title: QuestionType.sortItRight.emptyStateLabel,
         description: question.itemsInOrder.isEmpty
@@ -300,12 +397,12 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
       );
     }
     final colors = context.themeColors;
-    final total = question.itemsInOrder.length;
+    final total = _totalItems;
     final resolved =
         _phase == _SortPhase.feedback || _phase == _SortPhase.finished;
     final displayIndex = resolved
         ? _currentItemIndex
-        : (_currentItemIndex + 1).clamp(1, total);
+        : (_currentItemIndex + 1).clamp(1, total > 0 ? total : 1);
     return LayoutBuilder(
       builder: (context, viewport) {
         // A scroll fallback protects small phones and enlarged text; the fall
@@ -350,7 +447,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                     children: [
                       Expanded(
                         child: AppProgressBar(
-                          value: _currentItemIndex / total,
+                          value: total > 0 ? _currentItemIndex / total : 0.0,
                           semanticLabel: 'Items sorted',
                         ),
                       ),
@@ -401,7 +498,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                                       key: side == SortSide.left
                                           ? _leftKey
                                           : _rightKey,
-                                      label: question.categoryLabel(side),
+                                      label: _categoryLabel(side),
                                       icon: side == SortSide.left
                                           ? Icons.west_rounded
                                           : Icons.east_rounded,
@@ -415,7 +512,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                                                       _currentItemIndex ||
                                                   _revealedIndex ==
                                                       _currentItemIndex) &&
-                                              question.correctSides[_currentItemIndex] ==
+                                              _correctSideAt(_currentItemIndex) ==
                                                   side),
                                       onPressed: _canClassify
                                           ? () => _resolve(side)
@@ -448,7 +545,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                     isDisabled:
                         _phase != _SortPhase.falling ||
                         _isDragging ||
-                        _helpVisible,
+                        _complete,
                     actions: [
                       GamePowerUpAction(
                         id: 'sort-hint',
@@ -476,8 +573,8 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                             'Restart the previous item and undo its answer.',
                         coinCost: 10,
                         icon: Icons.undo_rounded,
-                        isDisabled: _history.isEmpty,
-                        onUse: _undo,
+                        isDisabled: _isBackendMode || _history.isEmpty,
+                        onUse: _isBackendMode ? () {} : _undo,
                       ),
                     ],
                   ),
@@ -513,8 +610,8 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
   ) {
     final width = viewportWidth - AppSpacing.md * 2;
     final styles = context.appTextStyles;
-    final count =
-        '${widget.question.itemsInOrder.length} / ${widget.question.itemsInOrder.length}';
+    final total = _totalItems;
+    final count = '$total / $total';
     final counter = _textSize(
       context,
       count,
@@ -539,13 +636,13 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
       math.max(
             _textSize(
               context,
-              widget.question.leftCategory,
+              _categoryLabel(SortSide.left),
               styles.titleMedium,
               categoryWidth,
             ).height,
             _textSize(
               context,
-              widget.question.rightCategory,
+              _categoryLabel(SortSide.right),
               styles.titleMedium,
               categoryWidth,
             ).height,
@@ -555,12 +652,17 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
           20,
     );
     final cardWidth = math.min(360.0, width) - AppSpacing.lg * 2;
-    final tallestItem = widget.question.itemsInOrder
-        .map(
-          (item) =>
-              _textSize(context, item, styles.titleLarge, cardWidth).height,
-        )
-        .reduce(math.max);
+    final items = _isBackendMode
+        ? widget.cards!.map((c) => c.prompt)
+        : (widget.question?.itemsInOrder ?? const <String>['Item']);
+    final tallestItem = items.isEmpty
+        ? 24.0
+        : items
+            .map(
+              (item) =>
+                  _textSize(context, item, styles.titleLarge, cardWidth).height,
+            )
+            .reduce(math.max);
     final cardHeight = math.max(
       144.0,
       tallestItem +
@@ -625,9 +727,10 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
       builder: (context, constraints) {
         _stageSize = constraints.biggest;
         final width = math.min(360.0, constraints.maxWidth);
+        final itemText = _itemAt(index);
         final text = TextPainter(
           text: TextSpan(
-            text: widget.question.itemsInOrder[index],
+            text: itemText,
             style: context.appTextStyles.titleLarge,
           ),
           textDirection: Directionality.of(context),
@@ -705,7 +808,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                widget.question.itemsInOrder[index],
+                                itemText,
                                 textAlign: TextAlign.center,
                                 style: context.appTextStyles.titleLarge,
                               ),
@@ -779,9 +882,12 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                           children: [
                             Text(
                               _revealedIndex == _currentItemIndex
-                                  ? 'Correct group: ${widget.question.categoryLabel(widget.question.correctSides[_currentItemIndex])}'
-                                  : widget.question.hint ??
-                                        'Think about what each group represents before choosing a side.',
+                                  ? 'Correct group: ${_categoryLabel(_correctSideAt(_currentItemIndex))}'
+                                  : (_isBackendMode
+                                      ? widget.cards![_currentItemIndex.clamp(0, widget.cards!.length - 1)].hint ??
+                                          'Think about what each group represents before choosing a side.'
+                                      : widget.question?.hint ??
+                                          'Think about what each group represents before choosing a side.'),
                               textAlign: TextAlign.center,
                               style: context.appTextStyles.bodyLarge,
                             ),
@@ -827,7 +933,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
     }
     final missed = _history.last == null;
     final correct =
-        _history.last == widget.question.correctSides[_currentItemIndex - 1];
+        _history.last == _correctSideAt(_currentItemIndex - 1);
     return Semantics(
       liveRegion: true,
       child: Column(
@@ -856,7 +962,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
           ),
           if (!correct)
             Text(
-              'Correct answer: ${widget.question.categoryLabel(widget.question.correctSides[_currentItemIndex - 1])}',
+              'Correct answer: ${_categoryLabel(_correctSideAt(_currentItemIndex - 1))}',
               textAlign: TextAlign.center,
               style: context.appTextStyles.bodyMedium,
             ),

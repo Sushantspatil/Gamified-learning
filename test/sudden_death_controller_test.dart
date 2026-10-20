@@ -239,8 +239,8 @@ void main() {
       expect(current().isSubmitting, isTrue);
       expect(current().status, SuddenDeathStatus.questionActive);
       expect(current().currentIndex, 0);
-      expect(socket.sentMessages.single.type, 'submit_answer');
-      expect(socket.sentMessages.single.data['question'], 'q-1');
+      final submit = socket.sentMessages.firstWhere((m) => m.type == 'submit_answer');
+      expect(submit.data['question'], 'q-1');
 
       await emit(WsAnswerResultEvent(_answerResult(1)));
       expect(current().status, SuddenDeathStatus.showingResult);
@@ -314,9 +314,10 @@ void main() {
       expect(current().isAddTimePending, isTrue);
       expect(current().addTimeUsed, isFalse);
       expect(current().remainingTimeMs, 15000);
-      expect(socket.sentMessages, hasLength(1));
-      expect(socket.sentMessages.single.data['power_up'], 'add_time');
-      expect(socket.sentMessages.single.data['question'], 'q-1');
+      final powerUps = socket.sentMessages.where((m) => m.type == 'use_power_up').toList();
+      expect(powerUps, hasLength(1));
+      expect(powerUps.single.data['power_up'], 'add_time');
+      expect(powerUps.single.data['question'], 'q-1');
 
       await emit(
         const WsPowerUpResultEvent(
@@ -578,8 +579,9 @@ void main() {
       expect(current().currentIndex, 0);
       expect(current().skipUsed, isFalse);
       expect(current().isSubmitting, isTrue);
-      expect(socket.sentMessages.single.data['option'], 'skip');
-      expect(socket.sentMessages.single.data['question'], 'q-1');
+      final skip = socket.sentMessages.firstWhere((m) => m.type == 'submit_answer');
+      expect(skip.data['option'], 'skip');
+      expect(skip.data['question'], 'q-1');
 
       await emit(
         WsAnswerResultEvent(
@@ -838,7 +840,10 @@ void main() {
       expect(await controller.ensureLiveConnection(), isTrue);
       expect(socket.connectCount, 2);
       expect(current().connectionStatus, SuddenDeathConnectionStatus.connected);
-      expect(socket.sentMessages, isEmpty);
+      expect(
+        socket.sentMessages.where((m) => m.type != 'join_game'),
+        isEmpty,
+      );
       subscription.close();
     });
 
@@ -915,6 +920,30 @@ void main() {
       expect(current().isAddTimePending, isFalse);
       expect(current().errorMessage, contains('finished or been abandoned'));
       expect(socket.connectCount, 1);
+      subscription.close();
+    });
+
+    test('sends join_game frame with session ID on connection open', () async {
+      final subscription = await start();
+      expect(socket.sentMessages.first.type, 'join_game');
+      expect(socket.sentMessages.first.data['session'], 'session-1');
+      subscription.close();
+    });
+
+    test('reuses precreated sessionId in request without calling createSession', () async {
+      const precreatedRequest = QuizSessionRequest(
+        topicId: 'accounting',
+        sessionId: 'precreated-sess-xyz',
+        quizType: QuestionType.suddenDeath,
+      );
+      final subscription = container.listen(
+        suddenDeathControllerProvider(precreatedRequest),
+        (_, _) {},
+      );
+      await container.read(suddenDeathControllerProvider(precreatedRequest).future);
+      final state = container.read(suddenDeathControllerProvider(precreatedRequest)).requireValue;
+      expect(state.sessionId, 'precreated-sess-xyz');
+      expect(socket.sentMessages.any((m) => m.type == 'join_game' && m.data['session'] == 'precreated-sess-xyz'), isTrue);
       subscription.close();
     });
   });

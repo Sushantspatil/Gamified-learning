@@ -767,9 +767,7 @@ void main() {
       // Wait for session create
       await tester.pumpAndSettle();
 
-      // Verify header & dynamic labels
-      expect(find.text('Match the Following'), findsOneWidget);
-      expect(find.text('Board 1 / 1'), findsOneWidget);
+      // Verify header & dynamic labels (restored approved MatchTheFollowingView)
       expect(find.text('Match accounts with classifications'), findsOneWidget);
       expect(find.text('Cash A/C'), findsOneWidget);
       expect(find.text('Wages A/C'), findsOneWidget);

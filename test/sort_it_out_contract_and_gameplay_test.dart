@@ -747,7 +747,8 @@ void main() {
       );
 
       // Wait for session create
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
 
       // Verify header & dynamic labels
       expect(find.text('Sort It Out'), findsOneWidget);
@@ -760,8 +761,9 @@ void main() {
       // Button B (Credit) tap for card 1 (Bank Loan)
       final creditBtn = find.byKey(const ValueKey('sort-bucket-credit'));
       await tester.tap(creditBtn);
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump(const Duration(milliseconds: 650));
 
       // Card 2 is now active: Equipment
       expect(find.text('2 / 2'), findsOneWidget);
@@ -769,7 +771,9 @@ void main() {
 
       // Swipe Left for card 2 (Equipment -> Debit)
       await tester.drag(find.byKey(const Key('sort-active-card')), const Offset(-160, 0));
-      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pump(const Duration(milliseconds: 650));
       await tester.pumpAndSettle();
 
       // End of deck triggers completion -> Result screen appears!

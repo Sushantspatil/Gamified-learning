@@ -23,26 +23,44 @@ import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../../core/audio/audio_providers.dart';
 import '../../../../core/audio/game_sound.dart';
+import '../../domain/entities/match_the_following_models.dart';
 import 'game_power_up_bar.dart';
 
 class MatchTheFollowingView extends ConsumerStatefulWidget {
-  final MatchTheFollowingQuestion question;
-  final void Function(Answer answer) onSubmit;
+  final MatchTheFollowingQuestion? question;
+  final void Function(Answer answer)? onSubmit;
   final VoidCallback? onExit;
   final int? coinBalanceOverride;
   final int currentIndex;
   final int totalQuestions;
 
+  // Controlled backend props:
+  final MatchBoard? board;
+  final String? selectedLeftId;
+  final Map<String, String>? confirmedMatches;
+  final String? lastWrongAttemptLeftId;
+  final String? lastWrongAttemptRightId;
+  final void Function(String leftId)? onLeftTap;
+  final void Function(String rightId)? onRightTap;
+
   const MatchTheFollowingView({
     super.key,
-    required this.question,
-    required this.onSubmit,
+    this.question,
+    this.onSubmit,
     this.onExit,
     this.coinBalanceOverride,
     this.currentIndex = 0,
     this.totalQuestions = 1,
+    this.board,
+    this.selectedLeftId,
+    this.confirmedMatches,
+    this.lastWrongAttemptLeftId,
+    this.lastWrongAttemptRightId,
+    this.onLeftTap,
+    this.onRightTap,
   }) : assert(currentIndex >= 0),
-       assert(totalQuestions > 0);
+       assert(totalQuestions > 0),
+       assert(question != null || board != null, 'Either question or board must be provided');
 
   @override
   ConsumerState<MatchTheFollowingView> createState() =>
@@ -74,11 +92,40 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   bool _isAutoMatchUsed = false;
   bool _isShuffleUsed = false;
 
+  bool get _isBackendMode => widget.board != null;
+
+  List<MatchPair> get _effectiveLeftPairs {
+    if (widget.board != null) {
+      return widget.board!.leftItems
+          .map((item) => MatchPair(id: item.id, left: item.text, right: ''))
+          .toList(growable: false);
+    }
+    return widget.question?.pairs ?? const [];
+  }
+
+  List<MatchPair> get _effectiveRightPairs => _shuffledRight;
+
+  Map<String, String> get _effectiveMatches =>
+      _isBackendMode ? (widget.confirmedMatches ?? const {}) : _matches;
+
+  String? get _effectiveSelectedLeftId =>
+      _isBackendMode ? widget.selectedLeftId : _selectedLeftPairId;
+
   @override
   void initState() {
     super.initState();
-    _shuffledRight = List.of(widget.question.pairs);
-    _shuffledRight.shuffle(Random(widget.question.id.hashCode));
+    if (widget.board != null) {
+      // In backend mode, right items are already shuffled by the server.
+      // Display right items in exactly the server-provided order!
+      _shuffledRight = widget.board!.rightItems
+          .map((item) => MatchPair(id: item.id, left: '', right: item.text))
+          .toList(growable: false);
+    } else if (widget.question != null) {
+      _shuffledRight = List.of(widget.question!.pairs);
+      _shuffledRight.shuffle(Random(widget.question!.id.hashCode));
+    } else {
+      _shuffledRight = [];
+    }
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 460),
@@ -113,9 +160,28 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   @override
   void didUpdateWidget(covariant MatchTheFollowingView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.question.id != widget.question.id) {
-      _shuffledRight = List.of(widget.question.pairs);
-      _shuffledRight.shuffle(Random(widget.question.id.hashCode));
+    if (widget.board != null &&
+        oldWidget.board?.questionCode != widget.board?.questionCode) {
+      _shuffledRight = widget.board!.rightItems
+          .map((item) => MatchPair(id: item.id, left: '', right: item.text))
+          .toList(growable: false);
+      _matches.clear();
+      _selectedLeftPairId = null;
+      _phase = _MatchFlowPhase.playing;
+      _isHintVisible = false;
+      _isAutoMatchUsed = false;
+      _isShuffleUsed = false;
+      _leftAnchorKeys.clear();
+      _rightAnchorKeys.clear();
+      _leftAnchors = {};
+      _rightAnchors = {};
+      _entryController.forward(from: 0);
+      _connectorController.reset();
+      _resultController.reset();
+    } else if (widget.question != null &&
+        oldWidget.question?.id != widget.question?.id) {
+      _shuffledRight = List.of(widget.question!.pairs);
+      _shuffledRight.shuffle(Random(widget.question!.id.hashCode));
       _matches.clear();
       _selectedLeftPairId = null;
       _phase = _MatchFlowPhase.playing;
@@ -143,6 +209,11 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   void _handleLeftTap(String pairId) {
     if (_isLocked) return;
 
+    if (_isBackendMode) {
+      widget.onLeftTap?.call(pairId);
+      return;
+    }
+
     HapticFeedback.selectionClick();
     ref.read(gameAudioServiceProvider).play(GameSound.answerSelect);
     setState(() {
@@ -160,8 +231,16 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   }
 
   void _handleRightTap(String pairId) {
+    if (_isLocked) return;
+
+    if (_isBackendMode) {
+      widget.onRightTap?.call(pairId);
+      _connectorController.forward(from: 0);
+      return;
+    }
+
     final selectedLeft = _selectedLeftPairId;
-    if (_isLocked || selectedLeft == null) return;
+    if (selectedLeft == null) return;
 
     HapticFeedback.selectionClick();
     ref.read(gameAudioServiceProvider).play(GameSound.matchConnect);
@@ -185,8 +264,11 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
       _phase == _MatchFlowPhase.analysis;
 
   int get _correctPairCount {
+    if (_isBackendMode) {
+      return _effectiveMatches.length;
+    }
     var count = 0;
-    for (final pair in widget.question.pairs) {
+    for (final pair in widget.question?.pairs ?? const <MatchPair>[]) {
       if (_matches[pair.id] == pair.id) count++;
     }
     return count;
@@ -199,9 +281,10 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   }
 
   void _submitIfReady() {
-    if (_matches.length != widget.question.pairs.length || _isLocked) return;
+    final pairs = widget.question?.pairs ?? const [];
+    if (_matches.length != pairs.length || _isLocked) return;
     HapticFeedback.mediumImpact();
-    if (_correctPairCount == widget.question.pairs.length) {
+    if (_correctPairCount == pairs.length) {
       ref.read(gameAudioServiceProvider).play(GameSound.correct);
     } else {
       ref.read(gameAudioServiceProvider).play(GameSound.wrong);
@@ -219,9 +302,10 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   }
 
   void _autoMatchOne() {
-    if (_isLocked || _isAutoMatchUsed) return;
+    if (_isBackendMode || _isLocked || _isAutoMatchUsed) return;
+    final pairs = widget.question?.pairs ?? const [];
     MatchPair? pair;
-    for (final candidate in widget.question.pairs) {
+    for (final candidate in pairs) {
       if (_matches[candidate.id] != candidate.id) {
         pair = candidate;
         break;
@@ -247,9 +331,13 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     if (_isLocked || _isShuffleUsed) return;
     setState(() {
       _isShuffleUsed = true;
-      _shuffledRight.shuffle(
-        Random(widget.question.id.hashCode + _matches.length + 17),
-      );
+      if (_isBackendMode) {
+        _shuffledRight = List.of(_shuffledRight)..shuffle();
+      } else {
+        _shuffledRight.shuffle(
+          Random((widget.question?.id.hashCode ?? 0) + _matches.length + 17),
+        );
+      }
     });
   }
 
@@ -294,12 +382,14 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   void _continueAfterAnalysis() {
     if (_phase != _MatchFlowPhase.analysis) return;
     setState(() => _phase = _MatchFlowPhase.submitting);
-    widget.onSubmit(
-      MatchTheFollowingAnswer(
-        questionId: widget.question.id,
-        matchedPairIds: Map.of(_matches),
-      ),
-    );
+    if (widget.question != null) {
+      widget.onSubmit?.call(
+        MatchTheFollowingAnswer(
+          questionId: widget.question!.id,
+          matchedPairIds: Map.of(_matches),
+        ),
+      );
+    }
   }
 
   @override
@@ -307,11 +397,19 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     final colors = context.themeColors;
     final streak =
         ref.watch(streakControllerProvider).valueOrNull?.currentStreak ?? 0;
-    final matchedCount = _matches.length;
-    final totalPairs = widget.question.pairs.length;
-    final allMatched = matchedCount == totalPairs;
+    final leftPairs = _effectiveLeftPairs;
+    final rightPairs = _effectiveRightPairs;
+    final matches = _effectiveMatches;
+    final matchedCount = matches.length;
+    final totalPairs = leftPairs.length;
+    final allMatched = totalPairs > 0 && matchedCount == totalPairs;
     final isAnalysis = _phase == _MatchFlowPhase.analysis;
     final boardHeight = totalPairs * (_cardHeight + _rowGap);
+
+    final title = widget.board?.prompt ??
+        (widget.question != null
+            ? _subjectTitle(widget.question!.topicId)
+            : 'Match It');
 
     return ColoredBox(
       key: const Key('match_it_view'),
@@ -328,7 +426,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _MatchItHeader(
-                title: _subjectTitle(widget.question.topicId),
+                title: title,
                 currentIndex: widget.currentIndex,
                 totalQuestions: widget.totalQuestions,
                 streak: streak,
@@ -355,11 +453,14 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                   GamePowerUpAction(
                     id: 'auto-match',
                     label: 'Auto 1',
-                    description: 'Correctly match one remaining pair.',
+                    description: _isBackendMode
+                        ? 'Auto Match is unavailable for this mode.'
+                        : 'Correctly match one remaining pair.',
                     coinCost: 30,
                     icon: Icons.auto_awesome_rounded,
+                    isDisabled: _isBackendMode,
                     isUsed: _isAutoMatchUsed,
-                    onUse: _autoMatchOne,
+                    onUse: _isBackendMode ? () {} : _autoMatchOne,
                   ),
                   GamePowerUpAction(
                     id: 'shuffle',
@@ -379,7 +480,8 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                   tintColor: colors.primary,
                   borderRadius: AppDimensions.radiusLg,
                   child: Text(
-                    'Start with the clearest concept, then remove any pair you are unsure about before final submit.',
+                    widget.board?.hint ??
+                        'Start with the clearest concept, then remove any pair you are unsure about before final submit.',
                     style: context.appTextStyles.bodyMedium.copyWith(
                       color: colors.textPrimary,
                     ),
@@ -402,13 +504,13 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                               painter: _MatchConnectionPainter(
                                 connectorAnimation: _connectorController,
                                 resultAnimation: _resultController,
-                                leftPairs: widget.question.pairs,
-                                rightPairs: _shuffledRight,
-                                matches: _matches,
+                                leftPairs: leftPairs,
+                                rightPairs: rightPairs,
+                                matches: matches,
                                 leftAnchors: _leftAnchors,
                                 rightAnchors: _rightAnchors,
-                                hasSubmitted: _hasSubmitted,
-                                selectedLeftPairId: _selectedLeftPairId,
+                                hasSubmitted: _isBackendMode ? false : _hasSubmitted,
+                                selectedLeftPairId: _effectiveSelectedLeftId,
                                 cardHeight: _cardHeight,
                                 rowGap: _rowGap,
                                 connectorGap: _connectorGap,
@@ -416,6 +518,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                                 errorColor: colors.error,
                                 selectedColor: colors.secondary,
                                 neutralColor: colors.borderStrong,
+                                isBackendMode: _isBackendMode,
                               ),
                             ),
                           ),
@@ -425,8 +528,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                             Expanded(
                               child: Column(
                                 children: [
-                                  for (final indexed
-                                      in widget.question.pairs.indexed)
+                                  for (final indexed in leftPairs.indexed)
                                     _EntryMotion(
                                       controller: _entryController,
                                       index: indexed.$1,
@@ -459,7 +561,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                             Expanded(
                               child: Column(
                                 children: [
-                                  for (final indexed in _shuffledRight.indexed)
+                                  for (final indexed in rightPairs.indexed)
                                     AnimatedSwitcher(
                                       duration: AppMotion.duration(
                                         context,
@@ -518,32 +620,33 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                 ),
               ),
               const SizedBox(height: AppSpacing.lg),
-              if (isAnalysis) ...[
+              if (isAnalysis && widget.question != null) ...[
                 _MatchAnalysisSummary(
-                  question: widget.question,
+                  question: widget.question!,
                   matches: _matches,
                   correctPairCount: _correctPairCount,
                 ),
                 const SizedBox(height: AppSpacing.lg),
               ],
-              AnimatedScale(
-                duration: AppMotion.duration(context, AppMotion.normal),
-                curve: AppMotion.easeOut,
-                scale: isAnalysis || allMatched ? 1 : 0.98,
-                child: AnimatedOpacity(
+              if (!_isBackendMode)
+                AnimatedScale(
                   duration: AppMotion.duration(context, AppMotion.normal),
-                  opacity: isAnalysis || allMatched ? 1 : 0.58,
-                  child: AppButton(
-                    label: isAnalysis ? 'Next' : 'Submit',
-                    isLoading: _phase == _MatchFlowPhase.submitting,
-                    onPressed: isAnalysis
-                        ? _continueAfterAnalysis
-                        : allMatched
-                        ? _submitIfReady
-                        : null,
+                  curve: AppMotion.easeOut,
+                  scale: isAnalysis || allMatched ? 1 : 0.98,
+                  child: AnimatedOpacity(
+                    duration: AppMotion.duration(context, AppMotion.normal),
+                    opacity: isAnalysis || allMatched ? 1 : 0.58,
+                    child: AppButton(
+                      label: isAnalysis ? 'Next' : 'Submit',
+                      isLoading: _phase == _MatchFlowPhase.submitting,
+                      onPressed: isAnalysis
+                          ? _continueAfterAnalysis
+                          : allMatched
+                          ? _submitIfReady
+                          : null,
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -552,6 +655,20 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   }
 
   _MatchCardState _leftState(String pairId) {
+    final matches = _effectiveMatches;
+    if (_isBackendMode) {
+      if (matches.containsKey(pairId)) {
+        return _MatchCardState.matched;
+      }
+      if (widget.lastWrongAttemptLeftId == pairId) {
+        return _MatchCardState.wrong;
+      }
+      if (_effectiveSelectedLeftId == pairId) {
+        return _MatchCardState.selected;
+      }
+      return _MatchCardState.neutral;
+    }
+
     if (_matches.containsKey(pairId)) {
       if (_hasSubmitted) {
         return _matches[pairId] == pairId
@@ -565,6 +682,17 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   }
 
   _MatchCardState _rightState(String pairId) {
+    final matches = _effectiveMatches;
+    if (_isBackendMode) {
+      if (matches.containsValue(pairId)) {
+        return _MatchCardState.matched;
+      }
+      if (widget.lastWrongAttemptRightId == pairId) {
+        return _MatchCardState.wrong;
+      }
+      return _MatchCardState.neutral;
+    }
+
     final matchedLeftPairId = _leftPairIdForRight(pairId);
     if (matchedLeftPairId != null) {
       if (_hasSubmitted) {
@@ -578,7 +706,8 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   }
 
   String? _leftPairIdForRight(String rightPairId) {
-    for (final entry in _matches.entries) {
+    final matches = _effectiveMatches;
+    for (final entry in matches.entries) {
       if (entry.value == rightPairId) return entry.key;
     }
     return null;
@@ -586,7 +715,8 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
 
   String? _leftCorrection(String leftPairId) {
     if (_matches[leftPairId] == leftPairId) return null;
-    for (final pair in widget.question.pairs) {
+    final pairs = widget.question?.pairs ?? const [];
+    for (final pair in pairs) {
       if (pair.id == leftPairId) return 'Correct: ${pair.right}';
     }
     return null;
@@ -1403,6 +1533,7 @@ class _MatchConnectionPainter extends CustomPainter {
   final Color errorColor;
   final Color selectedColor;
   final Color neutralColor;
+  final bool isBackendMode;
 
   _MatchConnectionPainter({
     required this.connectorAnimation,
@@ -1421,6 +1552,7 @@ class _MatchConnectionPainter extends CustomPainter {
     required this.errorColor,
     required this.selectedColor,
     required this.neutralColor,
+    this.isBackendMode = false,
   }) : super(repaint: Listenable.merge([connectorAnimation, resultAnimation]));
 
   @override
@@ -1429,22 +1561,27 @@ class _MatchConnectionPainter extends CustomPainter {
     for (final indexedEntry in entries.indexed) {
       final index = indexedEntry.$1;
       final entry = indexedEntry.$2;
-      final resultColor = entry.key == entry.value ? successColor : errorColor;
+      final isCorrect = isBackendMode || entry.key == entry.value;
+      final resultColor = isCorrect ? successColor : errorColor;
       final evaluationProgress = hasSubmitted
           ? ((resultAnimation.value * entries.length) - index)
                 .clamp(0.0, 1.0)
                 .toDouble()
           : 0.0;
-      final color = hasSubmitted
-          ? Color.lerp(
-              neutralColor,
-              resultColor,
-              Curves.easeOut.transform(evaluationProgress),
-            )!
-          : selectedColor;
-      final progress = hasSubmitted
-          ? evaluationProgress
-          : connectorAnimation.value;
+      final color = isBackendMode
+          ? successColor
+          : (hasSubmitted
+              ? Color.lerp(
+                  neutralColor,
+                  resultColor,
+                  Curves.easeOut.transform(evaluationProgress),
+                )!
+              : selectedColor);
+      final progress = isBackendMode
+          ? 1.0
+          : (hasSubmitted
+              ? evaluationProgress
+              : connectorAnimation.value);
       _drawConnection(canvas, size, entry.key, entry.value, color, progress);
     }
 

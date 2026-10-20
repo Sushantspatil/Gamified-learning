@@ -286,7 +286,10 @@ class SuddenDeathController
 
     try {
       final String sessionId;
-      if (ds.activeSessionId != null && ds.activeTopicId == request.topicId) {
+      if (request.sessionId != null && request.sessionId!.isNotEmpty) {
+        sessionId = request.sessionId!;
+        ds.activeSessionId = sessionId;
+      } else if (ds.activeSessionId != null && ds.activeTopicId == request.topicId) {
         sessionId = ds.activeSessionId!;
       } else {
         sessionId = await ds.createSession(
@@ -294,7 +297,7 @@ class SuddenDeathController
           questionCount: 10,
         );
       }
-      _debugLog('session created: ${_maskedSessionId(sessionId)}');
+      _debugLog('session created/reused: ${_maskedSessionId(sessionId)}');
 
       // Subscribe before connecting because AttachPlayer immediately emits the
       // server-authoritative active question.
@@ -309,6 +312,7 @@ class SuddenDeathController
       );
 
       await ds.connect(sessionId: sessionId);
+      ds.joinGame();
       final firstPayload = await _firstQuestionCompleter!.future.timeout(
         const Duration(seconds: 10),
         onTimeout: () => throw const ServerException(
@@ -717,6 +721,7 @@ class SuddenDeathController
       _debugLog('reconnecting (attempt ${attempt + 1})');
       try {
         await datasource.connect(sessionId: sessionId);
+        datasource.joinGame();
         await resync.future.timeout(
           const Duration(seconds: 5),
           onTimeout: () => throw const ServerException(

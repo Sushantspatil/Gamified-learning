@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
 import 'package:skillverse_app/core/errors/app_exception.dart';
 import 'package:skillverse_app/core/network/api_client.dart';
 import 'package:skillverse_app/core/network/api_config.dart';
@@ -19,7 +21,7 @@ class SuddenDeathRemoteDatasource {
   final ApiConfig _apiConfig;
   final SuddenDeathSocketClient _socketClient;
 
-  String? _activeSessionId;
+  String? activeSessionId;
   String? _activeTopicId;
   List<SuddenDeathQuestion>? _activeSessionQuestions;
 
@@ -33,7 +35,6 @@ class SuddenDeathRemoteDatasource {
        _apiConfig = apiConfig,
        _socketClient = socketClient ?? IoSuddenDeathSocketClient();
 
-  String? get activeSessionId => _activeSessionId;
   String? get activeTopicId => _activeTopicId;
   List<SuddenDeathQuestion>? get activeSessionQuestions =>
       _activeSessionQuestions;
@@ -41,7 +42,7 @@ class SuddenDeathRemoteDatasource {
   bool get isConnected => _socketClient.isConnected;
 
   void clearActiveSession() {
-    _activeSessionId = null;
+    activeSessionId = null;
     _activeTopicId = null;
     _activeSessionQuestions = null;
   }
@@ -54,7 +55,7 @@ class SuddenDeathRemoteDatasource {
     List<String>? questionCodes,
     String gameMode = 'sudden_death',
   }) async {
-    _activeSessionId = null;
+    activeSessionId = null;
     _activeTopicId = null;
     _activeSessionQuestions = null;
     final backendTopic = mapToBackendTopicId(topicId);
@@ -74,23 +75,18 @@ class SuddenDeathRemoteDatasource {
     if (response is Map<String, dynamic>) {
       final sessionDto = SessionCreatedResponseDto.fromJson(response);
       if (sessionDto.session.isNotEmpty) {
-        _activeSessionId = sessionDto.session;
+        activeSessionId = sessionDto.session;
         _activeTopicId = topicId;
 
-        var questions = sessionDto.questions
+        final questions = sessionDto.questions
             .map(
               (q) =>
                   SuddenDeathQuestionDto.fromJson(q).toDomain(topicId: topicId),
             )
             .toList();
 
-        // Fallback: If questions list was not populated in session creation, fetch from DB for topic
-        if (questions.isEmpty) {
-          questions = await getQuestionsForTopic(backendTopic);
-        }
-
         _activeSessionQuestions = questions;
-        return _activeSessionId!;
+        return activeSessionId!;
       }
     }
 
@@ -188,12 +184,22 @@ class SuddenDeathRemoteDatasource {
       );
     }
 
-    _activeSessionId = sessionId;
+    activeSessionId = sessionId;
 
     final wsBase = _apiConfig.gameWsUrl;
     final wsUri = Uri.parse(
       '$wsBase?session_id=${Uri.encodeQueryComponent(sessionId)}&token=${Uri.encodeQueryComponent(token)}',
     );
+
+    if (kDebugMode) {
+      final maskedSession = sessionId.length <= 8
+          ? sessionId
+          : '${sessionId.substring(0, 4)}...${sessionId.substring(sessionId.length - 4)}';
+      developer.log(
+        '[SD] connecting WS: host=${wsUri.host} path=${wsUri.path} session=$maskedSession tokenPresent=YES tokenLength=${token.length}',
+        name: 'SuddenDeathDatasource',
+      );
+    }
 
     await _socketClient.connect(wsUri);
   }
@@ -211,7 +217,7 @@ class SuddenDeathRemoteDatasource {
         option: option,
         selectedText: selectedText,
         timeTakenMs: timeTakenMs,
-        session: _activeSessionId,
+        session: activeSessionId,
       ),
     );
   }
@@ -222,7 +228,7 @@ class SuddenDeathRemoteDatasource {
       WsInboundMessage.usePowerUp(
         question: question,
         powerUp: 'fifty_fifty',
-        session: _activeSessionId,
+        session: activeSessionId,
       ),
     );
   }
@@ -233,7 +239,7 @@ class SuddenDeathRemoteDatasource {
       WsInboundMessage.usePowerUp(
         question: question,
         powerUp: 'add_time',
-        session: _activeSessionId,
+        session: activeSessionId,
       ),
     );
   }
@@ -249,7 +255,7 @@ class SuddenDeathRemoteDatasource {
 
   /// Re-synchronizes with the live game session.
   void joinGame() {
-    _socketClient.send(WsInboundMessage.joinGame(session: _activeSessionId));
+    _socketClient.send(WsInboundMessage.joinGame(session: activeSessionId));
   }
 
   /// Marks an unfinished session as abandoned on the backend.
@@ -262,7 +268,7 @@ class SuddenDeathRemoteDatasource {
   /// Safe to call when the run already finished: the backend answers `409`,
   /// which is treated as success here because the session is already closed.
   Future<void> abandonSession({String? sessionId}) async {
-    final session = sessionId ?? _activeSessionId;
+    final session = sessionId ?? activeSessionId;
     if (session == null || session.isEmpty) return;
 
     try {
@@ -281,6 +287,6 @@ class SuddenDeathRemoteDatasource {
   /// Closes the WebSocket connection and resets active state.
   Future<void> disconnect([int? code, String? reason]) async {
     await _socketClient.close(code, reason);
-    _activeSessionId = null;
+    activeSessionId = null;
   }
 }

@@ -182,6 +182,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           topicId: state.pathParameters['topicId']!,
           subjectId: state.uri.queryParameters['subjectId'],
           chapterId: state.uri.queryParameters['chapterId'],
+          sessionId: state.uri.queryParameters['sessionId'],
         ),
       ),
       GoRoute(

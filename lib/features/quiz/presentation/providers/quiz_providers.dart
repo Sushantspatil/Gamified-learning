@@ -35,12 +35,14 @@ class QuizSessionRequest {
   final QuestionType quizType;
   final String? subjectId;
   final String? chapterId;
+  final String? sessionId;
 
   const QuizSessionRequest({
     required this.topicId,
     required this.quizType,
     this.subjectId,
     this.chapterId,
+    this.sessionId,
   });
 
   @override
@@ -49,11 +51,13 @@ class QuizSessionRequest {
         other.topicId == topicId &&
         other.quizType == quizType &&
         other.subjectId == subjectId &&
-        other.chapterId == chapterId;
+        other.chapterId == chapterId &&
+        other.sessionId == sessionId;
   }
 
   @override
-  int get hashCode => Object.hash(topicId, quizType, subjectId, chapterId);
+  int get hashCode =>
+      Object.hash(topicId, quizType, subjectId, chapterId, sessionId);
 }
 
 class QuizController

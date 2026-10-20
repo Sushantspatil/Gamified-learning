@@ -6,6 +6,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 
+import 'package:skillverse_app/core/errors/app_exception.dart';
 import '../../models/sudden_death_ws_dto.dart';
 
 /// Contract for WebSocket communication in Sudden Death.
@@ -55,6 +56,41 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
   Future<WebSocket> _connectSocket(Uri uri) async {
     try {
       return await WebSocket.connect(uri.toString());
+    } on WebSocketException catch (wsError, st) {
+      final code = wsError.httpStatusCode;
+      _debugLog('[SD] WebSocket.connect rejected with HTTP status: $code ($wsError)');
+      if (code == HttpStatus.unauthorized) {
+        throw const AuthException(
+          'Authentication failed for live Sudden Death. Please log in again.',
+          'unauthorized',
+        );
+      }
+      if (code == HttpStatus.forbidden) {
+        throw const ValidationException(
+          'This Sudden Death session belongs to another client.',
+          'session_forbidden',
+        );
+      }
+      if (code == HttpStatus.conflict) {
+        throw const ValidationException(
+          'This Sudden Death session has already finished or expired.',
+          'session_inactive',
+        );
+      }
+      if (code == HttpStatus.notFound && uri.path == '/ws/game') {
+        final altUri = uri.replace(path: '/api/v1/ws/game');
+        _debugLog('[SD] 404 on /ws/game; attempting alternative path /api/v1/ws/game');
+        try {
+          return await WebSocket.connect(altUri.toString());
+        } catch (_) {}
+      }
+      if (code == HttpStatus.notFound) {
+        throw const NotFoundException(
+          'The Sudden Death session was not found on the server.',
+          'session_not_found',
+        );
+      }
+      Error.throwWithStackTrace(wsError, st);
     } catch (e, st) {
       _debugLog(
         '[SD] standard WebSocket.connect failed ($e); attempting proxy-compatible upgrade handshake',
@@ -78,9 +114,35 @@ class IoSuddenDeathSocketClient implements SuddenDeathSocketClient {
 
         final response = await request.close();
         if (response.statusCode != HttpStatus.switchingProtocols) {
+          final code = response.statusCode;
+          _debugLog('[SD] fallback upgrade rejected with HTTP $code');
+          if (code == HttpStatus.unauthorized) {
+            throw const AuthException(
+              'Authentication failed for live Sudden Death. Please log in again.',
+              'unauthorized',
+            );
+          }
+          if (code == HttpStatus.forbidden) {
+            throw const ValidationException(
+              'This Sudden Death session belongs to another client.',
+              'session_forbidden',
+            );
+          }
+          if (code == HttpStatus.conflict) {
+            throw const ValidationException(
+              'This Sudden Death session has already finished or expired.',
+              'session_inactive',
+            );
+          }
+          if (code == HttpStatus.notFound) {
+            throw const NotFoundException(
+              'The Sudden Death session was not found on the server.',
+              'session_not_found',
+            );
+          }
           throw WebSocketException(
-            'Connection to \'$uri\' was not upgraded to websocket',
-            response.statusCode,
+            'Connection to \'$uri\' was not upgraded to websocket (HTTP $code)',
+            code,
           );
         }
 
