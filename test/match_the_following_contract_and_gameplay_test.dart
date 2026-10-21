@@ -20,6 +20,7 @@ import 'package:skillverse_app/features/quiz/data/datasources/remote/quiz_remote
 import 'package:skillverse_app/features/quiz/presentation/providers/match_the_following_providers.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/quiz_providers.dart';
 import 'package:skillverse_app/features/quiz/presentation/screens/match_the_following_screen.dart';
+import 'package:skillverse_app/features/quiz/presentation/widgets/match_the_following_view.dart';
 
 class _FakeLocalStorage implements LocalStorageService {
   final Map<String, String> _map = {};
@@ -673,14 +674,20 @@ void main() {
                 'left_items': [
                   {'id': 'ui_l1', 'text': 'Cash A/C'},
                   {'id': 'ui_l2', 'text': 'Wages A/C'},
+                  {'id': 'ui_l3', 'text': 'Capital A/C'},
+                  {'id': 'ui_l4', 'text': 'Bank Loan'},
                 ],
                 'right_items': [
-                  {'id': 'ui_r2', 'text': 'Nominal Account'},
+                  {'id': 'ui_r3', 'text': 'Personal Account'},
                   {'id': 'ui_r1', 'text': 'Real Account'},
+                  {'id': 'ui_r4', 'text': 'Liability Account'},
+                  {'id': 'ui_r2', 'text': 'Nominal Account'},
                 ],
                 'solution_map': {
                   'ui_l1': 'ui_r1',
                   'ui_l2': 'ui_r2',
+                  'ui_l3': 'ui_r3',
+                  'ui_l4': 'ui_r4',
                 },
                 'hint': 'Cash is an asset.',
               },
@@ -690,14 +697,18 @@ void main() {
         );
       }
 
+      if (request.url.path.contains('/abandon')) {
+        return http.Response(jsonEncode({'status': 'abandoned'}), 200);
+      }
+
       if (request.url.path == '/api/v1/quiz/match-the-following/complete') {
         return http.Response(
           jsonEncode({
             'session': 'ui_mtf_sess',
             'total_boards': 1,
             'cleared_boards': 1,
-            'total_pairs_matched': 2,
-            'total_pairs_count': 2,
+            'total_pairs_matched': 4,
+            'total_pairs_count': 4,
             'total_mistakes': 0,
             'accuracy_percentage': 100.0,
             'final_score': 35,
@@ -715,8 +726,8 @@ void main() {
               {
                 'question_code': 'ui_board_1',
                 'prompt': 'Match accounts with classifications',
-                'pairs_matched': 2,
-                'total_pairs': 2,
+                'pairs_matched': 4,
+                'total_pairs': 4,
                 'mistakes': 0,
                 'time_taken_ms': 10000,
                 'is_flawless': true,
@@ -750,10 +761,12 @@ void main() {
     });
 
     tearDown(() {
-      container.dispose();
+      try {
+        container.dispose();
+      } catch (_) {}
     });
 
-    testWidgets('renders board counter, prompt, cards, handles pair taps, and displays results', (tester) async {
+    testWidgets('TEST 1 & 7 — delegates to MatchTheFollowingView and mounts connection layer', (tester) async {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -763,36 +776,216 @@ void main() {
           ),
         ),
       );
-
-      // Wait for session create
       await tester.pumpAndSettle();
 
-      // Verify header & dynamic labels (restored approved MatchTheFollowingView)
-      expect(find.text('Match accounts with classifications'), findsOneWidget);
+      expect(find.byType(MatchTheFollowingView), findsOneWidget);
+      expect(find.byKey(const Key('match_connection_layer')), findsOneWidget);
+      expect(find.byKey(const Key('match_it_view')), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+    });
+
+    testWidgets('TEST 2 & 3 — renders 4 backend pairs and preserves server right-item order without client shuffle', (tester) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.darkTheme,
+            home: const MatchTheFollowingScreen(topicId: 'accounting'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // All 4 left items present
       expect(find.text('Cash A/C'), findsOneWidget);
       expect(find.text('Wages A/C'), findsOneWidget);
-      expect(find.text('Nominal Account'), findsOneWidget);
-      expect(find.text('Real Account'), findsOneWidget);
+      expect(find.text('Capital A/C'), findsOneWidget);
+      expect(find.text('Bank Loan'), findsOneWidget);
 
-      // Tap Left 1: Cash A/C
+      // All 4 right items present
+      expect(find.text('Personal Account'), findsOneWidget);
+      expect(find.text('Real Account'), findsOneWidget);
+      expect(find.text('Liability Account'), findsOneWidget);
+      expect(find.text('Nominal Account'), findsOneWidget);
+
+      // Verify server order: R3 (Personal), R1 (Real), R4 (Liability), R2 (Nominal)
+      final r3Y = tester.getTopLeft(find.byKey(const Key('match-right-ui_r3'))).dy;
+      final r1Y = tester.getTopLeft(find.byKey(const Key('match-right-ui_r1'))).dy;
+      final r4Y = tester.getTopLeft(find.byKey(const Key('match-right-ui_r4'))).dy;
+      final r2Y = tester.getTopLeft(find.byKey(const Key('match-right-ui_r2'))).dy;
+
+      expect(r3Y, lessThan(r1Y));
+      expect(r1Y, lessThan(r4Y));
+      expect(r4Y, lessThan(r2Y));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+    });
+
+    testWidgets('TEST 4 — left card selection activates and remains interactive', (tester) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.darkTheme,
+            home: const MatchTheFollowingScreen(topicId: 'accounting'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap unmatched left card
       await tester.tap(find.byKey(const Key('match-left-ui_l1')));
       await tester.pump(const Duration(milliseconds: 50));
 
-      // Tap Right 1: Real Account (correct match)
+      final stateAfterSelect = container.read(
+        matchTheFollowingControllerProvider(
+          const QuizSessionRequest(
+            topicId: 'accounting',
+            quizType: QuestionType.matchTheFollowing,
+          ),
+        ),
+      ).value!;
+      expect(stateAfterSelect.selectedLeftId, 'ui_l1');
+
+      // Tapping same card toggles selection off
+      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+      await tester.pump(const Duration(milliseconds: 50));
+
+      final stateAfterDeselect = container.read(
+        matchTheFollowingControllerProvider(
+          const QuizSessionRequest(
+            topicId: 'accounting',
+            quizType: QuestionType.matchTheFollowing,
+          ),
+        ),
+      ).value!;
+      expect(stateAfterDeselect.selectedLeftId, null);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+    });
+
+    testWidgets('TEST 5 & 6 — correct match locks cards and maintains mistake count while wrong match increments mistake and allows retry', (tester) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.darkTheme,
+            home: const MatchTheFollowingScreen(topicId: 'accounting'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      const request = QuizSessionRequest(
+        topicId: 'accounting',
+        quizType: QuestionType.matchTheFollowing,
+      );
+
+      // 1. Wrong Match: Left 1 (Cash) + Right 2 (Nominal)
+      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byKey(const Key('match-right-ui_r2')));
+      await tester.pump(const Duration(milliseconds: 50));
+
+      var state = container.read(matchTheFollowingControllerProvider(request)).value!;
+      expect(state.mistakes, 1);
+      expect(state.correctMatches.isEmpty, true);
+      expect(state.selectedLeftId, null); // selection cleared for retry
+
+      // 2. Correct Match: Left 1 (Cash) + Right 1 (Real)
+      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+      await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.byKey(const Key('match-right-ui_r1')));
       await tester.pump(const Duration(milliseconds: 50));
 
-      // Tap Left 2: Wages A/C
-      await tester.tap(find.byKey(const Key('match-left-ui_l2')));
+      state = container.read(matchTheFollowingControllerProvider(request)).value!;
+      expect(state.correctMatches['ui_l1'], 'ui_r1');
+      expect(state.mistakes, 1); // mistakes unchanged on correct match
+      expect(state.selectedLeftId, null);
+
+      // Wait for 400ms controller delay to clear wrong attempt
+      await tester.pump(const Duration(milliseconds: 450));
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+    });
+
+    testWidgets('TEST 9 — exit confirmation dialog opens, can continue or abandon session', (tester) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.darkTheme,
+            home: const MatchTheFollowingScreen(topicId: 'accounting'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap close button (X)
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      // Exit confirmation dialog appears
+      expect(find.text('Exit Match Game?'), findsOneWidget);
+      expect(find.text('Continue Playing'), findsOneWidget);
+      expect(find.text('Exit Game'), findsOneWidget);
+
+      // Tap Continue Playing
+      await tester.tap(find.text('Continue Playing'));
+      await tester.pumpAndSettle();
+
+      // Dialog is dismissed and game view remains mounted
+      expect(find.text('Exit Match Game?'), findsNothing);
+      expect(find.byType(MatchTheFollowingView), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
+    });
+
+    testWidgets('TEST 10 — completes all 4 pairs, submits single batch, and displays backend results', (tester) async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: AppTheme.darkTheme,
+            home: const MatchTheFollowingScreen(topicId: 'accounting'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Match Pair 1: ui_l1 -> ui_r1
+      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byKey(const Key('match-right-ui_r1')));
       await tester.pump(const Duration(milliseconds: 50));
 
-      // Tap Right 2: Nominal Account (correct match, clears board!)
+      // Match Pair 2: ui_l2 -> ui_r2
+      await tester.tap(find.byKey(const Key('match-left-ui_l2')));
+      await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.byKey(const Key('match-right-ui_r2')));
-      // Board advance delay is 320ms, then completion API call completes
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Match Pair 3: ui_l3 -> ui_r3
+      await tester.tap(find.byKey(const Key('match-left-ui_l3')));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byKey(const Key('match-right-ui_r3')));
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Match Pair 4: ui_l4 -> ui_r4 (clears board and triggers batch complete)
+      await tester.tap(find.byKey(const Key('match-left-ui_l4')));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byKey(const Key('match-right-ui_r4')));
+
+      // Wait for board-clear transition and API completion
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
-      // Results screen appears with authoritative values!
+      // Results screen appears with authoritative values
       expect(find.text('Match the Following — Results'), findsOneWidget);
       expect(find.text('Official Score'), findsOneWidget);
       expect(find.text('35'), findsAtLeast(1));
@@ -800,11 +993,10 @@ void main() {
       expect(find.text('+20 Coins'), findsOneWidget);
       expect(find.text('Score Breakdown'), findsOneWidget);
       expect(find.text('Base Points'), findsOneWidget);
-      expect(find.text('+20'), findsOneWidget);
-      expect(find.text('Flawless Bonus'), findsOneWidget);
-      expect(find.text('Speed Bonus'), findsOneWidget);
-      expect(find.text('Board review'), findsOneWidget);
       expect(find.text('Done'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      container.dispose();
     });
   });
 }

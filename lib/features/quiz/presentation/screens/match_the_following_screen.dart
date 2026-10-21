@@ -219,6 +219,7 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
 
               return MatchTheFollowingView(
                 board: board,
+                title: widget.topicId,
                 currentIndex: state.currentBoardIndex,
                 totalQuestions: state.boards.length,
                 selectedLeftId: state.selectedLeftId,
