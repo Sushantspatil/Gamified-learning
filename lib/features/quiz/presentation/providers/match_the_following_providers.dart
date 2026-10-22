@@ -229,13 +229,59 @@ class MatchTheFollowingController
     }
   }
 
+  /// Submits the current board with matched pairs and mistakes after validation.
+  Future<void> submitBoard({
+    required Map<String, String> matches,
+    required int mistakes,
+  }) async {
+    final current = state.valueOrNull;
+    if (current == null || current.boardResolved || current.isCompleting || current.result != null) {
+      return;
+    }
+
+    final board = current.currentBoard;
+    if (board == null) return;
+
+    _ticker?.cancel();
+
+    final elapsedMs = DateTime.now()
+        .difference(current.boardStartedAt ?? DateTime.now())
+        .inMilliseconds
+        .clamp(0, board.timeLimitSec * 1000);
+
+    final submission = MatchBoardSubmission(
+      questionCode: board.questionCode,
+      matches: matches,
+      mistakes: mistakes,
+      timeTakenMs: elapsedMs,
+      isTimeout: false,
+    );
+
+    final updatedSubmissions = [...current.boardSubmissions, submission];
+
+    state = AsyncValue.data(
+      current.copyWith(
+        correctMatches: matches,
+        mistakes: current.mistakes + mistakes,
+        boardResolved: true,
+        remainingMs: 0,
+        boardSubmissions: updatedSubmissions,
+        selectedLeftId: () => null,
+        lastWrongAttemptLeftId: () => null,
+        lastWrongAttemptRightId: () => null,
+      ),
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 320));
+    if (_disposed) return;
+
+    await _advanceOrComplete();
+  }
+
   /// Called when user taps a left-column item.
   void selectLeft(String leftId) {
     final current = state.valueOrNull;
     if (current == null || current.isLocked) return;
-
-    // If left item is already locked in a correct match, ignore
-    if (current.correctMatches.containsKey(leftId)) return;
 
     // Toggle off if already selected
     if (current.selectedLeftId == leftId) {
@@ -265,102 +311,30 @@ class MatchTheFollowingController
     final current = state.valueOrNull;
     if (current == null || current.isLocked) return;
 
-    // If right item is already locked in a correct match, ignore
-    if (current.correctMatches.containsValue(rightId)) return;
-
-    // If no left item is selected, safely ignore (do NOT count as mistake)
     final leftId = current.selectedLeftId;
     if (leftId == null) return;
 
     final board = current.currentBoard;
     if (board == null) return;
 
-    // Instant local evaluation using solutionMap
     final expectedRight = board.solutionMap[leftId];
-    final isCorrect = expectedRight == rightId;
+    final isMistake = expectedRight != rightId;
 
-    if (isCorrect) {
-      // 1. Correct Match
-      final updatedMatches = Map<String, String>.from(current.correctMatches);
-      updatedMatches[leftId] = rightId;
+    final updatedMatches = Map<String, String>.from(current.correctMatches);
+    updatedMatches[leftId] = rightId;
+    final updatedMistakes = isMistake ? current.mistakes + 1 : current.mistakes;
 
-      ref.read(gameAudioServiceProvider).play(GameSound.matchConnect);
+    ref.read(gameAudioServiceProvider).play(GameSound.matchConnect);
 
-      final isBoardCleared = updatedMatches.length >= board.leftItems.length;
-
-      if (isBoardCleared) {
-        // Stop timer immediately for this board
-        _ticker?.cancel();
-        ref.read(gameAudioServiceProvider).play(GameSound.correct);
-
-        final elapsedMs = DateTime.now()
-            .difference(current.boardStartedAt ?? DateTime.now())
-            .inMilliseconds
-            .clamp(0, board.timeLimitSec * 1000);
-
-        final submission = MatchBoardSubmission(
-          questionCode: board.questionCode,
-          matches: updatedMatches,
-          mistakes: current.mistakes,
-          timeTakenMs: elapsedMs,
-          isTimeout: false,
-        );
-
-        final updatedSubmissions = [...current.boardSubmissions, submission];
-
-        state = AsyncValue.data(
-          current.copyWith(
-            correctMatches: updatedMatches,
-            selectedLeftId: () => null,
-            boardResolved: true,
-            remainingMs: 0,
-            boardSubmissions: updatedSubmissions,
-            lastWrongAttemptLeftId: () => null,
-            lastWrongAttemptRightId: () => null,
-          ),
-        );
-
-        await Future.delayed(const Duration(milliseconds: 320));
-        if (_disposed) return;
-
-        await _advanceOrComplete();
-      } else {
-        // Correct pair locked, more pairs remaining on this board
-        state = AsyncValue.data(
-          current.copyWith(
-            correctMatches: updatedMatches,
-            selectedLeftId: () => null,
-            lastWrongAttemptLeftId: () => null,
-            lastWrongAttemptRightId: () => null,
-          ),
-        );
-      }
-    } else {
-      // 2. Wrong Match Attempt
-      ref.read(gameAudioServiceProvider).play(GameSound.wrong);
-
-      state = AsyncValue.data(
-        current.copyWith(
-          mistakes: current.mistakes + 1,
-          selectedLeftId: () => null,
-          lastWrongAttemptLeftId: () => leftId,
-          lastWrongAttemptRightId: () => rightId,
-        ),
-      );
-
-      // Clear wrong attempt flash after brief moment
-      await Future.delayed(const Duration(milliseconds: 400));
-      if (_disposed) return;
-      final latest = state.valueOrNull;
-      if (latest != null && !latest.boardResolved) {
-        state = AsyncValue.data(
-          latest.copyWith(
-            lastWrongAttemptLeftId: () => null,
-            lastWrongAttemptRightId: () => null,
-          ),
-        );
-      }
-    }
+    state = AsyncValue.data(
+      current.copyWith(
+        correctMatches: updatedMatches,
+        mistakes: updatedMistakes,
+        selectedLeftId: () => null,
+        lastWrongAttemptLeftId: () => null,
+        lastWrongAttemptRightId: () => null,
+      ),
+    );
   }
 
   /// Resolves the current board as a timeout and preserves partial correct matches.

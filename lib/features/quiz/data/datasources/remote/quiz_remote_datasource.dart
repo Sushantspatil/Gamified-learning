@@ -378,6 +378,10 @@ class QuizRemoteDatasource implements QuizDatasource {
     );
 
     if (data is Map<String, dynamic>) {
+      _backendSessionId = null;
+      _activeSortItOutCards = null;
+      _activeGameMode = null;
+      _activeTopicId = null;
       return CompleteSortItOutResponseDto.fromJson(data);
     }
 
@@ -403,6 +407,10 @@ class QuizRemoteDatasource implements QuizDatasource {
     );
 
     if (data is Map<String, dynamic>) {
+      _backendSessionId = null;
+      _activeMatchBoards = null;
+      _activeGameMode = null;
+      _activeTopicId = null;
       return CompleteMatchTheFollowingResponseDto.fromJson(data);
     }
 
@@ -415,6 +423,11 @@ class QuizRemoteDatasource implements QuizDatasource {
   /// Explicitly abandons an in-progress session.
   Future<void> abandonSession([String? sessionId]) async {
     final id = sessionId ?? _backendSessionId;
+    _backendSessionId = null;
+    _activeMatchBoards = null;
+    _activeSortItOutCards = null;
+    _activeGameMode = null;
+    _activeTopicId = null;
     if (id == null || id.isEmpty) return;
     try {
       await _apiClient.post(

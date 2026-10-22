@@ -35,8 +35,10 @@ class MatchTheFollowingView extends ConsumerStatefulWidget {
   final int totalQuestions;
   final String? title;
 
-  // Controlled backend props:
+  // Backend mode props:
   final MatchBoard? board;
+  final void Function(Map<String, String> matches, int mistakes)? onBoardSubmit;
+  final int? remainingSeconds;
   final String? selectedLeftId;
   final Map<String, String>? confirmedMatches;
   final String? lastWrongAttemptLeftId;
@@ -54,6 +56,8 @@ class MatchTheFollowingView extends ConsumerStatefulWidget {
     this.totalQuestions = 1,
     this.title,
     this.board,
+    this.onBoardSubmit,
+    this.remainingSeconds,
     this.selectedLeftId,
     this.confirmedMatches,
     this.lastWrongAttemptLeftId,
@@ -74,9 +78,9 @@ class MatchTheFollowingView extends ConsumerStatefulWidget {
 
 class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     with TickerProviderStateMixin {
-  static const double _cardHeight = 64;
+  static const double _cardHeight = 76;
   static const double _rowGap = 12;
-  static const double _connectorGap = 72;
+  static const double _connectorGap = 44;
 
   late List<MatchPair> _shuffledRight;
   late final AnimationController _entryController;
@@ -95,6 +99,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   bool _measurementScheduled = false;
 
   String? _selectedLeftPairId;
+  String? _selectedRightPairId;
   String? _animatingPairLeftId;
   _MatchFlowPhase _phase = _MatchFlowPhase.playing;
   bool _isHintVisible = false;
@@ -115,10 +120,21 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   List<MatchPair> get _effectiveRightPairs => _shuffledRight;
 
   Map<String, String> get _effectiveMatches =>
-      _isBackendMode ? (widget.confirmedMatches ?? const {}) : _matches;
+      _matches.isNotEmpty ? _matches : (widget.confirmedMatches ?? _matches);
+
+  Map<String, String> get _effectiveSolutionMap {
+    if (widget.board != null) {
+      return widget.board!.solutionMap;
+    }
+    final map = <String, String>{};
+    for (final pair in widget.question?.pairs ?? const <MatchPair>[]) {
+      map[pair.id] = pair.id;
+    }
+    return map;
+  }
 
   String? get _effectiveSelectedLeftId =>
-      _isBackendMode ? widget.selectedLeftId : _selectedLeftPairId;
+      _selectedLeftPairId ?? (_isBackendMode ? widget.selectedLeftId : null);
 
   @override
   void initState() {
@@ -196,6 +212,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
           .toList(growable: false);
       _matches.clear();
       _selectedLeftPairId = null;
+      _selectedRightPairId = null;
       _animatingPairLeftId = null;
       _phase = _MatchFlowPhase.playing;
       _isHintVisible = false;
@@ -211,7 +228,6 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
       _shakeController.reset();
     } else if (widget.confirmedMatches != null &&
         widget.confirmedMatches != oldWidget.confirmedMatches) {
-      // A new correct match was confirmed
       final newlyAdded = widget.confirmedMatches!.keys.firstWhere(
         (k) => !(oldWidget.confirmedMatches?.containsKey(k) ?? false),
         orElse: () => '',
@@ -226,6 +242,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
       _shuffledRight.shuffle(Random(widget.question!.id.hashCode));
       _matches.clear();
       _selectedLeftPairId = null;
+      _selectedRightPairId = null;
       _animatingPairLeftId = null;
       _phase = _MatchFlowPhase.playing;
       _isHintVisible = false;
@@ -259,12 +276,25 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   void _handleLeftTap(String pairId) {
     if (_isLocked) return;
 
+    widget.onLeftTap?.call(pairId);
     HapticFeedback.selectionClick();
-    if (_isBackendMode) {
-      widget.onLeftTap?.call(pairId);
+
+    // If Right card is already selected -> complete the pair!
+    if (_selectedRightPairId != null) {
+      final rightId = _selectedRightPairId!;
+      ref.read(gameAudioServiceProvider).play(GameSound.matchConnect);
+      setState(() {
+        _matches.removeWhere((l, r) => l == pairId || r == rightId);
+        _matches[pairId] = rightId;
+        _animatingPairLeftId = pairId;
+        _selectedLeftPairId = null;
+        _selectedRightPairId = null;
+      });
+      _connectorController.forward(from: 0);
       return;
     }
 
+    // No Right card selected: selection / toggle / disconnect
     ref.read(gameAudioServiceProvider).play(GameSound.answerSelect);
     setState(() {
       final hadMatch = _matches.containsKey(pairId);
@@ -277,35 +307,47 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
         _matches.remove(pairId);
       }
       _selectedLeftPairId = pairId;
+      _selectedRightPairId = null;
     });
   }
 
   void _handleRightTap(String pairId) {
     if (_isLocked) return;
 
-    if (_isBackendMode) {
-      final selectedLeft = widget.selectedLeftId;
-      if (selectedLeft == null) return;
-      HapticFeedback.selectionClick();
-      widget.onRightTap?.call(pairId);
+    widget.onRightTap?.call(pairId);
+    HapticFeedback.selectionClick();
+
+    // If Left card is already selected -> complete the pair!
+    if (_selectedLeftPairId != null) {
+      final leftId = _selectedLeftPairId!;
+      ref.read(gameAudioServiceProvider).play(GameSound.matchConnect);
+      setState(() {
+        _matches.removeWhere((l, r) => l == leftId || r == pairId);
+        _matches[leftId] = pairId;
+        _animatingPairLeftId = leftId;
+        _selectedLeftPairId = null;
+        _selectedRightPairId = null;
+      });
+      _connectorController.forward(from: 0);
       return;
     }
 
-    final selectedLeft = _selectedLeftPairId;
-    if (selectedLeft == null) return;
-
-    HapticFeedback.selectionClick();
-    ref.read(gameAudioServiceProvider).play(GameSound.matchConnect);
+    // No Left card selected: selection / toggle / disconnect
+    ref.read(gameAudioServiceProvider).play(GameSound.answerSelect);
     setState(() {
-      _matches.removeWhere(
-        (leftPairId, rightPairId) =>
-            rightPairId == pairId && leftPairId != selectedLeft,
-      );
-      _matches[selectedLeft] = pairId;
-      _animatingPairLeftId = selectedLeft;
+      final matchedLeftId = _leftPairIdForRight(pairId);
+      final hadMatch = matchedLeftId != null;
+      if (_selectedRightPairId == pairId && !hadMatch) {
+        _selectedRightPairId = null;
+        return;
+      }
+
+      if (hadMatch) {
+        _matches.remove(matchedLeftId);
+      }
+      _selectedRightPairId = pairId;
       _selectedLeftPairId = null;
     });
-    _connectorController.forward(from: 0);
   }
 
   bool get _isLocked =>
@@ -317,12 +359,12 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
       _phase == _MatchFlowPhase.analysis;
 
   int get _correctPairCount {
-    if (_isBackendMode) {
-      return _effectiveMatches.length;
-    }
+    final solution = _effectiveSolutionMap;
     var count = 0;
-    for (final pair in widget.question?.pairs ?? const <MatchPair>[]) {
-      if (_matches[pair.id] == pair.id) count++;
+    for (final entry in _matches.entries) {
+      if (solution[entry.key] == entry.value) {
+        count++;
+      }
     }
     return count;
   }
@@ -334,7 +376,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   }
 
   void _submitIfReady() {
-    final pairs = widget.question?.pairs ?? const [];
+    final pairs = _effectiveLeftPairs;
     if (_matches.length != pairs.length || _isLocked) return;
     HapticFeedback.mediumImpact();
     if (_correctPairCount == pairs.length) {
@@ -345,6 +387,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     setState(() {
       _phase = _MatchFlowPhase.analysis;
       _selectedLeftPairId = null;
+      _selectedRightPairId = null;
     });
     _resultController.forward(from: 0);
   }
@@ -355,28 +398,31 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   }
 
   void _autoMatchOne() {
-    if (_isBackendMode || _isLocked || _isAutoMatchUsed) return;
-    final pairs = widget.question?.pairs ?? const [];
-    MatchPair? pair;
-    for (final candidate in pairs) {
-      if (_matches[candidate.id] != candidate.id) {
-        pair = candidate;
+    if (_isLocked || _isAutoMatchUsed) return;
+    String? leftToMatch;
+    String? rightToMatch;
+
+    final solution = _effectiveSolutionMap;
+    for (final entry in solution.entries) {
+      if (_matches[entry.key] != entry.value) {
+        leftToMatch = entry.key;
+        rightToMatch = entry.value;
         break;
       }
     }
-    if (pair == null) return;
-    final selectedPair = pair;
+    if (leftToMatch == null || rightToMatch == null) return;
 
     ref.read(gameAudioServiceProvider).play(GameSound.matchConnect);
     setState(() {
       _isAutoMatchUsed = true;
       _matches.removeWhere(
         (leftPairId, rightPairId) =>
-            rightPairId == selectedPair.id && leftPairId != selectedPair.id,
+            rightPairId == rightToMatch || leftPairId == leftToMatch,
       );
-      _matches[selectedPair.id] = selectedPair.id;
-      _animatingPairLeftId = selectedPair.id;
+      _matches[leftToMatch!] = rightToMatch!;
+      _animatingPairLeftId = leftToMatch;
       _selectedLeftPairId = null;
+      _selectedRightPairId = null;
     });
     _connectorController.forward(from: 0);
   }
@@ -434,7 +480,13 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   void _continueAfterAnalysis() {
     if (_phase != _MatchFlowPhase.analysis) return;
     setState(() => _phase = _MatchFlowPhase.submitting);
-    if (widget.question != null) {
+    if (_isBackendMode) {
+      final wrongCount = _effectiveLeftPairs.length - _correctPairCount;
+      widget.onBoardSubmit?.call(
+        Map.of(_matches),
+        wrongCount,
+      );
+    } else if (widget.question != null) {
       widget.onSubmit?.call(
         MatchTheFollowingAnswer(
           questionId: widget.question!.id,
@@ -488,7 +540,8 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                 totalQuestions: widget.totalQuestions,
                 streak: streak,
                 coins: _availableCoins,
-                onExit: widget.onExit ?? () => Navigator.of(context).maybePop(),
+                remainingSeconds: widget.remainingSeconds,
+                onExit: widget.onExit ?? () => Navigator.of(context).pop(),
               ),
               const SizedBox(height: AppSpacing.md),
               _ProgressHud(
@@ -496,62 +549,6 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                 totalPairs: totalPairs,
                 prompt: promptText,
               ),
-              const SizedBox(height: AppSpacing.md),
-              GamePowerUpBar(
-                isDense: true,
-                coinBalanceOverride: widget.coinBalanceOverride,
-                isDisabled: _isLocked,
-                actions: [
-                  GamePowerUpAction(
-                    id: 'match-hint',
-                    label: 'Hint',
-                    description: 'Show a pairing strategy for this board.',
-                    coinCost: 10,
-                    icon: Icons.lightbulb_outline,
-                    isUsed: _isHintVisible,
-                    onUse: _showHint,
-                  ),
-                  GamePowerUpAction(
-                    id: 'auto-match',
-                    label: 'Auto 1',
-                    description: _isBackendMode
-                        ? 'Auto Match is unavailable for this mode.'
-                        : 'Correctly match one remaining pair.',
-                    coinCost: 30,
-                    icon: Icons.auto_awesome_rounded,
-                    isDisabled: _isBackendMode,
-                    isUsed: _isAutoMatchUsed,
-                    onUse: _isBackendMode ? () {} : _autoMatchOne,
-                  ),
-                  GamePowerUpAction(
-                    id: 'shuffle',
-                    label: 'Shuffle',
-                    description: _isBackendMode
-                        ? 'Answer order is fixed by the server.'
-                        : 'Shuffle the answer side.',
-                    coinCost: 15,
-                    icon: Icons.shuffle_rounded,
-                    isDisabled: _isBackendMode,
-                    isUsed: _isShuffleUsed,
-                    onUse: _isBackendMode ? () {} : _shuffleAnswers,
-                  ),
-                ],
-              ),
-              if (_isHintVisible) ...[
-                const SizedBox(height: AppSpacing.sm),
-                AppCard(
-                  variant: AppCardVariant.tinted,
-                  tintColor: colors.primary,
-                  borderRadius: AppDimensions.radiusLg,
-                  child: Text(
-                    widget.board?.hint ??
-                        'Start with the clearest concept, then remove any pair you are unsure about before final submit.',
-                    style: context.appTextStyles.bodyMedium.copyWith(
-                      color: colors.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
               const SizedBox(height: AppSpacing.md),
               SizedBox(
                 height: boardHeight,
@@ -574,11 +571,13 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                                     leftPairs: leftPairs,
                                     rightPairs: rightPairs,
                                     matches: matches,
+                                    solutionMap: _effectiveSolutionMap,
                                     animatingPairLeftId: _animatingPairLeftId,
                                     leftAnchors: _leftAnchors,
                                     rightAnchors: _rightAnchors,
                                     hasSubmitted: _hasSubmitted,
-                                    selectedLeftPairId: _effectiveSelectedLeftId,
+                                    selectedLeftPairId: _selectedLeftPairId ?? _effectiveSelectedLeftId,
+                                    selectedRightPairId: _selectedRightPairId,
                                     cardHeight: _cardHeight,
                                     rowGap: _rowGap,
                                     connectorGap: _connectorGap,
@@ -687,34 +686,91 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                   },
                 ),
               ),
+              if (_isHintVisible) ...[
+                const SizedBox(height: AppSpacing.sm),
+                AppCard(
+                  variant: AppCardVariant.tinted,
+                  tintColor: colors.primary,
+                  borderRadius: AppDimensions.radiusLg,
+                  child: Text(
+                    widget.board?.hint ??
+                        'Start with the clearest concept, then remove any pair you are unsure about before final submit.',
+                    style: context.appTextStyles.bodyMedium.copyWith(
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+              if (!isAnalysis) ...[
+                const SizedBox(height: AppSpacing.md),
+                GamePowerUpBar(
+                  isDense: true,
+                  coinBalanceOverride: widget.coinBalanceOverride,
+                  isDisabled: _isLocked,
+                  actions: [
+                    GamePowerUpAction(
+                      id: 'match-hint',
+                      label: 'Hint',
+                      description: 'Show a pairing strategy for this board.',
+                      coinCost: 10,
+                      icon: Icons.lightbulb_outline,
+                      isUsed: _isHintVisible,
+                      onUse: _showHint,
+                    ),
+                    GamePowerUpAction(
+                      id: 'auto-match',
+                      label: 'Auto',
+                      description: 'Correctly match one remaining pair.',
+                      coinCost: 30,
+                      icon: Icons.auto_awesome_rounded,
+                      isDisabled: _isLocked,
+                      isUsed: _isAutoMatchUsed,
+                      onUse: _autoMatchOne,
+                    ),
+                    GamePowerUpAction(
+                      id: 'shuffle',
+                      label: 'Shuffle',
+                      description: _isBackendMode
+                          ? 'Answer order is fixed by the server.'
+                          : 'Shuffle the answer side.',
+                      coinCost: 15,
+                      icon: Icons.shuffle_rounded,
+                      isDisabled: _isBackendMode || _isLocked,
+                      isUsed: _isShuffleUsed,
+                      onUse: _shuffleAnswers,
+                    ),
+                  ],
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
-              if (isAnalysis && widget.question != null) ...[
+              if (isAnalysis) ...[
                 _MatchAnalysisSummary(
-                  question: widget.question!,
+                  leftPairs: leftPairs,
+                  rightPairs: rightPairs,
+                  solutionMap: _effectiveSolutionMap,
                   matches: _matches,
                   correctPairCount: _correctPairCount,
                 ),
                 const SizedBox(height: AppSpacing.lg),
               ],
-              if (!_isBackendMode)
-                AnimatedScale(
+              AnimatedScale(
+                duration: AppMotion.duration(context, AppMotion.normal),
+                curve: AppMotion.easeOut,
+                scale: isAnalysis || allMatched ? 1 : 0.98,
+                child: AnimatedOpacity(
                   duration: AppMotion.duration(context, AppMotion.normal),
-                  curve: AppMotion.easeOut,
-                  scale: isAnalysis || allMatched ? 1 : 0.98,
-                  child: AnimatedOpacity(
-                    duration: AppMotion.duration(context, AppMotion.normal),
-                    opacity: isAnalysis || allMatched ? 1 : 0.58,
-                    child: AppButton(
-                      label: isAnalysis ? 'Next' : 'Submit',
-                      isLoading: _phase == _MatchFlowPhase.submitting,
-                      onPressed: isAnalysis
-                          ? _continueAfterAnalysis
-                          : allMatched
-                          ? _submitIfReady
-                          : null,
-                    ),
+                  opacity: isAnalysis || allMatched ? 1 : 0.58,
+                  child: AppButton(
+                    label: isAnalysis ? 'Next' : 'Submit',
+                    isLoading: _phase == _MatchFlowPhase.submitting,
+                    onPressed: isAnalysis
+                        ? _continueAfterAnalysis
+                        : allMatched
+                        ? _submitIfReady
+                        : null,
                   ),
                 ),
+              ),
             ],
           ),
         ),
@@ -723,52 +779,37 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   }
 
   _MatchCardState _leftState(String pairId) {
-    final matches = _effectiveMatches;
-    if (_isBackendMode) {
-      if (matches.containsKey(pairId)) {
-        return _MatchCardState.correct;
-      }
-      if (widget.lastWrongAttemptLeftId == pairId) {
-        return _MatchCardState.wrong;
-      }
-      if (_effectiveSelectedLeftId == pairId) {
-        return _MatchCardState.selected;
-      }
-      return _MatchCardState.neutral;
+    if (_hasSubmitted) {
+      final matchedRight = _matches[pairId];
+      if (matchedRight == null) return _MatchCardState.neutral;
+      final isCorrect = _effectiveSolutionMap[pairId] == matchedRight;
+      return isCorrect ? _MatchCardState.correct : _MatchCardState.wrong;
     }
 
     if (_matches.containsKey(pairId)) {
-      if (_hasSubmitted) {
-        return _matches[pairId] == pairId
-            ? _MatchCardState.correct
-            : _MatchCardState.wrong;
-      }
       return _MatchCardState.matched;
     }
-    if (_selectedLeftPairId == pairId) return _MatchCardState.selected;
+    if (_selectedLeftPairId == pairId ||
+        (_selectedLeftPairId == null && _effectiveSelectedLeftId == pairId)) {
+      return _MatchCardState.selected;
+    }
     return _MatchCardState.neutral;
   }
 
   _MatchCardState _rightState(String pairId) {
-    final matches = _effectiveMatches;
-    if (_isBackendMode) {
-      if (matches.containsValue(pairId)) {
-        return _MatchCardState.correct;
-      }
-      if (widget.lastWrongAttemptRightId == pairId) {
-        return _MatchCardState.wrong;
-      }
-      return _MatchCardState.neutral;
+    if (_hasSubmitted) {
+      final matchedLeftId = _leftPairIdForRight(pairId);
+      if (matchedLeftId == null) return _MatchCardState.neutral;
+      final isCorrect = _effectiveSolutionMap[matchedLeftId] == pairId;
+      return isCorrect ? _MatchCardState.correct : _MatchCardState.wrong;
     }
 
     final matchedLeftPairId = _leftPairIdForRight(pairId);
     if (matchedLeftPairId != null) {
-      if (_hasSubmitted) {
-        return matchedLeftPairId == pairId
-            ? _MatchCardState.correct
-            : _MatchCardState.wrong;
-      }
       return _MatchCardState.matched;
+    }
+    if (_selectedRightPairId == pairId) {
+      return _MatchCardState.selected;
     }
     return _MatchCardState.neutral;
   }
@@ -782,10 +823,10 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   }
 
   String? _leftCorrection(String leftPairId) {
-    if (_matches[leftPairId] == leftPairId) return null;
-    final pairs = widget.question?.pairs ?? const [];
-    for (final pair in pairs) {
-      if (pair.id == leftPairId) return 'Correct: ${pair.right}';
+    final correctRightId = _effectiveSolutionMap[leftPairId];
+    if (_matches[leftPairId] == correctRightId) return null;
+    for (final pair in _effectiveRightPairs) {
+      if (pair.id == correctRightId) return 'Correct: ${pair.right}';
     }
     return null;
   }
@@ -808,6 +849,7 @@ class _MatchItHeader extends StatelessWidget {
   final int totalQuestions;
   final int streak;
   final int coins;
+  final int? remainingSeconds;
   final VoidCallback onExit;
 
   const _MatchItHeader({
@@ -816,6 +858,7 @@ class _MatchItHeader extends StatelessWidget {
     required this.totalQuestions,
     required this.streak,
     required this.coins,
+    this.remainingSeconds,
     required this.onExit,
   });
 
@@ -907,6 +950,10 @@ class _MatchItHeader extends StatelessWidget {
                 ),
               ),
             ),
+            if (remainingSeconds != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              _TimerPill(seconds: remainingSeconds!),
+            ],
             if (!isCompact) ...[
               const SizedBox(width: AppSpacing.sm),
               _StatusPill(
@@ -953,6 +1000,50 @@ class _MatchItHeader extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _TimerPill extends StatelessWidget {
+  final int seconds;
+
+  const _TimerPill({required this.seconds});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    final isLow = seconds <= 5;
+
+    return Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: isLow ? colors.error.withValues(alpha: 0.12) : colors.surface,
+        borderRadius: AppDimensions.radiusLg,
+        border: Border.all(
+          color: isLow ? colors.error : colors.borderStrong,
+        ),
+        boxShadow: AppElevation.shadows(colors, 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.timer_outlined,
+            color: isLow ? colors.error : colors.warning,
+            size: 18,
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            '${seconds}s',
+            style: context.appTextStyles.labelLarge.copyWith(
+              fontWeight: FontWeight.bold,
+              color: isLow ? colors.error : colors.textPrimary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1027,7 +1118,7 @@ class _ProgressHud extends StatelessWidget {
               Expanded(
                 child: Text(
                   prompt ?? 'Match each concept',
-                  maxLines: 2,
+                  maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: context.appTextStyles.titleMedium.copyWith(
                     color: colors.primaryDark,
@@ -1084,12 +1175,16 @@ class _ProgressHud extends StatelessWidget {
 }
 
 class _MatchAnalysisSummary extends StatelessWidget {
-  final MatchTheFollowingQuestion question;
+  final List<MatchPair> leftPairs;
+  final List<MatchPair> rightPairs;
+  final Map<String, String> solutionMap;
   final Map<String, String> matches;
   final int correctPairCount;
 
   const _MatchAnalysisSummary({
-    required this.question,
+    required this.leftPairs,
+    required this.rightPairs,
+    required this.solutionMap,
     required this.matches,
     required this.correctPairCount,
   });
@@ -1097,8 +1192,8 @@ class _MatchAnalysisSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final wrongPairs = question.pairs
-        .where((pair) => matches[pair.id] != pair.id)
+    final wrongPairs = leftPairs
+        .where((pair) => matches[pair.id] != solutionMap[pair.id])
         .toList();
     final wrongCount = wrongPairs.length;
 
@@ -1143,6 +1238,7 @@ class _MatchAnalysisSummary extends StatelessWidget {
             _CorrectionDisclosure(
               wrongPairs: wrongPairs,
               matches: matches,
+              solutionMap: solutionMap,
               rightLabelFor: _rightLabelFor,
             ),
           ],
@@ -1152,13 +1248,13 @@ class _MatchAnalysisSummary extends StatelessWidget {
   }
 
   int get _scorePercent {
-    if (question.pairs.isEmpty) return 0;
-    return (correctPairCount * 100 / question.pairs.length).round();
+    if (leftPairs.isEmpty) return 0;
+    return (correctPairCount * 100 / leftPairs.length).round();
   }
 
   String _rightLabelFor(String? pairId) {
     if (pairId == null) return 'No answer selected';
-    for (final pair in question.pairs) {
+    for (final pair in rightPairs) {
       if (pair.id == pairId) return pair.right;
     }
     return 'Unknown answer';
@@ -1168,11 +1264,13 @@ class _MatchAnalysisSummary extends StatelessWidget {
 class _CorrectionDisclosure extends StatefulWidget {
   final List<MatchPair> wrongPairs;
   final Map<String, String> matches;
+  final Map<String, String> solutionMap;
   final String Function(String? pairId) rightLabelFor;
 
   const _CorrectionDisclosure({
     required this.wrongPairs,
     required this.matches,
+    required this.solutionMap,
     required this.rightLabelFor,
   });
 
@@ -1261,7 +1359,9 @@ class _CorrectionDisclosureState extends State<_CorrectionDisclosure> {
                             selectedRightLabel: widget.rightLabelFor(
                               widget.matches[pair.id],
                             ),
-                            correctRightLabel: pair.right,
+                            correctRightLabel: widget.rightLabelFor(
+                              widget.solutionMap[pair.id],
+                            ),
                           ),
                           if (pair != widget.wrongPairs.last)
                             const SizedBox(height: AppSpacing.xs),
@@ -1482,7 +1582,8 @@ class _MatchConceptCard extends StatelessWidget {
                 width: double.infinity,
                 height: _MatchTheFollowingViewState._cardHeight,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
+                  horizontal: 10,
+                  vertical: 4,
                 ),
                 decoration: BoxDecoration(
                   color: _background(colors),
@@ -1508,11 +1609,12 @@ class _MatchConceptCard extends StatelessWidget {
                           child: Text(
                             label,
                             textAlign: TextAlign.center,
-                            maxLines: correctionText == null ? 2 : 1,
+                            maxLines: correctionText == null ? 3 : 2,
                             overflow: TextOverflow.ellipsis,
-                            style: context.appTextStyles.bodyMedium.copyWith(
+                            style: context.appTextStyles.bodySmall.copyWith(
                               color: colors.textPrimary,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
+                              height: 1.25,
                             ),
                           ),
                         ),
@@ -1683,11 +1785,13 @@ class _MatchConnectionPainter extends CustomPainter {
   final List<MatchPair> leftPairs;
   final List<MatchPair> rightPairs;
   final Map<String, String> matches;
+  final Map<String, String>? solutionMap;
   final String? animatingPairLeftId;
   final Map<String, Offset> leftAnchors;
   final Map<String, Offset> rightAnchors;
   final bool hasSubmitted;
   final String? selectedLeftPairId;
+  final String? selectedRightPairId;
   final double cardHeight;
   final double rowGap;
   final double connectorGap;
@@ -1703,11 +1807,13 @@ class _MatchConnectionPainter extends CustomPainter {
     required this.leftPairs,
     required this.rightPairs,
     required this.matches,
+    this.solutionMap,
     this.animatingPairLeftId,
     required this.leftAnchors,
     required this.rightAnchors,
     required this.hasSubmitted,
     required this.selectedLeftPairId,
+    this.selectedRightPairId,
     required this.cardHeight,
     required this.rowGap,
     required this.connectorGap,
@@ -1721,59 +1827,77 @@ class _MatchConnectionPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final entries = matches.entries.toList(growable: false);
+    final solution = solutionMap ?? const {};
     for (final indexedEntry in entries.indexed) {
       final index = indexedEntry.$1;
       final entry = indexedEntry.$2;
-      final isCorrect = isBackendMode || entry.key == entry.value;
+      final isCorrect = solution.isNotEmpty
+          ? solution[entry.key] == entry.value
+          : entry.key == entry.value;
       final resultColor = isCorrect ? successColor : errorColor;
 
       final double progress;
       final Color color;
 
-      if (isBackendMode) {
-        color = successColor;
-        // The newly connected pair animates across; existing ones remain settled at 1.0
+      if (!hasSubmitted) {
+        color = selectedColor;
         if (animatingPairLeftId == entry.key && connectorAnimation.value < 1.0) {
           progress = connectorAnimation.value;
         } else {
           progress = 1.0;
         }
       } else {
-        final evaluationProgress = hasSubmitted
-            ? ((resultAnimation.value * entries.length) - index)
-                  .clamp(0.0, 1.0)
-                  .toDouble()
-            : 0.0;
-        color = hasSubmitted
-            ? Color.lerp(
-                neutralColor,
-                resultColor,
-                Curves.easeOut.transform(evaluationProgress),
-              )!
-            : selectedColor;
-        progress = hasSubmitted ? evaluationProgress : connectorAnimation.value;
+        final evaluationProgress = ((resultAnimation.value * entries.length) - index)
+            .clamp(0.0, 1.0)
+            .toDouble();
+        color = Color.lerp(
+          selectedColor,
+          resultColor,
+          Curves.easeOut.transform(evaluationProgress),
+        )!;
+        progress = evaluationProgress;
       }
 
       _drawConnection(canvas, size, entry.key, entry.value, color, progress);
     }
 
-    if (!hasSubmitted && selectedLeftPairId != null) {
-      final leftIndex = leftPairs.indexWhere(
-        (pair) => pair.id == selectedLeftPairId,
-      );
-      if (leftIndex >= 0) {
-        final start =
-            leftAnchors[selectedLeftPairId] ??
-            Offset(_leftX(size), _rowCenterY(leftIndex));
-        final end = Offset(size.width / 2, start.dy);
-        _drawCurve(
-          canvas,
-          start,
-          end,
-          selectedColor.withValues(alpha: 0.38),
-          2,
-          1,
+    if (!hasSubmitted) {
+      if (selectedLeftPairId != null) {
+        final leftIndex = leftPairs.indexWhere(
+          (pair) => pair.id == selectedLeftPairId,
         );
+        if (leftIndex >= 0) {
+          final start =
+              leftAnchors[selectedLeftPairId] ??
+              Offset(_leftX(size), _rowCenterY(leftIndex));
+          final end = Offset(size.width / 2, start.dy);
+          _drawCurve(
+            canvas,
+            start,
+            end,
+            selectedColor.withValues(alpha: 0.38),
+            2,
+            1,
+          );
+        }
+      } else if (selectedRightPairId != null) {
+        final rightIndex = rightPairs.indexWhere(
+          (pair) => pair.id == selectedRightPairId,
+        );
+        if (rightIndex >= 0) {
+          final start =
+              rightAnchors[selectedRightPairId] ??
+              Offset(_rightX(size), _rowCenterY(rightIndex));
+          final end = Offset(size.width / 2, start.dy);
+          _drawCurve(
+            canvas,
+            start,
+            end,
+            selectedColor.withValues(alpha: 0.38),
+            2,
+            1,
+          );
+        }
       }
     }
   }
@@ -1859,11 +1983,13 @@ class _MatchConnectionPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _MatchConnectionPainter oldDelegate) {
     return oldDelegate.matches != matches ||
+        oldDelegate.solutionMap != solutionMap ||
         oldDelegate.animatingPairLeftId != animatingPairLeftId ||
         oldDelegate.leftAnchors != leftAnchors ||
         oldDelegate.rightAnchors != rightAnchors ||
         oldDelegate.hasSubmitted != hasSubmitted ||
         oldDelegate.selectedLeftPairId != selectedLeftPairId ||
+        oldDelegate.selectedRightPairId != selectedRightPairId ||
         oldDelegate.neutralColor != neutralColor;
   }
 }
