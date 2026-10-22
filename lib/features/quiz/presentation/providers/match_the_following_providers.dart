@@ -468,17 +468,7 @@ class MatchTheFollowingController
 
   /// Checks elapsed wall-clock time on application resume.
   void checkAppResumed() {
-    final current = state.valueOrNull;
-    if (current == null || current.boardResolved || current.isCompleting || current.result != null) {
-      return;
-    }
-    final board = current.currentBoard;
-    if (board == null || current.boardStartedAt == null) return;
-
-    final elapsed = DateTime.now().difference(current.boardStartedAt!).inMilliseconds;
-    if (elapsed >= board.timeLimitSec * 1000) {
-      handleTimeout();
-    }
+    // Timer removed from Match the Following mode per design requirements.
   }
 
   /// Explicitly abandons the server-side session.

@@ -38,7 +38,6 @@ class MatchTheFollowingView extends ConsumerStatefulWidget {
   // Backend mode props:
   final MatchBoard? board;
   final void Function(Map<String, String> matches, int mistakes)? onBoardSubmit;
-  final int? remainingSeconds;
   final String? selectedLeftId;
   final Map<String, String>? confirmedMatches;
   final String? lastWrongAttemptLeftId;
@@ -57,7 +56,6 @@ class MatchTheFollowingView extends ConsumerStatefulWidget {
     this.title,
     this.board,
     this.onBoardSubmit,
-    this.remainingSeconds,
     this.selectedLeftId,
     this.confirmedMatches,
     this.lastWrongAttemptLeftId,
