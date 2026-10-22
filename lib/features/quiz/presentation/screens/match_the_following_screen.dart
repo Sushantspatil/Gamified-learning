@@ -231,7 +231,6 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
                 title: widget.topicId,
                 currentIndex: state.currentBoardIndex,
                 totalQuestions: state.boards.length,
-                remainingSeconds: (state.remainingMs / 1000).ceil(),
                 selectedLeftId: state.selectedLeftId,
                 confirmedMatches: state.correctMatches,
                 lastWrongAttemptLeftId: state.lastWrongAttemptLeftId,
@@ -241,6 +240,7 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
                   mistakes: mistakes,
                 ),
                 onLeftTap: (leftId) => controller.selectLeft(leftId),
+                onRightTap: (rightId) => controller.selectRight(rightId),
                 onExit: () async {
                   final shouldPop = await _handleExit();
                   if (shouldPop && context.mounted) {

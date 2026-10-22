@@ -201,32 +201,8 @@ class MatchTheFollowingController
   }
 
   void _startTicker() {
+    // Countdown timer removed from Match the Following per user design requirements.
     _ticker?.cancel();
-    _ticker = Timer.periodic(const Duration(milliseconds: 50), (_) {
-      _tick();
-    });
-  }
-
-  void _tick() {
-    if (_disposed) return;
-    final current = state.valueOrNull;
-    if (current == null || current.boardResolved || current.isCompleting || current.result != null) {
-      return;
-    }
-    final board = current.currentBoard;
-    if (board == null || current.boardStartedAt == null) return;
-
-    final elapsed = DateTime.now().difference(current.boardStartedAt!).inMilliseconds;
-    final totalLimitMs = board.timeLimitSec * 1000;
-    final remaining = (totalLimitMs - elapsed).clamp(0, totalLimitMs);
-
-    if (remaining <= 0) {
-      handleTimeout();
-    } else {
-      state = AsyncValue.data(
-        current.copyWith(remainingMs: remaining),
-      );
-    }
   }
 
   /// Submits the current board with matched pairs and mistakes after validation.
@@ -247,7 +223,7 @@ class MatchTheFollowingController
     final elapsedMs = DateTime.now()
         .difference(current.boardStartedAt ?? DateTime.now())
         .inMilliseconds
-        .clamp(0, board.timeLimitSec * 1000);
+        .clamp(0, 3600000);
 
     final submission = MatchBoardSubmission(
       questionCode: board.questionCode,

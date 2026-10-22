@@ -80,7 +80,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     with TickerProviderStateMixin {
   static const double _cardHeight = 76;
   static const double _rowGap = 12;
-  static const double _connectorGap = 44;
+  static const double _connectorGap = 52;
 
   late List<MatchPair> _shuffledRight;
   late final AnimationController _entryController;
@@ -133,8 +133,14 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     return map;
   }
 
-  String? get _effectiveSelectedLeftId =>
-      _selectedLeftPairId ?? (_isBackendMode ? widget.selectedLeftId : null);
+  String? get _effectiveSelectedLeftId {
+    final candidate =
+        _selectedLeftPairId ?? (_isBackendMode ? widget.selectedLeftId : null);
+    if (candidate != null && _effectiveMatches.containsKey(candidate)) {
+      return null;
+    }
+    return candidate;
+  }
 
   @override
   void initState() {
@@ -540,7 +546,6 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                 totalQuestions: widget.totalQuestions,
                 streak: streak,
                 coins: _availableCoins,
-                remainingSeconds: widget.remainingSeconds,
                 onExit: widget.onExit ?? () => Navigator.of(context).pop(),
               ),
               const SizedBox(height: AppSpacing.md),
@@ -583,7 +588,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                                     connectorGap: _connectorGap,
                                     successColor: colors.success,
                                     errorColor: colors.error,
-                                    selectedColor: colors.primary,
+                                    selectedColor: colors.secondary,
                                     neutralColor: colors.borderStrong,
                                     isBackendMode: _isBackendMode,
                                   ),
@@ -849,7 +854,6 @@ class _MatchItHeader extends StatelessWidget {
   final int totalQuestions;
   final int streak;
   final int coins;
-  final int? remainingSeconds;
   final VoidCallback onExit;
 
   const _MatchItHeader({
@@ -858,7 +862,6 @@ class _MatchItHeader extends StatelessWidget {
     required this.totalQuestions,
     required this.streak,
     required this.coins,
-    this.remainingSeconds,
     required this.onExit,
   });
 
@@ -950,10 +953,6 @@ class _MatchItHeader extends StatelessWidget {
                 ),
               ),
             ),
-            if (remainingSeconds != null) ...[
-              const SizedBox(width: AppSpacing.sm),
-              _TimerPill(seconds: remainingSeconds!),
-            ],
             if (!isCompact) ...[
               const SizedBox(width: AppSpacing.sm),
               _StatusPill(
@@ -1004,49 +1003,6 @@ class _MatchItHeader extends StatelessWidget {
   }
 }
 
-class _TimerPill extends StatelessWidget {
-  final int seconds;
-
-  const _TimerPill({required this.seconds});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-    final isLow = seconds <= 5;
-
-    return Container(
-      height: 38,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: isLow ? colors.error.withValues(alpha: 0.12) : colors.surface,
-        borderRadius: AppDimensions.radiusLg,
-        border: Border.all(
-          color: isLow ? colors.error : colors.borderStrong,
-        ),
-        boxShadow: AppElevation.shadows(colors, 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.timer_outlined,
-            color: isLow ? colors.error : colors.warning,
-            size: 18,
-          ),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            '${seconds}s',
-            style: context.appTextStyles.labelLarge.copyWith(
-              fontWeight: FontWeight.bold,
-              color: isLow ? colors.error : colors.textPrimary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _StatusPill extends StatelessWidget {
   final IconData icon;
@@ -1860,46 +1816,6 @@ class _MatchConnectionPainter extends CustomPainter {
 
       _drawConnection(canvas, size, entry.key, entry.value, color, progress);
     }
-
-    if (!hasSubmitted) {
-      if (selectedLeftPairId != null) {
-        final leftIndex = leftPairs.indexWhere(
-          (pair) => pair.id == selectedLeftPairId,
-        );
-        if (leftIndex >= 0) {
-          final start =
-              leftAnchors[selectedLeftPairId] ??
-              Offset(_leftX(size), _rowCenterY(leftIndex));
-          final end = Offset(size.width / 2, start.dy);
-          _drawCurve(
-            canvas,
-            start,
-            end,
-            selectedColor.withValues(alpha: 0.38),
-            2,
-            1,
-          );
-        }
-      } else if (selectedRightPairId != null) {
-        final rightIndex = rightPairs.indexWhere(
-          (pair) => pair.id == selectedRightPairId,
-        );
-        if (rightIndex >= 0) {
-          final start =
-              rightAnchors[selectedRightPairId] ??
-              Offset(_rightX(size), _rowCenterY(rightIndex));
-          final end = Offset(size.width / 2, start.dy);
-          _drawCurve(
-            canvas,
-            start,
-            end,
-            selectedColor.withValues(alpha: 0.38),
-            2,
-            1,
-          );
-        }
-      }
-    }
   }
 
   void _drawConnection(
@@ -1933,7 +1849,8 @@ class _MatchConnectionPainter extends CustomPainter {
     if (progress <= 0) return;
     if ((end - start).distance < 0.5) return;
 
-    final controlOffset = max(24.0, (end.dx - start.dx).abs() * 0.45);
+    final dx = (end.dx - start.dx).abs();
+    final controlOffset = dx * 0.5;
     final path = Path()
       ..moveTo(start.dx, start.dy)
       ..cubicTo(
@@ -1953,10 +1870,10 @@ class _MatchConnectionPainter extends CustomPainter {
       metric.length * progress.clamp(0, 1),
     );
 
-    // Subtle ambient glow behind confirmed connections
-    if (color == successColor) {
+    // Subtle ambient glow behind connection line
+    if (color == successColor || color == selectedColor) {
       final glowPaint = Paint()
-        ..color = color.withValues(alpha: 0.22)
+        ..color = color.withValues(alpha: 0.18)
         ..style = PaintingStyle.stroke
         ..strokeWidth = width + 2.5
         ..strokeCap = StrokeCap.round
