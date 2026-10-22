@@ -74,16 +74,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Match the Following — DTOs & Serialization Contract', () {
-    test('CreateSessionRequestDto serializes game_mode=match_the_following, question_count=3, and no custom timer', () {
+    test('CreateSessionRequestDto serializes game_mode=match_the_following, question_count=10, and no custom timer', () {
       const dto = CreateSessionRequestDto(
         topic: 'accounting',
         gameMode: 'match_the_following',
-        questionCount: 3,
+        questionCount: 10,
       );
 
       final json = dto.toJson();
       expect(json['game_mode'], 'match_the_following');
-      expect(json['question_count'], 3);
+      expect(json['question_count'], 10);
       expect(json['abandon_stale'], true);
       expect(json.containsKey('time_limit_per_question_sec'), false);
     });
@@ -290,7 +290,7 @@ void main() {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           expect(body['topic'], 'accounting');
           expect(body['game_mode'], 'match_the_following');
-          expect(body['question_count'], 3);
+          expect(body['question_count'], 10);
 
           return http.Response(
             jsonEncode({
@@ -332,7 +332,7 @@ void main() {
       final sessionId = await ds.createSession(
         topicId: 'accounting',
         gameMode: 'match_the_following',
-        questionCount: 3,
+        questionCount: 10,
       );
 
       expect(sessionId, 'sess_remote_mtf');

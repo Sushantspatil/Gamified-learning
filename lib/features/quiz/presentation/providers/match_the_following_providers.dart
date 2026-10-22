@@ -165,11 +165,11 @@ class MatchTheFollowingController
       sessionId = ds.activeSessionId!;
       boards = ds.activeMatchBoards;
     } else {
-      // Create session using backend default board timer (25s) and 3 boards
+      // Create session using backend default board timer (25s) and 10 boards
       sessionId = await ds.createSession(
         topicId: arg.topicId,
         gameMode: 'match_the_following',
-        questionCount: 3,
+        questionCount: 10,
       );
       boards = ds.activeMatchBoards;
     }
