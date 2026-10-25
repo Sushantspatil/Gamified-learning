@@ -22,12 +22,13 @@ class McqCharacterWidget extends StatefulWidget {
 }
 
 class _McqCharacterWidgetState extends State<McqCharacterWidget>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _idleController;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _idleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
@@ -46,7 +47,23 @@ class _McqCharacterWidgetState extends State<McqCharacterWidget>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      if (_idleController.isAnimating) {
+        _idleController.stop();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      if (!AppMotion.reduceMotion(context) && !_idleController.isAnimating) {
+        _idleController.repeat(reverse: true);
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _idleController.dispose();
     super.dispose();
   }

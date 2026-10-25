@@ -44,7 +44,9 @@ class GameScaffold extends StatelessWidget {
         child: Stack(
           children: [
             Positioned.fill(
-              child: CustomPaint(painter: _GameSparkPainter(colors, isLight)),
+              child: RepaintBoundary(
+                child: CustomPaint(painter: _GameSparkPainter(colors, isLight)),
+              ),
             ),
             body,
           ],

@@ -37,7 +37,20 @@ class QuizResultView extends StatelessWidget {
     final xp = rewardXp ?? result.xpAwarded;
     final coins = rewardCoins ?? result.coinsAwarded;
 
-    return QuizCelebrationOverlay(
+    final bool isUnsuccessful = result.endedEarly ||
+        (result.completedSuccessfully == false) ||
+        (result.score.totalCount > 0 && result.score.correctCount == 0);
+    final bool isPerfect = !isUnsuccessful &&
+        result.score.percentage >= 1.0 &&
+        result.score.correctCount == result.score.totalCount &&
+        result.score.totalCount > 0;
+    final celebrationType = isUnsuccessful
+        ? CelebrationType.subdued
+        : (isPerfect ? CelebrationType.perfect : CelebrationType.standard);
+
+    return GameCelebrationOverlay(
+      key: ValueKey('celebration-${result.sessionId}'),
+      type: celebrationType,
       child: Center(
         child: SingleChildScrollView(
           padding: AppSpacing.paddingMd,

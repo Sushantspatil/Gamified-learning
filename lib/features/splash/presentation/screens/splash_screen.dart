@@ -126,8 +126,14 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     final reduceMotion = AppMotion.reduceMotion(context);
 
-    if (reduceMotion && _ambientLoopController.isAnimating) {
-      _ambientLoopController.stop();
+    if (reduceMotion) {
+      if (_ambientLoopController.isAnimating) {
+        _ambientLoopController.stop();
+      }
+    } else {
+      if (!_ambientLoopController.isAnimating) {
+        _ambientLoopController.repeat();
+      }
     }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(

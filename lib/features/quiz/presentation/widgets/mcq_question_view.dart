@@ -359,7 +359,7 @@ class QuizCompanionPlaceholder extends StatefulWidget {
 }
 
 class _QuizCompanionPlaceholderState extends State<QuizCompanionPlaceholder>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late final AnimationController _loopController;
 
   bool get _isWidgetTestBinding {
@@ -371,6 +371,7 @@ class _QuizCompanionPlaceholderState extends State<QuizCompanionPlaceholder>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loopController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2200),
@@ -392,7 +393,25 @@ class _QuizCompanionPlaceholderState extends State<QuizCompanionPlaceholder>
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) return;
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      if (_loopController.isAnimating) {
+        _loopController.stop();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      final shouldAnimate =
+          !AppMotion.reduceMotion(context) && !_isWidgetTestBinding;
+      if (shouldAnimate && !_loopController.isAnimating) {
+        _loopController.repeat(reverse: true);
+      }
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _loopController.dispose();
     super.dispose();
   }
