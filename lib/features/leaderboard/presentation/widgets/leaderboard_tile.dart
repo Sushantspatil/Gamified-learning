@@ -94,9 +94,11 @@ class LeaderboardTile extends StatelessWidget {
                   ? '${entry.displayName} (You)'
                   : entry.displayName,
               style: context.appTextStyles.bodyLarge,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(width: AppSpacing.sm),
           Icon(Icons.emoji_events_rounded, color: AppColors.accentGold, size: 16),
           const SizedBox(width: AppSpacing.xs),
           Text(

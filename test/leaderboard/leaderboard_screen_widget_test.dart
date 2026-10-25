@@ -204,6 +204,40 @@ void main() {
       expect(find.text('0 points'), findsOneWidget);
     });
 
+    testWidgets('renders long player name and (You) cleanly on narrow mobile screen without overflow',
+        (tester) async {
+      tester.view.physicalSize = const Size(360, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final repo = _MockLeaderboardRepo();
+      repo.customPages[1] = const LeaderboardResponseModel(
+        items: [
+          LeaderboardEntryModel(
+            rank: 1,
+            userId: 'usr_1',
+            displayName: 'Pro Quiz Champion',
+            avatarId: 'user',
+            score: 0,
+            isCurrentUser: true,
+          ),
+        ],
+        page: 1,
+        pageSize: 50,
+        totalCount: 1,
+        hasMore: false,
+        currentUserRank: 1,
+      );
+
+      final app = await _buildTestApp(repo: repo);
+      await tester.pumpWidget(app);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Pro Quiz Champion (You)'), findsOneWidget);
+      expect(find.text('0 points'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('renders empty state when server returns zero entries',
         (tester) async {
       final repo = _MockLeaderboardRepo();
