@@ -60,12 +60,43 @@ class LeaderboardScreen extends ConsumerWidget {
   }
 }
 
-class _GlobalLeaderboardTab extends ConsumerWidget {
+class _GlobalLeaderboardTab extends ConsumerStatefulWidget {
   const _GlobalLeaderboardTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_GlobalLeaderboardTab> createState() =>
+      _GlobalLeaderboardTabState();
+}
+
+class _GlobalLeaderboardTabState extends ConsumerState<_GlobalLeaderboardTab> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    if (maxScroll - currentScroll <= 200) {
+      ref.read(filteredLeaderboardProvider.notifier).loadMore();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final leaderboardAsync = ref.watch(filteredLeaderboardProvider);
+    final activeFilter = ref.watch(leaderboardFilterProvider);
 
     return SafeArea(
       child: leaderboardAsync.when(
@@ -83,39 +114,81 @@ class _GlobalLeaderboardTab extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.md),
                 AppButton(
                   label: 'Retry',
-                  onPressed: () => ref.invalidate(filteredLeaderboardProvider),
+                  onPressed: () =>
+                      ref.read(filteredLeaderboardProvider.notifier).refresh(),
                 ),
               ],
             ),
           ),
         ),
-        data: (entries) {
+        data: (state) {
+          final entries = state.entries;
           if (entries.isEmpty) {
-            return ListView(
-              padding: AppSpacing.paddingMd,
-              children: const [
-                _LeaderboardFilters(),
-                SizedBox(height: AppSpacing.md),
-                _UnsupportedScopeMessage(
-                  message: 'No global ranking data available yet.',
-                ),
-              ],
+            return RefreshIndicator(
+              onRefresh: () =>
+                  ref.read(filteredLeaderboardProvider.notifier).refresh(),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: AppSpacing.paddingMd,
+                children: const [
+                  _LeaderboardFilters(),
+                  SizedBox(height: AppSpacing.md),
+                  _UnsupportedScopeMessage(
+                    message: 'No global ranking data available yet.',
+                  ),
+                ],
+              ),
             );
           }
 
-          return ListView.builder(
-            padding: AppSpacing.paddingMd,
-            itemCount: entries.length + 2,
-            itemBuilder: (context, index) {
-              if (index == 0) return _LeaderboardHero(entries: entries);
-              if (index == 1) {
-                return const Padding(
-                  padding: EdgeInsets.only(bottom: AppSpacing.md),
-                  child: _LeaderboardFilters(),
-                );
-              }
-              return LeaderboardTile(entry: entries[index - 2]);
-            },
+          final extraItemCount =
+              (state.hasMore || state.isLoadingMore) ? 3 : 2;
+
+          return RefreshIndicator(
+            onRefresh: () =>
+                ref.read(filteredLeaderboardProvider.notifier).refresh(),
+            child: ListView.builder(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: AppSpacing.paddingMd,
+              itemCount: entries.length + extraItemCount,
+              itemBuilder: (context, index) {
+                if (index == 0) {
+                  return _LeaderboardHero(
+                    entries: entries,
+                    timeRange: activeFilter.timeRange,
+                    currentUserRank: state.currentUserRank,
+                  );
+                }
+                if (index == 1) {
+                  return const Padding(
+                    padding: EdgeInsets.only(bottom: AppSpacing.md),
+                    child: _LeaderboardFilters(),
+                  );
+                }
+                if (index == entries.length + 2) {
+                  if (state.isLoadingMore) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  return Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    child: Center(
+                      child: OutlinedButton(
+                        onPressed: () => ref
+                            .read(filteredLeaderboardProvider.notifier)
+                            .loadMore(),
+                        child: const Text('Load more'),
+                      ),
+                    ),
+                  );
+                }
+                return LeaderboardTile(entry: entries[index - 2]);
+              },
+            ),
           );
         },
       ),
@@ -193,7 +266,7 @@ class _LeaderboardFilters extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Mock convention: Daily uses today, Weekly uses the last 7 days, Monthly uses the last 30 days, and All Time has no date limit when result timestamps are available.',
+            'Rankings are updated based on authoritative quiz scores.',
             style: context.appTextStyles.labelSmall,
           ),
         ],
@@ -280,13 +353,26 @@ class _UnsupportedScopeMessage extends StatelessWidget {
 
 class _LeaderboardHero extends StatelessWidget {
   final List<LeaderboardEntry> entries;
+  final LeaderboardTimeRange timeRange;
+  final int? currentUserRank;
 
-  const _LeaderboardHero({required this.entries});
+  const _LeaderboardHero({
+    required this.entries,
+    required this.timeRange,
+    this.currentUserRank,
+  });
+
+  static String _formatPoints(int score) {
+    final str = score.toString();
+    final reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    return str.replaceAllMapped(reg, (Match m) => '${m[1]},');
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final topScore = entries.isEmpty ? 0 : entries.first.xp;
+    final topScore = entries.isEmpty ? 0 : entries.first.score;
+    final arenaTitle = '${timeRange.label} arena';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -322,12 +408,22 @@ class _LeaderboardHero extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Weekly arena', style: context.appTextStyles.titleLarge),
+                  Text(arenaTitle, style: context.appTextStyles.titleLarge),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    'Top score: $topScore XP',
+                    'Top score: ${_formatPoints(topScore)} points',
                     style: context.appTextStyles.bodyMedium,
                   ),
+                  if (currentUserRank != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Your rank: #$currentUserRank',
+                      style: context.appTextStyles.labelSmall.copyWith(
+                        color: colors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

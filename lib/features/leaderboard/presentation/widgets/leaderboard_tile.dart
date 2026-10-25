@@ -13,6 +13,12 @@ class LeaderboardTile extends StatelessWidget {
 
   const LeaderboardTile({super.key, required this.entry});
 
+  static String formatPoints(int score) {
+    final str = score.toString();
+    final reg = RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))');
+    return str.replaceAllMapped(reg, (Match m) => '${m[1]},');
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
@@ -23,6 +29,10 @@ class LeaderboardTile extends StatelessWidget {
       3 => colors.violet,
       _ => colors.textSecondary,
     };
+
+    final hasNetworkAvatar = entry.avatarUrl != null &&
+        (entry.avatarUrl!.startsWith('http://') ||
+            entry.avatarUrl!.startsWith('https://'));
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -45,15 +55,15 @@ class LeaderboardTile extends StatelessWidget {
           color: entry.isCurrentUser
               ? colors.primary
               : isPodium
-              ? rankColor.withValues(alpha: 0.40)
-              : colors.border,
+                  ? rankColor.withValues(alpha: 0.40)
+                  : colors.border,
           width: entry.isCurrentUser ? 2 : 1,
         ),
       ),
       child: Row(
         children: [
           SizedBox(
-            width: 28,
+            width: 34,
             child: Text(
               '#${entry.rank}',
               style: context.appTextStyles.labelLarge.copyWith(
@@ -65,11 +75,17 @@ class LeaderboardTile extends StatelessWidget {
           CircleAvatar(
             radius: 18,
             backgroundColor: colors.surfaceElevated,
-            child: Icon(
-              AvatarCatalog.iconFor(entry.avatarId),
-              size: 18,
-              color: colors.primary,
-            ),
+            backgroundImage:
+                hasNetworkAvatar ? NetworkImage(entry.avatarUrl!) : null,
+            child: hasNetworkAvatar
+                ? null
+                : Icon(
+                    AvatarCatalog.iconFor(
+                      entry.avatarId.isNotEmpty ? entry.avatarId : 'user',
+                    ),
+                    size: 18,
+                    color: colors.primary,
+                  ),
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
@@ -81,9 +97,12 @@ class LeaderboardTile extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Icon(Icons.bolt, color: AppColors.xpPurple, size: 16),
+          Icon(Icons.emoji_events_rounded, color: AppColors.accentGold, size: 16),
           const SizedBox(width: AppSpacing.xs),
-          Text('${entry.xp} XP', style: context.appTextStyles.labelLarge),
+          Text(
+            '${formatPoints(entry.score)} points',
+            style: context.appTextStyles.labelLarge,
+          ),
         ],
       ),
     );

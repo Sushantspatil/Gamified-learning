@@ -1,4 +1,5 @@
 import '../../models/leaderboard_entry_model.dart';
+import '../../models/leaderboard_response_model.dart';
 import '../../../domain/entities/leaderboard_filter.dart';
 import '../leaderboard_datasource.dart';
 
@@ -88,6 +89,41 @@ class LeaderboardMockDatasource implements LeaderboardDatasource {
       currentUserName: currentUserName,
       currentUserAvatarId: currentUserAvatarId,
       currentUserXp: currentUserXp,
+    );
+  }
+
+  @override
+  Future<LeaderboardResponseModel> getLeaderboardPage({
+    required LeaderboardFilter filter,
+    int page = 1,
+    int pageSize = 50,
+  }) async {
+    if (filter.scope != LeaderboardScope.global) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      return LeaderboardResponseModel(
+        items: const [],
+        page: page,
+        pageSize: pageSize,
+        totalCount: 0,
+        hasMore: false,
+      );
+    }
+    final allEntries = await getGlobalLeaderboard(
+      currentUserId: 'mock-current-user',
+      currentUserName: 'You',
+      currentUserAvatarId: 'robot',
+      currentUserXp: 1250,
+    );
+    final startIndex = (page - 1) * pageSize;
+    final pagedItems = startIndex < allEntries.length
+        ? allEntries.skip(startIndex).take(pageSize).toList()
+        : <LeaderboardEntryModel>[];
+    return LeaderboardResponseModel(
+      items: pagedItems,
+      page: page,
+      pageSize: pageSize,
+      totalCount: allEntries.length,
+      hasMore: startIndex + pagedItems.length < allEntries.length,
     );
   }
 }

@@ -45,4 +45,7 @@ class ApiEndpoints {
   static const String walletCredit = '/wallet/credit';
   static const String walletDebit = '/wallet/debit';
   static const String walletTransactions = '/wallet/transactions';
+
+  // Leaderboard
+  static const String leaderboard = '/leaderboard';
 }

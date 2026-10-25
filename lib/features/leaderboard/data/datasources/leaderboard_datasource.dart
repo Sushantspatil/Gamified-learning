@@ -1,9 +1,14 @@
-import '../models/leaderboard_entry_model.dart';
 import '../../domain/entities/leaderboard_filter.dart';
+import '../models/leaderboard_entry_model.dart';
+import '../models/leaderboard_response_model.dart';
 
-/// Implemented today by [LeaderboardMockDatasource]. Swap for a
-/// Firestore-backed implementation (leaderboard collection) later.
 abstract class LeaderboardDatasource {
+  Future<LeaderboardResponseModel> getLeaderboardPage({
+    required LeaderboardFilter filter,
+    int page = 1,
+    int pageSize = 50,
+  });
+
   Future<List<LeaderboardEntryModel>> getGlobalLeaderboard({
     required String currentUserId,
     required String currentUserName,

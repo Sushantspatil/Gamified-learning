@@ -31,7 +31,7 @@ class ApiClient {
     var cleanEndpoint = endpoint.startsWith('/')
         ? endpoint.substring(1)
         : endpoint;
-    final baseUrl = _config.baseUrl;
+    final baseUrl = useApiRoot ? _config.rootUrl : _config.baseUrl;
     if (baseUrl.endsWith('/api/v1') && cleanEndpoint.startsWith('api/v1/')) {
       cleanEndpoint = cleanEndpoint.substring(7);
     }
