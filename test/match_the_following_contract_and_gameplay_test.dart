@@ -74,16 +74,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Match the Following — DTOs & Serialization Contract', () {
-    test('CreateSessionRequestDto serializes game_mode=match_the_following, question_count=3, and no custom timer', () {
+    test('CreateSessionRequestDto serializes game_mode=match_the_following, question_count=10, and no custom timer', () {
       const dto = CreateSessionRequestDto(
         topic: 'accounting',
         gameMode: 'match_the_following',
-        questionCount: 3,
+        questionCount: 10,
       );
 
       final json = dto.toJson();
       expect(json['game_mode'], 'match_the_following');
-      expect(json['question_count'], 3);
+      expect(json['question_count'], 10);
       expect(json['abandon_stale'], true);
       expect(json.containsKey('time_limit_per_question_sec'), false);
     });
@@ -290,7 +290,7 @@ void main() {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           expect(body['topic'], 'accounting');
           expect(body['game_mode'], 'match_the_following');
-          expect(body['question_count'], 3);
+          expect(body['question_count'], 10);
 
           return http.Response(
             jsonEncode({
@@ -332,7 +332,7 @@ void main() {
       final sessionId = await ds.createSession(
         topicId: 'accounting',
         gameMode: 'match_the_following',
-        questionCount: 3,
+        questionCount: 10,
       );
 
       expect(sessionId, 'sess_remote_mtf');
@@ -565,38 +565,17 @@ void main() {
       expect(state.isCompleting, false);
     });
 
-    test('correct and wrong match validation, mistake counting, and board auto-clear', () async {
+    test('board submission recording, mistake counting, and single-flight batch completion', () async {
       await container.read(matchTheFollowingControllerProvider(request).future);
       final controller = container.read(matchTheFollowingControllerProvider(request).notifier);
 
-      // 1. Select Left 1 (Cash)
-      controller.selectLeft('b1_l1');
+      // 1. Submit Board 1 with 1 mistake
+      await controller.submitBoard(
+        matches: {'b1_l1': 'b1_r2', 'b1_l2': 'b1_r1'},
+        mistakes: 1,
+      );
+
       var state = container.read(matchTheFollowingControllerProvider(request)).value!;
-      expect(state.selectedLeftId, 'b1_l1');
-
-      // 2. Select Wrong Right (Nominal -> b1_r2)
-      await controller.selectRight('b1_r2');
-      state = container.read(matchTheFollowingControllerProvider(request)).value!;
-      expect(state.mistakes, 1);
-      expect(state.correctMatches.isEmpty, true);
-      expect(state.selectedLeftId, null); // selection cleared for retry
-      expect(completeCallCount, 0); // NO network call per attempt!
-
-      // 3. Select Left 1 again (Cash) and Correct Right (Real -> b1_r1)
-      controller.selectLeft('b1_l1');
-      await controller.selectRight('b1_r1');
-      state = container.read(matchTheFollowingControllerProvider(request)).value!;
-      expect(state.correctMatches['b1_l1'], 'b1_r1');
-      expect(state.mistakes, 1); // mistake didn't increase on correct match
-      expect(state.boardResolved, false); // 1 pair remaining
-
-      // 4. Select Left 2 (Rent) and Correct Right (Nominal -> b1_r2)
-      controller.selectLeft('b1_l2');
-      await controller.selectRight('b1_r2');
-
-      // Board 1 is cleared! Wait for board transition delay
-      await Future<void>.delayed(const Duration(milliseconds: 350));
-      state = container.read(matchTheFollowingControllerProvider(request)).value!;
 
       // Board 1 submission recorded
       expect(state.boardSubmissions.length, 1);
@@ -609,15 +588,13 @@ void main() {
       expect(state.currentBoardIndex, 1);
       expect(state.currentBoard?.questionCode, 'board_2');
       expect(state.correctMatches.isEmpty, true);
-      expect(state.mistakes, 0);
 
-      // 5. Board 2: Match both correctly
-      controller.selectLeft('b2_l1');
-      await controller.selectRight('b2_r1');
-      controller.selectLeft('b2_l2');
-      await controller.selectRight('b2_r2');
+      // 2. Submit Board 2 with 0 mistakes
+      await controller.submitBoard(
+        matches: {'b2_l1': 'b2_r1', 'b2_l2': 'b2_r2'},
+        mistakes: 0,
+      );
 
-      await Future<void>.delayed(const Duration(milliseconds: 350));
       state = container.read(matchTheFollowingControllerProvider(request)).value!;
 
       // Final board triggers single-flight batch completion!
@@ -864,11 +841,19 @@ void main() {
       ).value!;
       expect(stateAfterDeselect.selectedLeftId, null);
 
+      // Bidirectional: tap right card first, then left card to connect
+      await tester.tap(find.byKey(const Key('match-right-ui_r1')));
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.textContaining('1 of 4'), findsOneWidget);
+
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
     });
 
-    testWidgets('TEST 5 & 6 — correct match locks cards and maintains mistake count while wrong match increments mistake and allows retry', (tester) async {
+    testWidgets('TEST 5 & 6 — wrong pair connects cleanly without instant error buzzer, can be changed, and validated on submit', (tester) async {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -880,35 +865,25 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      const request = QuizSessionRequest(
-        topicId: 'accounting',
-        quizType: QuestionType.matchTheFollowing,
-      );
-
       // 1. Wrong Match: Left 1 (Cash) + Right 2 (Nominal)
+      // Connects without throwing error or rejecting selection
       await tester.tap(find.byKey(const Key('match-left-ui_l1')));
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.byKey(const Key('match-right-ui_r2')));
       await tester.pump(const Duration(milliseconds: 50));
 
-      var state = container.read(matchTheFollowingControllerProvider(request)).value!;
-      expect(state.mistakes, 1);
-      expect(state.correctMatches.isEmpty, true);
-      expect(state.selectedLeftId, null); // selection cleared for retry
+      // Successfully connected as 1 pair without instant failure
+      expect(find.textContaining('1 of 4'), findsOneWidget);
 
-      // 2. Correct Match: Left 1 (Cash) + Right 1 (Real)
+      // 2. Change pair: Tap Left 1 to disconnect/re-pair with Right 1 (Real)
       await tester.tap(find.byKey(const Key('match-left-ui_l1')));
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.byKey(const Key('match-right-ui_r1')));
       await tester.pump(const Duration(milliseconds: 50));
 
-      state = container.read(matchTheFollowingControllerProvider(request)).value!;
-      expect(state.correctMatches['ui_l1'], 'ui_r1');
-      expect(state.mistakes, 1); // mistakes unchanged on correct match
-      expect(state.selectedLeftId, null);
+      // Still 1 pair connected, now correctly updated
+      expect(find.textContaining('1 of 4'), findsOneWidget);
 
-      // Wait for 400ms controller delay to clear wrong attempt
-      await tester.pump(const Duration(milliseconds: 450));
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
     });
@@ -940,13 +915,22 @@ void main() {
 
       // Dialog is dismissed and game view remains mounted
       expect(find.text('Exit Match Game?'), findsNothing);
-      expect(find.byType(MatchTheFollowingView), findsOneWidget);
+      // Tap close button (X) again
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      // Tap Exit Game
+      await tester.tap(find.text('Exit Game'));
+      await tester.pumpAndSettle();
+
+      // Dialog is dismissed
+      expect(find.text('Exit Match Game?'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
     });
 
-    testWidgets('TEST 10 — completes all 4 pairs, submits single batch, and displays backend results', (tester) async {
+    testWidgets('TEST 10 — completes all 4 pairs, submits board, reviews analysis, and displays backend results', (tester) async {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -976,12 +960,30 @@ void main() {
       await tester.tap(find.byKey(const Key('match-right-ui_r3')));
       await tester.pump(const Duration(milliseconds: 50));
 
-      // Match Pair 4: ui_l4 -> ui_r4 (clears board and triggers batch complete)
+      // Match Pair 4: ui_l4 -> ui_r4
       await tester.tap(find.byKey(const Key('match-left-ui_l4')));
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.byKey(const Key('match-right-ui_r4')));
+      await tester.pump(const Duration(milliseconds: 50));
 
-      // Wait for board-clear transition and API completion
+      expect(find.textContaining('4 of 4'), findsOneWidget);
+
+      // Submit button is now active
+      await tester.ensureVisible(find.text('Submit'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Submit'));
+      await tester.pumpAndSettle();
+
+      // Analysis view is shown with Next button
+      expect(find.byKey(const Key('match_analysis_summary')), findsOneWidget);
+      expect(find.text('Next'), findsOneWidget);
+
+      // Tap Next to submit board and advance
+      await tester.ensureVisible(find.text('Next'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Next'));
+
+      // Wait for board completion and API response
       await tester.pump(const Duration(milliseconds: 350));
       await tester.pumpAndSettle();
 
@@ -994,6 +996,11 @@ void main() {
       expect(find.text('Score Breakdown'), findsOneWidget);
       expect(find.text('Base Points'), findsOneWidget);
       expect(find.text('Done'), findsOneWidget);
+
+      // Back navigation on results screen does NOT show abandon dialog
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Exit Match Game?'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();

@@ -185,7 +185,7 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
         if (quizDatasource is QuizRemoteDatasource) {
           final sessionId = await quizDatasource.createSession(
             topicId: topicId,
-            questionCount: 3,
+            questionCount: 10,
             gameMode: mode.backendGameMode,
           );
           final boards = quizDatasource.activeMatchBoards;

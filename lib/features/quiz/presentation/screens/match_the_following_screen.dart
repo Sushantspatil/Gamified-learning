@@ -58,7 +58,13 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
     }
   }
 
-  Future<void> _confirmExit() async {
+  Future<bool> _handleExit() async {
+    final state =
+        ref.read(matchTheFollowingControllerProvider(_request)).valueOrNull;
+    if (state == null || state.result != null || state.boards.isEmpty) {
+      return true;
+    }
+
     final colors = context.themeColors;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -83,14 +89,13 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
       ),
     );
 
-    if (confirmed == true && mounted) {
+    if (confirmed == true) {
       await ref
           .read(matchTheFollowingControllerProvider(_request).notifier)
           .abandonSession();
-      if (mounted) {
-        Navigator.of(context).maybePop();
-      }
+      return true;
     }
+    return false;
   }
 
   @override
@@ -101,8 +106,12 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
 
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _confirmExit();
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final shouldPop = await _handleExit();
+        if (shouldPop && context.mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         backgroundColor: colors.background,
@@ -226,9 +235,18 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
                 confirmedMatches: state.correctMatches,
                 lastWrongAttemptLeftId: state.lastWrongAttemptLeftId,
                 lastWrongAttemptRightId: state.lastWrongAttemptRightId,
+                onBoardSubmit: (matches, mistakes) => controller.submitBoard(
+                  matches: matches,
+                  mistakes: mistakes,
+                ),
                 onLeftTap: (leftId) => controller.selectLeft(leftId),
                 onRightTap: (rightId) => controller.selectRight(rightId),
-                onExit: _confirmExit,
+                onExit: () async {
+                  final shouldPop = await _handleExit();
+                  if (shouldPop && context.mounted) {
+                    Navigator.of(context).pop();
+                  }
+                },
               );
             },
           ),
