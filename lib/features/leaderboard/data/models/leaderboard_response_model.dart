@@ -12,7 +12,14 @@ class LeaderboardResponseModel extends LeaderboardPage {
   });
 
   factory LeaderboardResponseModel.fromJson(Map<String, dynamic> json) {
-    final rawItems = json['items'];
+    final Map<String, dynamic> map =
+        (json['data'] is Map<String, dynamic>)
+            ? json['data'] as Map<String, dynamic>
+            : (json['data'] is Map
+                ? Map<String, dynamic>.from(json['data'] as Map)
+                : json);
+
+    final rawItems = map['items'] ?? json['items'];
     final items = <LeaderboardEntryModel>[];
     if (rawItems is List) {
       for (final item in rawItems) {
@@ -41,17 +48,26 @@ class LeaderboardResponseModel extends LeaderboardPage {
       return null;
     }
 
-    final page = parseNum(json['page'], 1);
-    final pageSize = parseNum(json['page_size'] ?? json['pageSize'], 50);
+    final page = parseNum(map['page'] ?? json['page'], 1);
+    final pageSize = parseNum(
+      map['page_size'] ?? map['pageSize'] ?? json['page_size'] ?? json['pageSize'],
+      50,
+    );
     final totalCount = parseNum(
-      json['total_count'] ?? json['totalCount'],
+      map['total_count'] ?? map['totalCount'] ?? json['total_count'] ?? json['totalCount'],
       items.length,
     );
-    final hasMore = json['has_more'] is bool
-        ? json['has_more'] as bool
-        : (json['hasMore'] is bool ? json['hasMore'] as bool : false);
+    final hasMore = (map['has_more'] is bool
+            ? map['has_more'] as bool
+            : (map['hasMore'] is bool ? map['hasMore'] as bool : null)) ??
+        (json['has_more'] is bool
+            ? json['has_more'] as bool
+            : (json['hasMore'] is bool ? json['hasMore'] as bool : false));
     final currentUserRank = parseNullableNum(
-      json['current_user_rank'] ?? json['currentUserRank'],
+      map['current_user_rank'] ??
+          map['currentUserRank'] ??
+          json['current_user_rank'] ??
+          json['currentUserRank'],
     );
 
     return LeaderboardResponseModel(
