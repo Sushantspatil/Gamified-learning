@@ -11,6 +11,9 @@ String mapToBackendTopicId(String frontendTopicId) {
   if (trimmed.contains('accounting')) {
     return 'accounting';
   }
+  if (trimmed == 'math' || trimmed == 'maths' || trimmed.contains('matiks')) {
+    return 'maths';
+  }
   return frontendTopicId;
 }
 
