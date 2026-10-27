@@ -16,7 +16,7 @@ final chapterDatasourceProvider = Provider<ChapterDatasource>((ref) {
 class BackendChapterDatasource implements ChapterDatasource {
   const BackendChapterDatasource();
 
-  static const _chapter = ChapterModel(
+  static const _accountingChapter = ChapterModel(
     id: 'accounting-basics',
     learningPathId: 'accounting',
     title: 'Book-Keeping & Accountancy',
@@ -25,7 +25,7 @@ class BackendChapterDatasource implements ChapterDatasource {
     topicCount: 1,
   );
 
-  static const _topic = TopicModel(
+  static const _accountingTopic = TopicModel(
     id: 'accounting',
     chapterId: 'accounting-basics',
     title: 'Backend quiz',
@@ -33,19 +33,42 @@ class BackendChapterDatasource implements ChapterDatasource {
     isCompleted: false,
   );
 
+  static const _mathsChapter = ChapterModel(
+    id: 'maths-basics',
+    learningPathId: 'maths',
+    title: 'Mathematics',
+    description: 'Practice questions from the deployed backend.',
+    order: 1,
+    topicCount: 1,
+  );
+
+  static const _mathsTopic = TopicModel(
+    id: 'maths',
+    chapterId: 'maths-basics',
+    title: 'Mathematics Quiz',
+    order: 1,
+    isCompleted: false,
+  );
+
   @override
   Future<List<ChapterModel>> getChapters(String learningPathId) async {
-    return learningPathId == 'accounting' ? const [_chapter] : const [];
+    if (learningPathId == 'accounting') return const [_accountingChapter];
+    if (learningPathId == 'maths' || learningPathId == 'math') return const [_mathsChapter];
+    return const [];
   }
 
   @override
   Future<ChapterModel?> getChapterById(String chapterId) async {
-    return chapterId == _chapter.id ? _chapter : null;
+    if (chapterId == _accountingChapter.id) return _accountingChapter;
+    if (chapterId == _mathsChapter.id) return _mathsChapter;
+    return null;
   }
 
   @override
   Future<List<TopicModel>> getTopics(String chapterId) async {
-    return chapterId == _chapter.id ? const [_topic] : const [];
+    if (chapterId == _accountingChapter.id) return const [_accountingTopic];
+    if (chapterId == _mathsChapter.id) return const [_mathsTopic];
+    return const [];
   }
 }
 

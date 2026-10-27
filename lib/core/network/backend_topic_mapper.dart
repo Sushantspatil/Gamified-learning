@@ -11,14 +11,25 @@ String mapToBackendTopicId(String frontendTopicId) {
   if (trimmed.contains('accounting')) {
     return 'accounting';
   }
-  if (trimmed == 'math' || trimmed == 'maths' || trimmed.contains('matiks')) {
+  if (trimmed == 'math' ||
+      trimmed == 'maths' ||
+      trimmed.contains('matiks') ||
+      trimmed.contains('math')) {
     return 'maths';
   }
   return frontendTopicId;
 }
 
-/// Returns whether the given frontend topic maps to backend-supported Accounting data.
-bool isBackendSupportedAccountingTopic(String? topicId) {
+/// Returns whether the given frontend topic maps to backend-supported data.
+bool isBackendSupportedTopic(String? topicId) {
   if (topicId == null || topicId.trim().isEmpty) return false;
-  return mapToBackendTopicId(topicId) == 'accounting';
+  final mapped = mapToBackendTopicId(topicId);
+  return mapped == 'accounting' || mapped == 'maths';
 }
+
+/// Returns whether the given frontend topic maps to backend-supported data.
+/// Preserved for backward compatibility.
+bool isBackendSupportedAccountingTopic(String? topicId) {
+  return isBackendSupportedTopic(topicId);
+}
+

@@ -153,15 +153,24 @@ void main() {
       expect(mapToBackendTopicId('Accounting-Ledger'), 'accounting');
     });
 
+    test('mapToBackendTopicId maps math sub-topics to maths', () {
+      expect(mapToBackendTopicId('math'), 'maths');
+      expect(mapToBackendTopicId('maths'), 'maths');
+      expect(mapToBackendTopicId('mathematics'), 'maths');
+      expect(mapToBackendTopicId('math-basics'), 'maths');
+    });
+
     test('mapToBackendTopicId preserves unrelated subjects', () {
       expect(mapToBackendTopicId('web-dev'), 'web-dev');
       expect(mapToBackendTopicId('python-basics'), 'python-basics');
       expect(mapToBackendTopicId('data-science'), 'data-science');
     });
 
-    test('isBackendSupportedAccountingTopic correctly identifies accounting topics', () {
+    test('isBackendSupportedAccountingTopic correctly identifies backend-supported topics', () {
       expect(isBackendSupportedAccountingTopic('accounting'), isTrue);
       expect(isBackendSupportedAccountingTopic('accounting-basics'), isTrue);
+      expect(isBackendSupportedAccountingTopic('maths'), isTrue);
+      expect(isBackendSupportedAccountingTopic('mathematics'), isTrue);
       expect(isBackendSupportedAccountingTopic('web-dev'), isFalse);
       expect(isBackendSupportedAccountingTopic(null), isFalse);
       expect(isBackendSupportedAccountingTopic(''), isFalse);

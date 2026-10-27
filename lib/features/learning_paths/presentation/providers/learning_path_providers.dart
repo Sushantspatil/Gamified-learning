@@ -25,6 +25,13 @@ class BackendLearningPathDatasource implements LearningPathDatasource {
         difficulty: LearningPathDifficulty.beginner,
         topicCount: 1,
       ),
+      LearningPathModel(
+        id: 'maths',
+        title: 'Mathematics',
+        description: 'Questions are loaded from the deployed backend.',
+        difficulty: LearningPathDifficulty.beginner,
+        topicCount: 1,
+      ),
     ];
   }
 }

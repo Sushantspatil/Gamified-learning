@@ -31,6 +31,13 @@ const _backendLearningPaths = [
     topicCount: 1,
   ),
   LearningPath(
+    id: 'maths',
+    title: 'Mathematics',
+    description: 'Available from the deployed backend.',
+    difficulty: LearningPathDifficulty.beginner,
+    topicCount: 1,
+  ),
+  LearningPath(
     id: 'web-dev',
     title: 'Web Development',
     description: 'HTML, CSS, and modern web foundations.',
