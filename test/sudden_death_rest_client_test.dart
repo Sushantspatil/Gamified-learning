@@ -113,12 +113,9 @@ void main() {
   test('join, answer, auto-timeout and game over flow', () async {
     final events = <WsServerEvent>[];
     final sub = client.events.listen(events.add);
+    replies.add([_question('q1', 15000)]);
     await connect();
     expect(client.isConnected, isTrue);
-    expect(requests, isEmpty, reason: 'connect must not call the server');
-
-    replies.add([_question('q1', 15000)]);
-    client.send(WsInboundMessage.joinGame());
     await pumpEventQueue();
     expect(requests.single.url.path, '/api/v1/quiz/sudden-death/question');
     expect(jsonDecode(requests.single.body), {'session': 'sess-1'});
@@ -153,7 +150,6 @@ void main() {
     final events = <WsServerEvent>[];
     final sub = client.events.listen(events.add);
     await connect();
-    client.send(WsInboundMessage.joinGame());
     await pumpEventQueue();
     expect((events.single as WsErrorEvent).payload.code, 'socket_error');
     await sub.cancel();

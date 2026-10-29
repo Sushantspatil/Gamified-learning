@@ -16,7 +16,8 @@ import 'sudden_death_socket_client.dart';
 /// so the game runs as request/response turns. Each response carries the ordered
 /// server events (`question`, `answer_result`, `power_up_result`, `game_over`,
 /// `error`) that the socket used to push. This client:
-/// - fetches the current question on `join_game` (also the resync path);
+/// - fetches the current question on connect and on `join_game` (resync), like the
+///   socket which pushed it on attach;
 /// - reports `timeout` when the server-provided remaining time runs out;
 /// - surfaces transport failures as `socket_error` so the controller's existing
 ///   reconnect + resync logic applies.
@@ -41,7 +42,8 @@ class RestSuddenDeathClient implements SuddenDeathSocketClient {
   @override
   bool get isConnected => _open;
 
-  /// [uri] only needs a `session_id` query parameter; no request is made until `join_game`.
+  /// [uri] only needs a `session_id` query parameter. The current question is fetched
+  /// right away, matching the socket which pushed it on attach.
   @override
   Future<void> connect(Uri uri) async {
     final session = uri.queryParameters['session_id'];
@@ -54,6 +56,7 @@ class RestSuddenDeathClient implements SuddenDeathSocketClient {
     _cancelDeadline();
     _sessionId = session;
     _open = true;
+    send(WsInboundMessage.joinGame());
   }
 
   @override
