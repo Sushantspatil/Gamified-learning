@@ -210,9 +210,40 @@ class FiftyFiftyResponseDto {
 class CompleteSessionRequestDto {
   final String session;
 
-  const CompleteSessionRequestDto({required this.session});
+  /// Answers graded locally during play, sent in one request with complete.
+  final List<SessionAnswerDto> answers;
 
-  Map<String, dynamic> toJson() => {'session': session};
+  const CompleteSessionRequestDto({
+    required this.session,
+    this.answers = const [],
+  });
+
+  Map<String, dynamic> toJson() => {
+    'session': session,
+    if (answers.isNotEmpty) 'answers': answers.map((a) => a.toJson()).toList(),
+  };
+}
+
+class SessionAnswerDto {
+  final String question;
+  final String option;
+  final String? selectedText;
+  final int timeTakenMs;
+
+  const SessionAnswerDto({
+    required this.question,
+    required this.option,
+    this.selectedText,
+    required this.timeTakenMs,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'question': question,
+    'option': option,
+    if (selectedText != null && selectedText!.isNotEmpty)
+      'selected_text': selectedText,
+    'time_taken_ms': timeTakenMs,
+  };
 }
 
 class LevelProgressDto {
