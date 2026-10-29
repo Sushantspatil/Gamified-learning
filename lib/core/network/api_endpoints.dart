@@ -38,6 +38,9 @@ class ApiEndpoints {
   static const String quizMatchTheFollowingComplete =
       '/quiz/match-the-following/complete';
   static const String quizAbandonSession = '/quiz/sessions/abandon';
+  static const String suddenDeathQuestion = '/quiz/sudden-death/question';
+  static const String suddenDeathAnswer = '/quiz/sudden-death/answer';
+  static const String suddenDeathPowerUp = '/quiz/sudden-death/power-up';
   static const String quizHistory = '/quiz/history';
   static const String gameWs = '/ws/game';
 
