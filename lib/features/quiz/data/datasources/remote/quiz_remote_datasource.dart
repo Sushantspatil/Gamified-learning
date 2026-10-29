@@ -57,6 +57,7 @@ class QuizRemoteDatasource implements QuizDatasource {
     int questionCount = 10,
     List<String>? questionCodes,
     String? gameMode,
+    int? chapterNo,
     String? pairType,
     int? timeLimitPerQuestionSec,
   }) async {
@@ -76,6 +77,7 @@ class QuizRemoteDatasource implements QuizDatasource {
       abandonStale: true,
       questionCodes: questionCodes,
       gameMode: selectedGameMode,
+      chapterNo: chapterNo,
       pairType: pairType,
       timeLimitPerQuestionSec: timeLimitPerQuestionSec,
     );

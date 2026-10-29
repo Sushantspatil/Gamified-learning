@@ -273,7 +273,7 @@ void main() {
         if (request.url.path == '/api/v1/quiz/sessions/create') {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           expect(body['game_mode'], 'sort_it_out');
-          expect(body['topic'], 'accounting');
+          expect(body['topic'], 'accounts');
 
           return http.Response(
             jsonEncode({

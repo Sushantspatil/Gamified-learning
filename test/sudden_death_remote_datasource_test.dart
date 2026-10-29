@@ -105,7 +105,7 @@ void main() {
       final mockHttpClient = MockClient((request) async {
         expect(request.url.path, '/api/v1/quiz/sessions/create');
         final decoded = jsonDecode(request.body) as Map<String, dynamic>;
-        expect(decoded['topic'], 'accounting');
+        expect(decoded['topic'], 'accounts');
         expect(decoded['question_count'], 10);
         expect(decoded['abandon_stale'], true);
 

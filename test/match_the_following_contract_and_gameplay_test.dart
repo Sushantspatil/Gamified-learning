@@ -288,7 +288,7 @@ void main() {
       final mockClient = MockClient((request) async {
         if (request.url.path == '/api/v1/quiz/sessions/create') {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body['topic'], 'accounting');
+          expect(body['topic'], 'accounts');
           expect(body['game_mode'], 'match_the_following');
           expect(body['question_count'], 10);
 

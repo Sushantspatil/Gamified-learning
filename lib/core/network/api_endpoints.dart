@@ -29,6 +29,7 @@ class ApiEndpoints {
 
   // Quiz, Topics & Gameplay
   static String topicQuestions(String topicId) => '/topics/$topicId/questions';
+  static const String subjects = '/subjects';
   static const String quizCreateSession = '/quiz/sessions/create';
   static const String quizEvaluateAnswer = '/quiz/answers/evaluate';
   static const String quizFiftyFifty = '/quiz/power-ups/fifty-fifty';

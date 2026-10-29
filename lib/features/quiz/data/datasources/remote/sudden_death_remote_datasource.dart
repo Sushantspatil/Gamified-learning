@@ -54,6 +54,7 @@ class SuddenDeathRemoteDatasource {
     int questionCount = 10,
     List<String>? questionCodes,
     String gameMode = 'sudden_death',
+    int? chapterNo,
   }) async {
     activeSessionId = null;
     _activeTopicId = null;
@@ -65,6 +66,7 @@ class SuddenDeathRemoteDatasource {
       abandonStale: true,
       questionCodes: questionCodes,
       gameMode: gameMode,
+      chapterNo: chapterNo,
     );
 
     final response = await _apiClient.post(
