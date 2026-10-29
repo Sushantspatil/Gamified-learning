@@ -49,7 +49,7 @@ const practicePlayableModes = [
 /// session creation and dataset flows on the backend.
 ///
 /// In the current release, backend data is seeded with playable questions for all
-/// four modes under the Accounting dataset (`accounting`).
+/// four modes under Accounting (`accounting`) and Mental Maths (`mental-maths-*`).
 ///
 /// When the backend introduces a dedicated mode availability endpoint (e.g.
 /// `GET /topics/:topic/availability` or `GET /topics/:topic/game-modes`), this provider
@@ -70,9 +70,9 @@ final gameModeAvailabilityProvider =
     };
   }
 
-  // Current backend dataset has seeded playable content for all 4 game modes
-  // (MCQ, Sudden Death, Sort It Out, Match the Following) under 'accounting'.
-  final isSupported = isBackendSupportedAccountingTopic(topicId);
+  // Backend subjects seeded for all 4 game modes (MCQ, Sudden Death, Sort It Out,
+  // Match the Following): Accounts and Mental Maths.
+  final isSupported = isBackendPlayableTopic(topicId);
 
   return {
     for (final mode in practicePlayableModes)

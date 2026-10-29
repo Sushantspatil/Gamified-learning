@@ -61,6 +61,7 @@ class SuddenDeathRemoteDatasource {
     _activeTopicId = null;
     _activeSessionQuestions = null;
     final backendTopic = mapToBackendTopicId(topicId);
+    chapterNo ??= backendChapterNoForTopic(topicId);
     final requestDto = CreateSessionRequestDto(
       topic: backendTopic,
       questionCount: questionCount,

@@ -78,6 +78,7 @@ class QuizRemoteDatasource implements QuizDatasource {
     _activePairType = null;
     _activeTimeLimitPerQuestionSec = null;
     final backendTopic = mapToBackendTopicId(topicId);
+    chapterNo ??= backendChapterNoForTopic(topicId);
     final selectedGameMode = gameMode ?? 'mcq';
     final requestDto = CreateSessionRequestDto(
       topic: backendTopic,
