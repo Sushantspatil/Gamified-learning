@@ -65,7 +65,7 @@ Demo seed login: `player@example.com` / `secretpassword123`.
 | Daily rewards | `DailyRewardMockDatasource` plus local wallet credit | None | Backend gap |
 | Daily missions | `DailyMissionMockDatasource` plus local wallet credit | None | Backend gap |
 | Chests | `ChestMockDatasource` plus local wallet credit | None | Backend gap |
-| Spin wheel | `SpinWheelMockDatasource` plus local wallet credit | None | Backend gap |
+| Spin wheel | `SpinWheelRemoteDatasource` | `GET /api/v1/spin-wheel/segments`, `GET /api/v1/spin-wheel/status`, `POST /api/v1/spin-wheel/spin` (`Idempotency-Key` header) | Server rolls and pays the prize; spins are earned | Bearer | Integrated |
 
 ## Integration Boundary
 

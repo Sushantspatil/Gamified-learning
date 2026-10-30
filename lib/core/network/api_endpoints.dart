@@ -50,6 +50,11 @@ class ApiEndpoints {
   static const String walletDebit = '/wallet/debit';
   static const String walletTransactions = '/wallet/transactions';
 
+  // Spin wheel
+  static const String spinWheelSegments = '/spin-wheel/segments';
+  static const String spinWheelStatus = '/spin-wheel/status';
+  static const String spinWheelSpin = '/spin-wheel/spin';
+
   // Leaderboard
   static const String leaderboard = '/leaderboard';
 }
