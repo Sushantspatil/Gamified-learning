@@ -339,23 +339,37 @@ class _MetricPill extends StatelessWidget {
       value: value.toString(),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: colors.surface,
+          color: colors.surfaceElevated,
           borderRadius: AppDimensions.radiusCircular,
-          border: Border.all(color: colors.borderStrong),
+          border: Border.all(
+            color: colors.borderStrong,
+            width: AppDimensions.borderWidth,
+          ),
+          boxShadow: AppElevation.raised(colors.borderStrong, depth: 3),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xs,
+            AppSpacing.xs,
+            AppSpacing.ms,
+            AppSpacing.xs,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: iconColor, size: 17),
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: iconColor.withValues(alpha: 0.2),
+                ),
+                child: Icon(icon, color: iconColor, size: 18),
+              ),
               const SizedBox(width: AppSpacing.xs),
               AnimatedCountText(
                 value: value,
-                style: context.appTextStyles.labelLarge,
+                style: AppTypography.button.copyWith(color: colors.textPrimary),
               ),
             ],
           ),
@@ -408,17 +422,30 @@ class _ContinueLearningCard extends StatelessWidget {
             colors: [colors.primary, colors.violet],
           ),
           borderRadius: AppDimensions.radiusLg,
-          boxShadow: AppElevation.shadows(colors, 2),
+          border: Border.all(
+            color: colors.primaryDark,
+            width: AppDimensions.borderWidth,
+          ),
+          boxShadow: [
+            ...AppElevation.raised(
+              colors.primaryDark,
+              depth: AppDimensions.raisedDepth,
+            ),
+            ...AppElevation.glow(colors.primary, strength: 0.7),
+          ],
         ),
         child: Stack(
           children: [
             Positioned(
               right: -4,
               bottom: -6,
-              child: Icon(
-                Icons.library_books_outlined,
-                color: colors.primaryForeground.withValues(alpha: 0.22),
-                size: 90,
+              child: Transform.rotate(
+                angle: -0.18,
+                child: Icon(
+                  Icons.rocket_launch_rounded,
+                  color: colors.primaryForeground.withValues(alpha: 0.28),
+                  size: 96,
+                ),
               ),
             ),
             Padding(
@@ -475,11 +502,9 @@ class _ContinueLearningCard extends StatelessWidget {
                   const SizedBox(height: AppSpacing.xs),
                   AppProgressBar(
                     value: progress,
-                    height: 5,
-                    accentColor: colors.primaryForeground,
-                    trackColor: colors.primaryForeground.withValues(
-                      alpha: 0.26,
-                    ),
+                    height: 12,
+                    accentColor: colors.warning,
+                    trackColor: colors.primaryDark.withValues(alpha: 0.6),
                     semanticLabel: 'Continue learning progress',
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -487,6 +512,10 @@ class _ContinueLearningCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: colors.primaryForeground,
                       borderRadius: AppDimensions.radiusCircular,
+                      boxShadow: AppElevation.raised(
+                        colors.primaryDark.withValues(alpha: 0.8),
+                        depth: 3,
+                      ),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -504,9 +533,9 @@ class _ContinueLearningCard extends StatelessWidget {
                           ),
                           const SizedBox(width: AppSpacing.xs),
                           Icon(
-                            Icons.arrow_forward,
+                            Icons.play_arrow_rounded,
                             color: colors.primary,
-                            size: 17,
+                            size: 20,
                           ),
                         ],
                       ),
@@ -610,17 +639,31 @@ class _StreakDayMarker extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: isCompleted
-                ? accent.withValues(alpha: 0.12)
-                : colors.surfaceElevated,
-            border: Border.all(color: borderColor, width: isToday ? 2 : 1),
+            color: isCompleted ? accent : colors.surfaceElevated,
+            border: Border.all(
+              color: isCompleted ? AppElevation.edgeColor(accent) : borderColor,
+              width: isToday ? 3 : AppDimensions.borderWidth,
+            ),
+            boxShadow: [
+              if (isCompleted) ...[
+                ...AppElevation.raised(
+                  AppElevation.edgeColor(accent),
+                  depth: 3,
+                ),
+                ...AppElevation.glow(accent, strength: 0.5),
+              ],
+            ],
           ),
           child: isCompleted
-              ? Icon(Icons.check, color: colors.warning, size: 17)
+              ? const Icon(
+                  Icons.local_fire_department_rounded,
+                  color: Colors.white,
+                  size: 20,
+                )
               : null,
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -747,21 +790,20 @@ class _DailyMissionRow extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 24,
-            height: 24,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isCompleted
-                  ? colors.warning.withValues(alpha: 0.14)
-                  : Colors.transparent,
+              color: isCompleted ? colors.success : colors.surfaceElevated,
               border: Border.all(
                 color: isCompleted
-                    ? colors.warning.withValues(alpha: 0.45)
+                    ? AppElevation.edgeColor(colors.success)
                     : colors.borderStrong,
+                width: AppDimensions.borderWidth,
               ),
             ),
             child: isCompleted
-                ? Icon(Icons.check, color: colors.warning, size: 16)
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
                 : null,
           ),
           const SizedBox(width: AppSpacing.ms),
@@ -778,12 +820,15 @@ class _DailyMissionRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
+          Icon(
+            Icons.monetization_on_rounded,
+            color: AppColors.coinGold,
+            size: 16,
+          ),
+          const SizedBox(width: 2),
           Text(
             '+${mission.coinReward} coins',
-            style: context.appTextStyles.labelSmall.copyWith(
-              color: colors.primary,
-              fontWeight: FontWeight.w800,
-            ),
+            style: AppTypography.badge.copyWith(color: AppColors.coinGold),
           ),
         ],
       ),
@@ -1093,13 +1138,25 @@ class _QuickPracticeCard extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 54,
+                height: 54,
                 decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: 0.10),
-                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color.lerp(colors.primary, Colors.white, 0.15)!,
+                      colors.primary,
+                    ],
+                  ),
+                  borderRadius: AppDimensions.radiusMd,
+                  border: Border.all(
+                    color: colors.primaryDark,
+                    width: AppDimensions.borderWidth,
+                  ),
+                  boxShadow: AppElevation.raised(colors.primaryDark, depth: 3),
                 ),
-                child: Icon(icon, color: colors.primary, size: 22),
+                child: Icon(icon, color: colors.primaryForeground, size: 26),
               ),
               const SizedBox(height: AppSpacing.ms),
               Text(
@@ -1152,9 +1209,10 @@ class _DailyRewardCard extends ConsumerWidget {
               children: [
                 Icon(
                   reward.claimedToday
-                      ? Icons.check_circle
-                      : Icons.card_giftcard,
+                      ? Icons.check_circle_rounded
+                      : Icons.redeem_rounded,
                   color: reward.claimedToday ? colors.success : colors.warning,
+                  size: 34,
                 ),
                 const SizedBox(width: AppSpacing.ms),
                 Expanded(

@@ -13,6 +13,7 @@ import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 class HowToPlayTutorialScreen extends ConsumerStatefulWidget {
   const HowToPlayTutorialScreen({super.key});
@@ -37,7 +38,7 @@ class _HowToPlayTutorialScreenState
   Widget build(BuildContext context) {
     final isCompleting = ref.watch(profileControllerProvider).isLoading;
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(
         title: const Text('How to Play'),
         actions: const [ThemeModeMenu()],

@@ -11,6 +11,7 @@ import '../providers/match_the_following_providers.dart';
 import '../providers/quiz_providers.dart';
 import '../widgets/match_the_following_result_view.dart';
 import '../widgets/match_the_following_view.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 /// Interactive multi-board Match the Following game screen.
 class MatchTheFollowingScreen extends ConsumerStatefulWidget {
@@ -113,8 +114,7 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
           Navigator.of(context).pop();
         }
       },
-      child: Scaffold(
-        backgroundColor: colors.background,
+      child: GameScaffold(
         body: SafeArea(
           child: asyncState.when(
             loading: () => const Center(

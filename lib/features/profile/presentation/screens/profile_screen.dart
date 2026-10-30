@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
+import '../../../../app/theme/app_elevation.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -89,39 +90,73 @@ class ProfileScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Center(
-                    child: Container(
-                      padding: const EdgeInsets.all(5),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            equippedColor ?? colors.primary,
-                            colors.secondary,
-                          ],
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: (equippedColor ?? colors.primary).withValues(
-                              alpha: 0.24,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.bottomCenter,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                equippedColor ?? colors.primary,
+                                colors.secondary,
+                              ],
                             ),
-                            blurRadius: 24,
-                            spreadRadius: 1,
+                            boxShadow: [
+                              ...AppElevation.raised(
+                                AppElevation.edgeColor(
+                                  equippedColor ?? colors.primary,
+                                ),
+                                depth: AppDimensions.raisedDepth,
+                              ),
+                              ...AppElevation.glow(
+                                equippedColor ?? colors.primary,
+                                strength: 0.8,
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: CircleAvatar(
-                        radius: 48,
-                        backgroundColor: colors.surfaceElevated,
-                        child: Icon(
-                          AvatarCatalog.iconFor(profile.avatarId),
-                          size: 48,
-                          color: colors.primary,
+                          child: CircleAvatar(
+                            radius: 52,
+                            backgroundColor: colors.surfaceElevated,
+                            child: Icon(
+                              AvatarCatalog.iconFor(profile.avatarId),
+                              size: 54,
+                              color: colors.primary,
+                            ),
+                          ),
                         ),
-                      ),
+                        Positioned(
+                          bottom: -12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.ms,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.warning,
+                              borderRadius: AppDimensions.radiusCircular,
+                              border: Border.all(
+                                color: AppElevation.edgeColor(colors.warning),
+                                width: AppDimensions.borderWidth,
+                              ),
+                            ),
+                            child: Text(
+                              'LV ${profile.level}',
+                              style: AppTypography.badge.copyWith(
+                                color: colors.textInverse,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: AppSpacing.sm),
                   const SizedBox(height: AppSpacing.md),
                   Center(
                     child: Text(
@@ -283,7 +318,7 @@ class _NavSection extends StatelessWidget {
             Expanded(
               child: Text(title, style: context.appTextStyles.titleMedium),
             ),
-            Icon(Icons.chevron_right, color: colors.textSecondary),
+            Icon(Icons.chevron_right_rounded, color: colors.textSecondary),
           ],
         ),
       ),

@@ -141,12 +141,12 @@ class _SplashScreenState extends State<SplashScreen>
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Color(0xFF060814),
+        systemNavigationBarColor: Color(0xFF0D0A2B),
         systemNavigationBarIconBrightness: Brightness.light,
         systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFF060814),
+        backgroundColor: const Color(0xFF0D0A2B),
         body: FadeTransition(
           opacity: reduceMotion
               ? const AlwaysStoppedAnimation(1.0)
@@ -294,10 +294,10 @@ class _SplashScreenState extends State<SplashScreen>
                             Text(
                               'Loading your adventure...',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.outfit(
-                                color: const Color(0xFFB4C4F0),
-                                fontSize: 14.0,
-                                fontWeight: FontWeight.w500,
+                              style: GoogleFonts.fredoka(
+                                color: const Color(0xFFD2CCFA),
+                                fontSize: 15.0,
+                                fontWeight: FontWeight.w600,
                                 letterSpacing: 0.8,
                               ),
                             ),

@@ -32,13 +32,14 @@ class GameScaffold extends StatelessWidget {
       body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
             colors: [
-              colors.background,
               colors.backgroundSecondary,
               colors.background,
+              colors.background,
             ],
+            stops: const [0, 0.55, 1],
           ),
         ),
         child: Stack(
@@ -62,43 +63,93 @@ class _GameSparkPainter extends CustomPainter {
 
   const _GameSparkPainter(this.colors, this.isLight);
 
+  // Fixed star field (x, y as fractions of the screen, radius).
+  static const _stars = <(double, double, double)>[
+    (0.08, 0.06, 1.6),
+    (0.27, 0.13, 1.0),
+    (0.46, 0.05, 1.3),
+    (0.71, 0.10, 1.8),
+    (0.93, 0.04, 1.0),
+    (0.15, 0.24, 1.2),
+    (0.62, 0.21, 1.0),
+    (0.88, 0.29, 1.4),
+    (0.04, 0.39, 1.0),
+    (0.36, 0.33, 1.6),
+    (0.78, 0.43, 1.0),
+    (0.22, 0.52, 1.3),
+    (0.55, 0.48, 1.0),
+    (0.95, 0.56, 1.6),
+    (0.10, 0.66, 1.0),
+    (0.42, 0.63, 1.4),
+    (0.69, 0.70, 1.0),
+    (0.86, 0.77, 1.2),
+    (0.30, 0.81, 1.0),
+    (0.05, 0.88, 1.5),
+    (0.58, 0.90, 1.2),
+    (0.80, 0.95, 1.0),
+    (0.38, 0.97, 1.3),
+  ];
+
   @override
   void paint(Canvas canvas, Size size) {
-    if (isLight) return;
+    void glow(Offset center, double radius, Color color, double alpha) {
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              color.withValues(alpha: alpha),
+              color.withValues(alpha: 0),
+            ],
+          ).createShader(Rect.fromCircle(center: center, radius: radius)),
+      );
+    }
 
-    final paint = Paint()
-      ..color = colors.primary.withValues(alpha: 0.08)
-      ..strokeWidth = 1.4
+    final shortest = size.shortestSide;
+    final glowAlpha = isLight ? 0.14 : 0.28;
+    glow(
+      Offset(size.width * 0.05, size.height * 0.02),
+      shortest * 0.9,
+      colors.primary,
+      glowAlpha,
+    );
+    glow(
+      Offset(size.width * 1.0, size.height * 0.45),
+      shortest * 0.75,
+      colors.violet,
+      glowAlpha * 0.7,
+    );
+    glow(
+      Offset(size.width * 0.1, size.height * 1.0),
+      shortest * 0.8,
+      colors.secondary,
+      glowAlpha * 0.55,
+    );
+
+    final starPaint = Paint()
+      ..color = (isLight ? colors.primary : Colors.white).withValues(
+        alpha: isLight ? 0.16 : 0.5,
+      );
+    for (final (x, y, r) in _stars) {
+      canvas.drawCircle(Offset(size.width * x, size.height * y), r, starPaint);
+    }
+
+    // A few twinkling "+" sparkles.
+    final sparkPaint = Paint()
+      ..color = colors.secondary.withValues(alpha: isLight ? 0.22 : 0.4)
+      ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round;
-    final secondaryPaint = Paint()
-      ..color = colors.secondary.withValues(alpha: 0.07)
-      ..strokeWidth = 1.2
-      ..strokeCap = StrokeCap.round;
-
-    final sparks = <Offset>[
-      Offset(size.width * 0.12, size.height * 0.12),
-      Offset(size.width * 0.82, size.height * 0.18),
-      Offset(size.width * 0.18, size.height * 0.42),
-      Offset(size.width * 0.74, size.height * 0.56),
-      Offset(size.width * 0.34, size.height * 0.78),
-      Offset(size.width * 0.9, size.height * 0.84),
-    ];
-
-    for (var index = 0; index < sparks.length; index++) {
-      final center = sparks[index];
-      final radius = index.isEven ? 8.0 : 6.0;
-      final selectedPaint = index.isEven ? paint : secondaryPaint;
+    for (final (x, y, r) in const [
+      (0.82, 0.16, 6.0),
+      (0.16, 0.45, 5.0),
+      (0.74, 0.62, 5.0),
+      (0.34, 0.86, 6.0),
+    ]) {
+      final c = Offset(size.width * x, size.height * y);
       canvas
-        ..drawLine(
-          Offset(center.dx - radius, center.dy),
-          Offset(center.dx + radius, center.dy),
-          selectedPaint,
-        )
-        ..drawLine(
-          Offset(center.dx, center.dy - radius),
-          Offset(center.dx, center.dy + radius),
-          selectedPaint,
-        );
+        ..drawLine(c.translate(-r, 0), c.translate(r, 0), sparkPaint)
+        ..drawLine(c.translate(0, -r), c.translate(0, r), sparkPaint);
     }
   }
 

@@ -3,11 +3,14 @@ import 'package:flutter/services.dart';
 
 import '../../app/motion/app_motion.dart';
 import '../../app/theme/app_dimensions.dart';
+import '../../app/theme/app_elevation.dart';
 import '../../app/theme/app_theme_colors.dart';
 import '../../app/theme/app_typography.dart';
 
 enum AppButtonVariant { primary, secondary, outline, text, destructive }
 
+/// A chunky, raised game button: a colored face sitting on a darker edge that
+/// sinks into it while pressed.
 class AppButton extends StatefulWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -33,12 +36,10 @@ class AppButton extends StatefulWidget {
 class _AppButtonState extends State<AppButton> {
   bool _isPressed = false;
 
+  bool get _isEnabled => widget.onPressed != null && !widget.isLoading;
+
   void _setPressed(bool isPressed) {
-    if (_isPressed == isPressed ||
-        widget.onPressed == null ||
-        widget.isLoading) {
-      return;
-    }
+    if (_isPressed == isPressed || !_isEnabled) return;
     setState(() => _isPressed = isPressed);
   }
 
@@ -49,23 +50,72 @@ class _AppButtonState extends State<AppButton> {
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = AppMotion.reduceMotion(context);
     final colors = context.themeColors;
-    final foregroundColor = _foregroundColor(colors, widget.variant);
+    final style = _ButtonPalette.resolve(
+      colors,
+      widget.variant,
+      enabled: _isEnabled || widget.isLoading,
+    );
+    final depth = style.edge == null ? 0.0 : AppDimensions.raisedDepth;
+    final pressedOffset = _isPressed && !AppMotion.reduceMotion(context)
+        ? depth - 1
+        : 0.0;
+    final radius = AppDimensions.radiusMd;
+    final duration = AppMotion.duration(context, AppMotion.instant);
 
     return Listener(
       onPointerDown: (_) => _setPressed(true),
       onPointerUp: (_) => _setPressed(false),
       onPointerCancel: (_) => _setPressed(false),
-      child: AnimatedScale(
-        scale: _isPressed && !reduceMotion ? 0.985 : 1,
-        duration: AppMotion.duration(context, AppMotion.instant),
+      child: AnimatedContainer(
+        duration: duration,
         curve: AppMotion.easeOut,
-        child: TextButton(
-          style: _styleFor(colors, widget.variant),
-          onPressed: widget.isLoading || widget.onPressed == null
+        margin: EdgeInsets.only(
+          top: pressedOffset,
+          bottom: depth - pressedOffset,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          gradient: style.face == null
               ? null
-              : _handlePressed,
+              : LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color.lerp(style.face, Colors.white, 0.14)!,
+                    style.face!,
+                  ],
+                ),
+          border: style.border == null
+              ? null
+              : Border.all(
+                  color: style.border!,
+                  width: AppDimensions.borderWidth,
+                ),
+          boxShadow: style.edge == null
+              ? null
+              : AppElevation.raised(style.edge!, depth: depth - pressedOffset),
+        ),
+        child: TextButton(
+          style: ButtonStyle(
+            minimumSize: const WidgetStatePropertyAll(
+              Size.fromHeight(AppDimensions.buttonHeight - 4),
+            ),
+            padding: const WidgetStatePropertyAll(
+              EdgeInsets.symmetric(horizontal: 20),
+            ),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: WidgetStatePropertyAll(AppTypography.button),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: radius),
+            ),
+            backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+            foregroundColor: WidgetStatePropertyAll(style.foreground),
+            overlayColor: WidgetStatePropertyAll(
+              style.foreground.withValues(alpha: 0.08),
+            ),
+          ),
+          onPressed: _isEnabled ? _handlePressed : null,
           child: AnimatedSwitcher(
             duration: AppMotion.duration(context, AppMotion.fast),
             switchInCurve: AppMotion.easeOut,
@@ -73,11 +123,12 @@ class _AppButtonState extends State<AppButton> {
             child: widget.isLoading
                 ? SizedBox(
                     key: const ValueKey('loading'),
-                    height: 20,
-                    width: 20,
+                    height: 22,
+                    width: 22,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: foregroundColor,
+                      strokeWidth: 3,
+                      strokeCap: StrokeCap.round,
+                      color: style.foreground,
                     ),
                   )
                 : _ButtonContent(
@@ -85,100 +136,74 @@ class _AppButtonState extends State<AppButton> {
                     label: widget.label,
                     leadingIcon: widget.leadingIcon,
                     trailingIcon: widget.trailingIcon,
+                    hasShadow: style.textShadow,
                   ),
           ),
         ),
       ),
     );
   }
+}
 
-  ButtonStyle _styleFor(AppThemeColors colors, AppButtonVariant variant) {
-    return ButtonStyle(
-      minimumSize: const WidgetStatePropertyAll(
-        Size.fromHeight(AppDimensions.buttonHeight),
-      ),
-      padding: const WidgetStatePropertyAll(
-        EdgeInsets.symmetric(horizontal: 18, vertical: 0),
-      ),
-      tapTargetSize: MaterialTapTargetSize.padded,
-      textStyle: WidgetStatePropertyAll(AppTypography.button),
-      shape: WidgetStatePropertyAll(
-        RoundedRectangleBorder(borderRadius: AppDimensions.radiusMd),
-      ),
-      backgroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.disabled)) {
-          return _disabledBackground(colors, variant);
-        }
-        if (states.contains(WidgetState.pressed)) {
-          return _pressedBackground(colors, variant);
-        }
-        return _backgroundColor(colors, variant);
-      }),
-      foregroundColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.disabled)) return colors.textMuted;
-        return _foregroundColor(colors, variant);
-      }),
-      overlayColor: WidgetStatePropertyAll(_overlayColor(colors, variant)),
-      side: WidgetStateProperty.resolveWith((states) {
-        final borderColor = states.contains(WidgetState.disabled)
-            ? colors.border
-            : variant == AppButtonVariant.outline
-            ? colors.borderStrong
-            : Colors.transparent;
-        return BorderSide(color: borderColor);
-      }),
-    );
-  }
+class _ButtonPalette {
+  final Color? face;
+  final Color? edge;
+  final Color? border;
+  final Color foreground;
+  final bool textShadow;
 
-  Color _backgroundColor(AppThemeColors colors, AppButtonVariant variant) {
+  const _ButtonPalette({
+    required this.foreground,
+    this.face,
+    this.edge,
+    this.border,
+    this.textShadow = false,
+  });
+
+  static _ButtonPalette resolve(
+    AppThemeColors colors,
+    AppButtonVariant variant, {
+    required bool enabled,
+  }) {
+    if (!enabled) {
+      return variant == AppButtonVariant.text
+          ? _ButtonPalette(foreground: colors.textMuted)
+          : _ButtonPalette(
+              face: colors.surfaceElevated,
+              edge: colors.border,
+              border: colors.border,
+              foreground: colors.textMuted,
+            );
+    }
+
     return switch (variant) {
-      AppButtonVariant.primary => colors.primary,
-      AppButtonVariant.secondary => colors.surfaceElevated,
-      AppButtonVariant.outline => colors.surface,
-      AppButtonVariant.text => Colors.transparent,
-      AppButtonVariant.destructive => colors.error,
-    };
-  }
-
-  Color _pressedBackground(AppThemeColors colors, AppButtonVariant variant) {
-    return switch (variant) {
-      AppButtonVariant.primary => colors.primaryHover,
-      AppButtonVariant.secondary => colors.surfaceHover,
-      AppButtonVariant.outline => colors.surfaceElevated,
-      AppButtonVariant.text => colors.surfaceElevated,
-      AppButtonVariant.destructive => colors.error.withValues(alpha: 0.9),
-    };
-  }
-
-  Color _disabledBackground(AppThemeColors colors, AppButtonVariant variant) {
-    return switch (variant) {
-      AppButtonVariant.primary ||
-      AppButtonVariant.destructive => colors.surfaceElevated,
-      AppButtonVariant.secondary ||
-      AppButtonVariant.outline ||
-      AppButtonVariant.text => Colors.transparent,
-    };
-  }
-
-  Color _foregroundColor(AppThemeColors colors, AppButtonVariant variant) {
-    return switch (variant) {
-      AppButtonVariant.primary => colors.primaryForeground,
-      AppButtonVariant.secondary => colors.primaryDark,
-      AppButtonVariant.outline => colors.textPrimary,
-      AppButtonVariant.text => colors.primary,
-      AppButtonVariant.destructive => colors.textInverse,
-    };
-  }
-
-  Color _overlayColor(AppThemeColors colors, AppButtonVariant variant) {
-    return switch (variant) {
-      AppButtonVariant.primary => colors.primaryForeground.withValues(
-        alpha: 0.08,
+      AppButtonVariant.primary => _ButtonPalette(
+        face: colors.primary,
+        edge: colors.primaryDark,
+        border: colors.primaryDark,
+        foreground: colors.primaryForeground,
+        textShadow: true,
       ),
-      AppButtonVariant.destructive => colors.textInverse.withValues(
-        alpha: 0.08,
+      AppButtonVariant.secondary => _ButtonPalette(
+        face: colors.surfaceElevated,
+        edge: colors.borderStrong,
+        border: colors.borderStrong,
+        foreground: colors.primary,
       ),
-      _ => colors.primary.withValues(alpha: 0.08),
+      AppButtonVariant.outline => _ButtonPalette(
+        face: colors.surface,
+        edge: colors.borderStrong,
+        border: colors.borderStrong,
+        foreground: colors.textPrimary,
+      ),
+      AppButtonVariant.text => _ButtonPalette(foreground: colors.primary),
+      AppButtonVariant.destructive => _ButtonPalette(
+        face: colors.error,
+        edge: AppElevation.edgeColor(colors.error),
+        border: AppElevation.edgeColor(colors.error),
+        foreground: Colors.white,
+        textShadow: true,
+      ),
     };
   }
 }
@@ -187,32 +212,50 @@ class _ButtonContent extends StatelessWidget {
   final String label;
   final Widget? leadingIcon;
   final Widget? trailingIcon;
+  final bool hasShadow;
 
   const _ButtonContent({
     super.key,
     required this.label,
+    required this.hasShadow,
     this.leadingIcon,
     this.trailingIcon,
   });
 
   @override
   Widget build(BuildContext context) {
+    final shadows = hasShadow
+        ? const [
+            Shadow(
+              color: Color(0x40000000),
+              offset: Offset(0, 1.5),
+              blurRadius: 0,
+            ),
+          ]
+        : null;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (leadingIcon != null) ...[
           IconTheme.merge(
-            data: const IconThemeData(size: 18),
+            data: IconThemeData(size: 20, shadows: shadows),
             child: leadingIcon!,
           ),
           const SizedBox(width: 8),
         ],
-        Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(shadows: shadows),
+          ),
+        ),
         if (trailingIcon != null) ...[
           const SizedBox(width: 8),
           IconTheme.merge(
-            data: const IconThemeData(size: 18),
+            data: IconThemeData(size: 20, shadows: shadows),
             child: trailingIcon!,
           ),
         ],

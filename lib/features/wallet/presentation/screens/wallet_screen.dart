@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../providers/wallet_providers.dart';
 import '../widgets/transaction_tile.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
@@ -21,7 +22,7 @@ class WalletScreen extends ConsumerWidget {
     final historyAsync = ref.watch(transactionHistoryProvider);
     final colors = context.themeColors;
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(
         title: const Text('Wallet'),
         actions: const [ThemeModeMenu()],

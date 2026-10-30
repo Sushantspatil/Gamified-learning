@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_dimensions.dart';
+import '../../../../app/theme/app_elevation.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -170,9 +172,16 @@ class _ScorePanel extends StatelessWidget {
     final colors = context.themeColors;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.52),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.primary.withValues(alpha: 0.18)),
+        color: colors.surface,
+        borderRadius: AppDimensions.radiusLg,
+        border: Border.all(
+          color: colors.primary,
+          width: AppDimensions.borderWidth + 1,
+        ),
+        boxShadow: [
+          ...AppElevation.raised(colors.primaryDark, depth: AppDimensions.raisedDepth),
+          ...AppElevation.glow(colors.primary, strength: 0.6),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -187,7 +196,13 @@ class _ScorePanel extends StatelessWidget {
               result.score.maxPoints > 0
                   ? '${result.score.earnedPoints} / ${result.score.maxPoints}'
                   : '${result.score.earnedPoints}',
-              style: context.appTextStyles.displayMedium,
+              style: AppTypography.display.copyWith(
+                color: AppColors.coinGold,
+                fontSize: 42,
+                shadows: const [
+                  Shadow(color: Color(0x66000000), offset: Offset(0, 3)),
+                ],
+              ),
             ),
             const SizedBox(height: AppSpacing.xs),
             Text('Quiz points', style: context.appTextStyles.bodySmall),
@@ -322,7 +337,10 @@ class _XpProgressPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.xpPurple.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.xpPurple.withValues(alpha: 0.18)),
+        border: Border.all(
+          color: AppColors.xpPurple.withValues(alpha: 0.55),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Padding(
         padding: AppSpacing.paddingMd,
@@ -401,7 +419,10 @@ class _BreakdownSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
+        border: Border.all(
+          color: color.withValues(alpha: 0.55),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Padding(
         padding: AppSpacing.paddingMd,
@@ -456,7 +477,10 @@ class _MetricPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: color.withValues(alpha: 0.55),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -562,7 +586,10 @@ class _RewardChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.24)),
+        border: Border.all(
+          color: color.withValues(alpha: 0.55),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(

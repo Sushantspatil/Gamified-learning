@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../app/motion/app_motion.dart';
 import '../../../../app/router/route_names.dart';
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_typography.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../providers/auth_providers.dart';
@@ -209,12 +210,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.light,
         statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Color(0xFF060814),
+        systemNavigationBarColor: Color(0xFF0D0A2B),
         systemNavigationBarIconBrightness: Brightness.light,
         systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFF060814),
+        backgroundColor: const Color(0xFF0D0A2B),
         body: Stack(
           fit: StackFit.expand,
           children: [
@@ -234,10 +235,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     right: 16,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF13172E).withValues(alpha: 0.65),
+                        color: const Color(0xFF1D1756).withValues(alpha: 0.65),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFF2C3558).withValues(alpha: 0.70),
+                          color: const Color(0xFF4A40A6).withValues(alpha: 0.70),
                           width: 1.0,
                         ),
                       ),
@@ -277,38 +278,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               child: Column(
                                 children: [
                                   SizedBox(height: isCompact ? 6 : 10),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Welcome back',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: isCompact ? 24 : 27,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.3,
+                                  FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Welcome back',
+                                          style: AppTypography.display.copyWith(
+                                            color: Colors.white,
+                                            fontSize: isCompact ? 28 : 32,
+                                          ),
                                         ),
-                                      ),
-                                      Text(
-                                        '!',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: isCompact ? 24 : 27,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.3,
+                                        Text(
+                                          '!',
+                                          style: AppTypography.display.copyWith(
+                                            color: Colors.white,
+                                            fontSize: isCompact ? 28 : 32,
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     'Log in to continue your learning adventure.',
-                                    style: TextStyle(
-                                      color: const Color(0xFF9AA3C8)
+                                    style: AppTypography.bodySmall.copyWith(
+                                      color: const Color(0xFFA39CD9)
                                           .withValues(alpha: 0.90),
                                       fontSize: isCompact ? 13.5 : 14.5,
-                                      fontWeight: FontWeight.w400,
-                                      letterSpacing: 0.1,
                                     ),
                                     textAlign: TextAlign.center,
                                   ),

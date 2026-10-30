@@ -730,10 +730,11 @@ class _McqHeader extends StatelessWidget {
                 vertical: 4,
               ),
               decoration: BoxDecoration(
-                color: AppColors.coinGold.withValues(alpha: 0.12),
-                borderRadius: AppDimensions.radiusSm,
+                color: AppColors.coinGold.withValues(alpha: 0.18),
+                borderRadius: AppDimensions.radiusCircular,
                 border: Border.all(
-                  color: AppColors.coinGold.withValues(alpha: 0.3),
+                  color: AppColors.coinGold.withValues(alpha: 0.6),
+                  width: AppDimensions.borderWidth,
                 ),
               ),
               child: Row(
@@ -742,17 +743,18 @@ class _McqHeader extends StatelessWidget {
                   const Icon(
                     Icons.monetization_on_rounded,
                     color: AppColors.coinGold,
-                    size: 16,
+                    size: 18,
                   ),
                   const SizedBox(width: 4),
                   AnimatedSwitcher(
                     duration: AppMotion.duration(context, AppMotion.fast),
+                    transitionBuilder: (child, animation) =>
+                        ScaleTransition(scale: animation, child: child),
                     child: Text(
                       '$coins',
                       key: ValueKey(coins),
-                      style: context.appTextStyles.labelLarge.copyWith(
+                      style: AppTypography.button.copyWith(
                         color: AppColors.coinGold,
-                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
@@ -765,9 +767,7 @@ class _McqHeader extends StatelessWidget {
               child: Text(
                 '${currentIndex + 1} / $totalQuestions',
                 key: ValueKey(currentIndex),
-                style: context.appTextStyles.labelLarge.copyWith(
-                  color: colors.primary,
-                ),
+                style: AppTypography.button.copyWith(color: colors.primary),
               ),
             ),
           ],
@@ -780,9 +780,8 @@ class _McqHeader extends StatelessWidget {
           builder: (context, value, child) {
             return AppProgressBar(
               value: value,
-              height: 8,
-              accentColor: colors.primary,
-              trackColor: colors.primary.withValues(alpha: 0.10),
+              height: 14,
+              accentColor: colors.success,
               semanticLabel: 'MCQ progress',
             );
           },
@@ -803,16 +802,19 @@ class _HintPanel extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.primary.withValues(alpha: 0.08),
+        color: colors.warning.withValues(alpha: 0.12),
         borderRadius: AppDimensions.radiusMd,
-        border: Border.all(color: colors.primary.withValues(alpha: 0.18)),
+        border: Border.all(
+          color: colors.warning.withValues(alpha: 0.55),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Padding(
-        padding: AppSpacing.paddingSm,
+        padding: AppSpacing.paddingMs,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.lightbulb_outline, color: colors.primary, size: 18),
+            Icon(Icons.lightbulb_rounded, color: colors.warning, size: 20),
             const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(
@@ -911,6 +913,9 @@ class _McqOptionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
+    final borderColor = isSelected ? colors.secondary : colors.borderStrong;
+    // Selected options sink into their edge like a pressed key.
+    final depth = isSelected ? 1.0 : AppDimensions.cardDepth;
 
     return AppPressable(
       onTap: isDisabled ? null : onSelected,
@@ -919,22 +924,31 @@ class _McqOptionCard extends StatelessWidget {
       child: AnimatedContainer(
         duration: AppMotion.duration(context, AppMotion.fast),
         curve: AppMotion.easeOut,
+        margin: EdgeInsets.only(
+          top: AppDimensions.cardDepth - depth,
+          bottom: depth,
+        ),
         decoration: BoxDecoration(
           color: isSelected
-              ? colors.primary.withValues(alpha: 0.08)
+              ? Color.alphaBlend(
+                  colors.secondary.withValues(alpha: 0.16),
+                  colors.surface,
+                )
               : colors.surface,
           borderRadius: AppDimensions.radiusMd,
           border: Border.all(
-            color: isSelected ? colors.primary : colors.borderStrong,
-            width: isSelected ? 1.5 : 1,
+            color: borderColor,
+            width: isSelected ? 2.5 : AppDimensions.borderWidth,
           ),
           boxShadow: [
-            ...AppElevation.shadows(colors, 1),
+            BoxShadow(
+              color: isSelected
+                  ? AppElevation.edgeColor(colors.secondary)
+                  : colors.borderStrong,
+              offset: Offset(0, depth),
+            ),
             if (isSelected)
-              BoxShadow(
-                color: colors.secondary.withValues(alpha: 0.18),
-                blurRadius: 16,
-              ),
+              ...AppElevation.glow(colors.secondary, strength: 0.6),
           ],
         ),
         child: Padding(
@@ -946,11 +960,11 @@ class _McqOptionCard extends StatelessWidget {
             children: [
               AnimatedContainer(
                 duration: AppMotion.duration(context, AppMotion.fast),
-                width: 22,
-                height: 22,
+                width: 24,
+                height: 24,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? colors.secondary.withValues(alpha: 0.16)
+                      ? colors.secondary.withValues(alpha: 0.2)
                       : colors.background,
                   shape: BoxShape.circle,
                   border: Border.all(
@@ -961,8 +975,8 @@ class _McqOptionCard extends StatelessWidget {
                 child: Center(
                   child: AnimatedContainer(
                     duration: AppMotion.duration(context, AppMotion.fast),
-                    width: isSelected ? 9 : 0,
-                    height: isSelected ? 9 : 0,
+                    width: isSelected ? 12 : 0,
+                    height: isSelected ? 12 : 0,
                     decoration: BoxDecoration(
                       color: colors.secondary,
                       shape: BoxShape.circle,
@@ -978,7 +992,7 @@ class _McqOptionCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: context.appTextStyles.bodyMedium.copyWith(
                     color: colors.textPrimary,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),

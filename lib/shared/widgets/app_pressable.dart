@@ -16,7 +16,7 @@ class AppPressable extends StatefulWidget {
     required this.onTap,
     this.borderRadius,
     this.enableHaptics = true,
-    this.pressedScale = 0.985,
+    this.pressedScale = 0.96,
   });
 
   @override

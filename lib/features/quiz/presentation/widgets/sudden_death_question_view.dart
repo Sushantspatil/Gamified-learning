@@ -869,7 +869,10 @@ class _ResourceChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.primary.withValues(alpha: 0.16),
         borderRadius: AppDimensions.radiusMd,
-        border: Border.all(color: colors.primary.withValues(alpha: 0.34)),
+        border: Border.all(
+          color: colors.primary.withValues(alpha: 0.6),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -917,7 +920,10 @@ class _SuddenDeathStatusRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.cardBackground.withValues(alpha: 0.82),
         borderRadius: AppDimensions.radiusCard,
-        border: Border.all(color: colors.primary.withValues(alpha: 0.22)),
+        border: Border.all(
+          color: colors.primary.withValues(alpha: 0.6),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Row(
         children: [
@@ -1197,7 +1203,10 @@ class _QuestionPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.cardBackground.withValues(alpha: 0.92),
         borderRadius: AppDimensions.radiusCard,
-        border: Border.all(color: colors.secondary.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: colors.secondary.withValues(alpha: 0.6),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1325,7 +1334,10 @@ class _ChallengeChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.error.withValues(alpha: 0.12),
         borderRadius: AppDimensions.radiusSm,
-        border: Border.all(color: colors.error.withValues(alpha: 0.32)),
+        border: Border.all(
+          color: colors.error.withValues(alpha: 0.6),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1389,7 +1401,10 @@ class _SurvivalFeedbackBanner extends StatelessWidget {
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.12),
             borderRadius: AppDimensions.radiusMd,
-            border: Border.all(color: color.withValues(alpha: 0.32)),
+            border: Border.all(
+              color: color.withValues(alpha: 0.6),
+              width: AppDimensions.borderWidth,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(
@@ -1516,17 +1531,21 @@ class _AnswerCard extends StatelessWidget {
               ),
               borderRadius: AppDimensions.radiusMd,
               border: Border.all(
-                color: accent.withValues(alpha: isSelected ? 0.88 : 0.28),
-                width: isSelected ? 1.6 : 1,
+                color: accent.withValues(alpha: isSelected ? 1 : 0.55),
+                width: isSelected ? 3 : AppDimensions.borderWidth,
               ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: accent.withValues(alpha: 0.18),
-                        blurRadius: 14,
-                      ),
-                    ]
-                  : AppElevation.shadows(colors, 1),
+              boxShadow: [
+                BoxShadow(
+                  color: Color.alphaBlend(
+                    AppElevation.edgeColor(
+                      accent,
+                    ).withValues(alpha: isSelected ? 1 : 0.7),
+                    colors.surface,
+                  ),
+                  offset: Offset(0, isSelected ? 2 : AppDimensions.cardDepth),
+                ),
+                if (isSelected) ...AppElevation.glow(accent, strength: 0.6),
+              ],
             ),
             child: Row(
               children: [
@@ -1536,14 +1555,17 @@ class _AnswerCard extends StatelessWidget {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: accent.withValues(alpha: isSelected ? 0.2 : 0.12),
-                    border: Border.all(color: accent.withValues(alpha: 0.72)),
+                    color: isSelected ? accent : accent.withValues(alpha: 0.18),
+                    border: Border.all(
+                      color: AppElevation.edgeColor(accent),
+                      width: AppDimensions.borderWidth,
+                    ),
                   ),
                   child: Text(
                     label,
                     style: context.appTextStyles.titleMedium.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w900,
+                      color: isSelected ? Colors.white : accent,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -1603,7 +1625,10 @@ class _DangerBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.error.withValues(alpha: 0.12),
         borderRadius: AppDimensions.radiusCard,
-        border: Border.all(color: colors.error.withValues(alpha: 0.34)),
+        border: Border.all(
+          color: colors.error.withValues(alpha: 0.6),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Row(
         children: [
@@ -1613,7 +1638,10 @@ class _DangerBanner extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.error.withValues(alpha: 0.14),
               borderRadius: AppDimensions.radiusMd,
-              border: Border.all(color: colors.error.withValues(alpha: 0.44)),
+              border: Border.all(
+                color: colors.error.withValues(alpha: 0.6),
+                width: AppDimensions.borderWidth,
+              ),
             ),
             child: Icon(Icons.dangerous_rounded, color: colors.error, size: 34),
           ),
@@ -1681,7 +1709,10 @@ class _PowerUpUseFeedback extends StatelessWidget {
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.12),
             borderRadius: AppDimensions.radiusMd,
-            border: Border.all(color: color.withValues(alpha: 0.34)),
+            border: Border.all(
+              color: color.withValues(alpha: 0.6),
+              width: AppDimensions.borderWidth,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1718,7 +1749,10 @@ class _MascotCallout extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.primary.withValues(alpha: 0.12),
               borderRadius: AppDimensions.radiusCard,
-              border: Border.all(color: colors.primary.withValues(alpha: 0.28)),
+              border: Border.all(
+                color: colors.primary.withValues(alpha: 0.6),
+                width: AppDimensions.borderWidth,
+              ),
             ),
             child: Text(
               "Don't lose the streak!",

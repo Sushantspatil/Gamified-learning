@@ -15,6 +15,7 @@ import '../../../wallet/domain/entities/currency_type.dart';
 import '../../domain/entities/shop_item.dart';
 import '../providers/shop_providers.dart';
 import '../widgets/shop_item_card.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 class ShopScreen extends ConsumerStatefulWidget {
   const ShopScreen({super.key});
@@ -84,7 +85,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(shopItemsProvider);
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(
         title: const Text('Shop'),
         actions: const [ThemeModeMenu()],
