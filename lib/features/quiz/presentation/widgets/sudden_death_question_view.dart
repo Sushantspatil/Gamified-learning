@@ -524,7 +524,7 @@ class _SuddenDeathQuestionViewState
                     AppSpacing.md,
                     AppSpacing.sm,
                     AppSpacing.md,
-                    isCompact ? AppSpacing.md : AppSpacing.lg,
+                    isCompact ? AppSpacing.sm : AppSpacing.md,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -536,7 +536,7 @@ class _SuddenDeathQuestionViewState
                         onExit: widget.onExit,
                       ),
                       SizedBox(
-                        height: isCompact ? AppSpacing.md : AppSpacing.lg,
+                        height: isCompact ? AppSpacing.sm : AppSpacing.ms,
                       ),
                       _SuddenDeathStatusRow(
                         currentIndex: widget.currentIndex,
@@ -548,7 +548,7 @@ class _SuddenDeathQuestionViewState
                         showTimeBoost: _showTimeBoost,
                       ),
                       SizedBox(
-                        height: isCompact ? AppSpacing.md : AppSpacing.lg,
+                        height: isCompact ? AppSpacing.sm : AppSpacing.ms,
                       ),
                       FadeTransition(
                         opacity: _entryController.drive(
@@ -605,10 +605,10 @@ class _SuddenDeathQuestionViewState
                         ),
                       ),
                       SizedBox(
-                        height: isCompact ? AppSpacing.md : AppSpacing.lg,
+                        height: isCompact ? AppSpacing.sm : AppSpacing.ms,
                       ),
                       const _DangerBanner(),
-                      const SizedBox(height: AppSpacing.md),
+                      const SizedBox(height: AppSpacing.sm),
                       if (!isCompact) const _MascotCallout(),
                     ],
                   ),
@@ -646,7 +646,7 @@ class _SuddenDeathQuestionViewState
                         coinBalanceOverride: widget.coins,
                         isDisabled: _arePowerUpsLocked,
                         isPreviewMode: widget.isPreviewMode,
-                        isDense: constraints.maxWidth < 380,
+                        isDense: true,
                         wrapOnCompact: true,
                         actions: [
                           GamePowerUpAction(
@@ -741,18 +741,18 @@ class _SuddenDeathTopBar extends StatelessWidget {
               message: 'Back',
               child: InkWell(
                 onTap: onExit,
-                borderRadius: AppDimensions.radiusMd,
+                borderRadius: AppDimensions.radiusSm,
                 child: Ink(
-                  width: 52,
-                  height: 52,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: colors.primary.withValues(alpha: 0.16),
-                    borderRadius: AppDimensions.radiusMd,
+                    borderRadius: AppDimensions.radiusSm,
                     border: Border.all(
                       color: colors.primary.withValues(alpha: 0.38),
                     ),
                   ),
-                  child: Icon(Icons.arrow_back_rounded, color: colors.primary),
+                  child: Icon(Icons.arrow_back_rounded, color: colors.primary, size: 22),
                 ),
               ),
             ),
@@ -766,7 +766,7 @@ class _SuddenDeathTopBar extends StatelessWidget {
                       const Icon(
                         Icons.local_fire_department_rounded,
                         color: AppColors.streakFire,
-                        size: 26,
+                        size: 22,
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Flexible(
@@ -774,9 +774,10 @@ class _SuddenDeathTopBar extends StatelessWidget {
                           'Sudden Death',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: context.appTextStyles.titleLarge.copyWith(
+                          style: context.appTextStyles.titleMedium.copyWith(
                             color: colors.error,
                             fontWeight: FontWeight.w800,
+                            fontSize: 18,
                           ),
                         ),
                       ),
@@ -785,9 +786,10 @@ class _SuddenDeathTopBar extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     'One wrong answer ends the run.',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: context.appTextStyles.bodySmall,
+                    maxLines: 2,
+                    style: context.appTextStyles.caption.copyWith(
+                      color: colors.textSecondary,
+                    ),
                   ),
                   if (isPreviewMode) ...[
                     const SizedBox(height: AppSpacing.xs),
@@ -820,7 +822,7 @@ class _SuddenDeathTopBar extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
         Align(
           alignment: Alignment.centerRight,
           child: Row(
@@ -861,26 +863,26 @@ class _ResourceChip extends StatelessWidget {
     final colors = context.themeColors;
 
     return Container(
-      constraints: const BoxConstraints(minWidth: 62),
+      constraints: const BoxConstraints(minWidth: 50),
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
+        vertical: 3,
       ),
       decoration: BoxDecoration(
         color: colors.primary.withValues(alpha: 0.16),
-        borderRadius: AppDimensions.radiusMd,
+        borderRadius: AppDimensions.radiusSm,
         border: Border.all(color: colors.primary.withValues(alpha: 0.34)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 20),
+          Icon(icon, color: color, size: 16),
           const SizedBox(width: AppSpacing.xs),
           Text(
             '$value',
-            style: context.appTextStyles.titleMedium.copyWith(
+            style: context.appTextStyles.labelLarge.copyWith(
               color: colors.textPrimary,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -913,7 +915,10 @@ class _SuddenDeathStatusRow extends StatelessWidget {
     final colors = context.themeColors;
 
     return Container(
-      padding: AppSpacing.paddingMd,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
+      ),
       decoration: BoxDecoration(
         color: colors.cardBackground.withValues(alpha: 0.82),
         borderRadius: AppDimensions.radiusCard,
@@ -930,7 +935,7 @@ class _SuddenDeathStatusRow extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
             child: _CountdownTimerBadge(
               remainingTime: remainingTime,
               timeLimit: timeLimit,
@@ -948,13 +953,15 @@ class _SuddenDeathStatusRow extends StatelessWidget {
                   color: AppColors.streakFire,
                   alignEnd: true,
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Best streak: $bestStreak',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: context.appTextStyles.labelLarge.copyWith(
-                    color: AppColors.coinGold,
+                const SizedBox(height: 2),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Best streak: $bestStreak',
+                    style: context.appTextStyles.labelSmall.copyWith(
+                      color: AppColors.coinGold,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -988,31 +995,39 @@ class _HudMetric extends StatelessWidget {
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: context.appTextStyles.labelSmall,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            style: context.appTextStyles.labelSmall.copyWith(
+              color: context.themeColors.textSecondary,
+            ),
+          ),
         ),
-        const SizedBox(height: AppSpacing.xs),
+        const SizedBox(height: 2),
         Row(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: alignEnd
               ? MainAxisAlignment.end
               : MainAxisAlignment.start,
           children: [
             Flexible(
-              child: Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.appTextStyles.display.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w800,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment:
+                    alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: context.appTextStyles.headingSmall.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: AppSpacing.xs),
-            Icon(icon, color: color, size: 22),
+            Icon(icon, color: color, size: 18),
           ],
         ),
       ],
@@ -1059,8 +1074,8 @@ class _CountdownTimerBadge extends StatelessWidget {
           duration: AppMotion.duration(context, AppMotion.fast),
           scale: isLowTime ? 1.02 : 1,
           child: SizedBox(
-            width: 104,
-            height: 104,
+            width: 78,
+            height: 78,
             child: Stack(
               clipBehavior: Clip.none,
               alignment: Alignment.center,
@@ -1080,15 +1095,15 @@ class _CountdownTimerBadge extends StatelessWidget {
                         ? [
                             BoxShadow(
                               color: accent.withValues(alpha: 0.18),
-                              blurRadius: 16,
+                              blurRadius: 12,
                             ),
                           ]
                         : null,
                   ),
                 ),
                 SizedBox(
-                  width: 96,
-                  height: 96,
+                  width: 70,
+                  height: 70,
                   child: TweenAnimationBuilder<double>(
                     tween: Tween<double>(end: progress),
                     duration: AppMotion.duration(context, AppMotion.normal),
@@ -1096,7 +1111,7 @@ class _CountdownTimerBadge extends StatelessWidget {
                     builder: (context, value, child) {
                       return CircularProgressIndicator(
                         value: value,
-                        strokeWidth: 7,
+                        strokeWidth: 5,
                         strokeCap: StrokeCap.round,
                         backgroundColor: colors.border.withValues(alpha: 0.45),
                         color: accent,
@@ -1115,9 +1130,10 @@ class _CountdownTimerBadge extends StatelessWidget {
                       child: Text(
                         remainingSeconds.toString().padLeft(2, '0'),
                         key: ValueKey(remainingSeconds),
-                        style: context.appTextStyles.headingLarge.copyWith(
+                        style: context.appTextStyles.headingMedium.copyWith(
                           color: accent,
                           fontWeight: FontWeight.w900,
+                          fontSize: 22,
                         ),
                       ),
                     ),
@@ -1126,6 +1142,7 @@ class _CountdownTimerBadge extends StatelessWidget {
                       style: context.appTextStyles.labelSmall.copyWith(
                         color: colors.textPrimary,
                         fontWeight: FontWeight.w800,
+                        fontSize: 10,
                       ),
                     ),
                   ],
@@ -1133,7 +1150,7 @@ class _CountdownTimerBadge extends StatelessWidget {
                 AnimatedPositioned(
                   duration: AppMotion.duration(context, AppMotion.normal),
                   curve: AppMotion.easeOut,
-                  top: showTimeBoost ? -22 : 4,
+                  top: showTimeBoost ? -16 : 2,
                   child: AnimatedOpacity(
                     duration: AppMotion.duration(context, AppMotion.normal),
                     opacity: showTimeBoost ? 1 : 0,
@@ -1147,14 +1164,15 @@ class _CountdownTimerBadge extends StatelessWidget {
                       ),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xs,
-                          vertical: 2,
+                          horizontal: 5,
+                          vertical: 1.5,
                         ),
                         child: Text(
                           '+5 SEC',
                           style: context.appTextStyles.labelSmall.copyWith(
                             color: colors.success,
                             fontWeight: FontWeight.w900,
+                            fontSize: 10,
                           ),
                         ),
                       ),
@@ -1193,7 +1211,10 @@ class _QuestionPanel extends StatelessWidget {
     final colors = context.themeColors;
 
     final panel = Container(
-      padding: AppSpacing.paddingMd,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.md,
+      ),
       decoration: BoxDecoration(
         color: colors.cardBackground.withValues(alpha: 0.92),
         borderRadius: AppDimensions.radiusCard,
@@ -1210,7 +1231,7 @@ class _QuestionPanel extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
+                  vertical: 3,
                 ),
                 decoration: BoxDecoration(
                   color: colors.secondary.withValues(alpha: 0.14),
@@ -1225,13 +1246,14 @@ class _QuestionPanel extends StatelessWidget {
                     Icon(
                       Icons.shield_outlined,
                       color: colors.secondary,
-                      size: 18,
+                      size: 15,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
                       'No mistakes',
-                      style: context.appTextStyles.labelLarge.copyWith(
+                      style: context.appTextStyles.labelSmall.copyWith(
                         color: colors.secondary,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ],
@@ -1240,20 +1262,22 @@ class _QuestionPanel extends StatelessWidget {
               const _ChallengeChip(),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             _topicLabelFromId(question.topicId),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
             style: context.appTextStyles.labelLarge.copyWith(
               color: colors.secondary,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.ms),
           Text(
             question.prompt,
             style: context.appTextStyles.titleLarge.copyWith(
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
+              fontSize: 20,
+              height: 1.28,
             ),
           ),
           AnimatedSize(
@@ -1269,7 +1293,7 @@ class _QuestionPanel extends StatelessWidget {
                     ),
                   ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.ms),
           for (var i = 0; i < question.options.length; i++) ...[
             _SuddenDeathOptionEntry(
               index: i,
@@ -1320,7 +1344,7 @@ class _ChallengeChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
+        vertical: 3,
       ),
       decoration: BoxDecoration(
         color: colors.error.withValues(alpha: 0.12),
@@ -1330,12 +1354,13 @@ class _ChallengeChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.bolt_rounded, color: colors.error, size: 18),
+          Icon(Icons.bolt_rounded, color: colors.error, size: 15),
           const SizedBox(width: AppSpacing.xs),
           Text(
             'Survival run',
-            style: context.appTextStyles.labelLarge.copyWith(
+            style: context.appTextStyles.labelSmall.copyWith(
               color: colors.error,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -1508,7 +1533,10 @@ class _AnswerCard extends StatelessWidget {
             key: Key('sudden-option-${option.id}'),
             duration: AppMotion.duration(context, AppMotion.fast),
             curve: AppMotion.easeOut,
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: 10,
+            ),
             decoration: BoxDecoration(
               color: Color.alphaBlend(
                 accent.withValues(alpha: isSelected ? 0.12 : 0.07),
@@ -1517,13 +1545,13 @@ class _AnswerCard extends StatelessWidget {
               borderRadius: AppDimensions.radiusMd,
               border: Border.all(
                 color: accent.withValues(alpha: isSelected ? 0.88 : 0.28),
-                width: isSelected ? 1.6 : 1,
+                width: isSelected ? 1.5 : 1,
               ),
               boxShadow: isSelected
                   ? [
                       BoxShadow(
                         color: accent.withValues(alpha: 0.18),
-                        blurRadius: 14,
+                        blurRadius: 12,
                       ),
                     ]
                   : AppElevation.shadows(colors, 1),
@@ -1531,8 +1559,8 @@ class _AnswerCard extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 34,
+                  height: 34,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
@@ -1541,9 +1569,10 @@ class _AnswerCard extends StatelessWidget {
                   ),
                   child: Text(
                     label,
-                    style: context.appTextStyles.titleMedium.copyWith(
+                    style: context.appTextStyles.labelLarge.copyWith(
                       color: accent,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
                     ),
                   ),
                 ),
@@ -1551,9 +1580,11 @@ class _AnswerCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     option.text,
-                    style: context.appTextStyles.bodyLarge.copyWith(
+                    style: context.appTextStyles.bodyMedium.copyWith(
                       color: colors.textPrimary,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14.5,
+                      height: 1.35,
                     ),
                   ),
                 ),
@@ -1566,20 +1597,20 @@ class _AnswerCard extends StatelessWidget {
                               : Icons.check_circle_rounded,
                           key: ValueKey(feedback),
                           color: accent,
-                          size: 28,
+                          size: 22,
                         )
                       : isSelected
                       ? Icon(
                           Icons.radio_button_checked_rounded,
                           key: const ValueKey('selected-neutral'),
                           color: accent,
-                          size: 26,
+                          size: 20,
                         )
                       : Icon(
                           Icons.chevron_right_rounded,
                           key: const ValueKey('idle'),
                           color: colors.textMuted,
-                          size: 24,
+                          size: 20,
                         ),
                 ),
               ],
@@ -1599,7 +1630,10 @@ class _DangerBanner extends StatelessWidget {
     final colors = context.themeColors;
 
     return Container(
-      padding: AppSpacing.paddingMd,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 10,
+      ),
       decoration: BoxDecoration(
         color: colors.error.withValues(alpha: 0.12),
         borderRadius: AppDimensions.radiusCard,
@@ -1608,33 +1642,33 @@ class _DangerBanner extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 58,
-            height: 58,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: colors.error.withValues(alpha: 0.14),
               borderRadius: AppDimensions.radiusMd,
               border: Border.all(color: colors.error.withValues(alpha: 0.44)),
             ),
-            child: Icon(Icons.dangerous_rounded, color: colors.error, size: 34),
+            child: Icon(Icons.dangerous_rounded, color: colors.error, size: 24),
           ),
-          const SizedBox(width: AppSpacing.md),
+          const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'One wrong answer',
-                  style: context.appTextStyles.titleMedium.copyWith(
+                  style: context.appTextStyles.labelLarge.copyWith(
                     color: colors.error,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Survive each question and build your streak.',
-                  style: context.appTextStyles.bodyMedium.copyWith(
+                  style: context.appTextStyles.bodySmall.copyWith(
                     color: colors.textPrimary,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -1714,7 +1748,10 @@ class _MascotCallout extends StatelessWidget {
       children: [
         Expanded(
           child: Container(
-            padding: AppSpacing.paddingMd,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: 12,
+            ),
             decoration: BoxDecoration(
               color: colors.primary.withValues(alpha: 0.12),
               borderRadius: AppDimensions.radiusCard,
@@ -1722,18 +1759,25 @@ class _MascotCallout extends StatelessWidget {
             ),
             child: Text(
               "Don't lose the streak!",
-              style: context.appTextStyles.titleMedium.copyWith(
+              style: context.appTextStyles.labelLarge.copyWith(
                 color: colors.textPrimary,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
         ),
-        const SizedBox(width: AppSpacing.md),
+        const SizedBox(width: AppSpacing.sm),
         SizedBox(
-          width: 104,
-          height: 108,
-          child: CustomPaint(painter: _MascotPainter(colors)),
+          width: 80,
+          height: 82,
+          child: FittedBox(
+            fit: BoxFit.contain,
+            child: SizedBox(
+              width: 104,
+              height: 108,
+              child: CustomPaint(painter: _MascotPainter(colors)),
+            ),
+          ),
         ),
       ],
     );
