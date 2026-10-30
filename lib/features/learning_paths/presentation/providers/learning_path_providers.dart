@@ -32,6 +32,14 @@ class BackendLearningPathDatasource implements LearningPathDatasource {
         difficulty: LearningPathDifficulty.beginner,
         topicCount: 1,
       ),
+      LearningPathModel(
+        id: 'mental-maths',
+        title: 'Mental Maths',
+        description:
+            'Quick sums: addition, subtraction, multiplication and division.',
+        difficulty: LearningPathDifficulty.beginner,
+        topicCount: 3,
+      ),
     ];
   }
 }

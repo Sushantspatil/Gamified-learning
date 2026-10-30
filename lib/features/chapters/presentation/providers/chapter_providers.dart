@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/datasources/chapter_datasource.dart';
+import '../../data/datasources/mock/chapter_mock_datasource.dart';
 import '../../data/models/chapter_model.dart';
 import '../../data/models/topic_model.dart';
 import '../../data/repositories/chapter_repository_impl.dart';
@@ -26,11 +27,19 @@ class BackendChapterDatasource implements ChapterDatasource {
       topicCount: 1,
     ),
     ChapterModel(
+      id: 'maths-basics',
+      learningPathId: 'maths',
+      title: 'Mathematics',
+      description: 'Practice questions from the deployed backend.',
+      order: 2,
+      topicCount: 1,
+    ),
+    ChapterModel(
       id: 'mental-maths-levels',
       learningPathId: 'mental-maths',
       title: 'Mental Maths',
       description: 'Pick a level: Easy, Medium or Hard.',
-      order: 1,
+      order: 3,
       topicCount: 3,
     ),
   ];
@@ -40,6 +49,13 @@ class BackendChapterDatasource implements ChapterDatasource {
       id: 'accounting',
       chapterId: 'accounting-basics',
       title: 'Backend quiz',
+      order: 1,
+      isCompleted: false,
+    ),
+    TopicModel(
+      id: 'maths',
+      chapterId: 'maths-basics',
+      title: 'Mathematics Quiz',
       order: 1,
       isCompleted: false,
     ),
@@ -66,9 +82,27 @@ class BackendChapterDatasource implements ChapterDatasource {
     ),
   ];
 
+  static final _mockDatasource = ChapterMockDatasource();
+
   @override
   Future<List<ChapterModel>> getChapters(String learningPathId) async {
-    return _chapters.where((c) => c.learningPathId == learningPathId).toList();
+    final normalized = learningPathId.trim().toLowerCase();
+    final matched = _chapters.where((c) {
+      if (c.learningPathId == normalized) return true;
+      if (c.learningPathId == 'maths' &&
+          (normalized == 'math' ||
+              normalized == 'maths1' ||
+              normalized == 'mathematics')) {
+        return true;
+      }
+      if (c.learningPathId == 'accounting' && normalized == 'accounts') {
+        return true;
+      }
+      return false;
+    }).toList();
+
+    if (matched.isNotEmpty) return matched;
+    return _mockDatasource.getChapters(learningPathId);
   }
 
   @override
@@ -76,12 +110,14 @@ class BackendChapterDatasource implements ChapterDatasource {
     for (final c in _chapters) {
       if (c.id == chapterId) return c;
     }
-    return null;
+    return _mockDatasource.getChapterById(chapterId);
   }
 
   @override
   Future<List<TopicModel>> getTopics(String chapterId) async {
-    return _topics.where((t) => t.chapterId == chapterId).toList();
+    final matched = _topics.where((t) => t.chapterId == chapterId).toList();
+    if (matched.isNotEmpty) return matched;
+    return _mockDatasource.getTopics(chapterId);
   }
 }
 

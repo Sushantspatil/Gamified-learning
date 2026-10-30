@@ -18,9 +18,7 @@ String mapToBackendTopicId(String frontendTopicId) {
     return 'economics';
   }
   if (trimmed == 'maths2' ||
-     
       trimmed == 'maths-2' ||
-     
       trimmed.contains('statistics')) {
     return 'maths2';
   }
@@ -47,7 +45,12 @@ int? backendChapterNoForTopic(String frontendTopicId) =>
     mentalMathsLevelTopics[frontendTopicId.trim().toLowerCase()];
 
 /// Backend subjects with playable content in all four game modes.
-const _playableBackendSubjects = {'accounts', 'mental_maths'};
+const _playableBackendSubjects = {
+  'accounts',
+  'mental_maths',
+  'maths1',
+  'maths',
+};
 
 /// Returns whether the topic maps to a backend subject playable in every game mode.
 bool isBackendPlayableTopic(String? topicId) {
@@ -70,4 +73,3 @@ bool isBackendSupportedTopic(String? topicId) {
 bool isBackendSupportedAccountingTopic(String? topicId) {
   return isBackendSupportedTopic(topicId);
 }
-
