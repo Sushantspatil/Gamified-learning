@@ -19,6 +19,14 @@ class LearningPathMockDatasource implements LearningPathDatasource {
         topicCount: 16,
       ),
       LearningPathModel(
+        id: 'mental-maths',
+        title: 'Mental Maths',
+        description:
+            'Quick sums: addition, subtraction, multiplication and division.',
+        difficulty: LearningPathDifficulty.beginner,
+        topicCount: 3,
+      ),
+      LearningPathModel(
         id: 'web-dev',
         title: 'Web Development',
         description: 'HTML, CSS, JavaScript and modern frameworks.',

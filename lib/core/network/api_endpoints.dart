@@ -29,6 +29,7 @@ class ApiEndpoints {
 
   // Quiz, Topics & Gameplay
   static String topicQuestions(String topicId) => '/topics/$topicId/questions';
+  static const String subjects = '/subjects';
   static const String quizCreateSession = '/quiz/sessions/create';
   static const String quizEvaluateAnswer = '/quiz/answers/evaluate';
   static const String quizFiftyFifty = '/quiz/power-ups/fifty-fifty';
@@ -37,6 +38,9 @@ class ApiEndpoints {
   static const String quizMatchTheFollowingComplete =
       '/quiz/match-the-following/complete';
   static const String quizAbandonSession = '/quiz/sessions/abandon';
+  static const String suddenDeathQuestion = '/quiz/sudden-death/question';
+  static const String suddenDeathAnswer = '/quiz/sudden-death/answer';
+  static const String suddenDeathPowerUp = '/quiz/sudden-death/power-up';
   static const String quizHistory = '/quiz/history';
   static const String gameWs = '/ws/game';
 
@@ -45,6 +49,11 @@ class ApiEndpoints {
   static const String walletCredit = '/wallet/credit';
   static const String walletDebit = '/wallet/debit';
   static const String walletTransactions = '/wallet/transactions';
+
+  // Spin wheel
+  static const String spinWheelSegments = '/spin-wheel/segments';
+  static const String spinWheelStatus = '/spin-wheel/status';
+  static const String spinWheelSpin = '/spin-wheel/spin';
 
   // Leaderboard
   static const String leaderboard = '/leaderboard';

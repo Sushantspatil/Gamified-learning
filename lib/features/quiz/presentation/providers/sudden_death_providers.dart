@@ -14,6 +14,7 @@ import '../../../questions/domain/entities/question.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../data/datasources/remote/sudden_death_remote_datasource.dart';
 import '../../data/datasources/remote/sudden_death_socket_client.dart';
+import '../../data/datasources/remote/sudden_death_rest_client.dart';
 import '../../data/models/sudden_death_ws_dto.dart';
 import '../../domain/entities/quiz_result.dart';
 import 'quiz_providers.dart';
@@ -164,7 +165,7 @@ class SuddenDeathViewState {
 final suddenDeathSocketClientProvider = Provider<SuddenDeathSocketClient>((
   ref,
 ) {
-  final client = IoSuddenDeathSocketClient();
+  final client = RestSuddenDeathClient(ref.watch(apiClientProvider));
   ref.onDispose(client.dispose);
   return client;
 });

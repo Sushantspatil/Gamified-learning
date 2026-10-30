@@ -15,8 +15,14 @@ import '../../../domain/entities/sort_it_out_models.dart';
 import '../../../domain/entities/match_the_following_models.dart';
 import '../quiz_datasource.dart';
 
+/// Backend `MCQCorrectAnswerPoints` (docs/points_calculation.md).
+const int mcqCorrectAnswerPoints = 10;
+
 class QuizRemoteDatasource implements QuizDatasource {
   final ApiClient _apiClient;
+
+  /// MCQ answers graded locally; sent with [submitSession] in one request.
+  final List<SessionAnswerDto> _pendingAnswers = [];
 
   String? _backendSessionId;
   String? _activeTopicId;
@@ -40,6 +46,7 @@ class QuizRemoteDatasource implements QuizDatasource {
   int? get activeTimeLimitPerQuestionSec => _activeTimeLimitPerQuestionSec;
 
   void clearActiveSession() {
+    _pendingAnswers.clear();
     _backendSessionId = null;
     _activeTopicId = null;
     _activeGameMode = null;
@@ -57,9 +64,11 @@ class QuizRemoteDatasource implements QuizDatasource {
     int questionCount = 10,
     List<String>? questionCodes,
     String? gameMode,
+    int? chapterNo,
     String? pairType,
     int? timeLimitPerQuestionSec,
   }) async {
+    _pendingAnswers.clear();
     _backendSessionId = null;
     _activeTopicId = null;
     _activeGameMode = null;
@@ -69,6 +78,7 @@ class QuizRemoteDatasource implements QuizDatasource {
     _activePairType = null;
     _activeTimeLimitPerQuestionSec = null;
     final backendTopic = mapToBackendTopicId(topicId);
+    chapterNo ??= backendChapterNoForTopic(topicId);
     final selectedGameMode = gameMode ?? 'mcq';
     final requestDto = CreateSessionRequestDto(
       topic: backendTopic,
@@ -76,6 +86,7 @@ class QuizRemoteDatasource implements QuizDatasource {
       abandonStale: true,
       questionCodes: questionCodes,
       gameMode: selectedGameMode,
+      chapterNo: chapterNo,
       pairType: pairType,
       timeLimitPerQuestionSec: timeLimitPerQuestionSec,
     );
@@ -89,7 +100,9 @@ class QuizRemoteDatasource implements QuizDatasource {
       if (sessionDto.session.isNotEmpty) {
         _backendSessionId = sessionDto.session;
         _activeTopicId = topicId;
-        _activeGameMode = sessionDto.gameMode.isNotEmpty ? sessionDto.gameMode : selectedGameMode;
+        _activeGameMode = sessionDto.gameMode.isNotEmpty
+            ? sessionDto.gameMode
+            : selectedGameMode;
         _activePairType = sessionDto.pairType;
         _activeTimeLimitPerQuestionSec = sessionDto.timeLimitPerQuestionSec;
         _questionStartTime = DateTime.now();
@@ -191,6 +204,25 @@ class QuizRemoteDatasource implements QuizDatasource {
     }
     _questionStartTime = now;
 
+    // The session already carries the correct option, so grade on the device with
+    // zero network wait; the backend re-grades every answer on complete.
+    if (question.correctOptionId.isNotEmpty) {
+      _pendingAnswers.add(
+        SessionAnswerDto(
+          question: question.id,
+          option: option,
+          selectedText: selectedText,
+          timeTakenMs: timeTakenMs,
+        ),
+      );
+      final isCorrect =
+          option != 'skip' && option == question.correctOptionId.toLowerCase();
+      return AnswerEvaluation(
+        isCorrect: isCorrect,
+        pointsEarned: isCorrect ? mcqCorrectAnswerPoints : 0,
+      );
+    }
+
     final requestDto = EvaluateAnswerRequestDto(
       session: _backendSessionId!,
       question: question.id,
@@ -234,9 +266,14 @@ class QuizRemoteDatasource implements QuizDatasource {
       );
     }
 
+    final answers = List<SessionAnswerDto>.of(_pendingAnswers);
+    _pendingAnswers.clear();
     final data = await _apiClient.post(
       ApiEndpoints.quizCompleteSession,
-      body: CompleteSessionRequestDto(session: sessionId).toJson(),
+      body: CompleteSessionRequestDto(
+        session: sessionId,
+        answers: answers,
+      ).toJson(),
     );
 
     if (data is Map<String, dynamic>) {

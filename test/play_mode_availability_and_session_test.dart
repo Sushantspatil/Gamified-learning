@@ -146,11 +146,14 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Topic Mapping & Game Mode Strings', () {
-    test('mapToBackendTopicId maps accounting sub-topics to accounting', () {
-      expect(mapToBackendTopicId('accounting'), 'accounting');
-      expect(mapToBackendTopicId('accounting-basics'), 'accounting');
-      expect(mapToBackendTopicId('accounting-journal'), 'accounting');
-      expect(mapToBackendTopicId('Accounting-Ledger'), 'accounting');
+    test('mapToBackendTopicId maps frontend topics to backend subject codes', () {
+      expect(mapToBackendTopicId('accounting'), 'accounts');
+      expect(mapToBackendTopicId('accounting-basics'), 'accounts');
+      expect(mapToBackendTopicId('accounting-journal'), 'accounts');
+      expect(mapToBackendTopicId('Accounting-Ledger'), 'accounts');
+      expect(mapToBackendTopicId('economics'), 'economics');
+      expect(mapToBackendTopicId('maths'), 'maths1');
+      expect(mapToBackendTopicId('statistics'), 'maths2');
     });
 
     test('mapToBackendTopicId maps math sub-topics to maths', () {
@@ -469,7 +472,7 @@ void main() {
       await tester.tap(find.text('Start game'));
       await tester.pumpAndSettle();
 
-      expect(capturedBody['topic'], 'accounting');
+      expect(capturedBody['topic'], 'accounts');
       expect(capturedBody['game_mode'], 'match_the_following');
       expect(capturedBody['abandon_stale'], isTrue);
 
@@ -642,7 +645,7 @@ void main() {
       await tester.tap(find.text('Start game'));
       await tester.pumpAndSettle();
 
-      expect(capturedBody['topic'], 'accounting');
+      expect(capturedBody['topic'], 'accounts');
       expect(capturedBody['game_mode'], 'mcq');
       expect(find.text('Quiz Destination: mcq'), findsOneWidget);
     });
@@ -728,7 +731,7 @@ void main() {
       await tester.tap(find.text('Start game'));
       await tester.pumpAndSettle();
 
-      expect(capturedBody['topic'], 'accounting');
+      expect(capturedBody['topic'], 'accounts');
       expect(capturedBody['game_mode'], 'sudden_death');
       expect(find.text('Sudden Death Destination'), findsOneWidget);
     });
@@ -813,7 +816,7 @@ void main() {
       await tester.tap(find.text('Start game'));
       await tester.pumpAndSettle();
 
-      expect(capturedBody['topic'], 'accounting');
+      expect(capturedBody['topic'], 'accounts');
       expect(capturedBody['game_mode'], 'sort_it_out');
       expect(find.text('Quiz Destination: sortItOut'), findsOneWidget);
     });
@@ -891,7 +894,7 @@ void main() {
       await tester.tap(find.text('Start game'));
       await tester.pumpAndSettle();
 
-      expect(capturedBody['topic'], 'accounting');
+      expect(capturedBody['topic'], 'accounts');
       expect(capturedBody['game_mode'], 'match_the_following');
       expect(find.text('Quiz Destination: matching'), findsOneWidget);
     });

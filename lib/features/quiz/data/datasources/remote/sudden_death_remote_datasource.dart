@@ -13,6 +13,7 @@ import 'package:skillverse_app/core/storage/storage_keys.dart';
 import 'package:skillverse_app/features/questions/data/models/question_dto.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
 import '../../models/sudden_death_ws_dto.dart';
+import 'sudden_death_rest_client.dart';
 import 'sudden_death_socket_client.dart';
 
 class SuddenDeathRemoteDatasource {
@@ -33,7 +34,7 @@ class SuddenDeathRemoteDatasource {
   }) : _apiClient = apiClient,
        _storage = storage,
        _apiConfig = apiConfig,
-       _socketClient = socketClient ?? IoSuddenDeathSocketClient();
+       _socketClient = socketClient ?? RestSuddenDeathClient(apiClient);
 
   String? get activeTopicId => _activeTopicId;
   List<SuddenDeathQuestion>? get activeSessionQuestions =>
@@ -54,17 +55,20 @@ class SuddenDeathRemoteDatasource {
     int questionCount = 10,
     List<String>? questionCodes,
     String gameMode = 'sudden_death',
+    int? chapterNo,
   }) async {
     activeSessionId = null;
     _activeTopicId = null;
     _activeSessionQuestions = null;
     final backendTopic = mapToBackendTopicId(topicId);
+    chapterNo ??= backendChapterNoForTopic(topicId);
     final requestDto = CreateSessionRequestDto(
       topic: backendTopic,
       questionCount: questionCount,
       abandonStale: true,
       questionCodes: questionCodes,
       gameMode: gameMode,
+      chapterNo: chapterNo,
     );
 
     final response = await _apiClient.post(
@@ -171,7 +175,7 @@ class SuddenDeathRemoteDatasource {
     return null;
   }
 
-  /// Connects to the Sudden Death WebSocket endpoint.
+  /// Binds the live game client to [sessionId]; the first question arrives after [joinGame].
   Future<void> connect({
     required String sessionId,
     String? tokenOverride,
@@ -246,11 +250,7 @@ class SuddenDeathRemoteDatasource {
 
   /// Requests the backend-owned Skip transition for the active question.
   void skipQuestion({required String question, int timeTakenMs = 0}) {
-    submitAnswer(
-      question: question,
-      option: 'skip',
-      timeTakenMs: timeTakenMs,
-    );
+    submitAnswer(question: question, option: 'skip', timeTakenMs: timeTakenMs);
   }
 
   /// Re-synchronizes with the live game session.

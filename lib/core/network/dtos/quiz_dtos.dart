@@ -12,7 +12,10 @@ class CreateSessionRequestDto {
   /// omitted keeps the default `mcq` flow.
   final String? gameMode;
 
-  /// Optional classification pair type for `sort_it_out` (e.g. 'credit_debit').
+  /// Optional chapter number within [topic]; null plays the whole subject.
+  final int? chapterNo;
+
+  /// Optional Sort It Out set code (e.g. 'acc11-02-set-001').
   final String? pairType;
 
   /// Optional per-question timer limit for `sort_it_out` in seconds (5-10, default 7).
@@ -24,6 +27,7 @@ class CreateSessionRequestDto {
     this.abandonStale = true,
     this.questionCodes,
     this.gameMode,
+    this.chapterNo,
     this.pairType,
     this.timeLimitPerQuestionSec,
   });
@@ -35,6 +39,7 @@ class CreateSessionRequestDto {
     if (questionCodes != null && questionCodes!.isNotEmpty)
       'question_codes': questionCodes,
     if (gameMode != null && gameMode!.isNotEmpty) 'game_mode': gameMode,
+    if (chapterNo != null) 'chapter_no': chapterNo,
     if (pairType != null && pairType!.isNotEmpty) 'pair_type': pairType,
     if (timeLimitPerQuestionSec != null)
       'time_limit_per_question_sec': timeLimitPerQuestionSec,
@@ -51,7 +56,7 @@ class SessionCreatedResponseDto {
   /// Mode the server actually persisted, echoed back for confirmation.
   final String gameMode;
 
-  /// Pair classification for Sort It Out mode (e.g. 'credit_debit').
+  /// Pair classification for Sort It Out mode (Sort It Out set code, e.g. 'acc11-02-set-001').
   final String? pairType;
 
   /// Per-question timer limit returned by backend for rapid-fire cards.
@@ -205,9 +210,40 @@ class FiftyFiftyResponseDto {
 class CompleteSessionRequestDto {
   final String session;
 
-  const CompleteSessionRequestDto({required this.session});
+  /// Answers graded locally during play, sent in one request with complete.
+  final List<SessionAnswerDto> answers;
 
-  Map<String, dynamic> toJson() => {'session': session};
+  const CompleteSessionRequestDto({
+    required this.session,
+    this.answers = const [],
+  });
+
+  Map<String, dynamic> toJson() => {
+    'session': session,
+    if (answers.isNotEmpty) 'answers': answers.map((a) => a.toJson()).toList(),
+  };
+}
+
+class SessionAnswerDto {
+  final String question;
+  final String option;
+  final String? selectedText;
+  final int timeTakenMs;
+
+  const SessionAnswerDto({
+    required this.question,
+    required this.option,
+    this.selectedText,
+    required this.timeTakenMs,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'question': question,
+    'option': option,
+    if (selectedText != null && selectedText!.isNotEmpty)
+      'selected_text': selectedText,
+    'time_taken_ms': timeTakenMs,
+  };
 }
 
 class LevelProgressDto {

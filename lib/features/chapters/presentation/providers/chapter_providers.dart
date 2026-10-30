@@ -16,59 +16,72 @@ final chapterDatasourceProvider = Provider<ChapterDatasource>((ref) {
 class BackendChapterDatasource implements ChapterDatasource {
   const BackendChapterDatasource();
 
-  static const _accountingChapter = ChapterModel(
-    id: 'accounting-basics',
-    learningPathId: 'accounting',
-    title: 'Book-Keeping & Accountancy',
-    description: 'Practice questions from the deployed backend.',
-    order: 1,
-    topicCount: 1,
-  );
+  static const _chapters = [
+    ChapterModel(
+      id: 'accounting-basics',
+      learningPathId: 'accounting',
+      title: 'Book-Keeping & Accountancy',
+      description: 'Practice questions from the deployed backend.',
+      order: 1,
+      topicCount: 1,
+    ),
+    ChapterModel(
+      id: 'mental-maths-levels',
+      learningPathId: 'mental-maths',
+      title: 'Mental Maths',
+      description: 'Pick a level: Easy, Medium or Hard.',
+      order: 1,
+      topicCount: 3,
+    ),
+  ];
 
-  static const _accountingTopic = TopicModel(
-    id: 'accounting',
-    chapterId: 'accounting-basics',
-    title: 'Backend quiz',
-    order: 1,
-    isCompleted: false,
-  );
-
-  static const _mathsChapter = ChapterModel(
-    id: 'maths-basics',
-    learningPathId: 'maths',
-    title: 'Mathematics',
-    description: 'Practice questions from the deployed backend.',
-    order: 1,
-    topicCount: 1,
-  );
-
-  static const _mathsTopic = TopicModel(
-    id: 'maths',
-    chapterId: 'maths-basics',
-    title: 'Mathematics Quiz',
-    order: 1,
-    isCompleted: false,
-  );
+  static const _topics = [
+    TopicModel(
+      id: 'accounting',
+      chapterId: 'accounting-basics',
+      title: 'Backend quiz',
+      order: 1,
+      isCompleted: false,
+    ),
+    TopicModel(
+      id: 'mental-maths-easy',
+      chapterId: 'mental-maths-levels',
+      title: 'Easy: Addition & Subtraction',
+      order: 1,
+      isCompleted: false,
+    ),
+    TopicModel(
+      id: 'mental-maths-medium',
+      chapterId: 'mental-maths-levels',
+      title: 'Medium: Multiplication',
+      order: 2,
+      isCompleted: false,
+    ),
+    TopicModel(
+      id: 'mental-maths-hard',
+      chapterId: 'mental-maths-levels',
+      title: 'Hard: Division & 2-digit × 1-digit',
+      order: 3,
+      isCompleted: false,
+    ),
+  ];
 
   @override
   Future<List<ChapterModel>> getChapters(String learningPathId) async {
-    if (learningPathId == 'accounting') return const [_accountingChapter];
-    if (learningPathId == 'maths' || learningPathId == 'math') return const [_mathsChapter];
-    return const [];
+    return _chapters.where((c) => c.learningPathId == learningPathId).toList();
   }
 
   @override
   Future<ChapterModel?> getChapterById(String chapterId) async {
-    if (chapterId == _accountingChapter.id) return _accountingChapter;
-    if (chapterId == _mathsChapter.id) return _mathsChapter;
+    for (final c in _chapters) {
+      if (c.id == chapterId) return c;
+    }
     return null;
   }
 
   @override
   Future<List<TopicModel>> getTopics(String chapterId) async {
-    if (chapterId == _accountingChapter.id) return const [_accountingTopic];
-    if (chapterId == _mathsChapter.id) return const [_mathsTopic];
-    return const [];
+    return _topics.where((t) => t.chapterId == chapterId).toList();
   }
 }
 
