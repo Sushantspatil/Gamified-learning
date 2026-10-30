@@ -19,6 +19,7 @@ import '../../../learning_paths/presentation/providers/learning_path_providers.d
 import '../../../learning_paths/presentation/widgets/learning_path_card.dart';
 import '../../../profile/presentation/avatar_catalog.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 const _classLevels = ['11th', '12th'];
 const _boards = ['Maharashtra State Board'];
@@ -87,7 +88,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
       }
     });
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(
         title: const Text('Profile Setup'),
         actions: const [ThemeModeMenu()],

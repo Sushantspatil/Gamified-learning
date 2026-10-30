@@ -12,6 +12,7 @@ import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../avatar_catalog.dart';
 import '../providers/profile_providers.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 class EditProfileScreen extends ConsumerStatefulWidget {
   const EditProfileScreen({super.key});
@@ -94,7 +95,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ref.watch(profileControllerProvider).isLoading;
     final colors = context.themeColors;
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(
         title: const Text('Edit Profile'),
         actions: const [ThemeModeMenu()],

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_typography.dart';
 import '../../../../core/audio/audio_providers.dart';
 import '../../../../core/audio/game_sound.dart';
 
@@ -110,11 +111,11 @@ class _AnimatedLoginButtonState extends ConsumerState<AnimatedLoginButton> {
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: widget.isLoading
-                        ? const Row(
-                            key: ValueKey('loading'),
+                        ? Row(
+                            key: const ValueKey('loading'),
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              SizedBox(
+                              const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
@@ -122,32 +123,27 @@ class _AnimatedLoginButtonState extends ConsumerState<AnimatedLoginButton> {
                                   color: Colors.white,
                                 ),
                               ),
-                              SizedBox(width: 12),
+                              const SizedBox(width: 12),
                               Text(
                                 'Logging in...',
-                                style: TextStyle(
+                                style: AppTypography.button.copyWith(
                                   color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.3,
                                 ),
                               ),
                             ],
                           )
-                        : const Row(
-                            key: ValueKey('idle'),
+                        : Row(
+                            key: const ValueKey('idle'),
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
                                 'Log In',
-                                style: TextStyle(
+                                style: AppTypography.button.copyWith(
                                   color: Colors.white,
-                                  fontSize: 16.5,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.4,
+                                  fontSize: 18,
                                 ),
                               ),
-                              SizedBox(width: 8),
+                              const SizedBox(width: 8),
                               Icon(
                                 Icons.arrow_forward_rounded,
                                 color: Colors.white,

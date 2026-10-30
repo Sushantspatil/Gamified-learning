@@ -12,6 +12,7 @@ import '../providers/quiz_providers.dart';
 import '../providers/sort_it_out_providers.dart';
 import '../widgets/sort_it_out_result_view.dart';
 import '../widgets/sort_it_right_view.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 /// Dedicated standalone screen for rapid-fire Sort It Out swipe mini-game.
 class SortItOutScreen extends ConsumerStatefulWidget {
@@ -113,8 +114,7 @@ class _SortItOutScreenState extends ConsumerState<SortItOutScreen>
           Navigator.of(context).pop();
         }
       },
-      child: Scaffold(
-        backgroundColor: colors.background,
+      child: GameScaffold(
         body: SafeArea(
           child: stateAsync.when(
             loading: () => const Center(

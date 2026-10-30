@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
@@ -146,7 +147,10 @@ class _ScoreSummaryBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surface.withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colors.primary.withValues(alpha: 0.25)),
+        border: Border.all(
+          color: colors.primary.withValues(alpha: 0.6),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -292,7 +296,10 @@ class _RewardChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: color.withValues(alpha: 0.6),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),

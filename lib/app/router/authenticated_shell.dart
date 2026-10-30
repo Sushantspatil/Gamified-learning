@@ -33,14 +33,15 @@ class _AuthenticatedBottomNavigation extends StatelessWidget {
     return SafeArea(
       top: false,
       child: Container(
-        height: 72,
+        height: 76,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [colors.surface, colors.surfaceElevated],
+          color: colors.surface,
+          border: Border(
+            top: BorderSide(
+              color: colors.borderStrong,
+              width: AppDimensions.borderWidth,
+            ),
           ),
-          border: Border(top: BorderSide(color: colors.borderStrong)),
           boxShadow: AppElevation.shadows(colors, 2),
         ),
         child: Row(
@@ -53,7 +54,7 @@ class _AuthenticatedBottomNavigation extends StatelessWidget {
               onTap: () => context.go(RouteNames.dashboard),
             ),
             _BottomNavItem(
-              icon: Icons.menu_book_outlined,
+              icon: Icons.auto_stories_rounded,
               label: 'Subjects',
               tooltip: 'Subjects',
               isActive: location == RouteNames.learningPath,
@@ -64,14 +65,14 @@ class _AuthenticatedBottomNavigation extends StatelessWidget {
               onTap: () => context.go(RouteNames.practice),
             ),
             _BottomNavItem(
-              icon: Icons.leaderboard_outlined,
+              icon: Icons.emoji_events_rounded,
               label: 'Leaderboard',
               tooltip: 'Leaderboard',
               isActive: location == RouteNames.leaderboard,
               onTap: () => context.go(RouteNames.leaderboard),
             ),
             _BottomNavItem(
-              icon: Icons.person_outline,
+              icon: Icons.person_rounded,
               label: 'Profile',
               tooltip: 'Profile',
               isActive: location == RouteNames.profile,
@@ -102,7 +103,7 @@ class _BottomNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final color = isActive ? colors.primary : colors.textSecondary;
+    final color = isActive ? colors.primary : colors.textMuted;
 
     return Expanded(
       child: Tooltip(
@@ -114,25 +115,37 @@ class _BottomNavItem extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  width: 42,
-                  height: 30,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutBack,
+                  width: isActive ? 52 : 44,
+                  height: 34,
                   decoration: BoxDecoration(
                     color: isActive
-                        ? colors.primary.withValues(alpha: 0.12)
+                        ? colors.primary.withValues(alpha: 0.2)
                         : Colors.transparent,
-                    borderRadius: AppDimensions.radiusCircular,
+                    borderRadius: AppDimensions.radiusSm,
+                    border: Border.all(
+                      color: isActive
+                          ? colors.primary.withValues(alpha: 0.7)
+                          : Colors.transparent,
+                      width: AppDimensions.borderWidth,
+                    ),
                   ),
-                  child: Icon(icon, color: color, size: 22),
+                  child: AnimatedScale(
+                    scale: isActive ? 1.12 : 1,
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOutBack,
+                    child: Icon(icon, color: color, size: 24),
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: context.appTextStyles.labelSmall.copyWith(
+                  style: AppTypography.badge.copyWith(
                     color: color,
-                    fontWeight: isActive ? FontWeight.w800 : FontWeight.w700,
+                    fontSize: 11,
                   ),
                 ),
               ],
@@ -162,24 +175,39 @@ class _PracticeNavItem extends StatelessWidget {
             borderRadius: AppDimensions.radiusCircular,
             onTap: onTap,
             child: Container(
-              width: 58,
-              height: 58,
+              width: 60,
+              height: 60,
+              margin: const EdgeInsets.only(bottom: AppDimensions.raisedDepth),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [colors.primary, colors.violet],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color.lerp(colors.primary, Colors.white, 0.18)!,
+                    colors.primary,
+                    colors.violet,
+                  ],
                 ),
                 border: Border.all(
-                  color: colors.primaryForeground.withValues(alpha: 0.24),
+                  color: colors.primaryDark,
+                  width: AppDimensions.borderWidth + 1,
                 ),
-                boxShadow: AppElevation.shadows(colors, 2),
+                boxShadow: [
+                  ...AppElevation.raised(
+                    colors.primaryDark,
+                    depth: AppDimensions.raisedDepth,
+                  ),
+                  if (isActive) ...AppElevation.glow(colors.primary),
+                ],
               ),
               child: Icon(
-                Icons.sports_esports,
+                Icons.sports_esports_rounded,
                 color: colors.primaryForeground,
-                size: isActive ? 28 : 26,
+                size: isActive ? 32 : 30,
+                shadows: const [
+                  Shadow(color: Color(0x40000000), offset: Offset(0, 2)),
+                ],
               ),
             ),
           ),

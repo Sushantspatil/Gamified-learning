@@ -130,6 +130,8 @@ void main() {
 
     await tester.tap(find.text('Inventory'));
     await tester.pump();
+    await tester.ensureVisible(find.text('Next'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
     await _tapPowerUp(tester, '50:50');

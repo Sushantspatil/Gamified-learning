@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_elevation.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
@@ -35,7 +36,7 @@ class LeaderboardTile extends StatelessWidget {
             entry.avatarUrl!.startsWith('https://'));
 
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      margin: const EdgeInsets.only(bottom: AppSpacing.ms),
       padding: AppSpacing.paddingMd,
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -55,19 +56,52 @@ class LeaderboardTile extends StatelessWidget {
           color: entry.isCurrentUser
               ? colors.primary
               : isPodium
-                  ? rankColor.withValues(alpha: 0.40)
-                  : colors.border,
-          width: entry.isCurrentUser ? 2 : 1,
+                  ? rankColor.withValues(alpha: 0.75)
+                  : colors.borderStrong,
+          width: entry.isCurrentUser ? 3 : AppDimensions.borderWidth,
         ),
+        boxShadow: [
+          BoxShadow(
+            color: entry.isCurrentUser
+                ? colors.primaryDark
+                : isPodium
+                    ? AppElevation.edgeColor(rankColor, amount: 0.45)
+                    : colors.borderStrong,
+            offset: const Offset(0, AppDimensions.cardDepth),
+          ),
+          if (entry.isCurrentUser) ...AppElevation.glow(colors.primary, strength: 0.5),
+        ],
       ),
       child: Row(
         children: [
-          SizedBox(
-            width: 34,
-            child: Text(
-              '#${entry.rank}',
-              style: context.appTextStyles.labelLarge.copyWith(
-                color: rankColor,
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: isPodium ? rankColor : colors.surfaceElevated,
+              border: Border.all(
+                color: isPodium
+                    ? AppElevation.edgeColor(rankColor)
+                    : colors.borderStrong,
+                width: AppDimensions.borderWidth,
+              ),
+            ),
+            child: FittedBox(
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Text(
+                  '#${entry.rank}',
+                  style: AppTypography.button.copyWith(
+                    color: isPodium ? Colors.white : rankColor,
+                    shadows: isPodium
+                        ? const [
+                            Shadow(color: Color(0x55000000), offset: Offset(0, 1.5)),
+                          ]
+                        : null,
+                  ),
+                ),
               ),
             ),
           ),
@@ -103,7 +137,10 @@ class LeaderboardTile extends StatelessWidget {
           const SizedBox(width: AppSpacing.xs),
           Text(
             '${formatPoints(entry.score)} points',
-            style: context.appTextStyles.labelLarge,
+            style: AppTypography.button.copyWith(
+              color: colors.textPrimary,
+              fontSize: 15,
+            ),
           ),
         ],
       ),

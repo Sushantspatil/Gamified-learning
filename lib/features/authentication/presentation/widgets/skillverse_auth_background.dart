@@ -252,7 +252,7 @@ class SkillverseAuthBackground extends StatelessWidget {
           // 1. Deep cosmic navy base
           const DecoratedBox(
             decoration: BoxDecoration(
-              color: Color(0xFF060814),
+              color: Color(0xFF0D0A2B),
             ),
           ),
 

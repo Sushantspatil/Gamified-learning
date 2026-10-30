@@ -7,6 +7,7 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../learning_paths/presentation/widgets/learning_path_card.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 class LearningPathSelectionScreen extends ConsumerStatefulWidget {
   const LearningPathSelectionScreen({super.key});
@@ -34,7 +35,7 @@ class _LearningPathSelectionScreenState
       }
     });
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(
         title: const Text('Choose Your Path'),
         actions: const [ThemeModeMenu()],

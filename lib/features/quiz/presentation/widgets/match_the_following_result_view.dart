@@ -287,7 +287,10 @@ class _RewardBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        border: Border.all(
+          color: color.withValues(alpha: 0.6),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -454,7 +457,10 @@ class _BoardReviewCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: statusColor.withValues(alpha: 0.6),
+                    width: AppDimensions.borderWidth,
+                  ),
                 ),
                 child: Text(
                   statusText,

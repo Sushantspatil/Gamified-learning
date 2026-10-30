@@ -12,6 +12,7 @@ import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../domain/entities/cosmetic_item.dart';
 import '../cosmetic_color_catalog.dart';
 import '../providers/cosmetics_providers.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 class CosmeticsScreen extends ConsumerStatefulWidget {
   const CosmeticsScreen({super.key});
@@ -56,7 +57,7 @@ class _CosmeticsScreenState extends ConsumerState<CosmeticsScreen> {
   Widget build(BuildContext context) {
     final stateAsync = ref.watch(cosmeticsControllerProvider);
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(
         title: const Text('Cosmetics'),
         actions: const [ThemeModeMenu()],

@@ -1352,7 +1352,10 @@ class _MatchMetricTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: AppDimensions.radiusMd,
-        border: Border.all(color: color.withValues(alpha: 0.22)),
+        border: Border.all(
+          color: color.withValues(alpha: 0.6),
+          width: AppDimensions.borderWidth,
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -1544,7 +1547,9 @@ class _MatchConceptCard extends StatelessWidget {
                   borderRadius: AppDimensions.radiusMd,
                   border: Border.all(
                     color: _border(colors),
-                    width: state == _MatchCardState.neutral ? 1 : 1.6,
+                    width: state == _MatchCardState.neutral
+                        ? AppDimensions.borderWidth
+                        : 3,
                   ),
                   boxShadow: _shadows(colors),
                 ),
@@ -1705,7 +1710,17 @@ class _MatchConceptCard extends StatelessWidget {
   }
 
   List<BoxShadow> _shadows(AppThemeColors colors) {
-    final shadows = List<BoxShadow>.of(AppElevation.shadows(colors, 1));
+    final edge = switch (state) {
+      _MatchCardState.selected => colors.primaryDark,
+      _MatchCardState.correct => AppElevation.edgeColor(colors.success),
+      _MatchCardState.wrong => AppElevation.edgeColor(colors.error),
+      _ => colors.borderStrong,
+    };
+    // Solid lower edge so every card reads as a raised game tile.
+    final shadows = <BoxShadow>[
+      BoxShadow(color: edge, offset: const Offset(0, 3)),
+      ...AppElevation.shadows(colors, 1),
+    ];
     if (state == _MatchCardState.selected) {
       shadows.add(
         BoxShadow(

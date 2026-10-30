@@ -11,6 +11,7 @@ import '../../domain/entities/spin_result.dart';
 import '../../domain/entities/spin_wheel_segment.dart';
 import '../providers/spin_wheel_providers.dart';
 import '../widgets/spin_wheel_painter.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 class SpinWheelScreen extends ConsumerStatefulWidget {
   const SpinWheelScreen({super.key});
@@ -42,7 +43,7 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen> {
     final availableAsync = ref.watch(spinWheelControllerProvider);
     final colors = context.themeColors;
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(
         title: const Text('Spin Wheel'),
         actions: const [ThemeModeMenu()],

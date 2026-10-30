@@ -11,6 +11,7 @@ import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../wallet/domain/entities/currency_type.dart';
 import '../../domain/entities/chest_type.dart';
 import '../providers/chest_providers.dart';
+import '../../../../shared/widgets/game_scaffold.dart';
 
 class ChestScreen extends ConsumerStatefulWidget {
   final ChestType type;
@@ -76,7 +77,7 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
   Widget build(BuildContext context) {
     final availableAsync = ref.watch(chestControllerProvider(widget.type));
 
-    return Scaffold(
+    return GameScaffold(
       appBar: AppBar(title: Text(_title), actions: const [ThemeModeMenu()]),
       body: SafeArea(
         child: Center(

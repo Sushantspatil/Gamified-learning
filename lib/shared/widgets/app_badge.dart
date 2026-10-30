@@ -38,14 +38,14 @@ class AppBadge extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: accent.withValues(
-          alpha: variant == AppBadgeVariant.neutral ? 0.08 : 0.12,
+          alpha: variant == AppBadgeVariant.neutral ? 0.10 : 0.18,
         ),
         borderRadius: AppDimensions.radiusCircular,
-        border: Border.all(color: accent.withValues(alpha: 0.18)),
+        border: Border.all(color: accent.withValues(alpha: 0.5), width: 1.5),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
+          horizontal: AppSpacing.ms - 2,
           vertical: AppSpacing.xs,
         ),
         child: Text(
