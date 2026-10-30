@@ -55,14 +55,17 @@ bool isBackendPlayableTopic(String? topicId) {
   return _playableBackendSubjects.contains(mapToBackendTopicId(topicId));
 }
 
-/// Returns whether the given frontend topic maps to backend Accounts content.
-bool isBackendSupportedAccountingTopic(String? topicId) {
+/// Returns whether the given frontend topic maps to backend-supported data.
+bool isBackendSupportedTopic(String? topicId) {
   if (topicId == null || topicId.trim().isEmpty) return false;
   final mapped = mapToBackendTopicId(topicId);
-  return mapped == 'accounts' || mapped == 'maths';
+  return mapped == 'accounts' ||
+      mapped == 'accounting' ||
+      mapped == 'maths' ||
+      mapped == 'maths1';
 }
 
-/// Returns whether the given frontend topic maps to backend-supported data.
+/// Returns whether the given frontend topic maps to backend Accounts content.
 /// Preserved for backward compatibility.
 bool isBackendSupportedAccountingTopic(String? topicId) {
   return isBackendSupportedTopic(topicId);

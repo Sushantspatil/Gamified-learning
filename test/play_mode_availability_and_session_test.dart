@@ -156,11 +156,11 @@ void main() {
       expect(mapToBackendTopicId('statistics'), 'maths2');
     });
 
-    test('mapToBackendTopicId maps math sub-topics to maths', () {
-      expect(mapToBackendTopicId('math'), 'maths');
-      expect(mapToBackendTopicId('maths'), 'maths');
-      expect(mapToBackendTopicId('mathematics'), 'maths');
-      expect(mapToBackendTopicId('math-basics'), 'maths');
+    test('mapToBackendTopicId maps math sub-topics to maths1', () {
+      expect(mapToBackendTopicId('math'), 'maths1');
+      expect(mapToBackendTopicId('maths'), 'maths1');
+      expect(mapToBackendTopicId('mathematics'), 'maths1');
+      expect(mapToBackendTopicId('math-basics'), 'maths1');
     });
 
     test('mapToBackendTopicId preserves unrelated subjects', () {
