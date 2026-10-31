@@ -752,7 +752,11 @@ class _SuddenDeathTopBar extends StatelessWidget {
                       color: colors.primary.withValues(alpha: 0.38),
                     ),
                   ),
-                  child: Icon(Icons.arrow_back_rounded, color: colors.primary, size: 22),
+                  child: Icon(
+                    Icons.arrow_back_rounded,
+                    color: colors.primary,
+                    size: 22,
+                  ),
                 ),
               ),
             ),
@@ -770,14 +774,16 @@ class _SuddenDeathTopBar extends StatelessWidget {
                       ),
                       const SizedBox(width: AppSpacing.xs),
                       Flexible(
-                        child: Text(
-                          'Sudden Death',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.appTextStyles.titleMedium.copyWith(
-                            color: colors.error,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 18,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            'Sudden Death',
+                            maxLines: 1,
+                            style: context.appTextStyles.titleMedium.copyWith(
+                              color: colors.error,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18,
+                            ),
                           ),
                         ),
                       ),
@@ -1014,8 +1020,9 @@ class _HudMetric extends StatelessWidget {
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                alignment:
-                    alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+                alignment: alignEnd
+                    ? Alignment.centerRight
+                    : Alignment.centerLeft,
                 child: Text(
                   value,
                   style: context.appTextStyles.headingSmall.copyWith(

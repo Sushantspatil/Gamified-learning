@@ -660,7 +660,10 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
           AppSpacing.sm +
           20,
     );
-    final cardWidth = math.min(360.0, width) - AppSpacing.lg * 2;
+    final cardWidth = math.max(
+      1.0,
+      math.min(360.0, width) - AppSpacing.lg * 2 - 16.0,
+    );
     final items = _isBackendMode
         ? widget.cards!.map((c) => c.prompt)
         : (widget.question?.itemsInOrder ?? const <String>['Item']);
@@ -681,7 +684,8 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
       tallestItem +
           AppSpacing.lg * 2 +
           AppSpacing.md +
-          MediaQuery.textScalerOf(context).scale(18),
+          MediaQuery.textScalerOf(context).scale(24) +
+          16.0,
     );
     // Reserve one card plus a visible travel lane. Everything else follows
     // measured, wrapping text, including accessibility text sizes.
@@ -748,13 +752,14 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
           ),
           textDirection: Directionality.of(context),
           textScaler: MediaQuery.textScalerOf(context),
-        )..layout(maxWidth: width - AppSpacing.lg * 2);
+        )..layout(maxWidth: math.max(1.0, width - AppSpacing.lg * 2 - 16.0));
         _cardHeight = math.max(
           144.0,
           text.height +
               AppSpacing.lg * 2 +
               AppSpacing.md +
-              MediaQuery.textScalerOf(context).scale(18),
+              MediaQuery.textScalerOf(context).scale(24) +
+              16.0,
         );
         text.dispose();
         return SizedBox(
@@ -818,13 +823,18 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                           elevationLevel: 0,
                           padding: AppSpacing.paddingLg,
                           child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
-                                itemText,
-                                textAlign: TextAlign.center,
-                                softWrap: true,
-                                style: context.appTextStyles.titleLarge,
+                              Flexible(
+                                child: Center(
+                                  child: Text(
+                                    itemText,
+                                    textAlign: TextAlign.center,
+                                    softWrap: true,
+                                    style: context.appTextStyles.titleLarge,
+                                  ),
+                                ),
                               ),
                               const SizedBox(height: AppSpacing.md),
                               Row(

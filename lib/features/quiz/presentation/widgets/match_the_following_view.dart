@@ -1583,8 +1583,8 @@ class _MatchConceptCard extends StatelessWidget {
                       Text(
                         correctionText!,
                         textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        maxLines: 2,
+                        softWrap: true,
                         style: context.appTextStyles.labelSmall.copyWith(
                           color: colors.success,
                           fontWeight: FontWeight.w700,

@@ -279,17 +279,19 @@ class _PowerUpTile extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Flexible(
-                      child: Text(
-                        action.isUsed
-                            ? 'Used'
-                            : '${action.label} ${action.coinCost}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.appTextStyles.labelSmall.copyWith(
-                          color: disabled
-                              ? colors.textMuted
-                              : colors.textPrimary,
-                          fontWeight: FontWeight.w800,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          action.isUsed
+                              ? 'Used'
+                              : '${action.label} ${action.coinCost}',
+                          maxLines: 1,
+                          style: context.appTextStyles.labelSmall.copyWith(
+                            color: disabled
+                                ? colors.textMuted
+                                : colors.textPrimary,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),
@@ -308,14 +310,16 @@ class _PowerUpTile extends StatelessWidget {
                         ),
                         const SizedBox(width: AppSpacing.xs),
                         Flexible(
-                          child: Text(
-                            action.isUsed ? 'Used' : action.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: context.appTextStyles.labelLarge.copyWith(
-                              color: disabled
-                                  ? colors.textMuted
-                                  : colors.textPrimary,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              action.isUsed ? 'Used' : action.label,
+                              maxLines: 1,
+                              style: context.appTextStyles.labelLarge.copyWith(
+                                color: disabled
+                                    ? colors.textMuted
+                                    : colors.textPrimary,
+                              ),
                             ),
                           ),
                         ),
