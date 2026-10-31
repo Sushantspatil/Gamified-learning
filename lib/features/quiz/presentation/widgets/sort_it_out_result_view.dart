@@ -6,9 +6,16 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_card.dart';
 import '../../domain/entities/sort_it_out_models.dart';
+import 'quiz_celebration_overlay.dart';
 
 /// Dedicated authoritative result and learning review screen for Sort It Out.
+///
+/// Designed to follow the unified SkillVerse result screen design system used
+/// across MCQ and Sudden Death modes (`QuizResultView`), providing celebratory
+/// particle atmosphere, centered card structure, score presentation, metric
+/// pills, reward tallies, authoritative breakdown, and card reviews.
 class SortItOutResultView extends StatefulWidget {
   final SortItOutResult result;
   final VoidCallback onDone;
@@ -33,6 +40,24 @@ class _SortItOutResultViewState extends State<SortItOutResultView> {
     final colors = context.themeColors;
     final result = widget.result;
 
+    final wrongCount = result.totalQuestions > result.correctCount
+        ? result.totalQuestions - result.correctCount
+        : 0;
+
+    final bool isUnsuccessful =
+        result.totalQuestions > 0 && result.correctCount == 0;
+    final bool isPerfect =
+        !isUnsuccessful &&
+        result.accuracyPercentage >= 100.0 &&
+        result.correctCount == result.totalQuestions &&
+        result.totalQuestions > 0;
+
+    final celebrationType = isUnsuccessful
+        ? CelebrationType.subdued
+        : (isPerfect ? CelebrationType.perfect : CelebrationType.standard);
+
+    final accent = isUnsuccessful ? colors.error : colors.warning;
+
     final missedCards = result.cardsReview
         .where((r) => !r.isCorrect || r.isTimeout)
         .toList(growable: false);
@@ -40,101 +65,172 @@ class _SortItOutResultViewState extends State<SortItOutResultView> {
         ? result.cardsReview
         : (missedCards.isEmpty ? result.cardsReview : missedCards);
 
-    return SingleChildScrollView(
-      key: const Key('sort-results-scroll'),
-      padding: AppSpacing.paddingLg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Sort It Out — Results',
-            textAlign: TextAlign.center,
-            style: context.appTextStyles.headingMedium.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            '${result.correctCount} of ${result.totalQuestions} correct',
-            textAlign: TextAlign.center,
-            style: context.appTextStyles.bodyMedium.copyWith(
-              color: colors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // 1. Authoritative Final Score Banner
-          _ScoreSummaryBanner(result: result),
-
-          const SizedBox(height: AppSpacing.md),
-
-          // 2. Economy Rewards Tally
-          _RewardTotals(
-            xp: result.xpAwarded,
-            coins: result.coinsAwarded,
-            gems: result.gemsAwarded,
-            leveledUp: result.didLevelUp,
-          ),
-
-          const SizedBox(height: AppSpacing.lg),
-
-          // 3. Authoritative Score Breakdown
-          _AuthoritativeScoreBreakdown(result: result),
-
-          const SizedBox(height: AppSpacing.lg),
-
-          // 4. Cards Review Section (with missed focus and full toggle)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Answer review',
-                style: context.appTextStyles.titleMedium.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              if (missedCards.isNotEmpty &&
-                  missedCards.length < result.cardsReview.length)
-                TextButton(
-                  onPressed: () {
-                    setState(() => _showAllCards = !_showAllCards);
-                  },
-                  child: Text(
-                    _showAllCards ? 'Show missed only' : 'View all cards',
-                    style: TextStyle(color: colors.primary),
+    return GameCelebrationOverlay(
+      key: ValueKey('sort-celebration-${result.session}'),
+      type: celebrationType,
+      child: Center(
+        child: SingleChildScrollView(
+          key: const Key('sort-results-scroll'),
+          padding: AppSpacing.paddingMd,
+          child: AppCard(
+            variant: AppCardVariant.tinted,
+            tintColor: accent,
+            padding: AppSpacing.paddingLg,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 1. Top Emblem Badge (Matches MCQ & Sudden Death)
+                Container(
+                  width: 86,
+                  height: 86,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: isUnsuccessful
+                          ? [colors.error, colors.violet]
+                          : [colors.warning, AppColors.accentGold],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withValues(alpha: 0.22),
+                        blurRadius: 24,
+                      ),
+                    ],
+                  ),
+                  child: Icon(
+                    isUnsuccessful ? Icons.whatshot : Icons.emoji_events,
+                    color: colors.textInverse,
+                    size: 44,
                   ),
                 ),
-            ],
+                const SizedBox(height: AppSpacing.md),
+
+                // 2. Title & Subtitle
+                Text(
+                  'Sort It Out — Results',
+                  style: context.appTextStyles.displayMedium,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  '${result.correctCount} of ${result.totalQuestions} correct',
+                  style: context.appTextStyles.bodyMedium.copyWith(
+                    color: colors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
+                // 3. Official Score Banner
+                _ScorePanel(result: result),
+                const SizedBox(height: AppSpacing.md),
+
+                // 4. Metric Pills Row (Matches MCQ & Sudden Death pill design)
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    _MetricPill(
+                      icon: Icons.check_circle_outline,
+                      label: '${result.correctCount} correct',
+                      color: colors.success,
+                    ),
+                    _MetricPill(
+                      icon: Icons.cancel_outlined,
+                      label: '$wrongCount wrong',
+                      color: colors.error,
+                    ),
+                    _MetricPill(
+                      icon: Icons.track_changes_rounded,
+                      label:
+                          '${result.accuracyPercentage.toStringAsFixed(0)}% Accuracy',
+                      color: colors.primary,
+                    ),
+                    if (result.bestStreak > 0)
+                      _MetricPill(
+                        icon: Icons.local_fire_department_rounded,
+                        label: '🔥 ${result.bestStreak} Best Streak',
+                        color: AppColors.streakFire,
+                      ),
+                    if (result.timeoutCount > 0)
+                      _MetricPill(
+                        icon: Icons.timer_off_outlined,
+                        label: '${result.timeoutCount} timeouts',
+                        color: colors.warning,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // 5. Economy Reward Totals (XP, Coins, Gems, Level Up)
+                _RewardTotals(
+                  xp: result.xpAwarded,
+                  coins: result.coinsAwarded,
+                  gems: result.gemsAwarded,
+                  leveledUp: result.didLevelUp,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+
+                // 6. Authoritative Score Breakdown Section
+                _AuthoritativeScoreBreakdown(result: result),
+                const SizedBox(height: AppSpacing.lg),
+
+                // 7. Cards Review Section (with missed filter toggle)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Answer review',
+                      style: context.appTextStyles.titleMedium.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (missedCards.isNotEmpty &&
+                        missedCards.length < result.cardsReview.length)
+                      TextButton(
+                        onPressed: () {
+                          setState(() => _showAllCards = !_showAllCards);
+                        },
+                        child: Text(
+                          _showAllCards ? 'Show missed only' : 'View all cards',
+                          style: TextStyle(color: colors.primary),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+
+                for (final review in displayedCards)
+                  _CardReviewTile(review: review),
+
+                const SizedBox(height: AppSpacing.lg),
+
+                // 8. Actions
+                if (widget.onPlayAgain != null) ...[
+                  AppButton(label: 'Play again', onPressed: widget.onPlayAgain),
+                  const SizedBox(height: AppSpacing.sm),
+                ],
+                AppButton(
+                  label: 'Done',
+                  variant: widget.onPlayAgain != null
+                      ? AppButtonVariant.secondary
+                      : AppButtonVariant.primary,
+                  onPressed: widget.onDone,
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-
-          for (final review in displayedCards) _CardReviewTile(review: review),
-
-          const SizedBox(height: AppSpacing.xl),
-
-          // Actions
-          if (widget.onPlayAgain != null) ...[
-            AppButton(label: 'Play again', onPressed: widget.onPlayAgain),
-            const SizedBox(height: AppSpacing.sm),
-          ],
-          AppButton(
-            label: 'Done',
-            variant: AppButtonVariant.secondary,
-            onPressed: widget.onDone,
-          ),
-          const SizedBox(height: AppSpacing.lg),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _ScoreSummaryBanner extends StatelessWidget {
+class _ScorePanel extends StatelessWidget {
   final SortItOutResult result;
 
-  const _ScoreSummaryBanner({required this.result});
+  const _ScorePanel({required this.result});
 
   @override
   Widget build(BuildContext context) {
@@ -142,9 +238,9 @@ class _ScoreSummaryBanner extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.65),
+        color: colors.surface.withValues(alpha: 0.52),
         borderRadius: AppDimensions.radiusCard,
-        border: Border.all(color: colors.primary.withValues(alpha: 0.25)),
+        border: Border.all(color: colors.primary.withValues(alpha: 0.18)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
@@ -163,23 +259,7 @@ class _ScoreSummaryBanner extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xs),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _StatPill(
-                  label:
-                      '${result.accuracyPercentage.toStringAsFixed(0)}% Accuracy',
-                  icon: Icons.track_changes_rounded,
-                  color: colors.secondary,
-                ),
-                const SizedBox(width: AppSpacing.md),
-                _StatPill(
-                  label: '🔥 ${result.bestStreak} Best Streak',
-                  icon: Icons.local_fire_department_rounded,
-                  color: AppColors.streakFire,
-                ),
-              ],
-            ),
+            Text('Points earned', style: context.appTextStyles.bodySmall),
           ],
         ),
       ),
@@ -187,39 +267,43 @@ class _ScoreSummaryBanner extends StatelessWidget {
   }
 }
 
-class _StatPill extends StatelessWidget {
-  final String label;
+class _MetricPill extends StatelessWidget {
   final IconData icon;
+  final String label;
   final Color color;
 
-  const _StatPill({
-    required this.label,
+  const _MetricPill({
     required this.icon,
+    required this.label,
     required this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              label,
+              style: context.appTextStyles.labelLarge.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -259,7 +343,7 @@ class _RewardTotals extends StatelessWidget {
         ),
         if (gems > 0)
           _RewardChip(
-            icon: Icons.diamond,
+            icon: Icons.diamond_outlined,
             color: colors.secondary,
             label: '+$gems Gems',
           ),
@@ -287,29 +371,29 @@ class _RewardChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
         borderRadius: AppDimensions.radiusMd,
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 16),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            label,
+            style: context.appTextStyles.labelLarge.copyWith(
+              color: color,
+              fontWeight: FontWeight.w700,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -326,14 +410,14 @@ class _AuthoritativeScoreBreakdown extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.4),
+        color: colors.primary.withValues(alpha: 0.08),
         borderRadius: AppDimensions.radiusMd,
-        border: Border.all(color: colors.border.withValues(alpha: 0.5)),
+        border: Border.all(color: colors.primary.withValues(alpha: 0.18)),
       ),
       child: Padding(
         padding: AppSpacing.paddingMd,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
               'Score Breakdown',
@@ -360,7 +444,7 @@ class _AuthoritativeScoreBreakdown extends StatelessWidget {
               value: '+${result.comboBonus}',
               color: AppColors.streakFire,
             ),
-            const Divider(height: 18),
+            Divider(height: 18, color: colors.border.withValues(alpha: 0.3)),
             _BreakdownRow(
               label: 'Final Score',
               value: '${result.finalScore}',
@@ -432,9 +516,9 @@ class _CardReviewTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: AppSpacing.paddingMd,
       decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.5),
+        color: colors.surface.withValues(alpha: 0.52),
         borderRadius: AppDimensions.radiusMd,
-        border: Border.all(color: statusColor.withValues(alpha: 0.25)),
+        border: Border.all(color: statusColor.withValues(alpha: 0.28)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -501,7 +585,7 @@ class _CardReviewTile extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: colors.background.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: AppDimensions.radiusSm,
               ),
               child: Text(
                 review.explanation!,
