@@ -5,7 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../app/motion/app_motion.dart';
 import '../../../../app/router/route_names.dart';
-import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_dimensions.dart';
+import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../providers/auth_providers.dart';
@@ -14,16 +15,8 @@ import '../widgets/animated_login_field.dart';
 import '../widgets/skillverse_auth_background.dart';
 import '../widgets/skillverse_login_hero.dart';
 
-/// Premium animated SkillVerse login screen with interactive password-reactive character.
-///
-/// Features:
-/// - Interactive student mascot that playfully closes his eyes when Password is focused
-/// - Smooth eye transition with zero layout shift via AnimatedSwitcher
-/// - Clean dark cosmic background (no duplicate Splash artwork, castle, or splash logo)
-/// - Keyboard-aware responsive collapse keeping the character face visible
-/// - Exactly 3 AnimationControllers for optimal 60/90/120 Hz performance
-/// - Error shake micro-interaction on authentication failure
-/// - Preserves 100% of existing authentication endpoints, state, and router navigation.
+/// Animated SkillVerse login screen with theme switching, responsive collapse,
+/// and interactive student mascot.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -66,8 +59,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       duration: const Duration(milliseconds: 4200),
     );
 
-    final isTestEnvironment =
-        WidgetsBinding.instance.runtimeType.toString().contains('Test');
+    final isTestEnvironment = WidgetsBinding.instance.runtimeType
+        .toString()
+        .contains('Test');
     if (!isTestEnvironment) {
       _ambientController.repeat();
     } else {
@@ -79,16 +73,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       vsync: this,
       duration: const Duration(milliseconds: 320),
     );
-    _errorShakeAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: -5.0), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: -5.0, end: 5.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 5.0, end: -3.5), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: -3.5, end: 3.5), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 3.5, end: 0.0), weight: 1),
-    ]).animate(CurvedAnimation(
-      parent: _errorShakeController,
-      curve: Curves.easeInOut,
-    ));
+    _errorShakeAnimation =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 0.0, end: -5.0), weight: 1),
+          TweenSequenceItem(tween: Tween(begin: -5.0, end: 5.0), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 5.0, end: -3.5), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: -3.5, end: 3.5), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 3.5, end: 0.0), weight: 1),
+        ]).animate(
+          CurvedAnimation(
+            parent: _errorShakeController,
+            curve: Curves.easeInOut,
+          ),
+        );
 
     _entranceController.forward();
   }
@@ -96,7 +93,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!mounted) return;
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       if (_ambientController.isAnimating) {
         _ambientController.stop();
       }
@@ -125,7 +123,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       _triggerErrorShake();
       return;
     }
-    ref.read(authControllerProvider.notifier).login(
+    ref
+        .read(authControllerProvider.notifier)
+        .login(
           email: _emailController.text.trim(),
           password: _passwordController.text,
         );
@@ -166,6 +166,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final reduceMotion = AppMotion.reduceMotion(context);
     final authState = ref.watch(authControllerProvider);
     final isLoading = authState.isLoading;
@@ -177,14 +179,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         _ambientController.stop();
       }
     } else {
-      final isTestEnvironment =
-          WidgetsBinding.instance.runtimeType.toString().contains('Test');
+      final isTestEnvironment = WidgetsBinding.instance.runtimeType
+          .toString()
+          .contains('Test');
       if (!isTestEnvironment && !_ambientController.isAnimating) {
         _ambientController.repeat();
       }
     }
 
-    // Preserve exact existing error listener and SnackBar feedback
+    // Error listener and SnackBar feedback
     ref.listen(authControllerProvider, (previous, next) {
       if (next.hasError && !next.isLoading) {
         _triggerErrorShake();
@@ -193,11 +196,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(message),
-            backgroundColor: const Color(0xFF1E142B),
+            backgroundColor: colors.surfaceElevated,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: const BorderSide(color: AppColors.accentNeon, width: 1),
+              borderRadius: AppDimensions.radiusMd,
+              side: BorderSide(color: colors.error, width: 1),
             ),
           ),
         );
@@ -205,20 +208,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     });
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        statusBarBrightness: Brightness.dark,
-        systemNavigationBarColor: Color(0xFF060814),
-        systemNavigationBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        systemNavigationBarColor: colors.background,
+        systemNavigationBarIconBrightness: isDark
+            ? Brightness.light
+            : Brightness.dark,
         systemNavigationBarDividerColor: Colors.transparent,
       ),
       child: Scaffold(
-        backgroundColor: const Color(0xFF060814),
+        backgroundColor: colors.background,
         body: Stack(
           fit: StackFit.expand,
           children: [
-            // 1. Clean Cosmic Background Layer (soft orbs & stars, no splash artwork)
+            // 1. Cosmic Background Layer with light/dark support
             SkillverseAuthBackground(
               ambientAnimation: _ambientController,
               reduceMotion: reduceMotion,
@@ -228,16 +233,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             SafeArea(
               child: Stack(
                 children: [
-                  // Top-Right Translucent Theme Toggle
+                  // Top-Right Theme Toggle
                   Positioned(
                     top: 10,
                     right: 16,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF13172E).withValues(alpha: 0.65),
+                        color: colors.surfaceElevated.withValues(
+                          alpha: isDark ? 0.65 : 0.90,
+                        ),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: const Color(0xFF2C3558).withValues(alpha: 0.70),
+                          color: colors.borderStrong.withValues(alpha: 0.70),
                           width: 1.0,
                         ),
                       ),
@@ -283,7 +290,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                       Text(
                                         'Welcome back',
                                         style: TextStyle(
-                                          color: Colors.white,
+                                          color: colors.textPrimary,
                                           fontSize: isCompact ? 24 : 27,
                                           fontWeight: FontWeight.w800,
                                           letterSpacing: -0.3,
@@ -292,7 +299,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                       Text(
                                         '!',
                                         style: TextStyle(
-                                          color: Colors.white,
+                                          color: colors.primary,
                                           fontSize: isCompact ? 24 : 27,
                                           fontWeight: FontWeight.w800,
                                           letterSpacing: -0.3,
@@ -304,8 +311,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   Text(
                                     'Log in to continue your learning adventure.',
                                     style: TextStyle(
-                                      color: const Color(0xFF9AA3C8)
-                                          .withValues(alpha: 0.90),
+                                      color: colors.textSecondary,
                                       fontSize: isCompact ? 13.5 : 14.5,
                                       fontWeight: FontWeight.w400,
                                       letterSpacing: 0.1,
@@ -330,7 +336,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 key: _formKey,
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     // Email Field
                                     _buildStaggeredSection(
@@ -341,11 +348,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                         controller: _emailController,
                                         hintText: 'Email',
                                         prefixIcon: Icons.mail_outline_rounded,
-                                        keyboardType: TextInputType.emailAddress,
+                                        keyboardType:
+                                            TextInputType.emailAddress,
                                         textInputAction: TextInputAction.next,
-                                        autofillHints: const [AutofillHints.email],
+                                        autofillHints: const [
+                                          AutofillHints.email,
+                                        ],
                                         validator: (value) {
-                                          if (value == null || !value.contains('@')) {
+                                          if (value == null ||
+                                              !value.contains('@')) {
                                             return 'Enter a valid email';
                                           }
                                           return null;
@@ -367,10 +378,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                         prefixIcon: Icons.lock_outline_rounded,
                                         isPassword: true,
                                         textInputAction: TextInputAction.done,
-                                        autofillHints: const [AutofillHints.password],
+                                        autofillHints: const [
+                                          AutofillHints.password,
+                                        ],
                                         onFieldSubmitted: _submit,
                                         validator: (value) {
-                                          if (value == null || value.length < 6) {
+                                          if (value == null ||
+                                              value.length < 6) {
                                             return 'Password must be at least 6 characters';
                                           }
                                           return null;
@@ -405,8 +419,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                           onPressed: () =>
                                               context.go(RouteNames.signup),
                                           style: TextButton.styleFrom(
-                                            foregroundColor:
-                                                const Color(0xFFB052FF),
+                                            foregroundColor: colors.primary,
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 16,
                                               vertical: 8,

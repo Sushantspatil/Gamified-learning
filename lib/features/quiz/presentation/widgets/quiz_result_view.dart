@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -37,10 +38,12 @@ class QuizResultView extends StatelessWidget {
     final xp = rewardXp ?? result.xpAwarded;
     final coins = rewardCoins ?? result.coinsAwarded;
 
-    final bool isUnsuccessful = result.endedEarly ||
+    final bool isUnsuccessful =
+        result.endedEarly ||
         (result.completedSuccessfully == false) ||
         (result.score.totalCount > 0 && result.score.correctCount == 0);
-    final bool isPerfect = !isUnsuccessful &&
+    final bool isPerfect =
+        !isUnsuccessful &&
         result.score.percentage >= 1.0 &&
         result.score.correctCount == result.score.totalCount &&
         result.score.totalCount > 0;
@@ -171,7 +174,7 @@ class _ScorePanel extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface.withValues(alpha: 0.52),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppDimensions.radiusCard,
         border: Border.all(color: colors.primary.withValues(alpha: 0.18)),
       ),
       child: Padding(
@@ -321,7 +324,7 @@ class _XpProgressPanel extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.xpPurple.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppDimensions.radiusMd,
         border: Border.all(color: AppColors.xpPurple.withValues(alpha: 0.18)),
       ),
       child: Padding(
@@ -400,7 +403,7 @@ class _BreakdownSection extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: AppDimensions.radiusMd,
         border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
       child: Padding(

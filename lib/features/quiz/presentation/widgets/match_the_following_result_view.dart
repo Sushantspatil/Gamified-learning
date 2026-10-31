@@ -44,10 +44,7 @@ class MatchTheFollowingResultView extends StatelessWidget {
               const SizedBox(height: AppSpacing.lg),
               _buildBoardReview(context, colors, textStyles),
               const SizedBox(height: AppSpacing.xl),
-              AppButton(
-                label: 'Done',
-                onPressed: onDone,
-              ),
+              AppButton(label: 'Done', onPressed: onDone),
             ],
           ),
         ),
@@ -149,7 +146,8 @@ class MatchTheFollowingResultView extends StatelessWidget {
               width: itemWidth,
               child: _MetricCard(
                 label: 'Pairs Matched',
-                value: '${result.totalPairsMatched} / ${result.totalPairsCount}',
+                value:
+                    '${result.totalPairsMatched} / ${result.totalPairsCount}',
                 icon: Icons.check_circle_rounded,
                 color: colors.success,
               ),
@@ -286,7 +284,7 @@ class _RewardBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppDimensions.radiusCard,
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
@@ -387,10 +385,7 @@ class _BreakdownRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: style.copyWith(color: colors.textSecondary),
-          ),
+          Text(label, style: style.copyWith(color: colors.textSecondary)),
           Text(
             value,
             style: style.copyWith(
@@ -453,7 +448,7 @@ class _BoardReviewCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: AppDimensions.radiusCard,
                   border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                 ),
                 child: Text(
@@ -472,15 +467,21 @@ class _BoardReviewCard extends StatelessWidget {
             children: [
               Text(
                 'Pairs: ${review.pairsMatched}/${review.totalPairs}',
-                style: textStyles.bodySmall.copyWith(color: colors.textSecondary),
+                style: textStyles.bodySmall.copyWith(
+                  color: colors.textSecondary,
+                ),
               ),
               Text(
                 'Mistakes: ${review.mistakes}',
-                style: textStyles.bodySmall.copyWith(color: colors.textSecondary),
+                style: textStyles.bodySmall.copyWith(
+                  color: colors.textSecondary,
+                ),
               ),
               Text(
                 'Time: ${(review.timeTakenMs / 1000).toStringAsFixed(1)}s',
-                style: textStyles.bodySmall.copyWith(color: colors.textSecondary),
+                style: textStyles.bodySmall.copyWith(
+                  color: colors.textSecondary,
+                ),
               ),
               Text(
                 '+${review.totalBoardScore} pts',

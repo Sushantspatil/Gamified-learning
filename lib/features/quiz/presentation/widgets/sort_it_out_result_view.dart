@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -35,8 +36,9 @@ class _SortItOutResultViewState extends State<SortItOutResultView> {
     final missedCards = result.cardsReview
         .where((r) => !r.isCorrect || r.isTimeout)
         .toList(growable: false);
-    final displayedCards =
-        _showAllCards ? result.cardsReview : (missedCards.isEmpty ? result.cardsReview : missedCards);
+    final displayedCards = _showAllCards
+        ? result.cardsReview
+        : (missedCards.isEmpty ? result.cardsReview : missedCards);
 
     return SingleChildScrollView(
       key: const Key('sort-results-scroll'),
@@ -108,17 +110,13 @@ class _SortItOutResultViewState extends State<SortItOutResultView> {
           ),
           const SizedBox(height: AppSpacing.sm),
 
-          for (final review in displayedCards)
-            _CardReviewTile(review: review),
+          for (final review in displayedCards) _CardReviewTile(review: review),
 
           const SizedBox(height: AppSpacing.xl),
 
           // Actions
           if (widget.onPlayAgain != null) ...[
-            AppButton(
-              label: 'Play again',
-              onPressed: widget.onPlayAgain,
-            ),
+            AppButton(label: 'Play again', onPressed: widget.onPlayAgain),
             const SizedBox(height: AppSpacing.sm),
           ],
           AppButton(
@@ -145,7 +143,7 @@ class _ScoreSummaryBanner extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface.withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: AppDimensions.radiusCard,
         border: Border.all(color: colors.primary.withValues(alpha: 0.25)),
       ),
       child: Padding(
@@ -169,7 +167,8 @@ class _ScoreSummaryBanner extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _StatPill(
-                  label: '${result.accuracyPercentage.toStringAsFixed(0)}% Accuracy',
+                  label:
+                      '${result.accuracyPercentage.toStringAsFixed(0)}% Accuracy',
                   icon: Icons.track_changes_rounded,
                   color: colors.secondary,
                 ),
@@ -291,7 +290,7 @@ class _RewardChip extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppDimensions.radiusMd,
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Padding(
@@ -328,7 +327,7 @@ class _AuthoritativeScoreBreakdown extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.surface.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppDimensions.radiusMd,
         border: Border.all(color: colors.border.withValues(alpha: 0.5)),
       ),
       child: Padding(
@@ -420,24 +419,22 @@ class _CardReviewTile extends StatelessWidget {
     final statusText = isTimeout
         ? 'Time\'s Up'
         : isCorrect
-            ? 'Correct'
-            : 'Wrong';
+        ? 'Correct'
+        : 'Wrong';
 
     final statusColor = isTimeout
         ? colors.warning
         : isCorrect
-            ? colors.success
-            : colors.error;
+        ? colors.success
+        : colors.error;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: AppSpacing.paddingMd,
       decoration: BoxDecoration(
         color: colors.surface.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.25),
-        ),
+        borderRadius: AppDimensions.radiusMd,
+        border: Border.all(color: statusColor.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -449,8 +446,8 @@ class _CardReviewTile extends StatelessWidget {
                 isCorrect
                     ? Icons.check_circle_outline
                     : isTimeout
-                        ? Icons.timer_off_outlined
-                        : Icons.cancel_outlined,
+                    ? Icons.timer_off_outlined
+                    : Icons.cancel_outlined,
                 color: statusColor,
                 semanticLabel: statusText,
                 size: 20,
@@ -491,7 +488,9 @@ class _CardReviewTile extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
-                  color: review.pointsEarned > 0 ? colors.primary : colors.textSecondary,
+                  color: review.pointsEarned > 0
+                      ? colors.primary
+                      : colors.textSecondary,
                 ),
               ),
             ],

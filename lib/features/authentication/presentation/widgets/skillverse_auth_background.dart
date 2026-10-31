@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_theme_colors.dart';
 
 enum AuthParticleShape { circle, sparkle }
 
@@ -53,7 +54,7 @@ const List<_AuthParticleSpec> _kCosmicParticles = [
     radius: 1.8,
     speed: 0.70,
     phase: 0.75,
-    color: Colors.white,
+    color: AppColors.primary,
     shape: AuthParticleShape.sparkle,
   ),
 
@@ -138,15 +139,19 @@ const List<_AuthParticleSpec> _kCosmicParticles = [
     radius: 2.2,
     speed: 1.00,
     phase: 0.90,
-    color: Colors.white,
+    color: AppColors.primary,
     shape: AuthParticleShape.circle,
   ),
 ];
 
 class _AuthParticlesPainter extends CustomPainter {
   final double animationProgress;
+  final bool isDark;
 
-  _AuthParticlesPainter({required this.animationProgress});
+  _AuthParticlesPainter({
+    required this.animationProgress,
+    required this.isDark,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -181,18 +186,17 @@ class _AuthParticlesPainter extends CustomPainter {
   ) {
     // Soft outer glow
     final glowPaint = Paint()
-      ..color = color.withValues(alpha: alpha * 0.35)
+      ..color = color.withValues(alpha: alpha * (isDark ? 0.35 : 0.22))
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.0);
     canvas.drawCircle(center, radius * 1.8, glowPaint);
 
     // Core
-    final corePaint = Paint()
-      ..color = color.withValues(alpha: alpha * 0.90);
+    final corePaint = Paint()..color = color.withValues(alpha: alpha * 0.90);
     canvas.drawCircle(center, radius, corePaint);
 
     // Bright center
     final centerPaint = Paint()
-      ..color = Colors.white.withValues(alpha: alpha * 0.85);
+      ..color = (isDark ? Colors.white : color).withValues(alpha: alpha * 0.85);
     canvas.drawCircle(center, radius * 0.4, centerPaint);
   }
 
@@ -222,13 +226,14 @@ class _AuthParticlesPainter extends CustomPainter {
     );
 
     final corePaint = Paint()
-      ..color = Colors.white.withValues(alpha: alpha * 0.95);
+      ..color = (isDark ? Colors.white : color).withValues(alpha: alpha * 0.95);
     canvas.drawCircle(center, size * 0.5, corePaint);
   }
 
   @override
   bool shouldRepaint(covariant _AuthParticlesPainter oldDelegate) {
-    return oldDelegate.animationProgress != animationProgress;
+    return oldDelegate.animationProgress != animationProgress ||
+        oldDelegate.isDark != isDark;
   }
 }
 
@@ -245,16 +250,15 @@ class SkillverseAuthBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return ExcludeSemantics(
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Deep cosmic navy base
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              color: Color(0xFF060814),
-            ),
-          ),
+          // 1. Theme-aware base background
+          DecoratedBox(decoration: BoxDecoration(color: colors.background)),
 
           // 2. Animated gradient glow orbs
           AnimatedBuilder(
@@ -264,19 +268,24 @@ class SkillverseAuthBackground extends StatelessWidget {
               final sinT = math.sin(t * 2 * math.pi);
               final cosT = math.cos(t * 2 * math.pi);
 
+              final orbMultiplier = isDark ? 1.0 : 0.65;
+
               // Orb 1: Upper-left violet/purple glow
               final orb1Scale = 0.95 + 0.12 * ((sinT + 1) / 2);
-              final orb1Opacity = 0.08 + 0.05 * ((cosT + 1) / 2);
+              final orb1Opacity =
+                  (0.08 + 0.05 * ((cosT + 1) / 2)) * orbMultiplier;
               final orb1Offset = Offset(-20 + 12 * cosT, -30 + 10 * sinT);
 
               // Orb 2: Upper-right cyan/blue glow
               final orb2Scale = 0.96 + 0.10 * ((cosT + 1) / 2);
-              final orb2Opacity = 0.07 + 0.05 * ((sinT + 1) / 2);
+              final orb2Opacity =
+                  (0.07 + 0.05 * ((sinT + 1) / 2)) * orbMultiplier;
               final orb2Offset = Offset(20 - 10 * sinT, -10 + 12 * cosT);
 
               // Orb 3: Lower-center magenta/violet horizon glow
               final orb3Scale = 0.98 + 0.08 * ((sinT + 1) / 2);
-              final orb3Opacity = 0.09 + 0.05 * ((cosT + 1) / 2);
+              final orb3Opacity =
+                  (0.09 + 0.05 * ((cosT + 1) / 2)) * orbMultiplier;
 
               return Stack(
                 fit: StackFit.expand,
@@ -294,8 +303,10 @@ class SkillverseAuthBackground extends StatelessWidget {
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              AppColors.primary.withValues(alpha: orb1Opacity),
-                              AppColors.violet.withValues(alpha: orb1Opacity * 0.5),
+                              colors.primary.withValues(alpha: orb1Opacity),
+                              colors.violet.withValues(
+                                alpha: orb1Opacity * 0.5,
+                              ),
                               Colors.transparent,
                             ],
                             stops: const [0.0, 0.45, 1.0],
@@ -318,8 +329,10 @@ class SkillverseAuthBackground extends StatelessWidget {
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              AppColors.secondary.withValues(alpha: orb2Opacity),
-                              AppColors.gemCyan.withValues(alpha: orb2Opacity * 0.4),
+                              colors.secondary.withValues(alpha: orb2Opacity),
+                              AppColors.gemCyan.withValues(
+                                alpha: orb2Opacity * 0.4,
+                              ),
                               Colors.transparent,
                             ],
                             stops: const [0.0, 0.50, 1.0],
@@ -329,7 +342,7 @@ class SkillverseAuthBackground extends StatelessWidget {
                     ),
                   ),
 
-                  // Bottom planetary curves and glowing horizon matching reference image
+                  // Bottom planetary curves and glowing horizon
                   Positioned(
                     bottom: -140,
                     left: -80,
@@ -342,8 +355,10 @@ class SkillverseAuthBackground extends StatelessWidget {
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              AppColors.primaryDark.withValues(alpha: orb3Opacity * 1.5),
-                              AppColors.violet.withValues(alpha: orb3Opacity),
+                              colors.primaryDark.withValues(
+                                alpha: orb3Opacity * 1.5,
+                              ),
+                              colors.violet.withValues(alpha: orb3Opacity),
                               Colors.transparent,
                             ],
                             stops: const [0.0, 0.55, 1.0],
@@ -364,7 +379,9 @@ class SkillverseAuthBackground extends StatelessWidget {
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            AppColors.gemCyan.withValues(alpha: 0.12),
+                            AppColors.gemCyan.withValues(
+                              alpha: isDark ? 0.12 : 0.08,
+                            ),
                             Colors.transparent,
                           ],
                           stops: const [0.0, 0.70],
@@ -382,7 +399,9 @@ class SkillverseAuthBackground extends StatelessWidget {
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            AppColors.violet.withValues(alpha: 0.12),
+                            colors.violet.withValues(
+                              alpha: isDark ? 0.12 : 0.08,
+                            ),
                             Colors.transparent,
                           ],
                           stops: const [0.0, 0.70],
@@ -404,6 +423,7 @@ class SkillverseAuthBackground extends StatelessWidget {
                   return CustomPaint(
                     painter: _AuthParticlesPainter(
                       animationProgress: ambientAnimation.value,
+                      isDark: isDark,
                     ),
                     size: Size.infinite,
                   );

@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 class AppDimensions {
   AppDimensions._();
 
-  static const double borderRadiusSm = 12.0;
-  static const double borderRadiusMd = 16.0;
-  static const double borderRadiusLg = 20.0;
-  static const double borderRadiusCard = 22.0;
+  static const double borderRadiusSm = 8.0;
+  static const double borderRadiusMd = 12.0;
+  static const double borderRadiusLg = 14.0;
+  static const double borderRadiusCard = 12.0;
   static const double borderRadiusCircular = 999.0;
 
   static final BorderRadius radiusSm = BorderRadius.circular(borderRadiusSm);

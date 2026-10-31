@@ -208,7 +208,14 @@ class _ButtonContent extends StatelessWidget {
           ),
           const SizedBox(width: 8),
         ],
-        Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+        Flexible(
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            softWrap: true,
+          ),
+        ),
         if (trailingIcon != null) ...[
           const SizedBox(width: 8),
           IconTheme.merge(

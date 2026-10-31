@@ -205,8 +205,8 @@ class _SubjectHeader extends StatelessWidget {
                   children: [
                     Text(
                       subject.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      softWrap: true,
                       style: context.appTextStyles.displayMedium,
                     ),
                     const SizedBox(height: AppSpacing.xs),

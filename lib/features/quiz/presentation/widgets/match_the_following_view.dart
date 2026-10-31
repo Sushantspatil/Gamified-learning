@@ -76,7 +76,7 @@ class MatchTheFollowingView extends ConsumerStatefulWidget {
 
 class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     with TickerProviderStateMixin {
-  static const double _cardHeight = 76;
+  static const double _cardHeight = 82;
   static const double _rowGap = 12;
   static const double _connectorGap = 52;
 
@@ -179,13 +179,16 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
       vsync: this,
       duration: const Duration(milliseconds: 320),
     );
-    _shakeAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 1),
-      TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 8.0, end: -6.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: -6.0, end: 6.0), weight: 2),
-      TweenSequenceItem(tween: Tween(begin: 6.0, end: 0.0), weight: 1),
-    ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut));
+    _shakeAnimation =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 1),
+          TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 8.0, end: -6.0), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: -6.0, end: 6.0), weight: 2),
+          TweenSequenceItem(tween: Tween(begin: 6.0, end: 0.0), weight: 1),
+        ]).animate(
+          CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut),
+        );
   }
 
   @override
@@ -486,10 +489,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     setState(() => _phase = _MatchFlowPhase.submitting);
     if (_isBackendMode) {
       final wrongCount = _effectiveLeftPairs.length - _correctPairCount;
-      widget.onBoardSubmit?.call(
-        Map.of(_matches),
-        wrongCount,
-      );
+      widget.onBoardSubmit?.call(Map.of(_matches), wrongCount);
     } else if (widget.question != null) {
       widget.onSubmit?.call(
         MatchTheFollowingAnswer(
@@ -517,12 +517,11 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     final title = widget.title != null
         ? _subjectTitle(widget.title!)
         : (widget.question != null
-            ? _subjectTitle(widget.question!.topicId)
-            : 'Match It');
+              ? _subjectTitle(widget.question!.topicId)
+              : 'Match It');
 
-    final promptText = widget.board?.prompt ??
-        widget.question?.prompt ??
-        'Match each concept';
+    final promptText =
+        widget.board?.prompt ?? widget.question?.prompt ?? 'Match each concept';
 
     return ColoredBox(
       key: const Key('match_it_view'),
@@ -579,7 +578,9 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                                     leftAnchors: _leftAnchors,
                                     rightAnchors: _rightAnchors,
                                     hasSubmitted: _hasSubmitted,
-                                    selectedLeftPairId: _selectedLeftPairId ?? _effectiveSelectedLeftId,
+                                    selectedLeftPairId:
+                                        _selectedLeftPairId ??
+                                        _effectiveSelectedLeftId,
                                     selectedRightPairId: _selectedRightPairId,
                                     cardHeight: _cardHeight,
                                     rowGap: _rowGap,
@@ -623,7 +624,8 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                                             label: indexed.$2.left,
                                             side: _MatchCardSide.left,
                                             state: _leftState(indexed.$2.id),
-                                            shakeOffset: widget.lastWrongAttemptLeftId ==
+                                            shakeOffset:
+                                                widget.lastWrongAttemptLeftId ==
                                                     indexed.$2.id
                                                 ? shakeVal
                                                 : 0,
@@ -666,7 +668,8 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                                             label: indexed.$2.right,
                                             side: _MatchCardSide.right,
                                             state: _rightState(indexed.$2.id),
-                                            shakeOffset: widget.lastWrongAttemptRightId ==
+                                            shakeOffset:
+                                                widget.lastWrongAttemptRightId ==
                                                     indexed.$2.id
                                                 ? shakeVal
                                                 : 0,
@@ -1001,7 +1004,6 @@ class _MatchItHeader extends StatelessWidget {
   }
 }
 
-
 class _StatusPill extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
@@ -1072,8 +1074,7 @@ class _ProgressHud extends StatelessWidget {
               Expanded(
                 child: Text(
                   prompt ?? 'Match each concept',
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                   style: context.appTextStyles.titleMedium.copyWith(
                     color: colors.primaryDark,
                     fontWeight: FontWeight.bold,
@@ -1414,23 +1415,20 @@ class _CorrectAnswerRow extends StatelessWidget {
           children: [
             Text(
               leftLabel,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
               style: context.appTextStyles.labelLarge,
             ),
             const SizedBox(height: AppSpacing.xs),
             Text(
               'Your match: $selectedRightLabel',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
               style: context.appTextStyles.labelSmall.copyWith(
                 color: colors.error,
               ),
             ),
             Text(
               'Correct: $correctRightLabel',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
               style: context.appTextStyles.labelSmall.copyWith(
                 color: colors.success,
               ),
@@ -1563,7 +1561,8 @@ class _MatchConceptCard extends StatelessWidget {
                           child: Text(
                             label,
                             textAlign: TextAlign.center,
-                            maxLines: correctionText == null ? 3 : 2,
+                            maxLines: 4,
+                            softWrap: true,
                             overflow: TextOverflow.ellipsis,
                             style: context.appTextStyles.bodySmall.copyWith(
                               color: colors.textPrimary,
@@ -1663,14 +1662,14 @@ class _MatchConceptCard extends StatelessWidget {
                     ),
                   ]
                 : (state == _MatchCardState.correct
-                    ? [
-                        BoxShadow(
-                          color: colors.success.withValues(alpha: 0.32),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        ),
-                      ]
-                    : AppElevation.shadows(colors, 1)),
+                      ? [
+                          BoxShadow(
+                            color: colors.success.withValues(alpha: 0.32),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ]
+                      : AppElevation.shadows(colors, 1)),
           ),
           child: Center(
             child: Container(
@@ -1723,10 +1722,7 @@ class _MatchConceptCard extends StatelessWidget {
       );
     } else if (state == _MatchCardState.wrong) {
       shadows.add(
-        BoxShadow(
-          color: colors.error.withValues(alpha: 0.20),
-          blurRadius: 10,
-        ),
+        BoxShadow(color: colors.error.withValues(alpha: 0.20), blurRadius: 10),
       );
     }
     return shadows;
@@ -1795,15 +1791,17 @@ class _MatchConnectionPainter extends CustomPainter {
 
       if (!hasSubmitted) {
         color = selectedColor;
-        if (animatingPairLeftId == entry.key && connectorAnimation.value < 1.0) {
+        if (animatingPairLeftId == entry.key &&
+            connectorAnimation.value < 1.0) {
           progress = connectorAnimation.value;
         } else {
           progress = 1.0;
         }
       } else {
-        final evaluationProgress = ((resultAnimation.value * entries.length) - index)
-            .clamp(0.0, 1.0)
-            .toDouble();
+        final evaluationProgress =
+            ((resultAnimation.value * entries.length) - index)
+                .clamp(0.0, 1.0)
+                .toDouble();
         color = Color.lerp(
           selectedColor,
           resultColor,

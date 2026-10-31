@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_dimensions.dart';
 import '../../../../core/audio/audio_providers.dart';
 import '../../../../core/audio/game_sound.dart';
 
@@ -22,7 +23,8 @@ class AnimatedLoginButton extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<AnimatedLoginButton> createState() => _AnimatedLoginButtonState();
+  ConsumerState<AnimatedLoginButton> createState() =>
+      _AnimatedLoginButtonState();
 }
 
 class _AnimatedLoginButtonState extends ConsumerState<AnimatedLoginButton> {
@@ -80,7 +82,7 @@ class _AnimatedLoginButtonState extends ConsumerState<AnimatedLoginButton> {
               height: 56,
               width: double.infinity,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: AppDimensions.radiusMd,
                 gradient: const LinearGradient(
                   colors: [
                     Color(0xFF6D5DFE),
@@ -92,13 +94,17 @@ class _AnimatedLoginButtonState extends ConsumerState<AnimatedLoginButton> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF8A63FF).withValues(alpha: glowOpacity),
+                    color: const Color(
+                      0xFF8A63FF,
+                    ).withValues(alpha: glowOpacity),
                     blurRadius: 18,
                     spreadRadius: 2,
                     offset: const Offset(0, 4),
                   ),
                   BoxShadow(
-                    color: AppColors.gemCyan.withValues(alpha: glowOpacity * 0.4),
+                    color: AppColors.gemCyan.withValues(
+                      alpha: glowOpacity * 0.4,
+                    ),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),

@@ -60,7 +60,10 @@ class SortItRightView extends ConsumerStatefulWidget {
     this.onOptionSubmitted,
     this.onTimeout,
   }) : assert(fallDuration > Duration.zero),
-       assert(question != null || cards != null, 'Either question or cards must be provided');
+       assert(
+         question != null || cards != null,
+         'Either question or cards must be provided',
+       );
 
   @override
   ConsumerState<SortItRightView> createState() => _SortItRightViewState();
@@ -96,8 +99,9 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
 
   bool get _isBackendMode => widget.cards != null && widget.cards!.isNotEmpty;
 
-  int get _totalItems =>
-      _isBackendMode ? widget.cards!.length : widget.question?.itemsInOrder.length ?? 0;
+  int get _totalItems => _isBackendMode
+      ? widget.cards!.length
+      : widget.question?.itemsInOrder.length ?? 0;
 
   int get _currentItemIndex => _history.length;
   bool get _complete => _currentItemIndex >= _totalItems;
@@ -128,7 +132,10 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
 
   String _categoryLabel(SortSide side) {
     final index = _phase == _SortPhase.feedback || _phase == _SortPhase.finished
-        ? (_currentItemIndex - 1).clamp(0, _totalItems > 0 ? _totalItems - 1 : 0)
+        ? (_currentItemIndex - 1).clamp(
+            0,
+            _totalItems > 0 ? _totalItems - 1 : 0,
+          )
         : _currentItemIndex.clamp(0, _totalItems > 0 ? _totalItems - 1 : 0);
 
     if (_isBackendMode) {
@@ -512,7 +519,9 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                                                       _currentItemIndex ||
                                                   _revealedIndex ==
                                                       _currentItemIndex) &&
-                                              _correctSideAt(_currentItemIndex) ==
+                                              _correctSideAt(
+                                                    _currentItemIndex,
+                                                  ) ==
                                                   side),
                                       onPressed: _canClassify
                                           ? () => _resolve(side)
@@ -658,11 +667,15 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
     final tallestItem = items.isEmpty
         ? 24.0
         : items
-            .map(
-              (item) =>
-                  _textSize(context, item, styles.titleLarge, cardWidth).height,
-            )
-            .reduce(math.max);
+              .map(
+                (item) => _textSize(
+                  context,
+                  item,
+                  styles.titleLarge,
+                  cardWidth,
+                ).height,
+              )
+              .reduce(math.max);
     final cardHeight = math.max(
       144.0,
       tallestItem +
@@ -810,6 +823,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                               Text(
                                 itemText,
                                 textAlign: TextAlign.center,
+                                softWrap: true,
                                 style: context.appTextStyles.titleLarge,
                               ),
                               const SizedBox(height: AppSpacing.md),
@@ -884,10 +898,17 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                               _revealedIndex == _currentItemIndex
                                   ? 'Correct group: ${_categoryLabel(_correctSideAt(_currentItemIndex))}'
                                   : (_isBackendMode
-                                      ? widget.cards![_currentItemIndex.clamp(0, widget.cards!.length - 1)].hint ??
-                                          'Think about what each group represents before choosing a side.'
-                                      : widget.question?.hint ??
-                                          'Think about what each group represents before choosing a side.'),
+                                        ? widget
+                                                  .cards![_currentItemIndex
+                                                      .clamp(
+                                                        0,
+                                                        widget.cards!.length -
+                                                            1,
+                                                      )]
+                                                  .hint ??
+                                              'Think about what each group represents before choosing a side.'
+                                        : widget.question?.hint ??
+                                              'Think about what each group represents before choosing a side.'),
                               textAlign: TextAlign.center,
                               style: context.appTextStyles.bodyLarge,
                             ),
@@ -932,8 +953,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
       );
     }
     final missed = _history.last == null;
-    final correct =
-        _history.last == _correctSideAt(_currentItemIndex - 1);
+    final correct = _history.last == _correctSideAt(_currentItemIndex - 1);
     return Semantics(
       liveRegion: true,
       child: Column(

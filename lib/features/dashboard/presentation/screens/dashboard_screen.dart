@@ -768,8 +768,7 @@ class _DailyMissionRow extends StatelessWidget {
           Expanded(
             child: Text(
               mission.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              softWrap: true,
               style: context.appTextStyles.bodyLarge.copyWith(
                 decoration: isCompleted ? TextDecoration.lineThrough : null,
                 decorationColor: colors.textSecondary,
@@ -881,8 +880,8 @@ class _SubjectProgressCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       path.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                      softWrap: true,
                       style: context.appTextStyles.titleMedium,
                     ),
                   ),

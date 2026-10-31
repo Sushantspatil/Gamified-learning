@@ -142,7 +142,10 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
     }
   }
 
-  Future<String?> _initializeGameSession(String topicId, QuestionType mode) async {
+  Future<String?> _initializeGameSession(
+    String topicId,
+    QuestionType mode,
+  ) async {
     final quizDatasource = ref.read(quizDatasourceProvider);
     final suddenDeathDatasource = ref.read(suddenDeathDatasourceProvider);
 
@@ -227,7 +230,9 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
             (error.message.toLowerCase().contains('not found') ||
                 error.message.toLowerCase().contains('no questions') ||
                 error.message.toLowerCase().contains('no sort_it_out') ||
-                error.message.toLowerCase().contains('no match_the_following')))) {
+                error.message.toLowerCase().contains(
+                  'no match_the_following',
+                )))) {
       return '$modeLabel is not available for this topic yet.';
     }
     if (error is ValidationException) {
@@ -371,8 +376,9 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
         _isStartingGame) {
       return false;
     }
-    final availability =
-        ref.read(gameModeAvailabilityProvider(_selectedTopicId));
+    final availability = ref.read(
+      gameModeAvailabilityProvider(_selectedTopicId),
+    );
     return availability[_selectedMode]?.isEnabled ?? false;
   }
 }
@@ -666,8 +672,9 @@ class _GameModePicker extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Mode availability is evaluated directly based on topic capability
     // rather than relying on the generic MCQ question endpoint.
-    final availability =
-        ref.watch(gameModeAvailabilityProvider(selectedTopicId));
+    final availability = ref.watch(
+      gameModeAvailabilityProvider(selectedTopicId),
+    );
 
     return _SetupSection(
       title: 'Choose game mode',
@@ -758,8 +765,8 @@ class _SelectableQuizModeCard extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   availability.reason ?? _modeDescription(mode),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 3,
+                  softWrap: true,
                   style: context.appTextStyles.labelSmall.copyWith(
                     color: colors.textSecondary,
                   ),

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../app/theme/app_colors.dart';
+import '../../../../app/theme/app_dimensions.dart';
+import '../../../../app/theme/app_theme_colors.dart';
 
-/// Translucent dark navy input field with animated focus glow and border highlights.
+/// Theme-aware input field with animated focus glow and border highlights.
 class AnimatedLoginField extends StatefulWidget {
   final TextEditingController controller;
   final String hintText;
@@ -53,8 +54,9 @@ class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
   void didUpdateWidget(covariant AnimatedLoginField oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.focusNode != widget.focusNode) {
-      (oldWidget.focusNode ?? _internalFocusNode)
-          ?.removeListener(_onFocusChange);
+      (oldWidget.focusNode ?? _internalFocusNode)?.removeListener(
+        _onFocusChange,
+      );
       _effectiveFocusNode.addListener(_onFocusChange);
       _isFocused = _effectiveFocusNode.hasFocus;
     }
@@ -75,36 +77,44 @@ class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
 
   @override
   Widget build(BuildContext context) {
-    // Dynamic border color based on focus
-    final borderColor = _isFocused
-        ? AppColors.primary
-        : const Color(0xFF2C3558).withValues(alpha: 0.85);
+    final colors = context.themeColors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final borderColor = _isFocused ? colors.primary : colors.inputBorder;
+    final backgroundColor = isDark
+        ? const Color(0xFF12162B).withValues(alpha: 0.65)
+        : colors.surface;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       decoration: BoxDecoration(
-        color: const Color(0xFF12162B).withValues(alpha: 0.65),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: borderColor,
-          width: _isFocused ? 1.6 : 1.2,
-        ),
+        color: backgroundColor,
+        borderRadius: AppDimensions.radiusMd,
+        border: Border.all(color: borderColor, width: _isFocused ? 1.6 : 1.2),
         boxShadow: _isFocused
             ? [
                 BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.22),
+                  color: colors.primary.withValues(alpha: isDark ? 0.22 : 0.16),
                   blurRadius: 12,
                   spreadRadius: 1,
                   offset: const Offset(0, 2),
                 ),
                 BoxShadow(
-                  color: AppColors.gemCyan.withValues(alpha: 0.12),
+                  color: colors.secondary.withValues(
+                    alpha: isDark ? 0.12 : 0.08,
+                  ),
                   blurRadius: 6,
                   spreadRadius: 0,
                 ),
               ]
-            : null,
+            : [
+                BoxShadow(
+                  color: colors.shadow,
+                  blurRadius: 4,
+                  offset: const Offset(0, 1),
+                ),
+              ],
       ),
       child: TextFormField(
         controller: widget.controller,
@@ -115,17 +125,17 @@ class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
         autofillHints: widget.autofillHints,
         validator: widget.validator,
         onFieldSubmitted: (_) => widget.onFieldSubmitted?.call(),
-        style: const TextStyle(
-          color: Color(0xFFF8FAFF),
+        style: TextStyle(
+          color: colors.textPrimary,
           fontSize: 15,
           fontWeight: FontWeight.w400,
           letterSpacing: 0.2,
         ),
-        cursorColor: AppColors.gemCyan,
+        cursorColor: colors.primary,
         decoration: InputDecoration(
           hintText: widget.hintText,
-          hintStyle: const TextStyle(
-            color: Color(0xFF7E88A6),
+          hintStyle: TextStyle(
+            color: colors.inputPlaceholder,
             fontSize: 14.5,
             fontWeight: FontWeight.w400,
           ),
@@ -134,7 +144,7 @@ class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
             child: Icon(
               widget.prefixIcon,
               size: 20,
-              color: _isFocused ? AppColors.gemCyan : const Color(0xFF7E88A6),
+              color: _isFocused ? colors.primary : colors.textSecondary,
             ),
           ),
           prefixIconConstraints: const BoxConstraints(
@@ -148,9 +158,7 @@ class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
                         ? Icons.visibility_outlined
                         : Icons.visibility_off_outlined,
                     size: 20,
-                    color: _isFocused
-                        ? AppColors.primaryLight
-                        : const Color(0xFF7E88A6),
+                    color: _isFocused ? colors.primary : colors.textSecondary,
                   ),
                   tooltip: _obscureText ? 'Show password' : 'Hide password',
                   onPressed: () {
@@ -168,8 +176,8 @@ class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
           focusedBorder: InputBorder.none,
           errorBorder: InputBorder.none,
           focusedErrorBorder: InputBorder.none,
-          errorStyle: const TextStyle(
-            color: Color(0xFFFF6B8B),
+          errorStyle: TextStyle(
+            color: colors.error,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),

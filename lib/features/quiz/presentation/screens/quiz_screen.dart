@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../app/router/route_names.dart';
+import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
@@ -77,14 +78,14 @@ class QuizScreen extends ConsumerWidget {
         final prevResult = previous?.valueOrNull?.result;
         final nextResult = next.valueOrNull?.result;
         if (prevResult == null && nextResult != null) {
-          final isPerfect = nextResult.score.percentage >= 1.0 &&
+          final isPerfect =
+              nextResult.score.percentage >= 1.0 &&
               !nextResult.endedEarly &&
               nextResult.score.correctCount == nextResult.score.totalCount;
           final leveledUp = next.valueOrNull?.leveledUp ?? false;
-          ref.read(gameAudioServiceProvider).playQuizCompletion(
-                isPerfect: isPerfect,
-                leveledUp: leveledUp,
-              );
+          ref
+              .read(gameAudioServiceProvider)
+              .playQuizCompletion(isPerfect: isPerfect, leveledUp: leveledUp);
         }
       },
     );
@@ -328,7 +329,7 @@ class _QuizProgressHeader extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: colors.cardBackground,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: AppDimensions.radiusCard,
         border: Border.all(color: colors.border),
       ),
       child: Padding(

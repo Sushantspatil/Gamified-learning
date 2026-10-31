@@ -235,6 +235,7 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
                         children: [
                           Text(
                             widget.question.prompt,
+                            softWrap: true,
                             style: context.appTextStyles.titleLarge,
                           ),
                           const SizedBox(height: AppSpacing.md),
@@ -344,7 +345,8 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
   double _companionHeightFor(double availableHeight) {
     final reservedControlHeight = _isHintVisible ? 568.0 : 512.0;
     final targetHeight = availableHeight - reservedControlHeight;
-    return targetHeight.clamp(112.0, 240.0);
+    final promptPenalty = widget.question.prompt.length > 80 ? 32.0 : 0.0;
+    return (targetHeight - promptPenalty).clamp(90.0, 200.0);
   }
 }
 
@@ -974,8 +976,7 @@ class _McqOptionCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   option.text,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                   style: context.appTextStyles.bodyMedium.copyWith(
                     color: colors.textPrimary,
                     fontWeight: FontWeight.w700,
