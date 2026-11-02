@@ -47,6 +47,10 @@ class _CharacterStageState extends State<CharacterStage> {
   static const Duration _strollEvery = Duration(milliseconds: 2800);
   static const Duration _travel = Duration(milliseconds: 750);
 
+  /// Strolls allowed without any game activity (~35 s), so an unattended
+  /// screen eventually stops animating.
+  static const int _maxStrolls = 12;
+
   final math.Random _random = math.Random();
 
   /// Horizontal position, -1 (left edge) .. 1 (right edge).
@@ -54,6 +58,7 @@ class _CharacterStageState extends State<CharacterStage> {
 
   /// Bumped per move; restarts the hop animation.
   int _moves = 0;
+  int _strolls = 0;
   Timer? _stroll;
   late CharacterState _previous;
 
@@ -90,12 +95,16 @@ class _CharacterStageState extends State<CharacterStage> {
     final next = widget.controller.state.value;
     final moves = next != _previous && _moveOn.contains(next);
     _previous = next;
-    if (moves) _moveTo(_onRight ? -1 : 1);
+    if (moves) {
+      _strolls = 0;
+      _moveTo(_onRight ? -1 : 1);
+    }
   }
 
   /// Idle wandering: only while calm, and never with reduce-motion.
   void _scheduleStroll() {
     _stroll?.cancel();
+    if (_strolls >= _maxStrolls) return;
     _stroll = Timer(_strollEvery, () {
       final state = widget.controller.state.value;
       final calm =
@@ -103,6 +112,7 @@ class _CharacterStageState extends State<CharacterStage> {
       if (mounted && calm && !CharacterMotion.reduce(context)) {
         // Go to a new spot on the other half of the strip.
         final distance = 0.4 + _random.nextDouble() * 0.6;
+        _strolls++;
         _moveTo(_onRight ? -distance : distance);
       } else {
         _scheduleStroll();

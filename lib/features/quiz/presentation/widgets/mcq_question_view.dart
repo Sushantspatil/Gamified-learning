@@ -18,8 +18,7 @@ import '../../../questions/domain/entities/question.dart';
 import 'game_power_up_bar.dart';
 import '../../../character/application/character_controller.dart';
 import '../../../character/presentation/character_providers.dart';
-import '../../../character/presentation/character_speech_bubble.dart';
-import '../../../character/presentation/character_view.dart';
+import '../../../character/presentation/character_stage.dart';
 import '../../../character/presentation/mcq_character_adapter.dart';
 
 class McqQuestionView extends ConsumerStatefulWidget {
@@ -679,18 +678,7 @@ class _CharacterSlot extends StatelessWidget {
     return SizedBox(
       key: const Key('mcq_character_section'),
       height: height,
-      child: Row(
-        children: [
-          CharacterView(controller: controller, size: height),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: CharacterSpeechBubble(controller: controller),
-            ),
-          ),
-        ],
-      ),
+      child: CharacterStage(controller: controller, height: height),
     );
   }
 }
