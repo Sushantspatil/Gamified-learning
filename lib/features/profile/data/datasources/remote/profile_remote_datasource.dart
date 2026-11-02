@@ -47,6 +47,7 @@ class ProfileRemoteDatasource implements ProfileDatasource {
     required String classLevel,
     required String board,
     required List<String> selectedSubjectIds,
+    String? displayName,
   }) async {
     await _saveLocalProfileFields(
       userId: userId,
@@ -58,6 +59,7 @@ class ProfileRemoteDatasource implements ProfileDatasource {
 
     final local = _localProfileFields(userId);
     final userName =
+        displayName ??
         (local['name'] as String?) ??
         (local['displayName'] as String?) ??
         (local['username'] as String?) ??

@@ -60,6 +60,7 @@ class ProfileController extends AsyncNotifier<UserProfile?> {
             classLevel: classLevel,
             board: board,
             selectedSubjectIds: selectedSubjectIds,
+            displayName: user.displayName,
           ),
     );
   }

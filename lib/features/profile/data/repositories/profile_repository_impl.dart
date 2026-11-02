@@ -24,12 +24,14 @@ class ProfileRepositoryImpl implements ProfileRepository {
     required String classLevel,
     required String board,
     required List<String> selectedSubjectIds,
+    String? displayName,
   }) => _datasource.completeProfileSetup(
     userId: userId,
     avatarId: avatarId,
     classLevel: classLevel,
     board: board,
     selectedSubjectIds: selectedSubjectIds,
+    displayName: displayName,
   );
 
   @override

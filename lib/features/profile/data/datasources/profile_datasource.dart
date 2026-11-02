@@ -19,6 +19,7 @@ abstract class ProfileDatasource {
     required String classLevel,
     required String board,
     required List<String> selectedSubjectIds,
+    String? displayName,
   });
 
   Future<UserProfileModel> completeTutorial({required String userId});

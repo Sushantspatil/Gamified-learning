@@ -64,6 +64,7 @@ class ProfileMockDatasource implements ProfileDatasource {
     required String classLevel,
     required String board,
     required List<String> selectedSubjectIds,
+    String? displayName,
   }) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final current = await getProfile(userId);

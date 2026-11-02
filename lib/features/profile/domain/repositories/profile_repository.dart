@@ -14,6 +14,7 @@ abstract class ProfileRepository {
     required String classLevel,
     required String board,
     required List<String> selectedSubjectIds,
+    String? displayName,
   });
 
   Future<UserProfile> completeTutorial({required String userId});
