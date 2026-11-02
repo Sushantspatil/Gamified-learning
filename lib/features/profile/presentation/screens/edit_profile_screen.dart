@@ -5,6 +5,7 @@ import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/app_text_field.dart';
@@ -49,47 +50,69 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     super.dispose();
   }
 
+  /// Server rejection for the name (e.g. already taken), shown under the field.
+  String? _nameError;
+  bool _saving = false;
+
   Future<void> _save() async {
+    if (_saving) return; // ignore repeated taps while a save is running
     if (!_formKey.currentState!.validate()) return;
 
     final newName = _nameController.text.trim();
     final currentUser = ref.read(authControllerProvider).valueOrNull;
     final currentProfile = ref.read(profileControllerProvider).valueOrNull;
+    setState(() => _saving = true);
 
-    // Fetch each notifier fresh at its call site rather than pre-capturing:
-    // ProfileController watches authControllerProvider, so updating the
-    // display name rebuilds it and invalidates any notifier reference taken
-    // beforehand.
-    if (currentUser != null && newName != currentUser.displayName) {
-      await ref
-          .read(authControllerProvider.notifier)
-          .updateDisplayName(newName);
+    try {
+      // Name first: if the server refuses it nothing else is saved and the
+      // screen stays open with the reason shown under the field.
+      // Notifiers are fetched fresh at each call site: ProfileController
+      // watches authControllerProvider, so a name change rebuilds it.
+      if (currentUser != null && newName != currentUser.displayName) {
+        try {
+          await ref
+              .read(authControllerProvider.notifier)
+              .updateDisplayName(newName);
+        } on ValidationException catch (error) {
+          if (!mounted) return;
+          setState(() => _nameError = error.message);
+          _formKey.currentState!.validate();
+          return;
+        }
+      }
+      if (_selectedAvatarId != null &&
+          _selectedAvatarId != currentProfile?.avatarId) {
+        await ref
+            .read(profileControllerProvider.notifier)
+            .updateAvatar(_selectedAvatarId!);
+      }
+      if (currentProfile != null &&
+          (_selectedClassLevel != currentProfile.classLevel ||
+              _selectedBoard != currentProfile.board)) {
+        await ref
+            .read(profileControllerProvider.notifier)
+            .completeProfileSetup(
+              avatarId: _selectedAvatarId ?? currentProfile.avatarId,
+              classLevel: _selectedClassLevel ?? '12th',
+              board: _selectedBoard ?? 'Maharashtra State Board',
+              selectedSubjectIds: currentProfile.selectedSubjectIds,
+            );
+      }
+      if (mounted) Navigator.of(context).pop();
+    } on AppException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    if (_selectedAvatarId != null &&
-        _selectedAvatarId != currentProfile?.avatarId) {
-      await ref
-          .read(profileControllerProvider.notifier)
-          .updateAvatar(_selectedAvatarId!);
-    }
-    if (currentProfile != null &&
-        (_selectedClassLevel != currentProfile.classLevel ||
-            _selectedBoard != currentProfile.board)) {
-      await ref
-          .read(profileControllerProvider.notifier)
-          .completeProfileSetup(
-            avatarId: _selectedAvatarId ?? currentProfile.avatarId,
-            classLevel: _selectedClassLevel ?? '12th',
-            board: _selectedBoard ?? 'Maharashtra State Board',
-            selectedSubjectIds: currentProfile.selectedSubjectIds,
-          );
-    }
-
-    if (mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final isSaving =
+        _saving ||
         ref.watch(authControllerProvider).isLoading ||
         ref.watch(profileControllerProvider).isLoading;
     final colors = context.themeColors;
@@ -110,7 +133,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                 AppTextField(
                   controller: _nameController,
                   label: 'Display name',
+                  onChanged: (_) {
+                    // Editing the name clears the server's "taken" message.
+                    if (_nameError == null) return;
+                    setState(() => _nameError = null);
+                    _formKey.currentState?.validate();
+                  },
                   validator: (value) {
+                    if (_nameError != null) return _nameError;
                     if (value == null || value.trim().isEmpty) {
                       return 'Enter a display name';
                     }

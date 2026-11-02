@@ -99,11 +99,21 @@ class AuthController extends AsyncNotifier<AppUser?> {
     state = const AsyncValue.data(null);
   }
 
+  /// Changes the display name. If the server rejects it (e.g. the name is
+  /// already taken) the signed-in user is left exactly as it was and the
+  /// error is rethrown for the caller to show; it must never log the user out.
   Future<void> updateDisplayName(String displayName) async {
+    final previous = state;
     state = const AsyncValue<AppUser?>.loading().copyWithPrevious(state);
-    state = await AsyncValue.guard(
-      () => ref.read(authRepositoryProvider).updateDisplayName(displayName),
-    );
+    try {
+      final user = await ref
+          .read(authRepositoryProvider)
+          .updateDisplayName(displayName);
+      state = AsyncValue.data(user);
+    } catch (_) {
+      state = previous;
+      rethrow;
+    }
   }
 }
 

@@ -123,6 +123,19 @@ class AuthMockDatasource implements AuthDatasource {
   }) async {
     await Future.delayed(const Duration(milliseconds: 400));
 
+    // Mirrors the backend contract: 409 when another user already has the name.
+    final wanted = displayName.trim().toLowerCase();
+    final taken = _usersByEmail.values.any(
+      (user) =>
+          user.id != userId && user.displayName.trim().toLowerCase() == wanted,
+    );
+    if (taken) {
+      throw const ValidationException(
+        'That display name is already taken.',
+        '409',
+      );
+    }
+
     final email = _usersByEmail.entries
         .firstWhere((entry) => entry.value.id == userId)
         .key;

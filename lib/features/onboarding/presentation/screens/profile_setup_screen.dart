@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/errors/app_exception.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -205,9 +206,18 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
     final displayName = _nameController.text.trim();
     final currentUser = ref.read(authControllerProvider).valueOrNull;
     if (currentUser != null && displayName != currentUser.displayName) {
-      await ref
-          .read(authControllerProvider.notifier)
-          .updateDisplayName(displayName);
+      try {
+        await ref
+            .read(authControllerProvider.notifier)
+            .updateDisplayName(displayName);
+      } on ValidationException catch (error) {
+        // e.g. the name is already taken: stay here and say why.
+        if (!mounted) return;
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(content: Text(error.message)));
+        return;
+      }
     }
     await ref
         .read(profileControllerProvider.notifier)
