@@ -95,12 +95,7 @@ CharacterPose characterPose(
 
   switch (state) {
     case CharacterState.idle:
-      return CharacterPose(
-        dx: 0.05 * (t * 2 - 1),
-        dy: -0.025 * sine,
-        rotation: _rad(2.5) * (t * 2 - 1),
-        scaleY: 1 + 0.025 * sine,
-      );
+      return CharacterPose(scaleY: 1 + 0.015 * sine, dy: -0.006 * sine);
     case CharacterState.intro:
       final slide = Curves.easeOutBack.transform((t / 0.6).clamp(0.0, 1.0));
       final gesture = t < 0.6 ? 0.0 : math.sin((t - 0.6) / 0.4 * math.pi);
@@ -110,15 +105,13 @@ CharacterPose characterPose(
       );
     case CharacterState.presenting:
       return CharacterPose(
-        dx: 0.03 * Curves.easeOut.transform(sine),
-        rotation: _rad(4) * Curves.easeOut.transform(sine),
-        scaleX: 1 + 0.05 * sine,
-        scaleY: 1 + 0.05 * sine,
+        rotation: _rad(2) * Curves.easeOut.transform(sine),
+        scaleX: 1 + 0.03 * sine,
+        scaleY: 1 + 0.03 * sine,
       );
     case CharacterState.thinking:
       return CharacterPose(
-        dx: 0.06 * (t * 2 - 1),
-        dy: -0.012 * sine,
+        dx: 0.012 * (t * 2 - 1),
         rotation: _rad(3) * (t * 2 - 1),
         scaleY: 1 + 0.008 * sine,
       );
@@ -126,7 +119,7 @@ CharacterPose characterPose(
       final k = 0.4 + 0.6 * intensity;
       return CharacterPose(
         dy: -0.02 * k * sine,
-        dx: 0.015 * k * (t * 2 - 1),
+        dx: 0.006 * k * (t * 2 - 1),
         rotation: _rad(1.2) * k * (t * 2 - 1),
       );
     case CharacterState.correct:
