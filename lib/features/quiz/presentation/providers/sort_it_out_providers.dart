@@ -108,8 +108,9 @@ class SortItOutViewState {
           perQuestionTimeLimitSec ?? this.perQuestionTimeLimitSec,
       cardResolved: cardResolved ?? this.cardResolved,
       isCompleting: isCompleting ?? this.isCompleting,
-      completionError:
-          clearCompletionError ? null : completionError ?? this.completionError,
+      completionError: clearCompletionError
+          ? null
+          : completionError ?? this.completionError,
       result: result ?? this.result,
       lastProvisionalFeedback: clearProvisionalFeedback
           ? null
@@ -119,7 +120,8 @@ class SortItOutViewState {
 }
 
 class SortItOutController
-    extends AutoDisposeFamilyAsyncNotifier<SortItOutViewState, QuizSessionRequest> {
+    extends
+        AutoDisposeFamilyAsyncNotifier<SortItOutViewState, QuizSessionRequest> {
   Timer? _tickerTimer;
   bool _disposed = false;
   bool _isFinalizing = false;
@@ -273,9 +275,7 @@ class SortItOutController
     if (remainingMs <= 0) {
       handleTimeout();
     } else {
-      state = AsyncValue.data(
-        current.copyWith(timeRemainingMs: remainingMs),
-      );
+      state = AsyncValue.data(current.copyWith(timeRemainingMs: remainingMs));
     }
   }
 
@@ -347,7 +347,8 @@ class SortItOutController
         .inMilliseconds
         .clamp(0, 30000);
 
-    final isCorrect = card.correctOption != null &&
+    final isCorrect =
+        card.correctOption != null &&
         card.correctOption!.toLowerCase() == normalizedOption;
 
     final answer = SortItOutAnswer(
@@ -394,8 +395,7 @@ class SortItOutController
     final nextIndex = current.currentIndex + 1;
     if (nextIndex < current.cards.length) {
       final nextCard = current.cards[nextIndex];
-      final limitSec =
-          nextCard.timeLimitSec ?? current.perQuestionTimeLimitSec;
+      final limitSec = nextCard.timeLimitSec ?? current.perQuestionTimeLimitSec;
 
       state = AsyncValue.data(
         current.copyWith(
@@ -427,10 +427,7 @@ class SortItOutController
     _tickerTimer?.cancel();
 
     state = AsyncValue.data(
-      current.copyWith(
-        isCompleting: true,
-        clearCompletionError: true,
-      ),
+      current.copyWith(isCompleting: true, clearCompletionError: true),
     );
 
     try {
@@ -440,8 +437,9 @@ class SortItOutController
       if (datasource is QuizRemoteDatasource &&
           current.sessionId != null &&
           current.sessionId!.isNotEmpty) {
-        final submissionDtos =
-            current.answers.map((a) => a.toDto()).toList(growable: false);
+        final submissionDtos = current.answers
+            .map((a) => a.toDto())
+            .toList(growable: false);
 
         final responseDto = await datasource.completeSortItOut(
           session: current.sessionId!,
@@ -476,7 +474,8 @@ class SortItOutController
                 );
 
           final isTimeout = answer.isTimeout;
-          final isCorrect = !isTimeout &&
+          final isCorrect =
+              !isTimeout &&
               card.correctOption != null &&
               card.correctOption!.toLowerCase() == answer.option.toLowerCase();
 
@@ -553,7 +552,9 @@ class SortItOutController
         );
       }
 
-      ref.read(gameAudioServiceProvider).playQuizCompletion(
+      ref
+          .read(gameAudioServiceProvider)
+          .playQuizCompletion(
             isPerfect: result.accuracyPercentage >= 100.0,
             leveledUp: result.didLevelUp,
           );
@@ -621,7 +622,9 @@ class SortItOutController
   }
 }
 
-final sortItOutControllerProvider = AutoDisposeAsyncNotifierProvider.family<
-    SortItOutController, SortItOutViewState, QuizSessionRequest>(
-  SortItOutController.new,
-);
+final sortItOutControllerProvider =
+    AutoDisposeAsyncNotifierProvider.family<
+      SortItOutController,
+      SortItOutViewState,
+      QuizSessionRequest
+    >(SortItOutController.new);

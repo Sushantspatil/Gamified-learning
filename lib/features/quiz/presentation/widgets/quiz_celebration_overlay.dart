@@ -169,10 +169,7 @@ class _GameCelebrationOverlayState extends State<GameCelebrationOverlay>
           builder: (context, child) {
             return Opacity(
               opacity: _entranceOpacity.value,
-              child: Transform.scale(
-                scale: _entranceScale.value,
-                child: child,
-              ),
+              child: Transform.scale(scale: _entranceScale.value, child: child),
             );
           },
           child: widget.child,
@@ -243,7 +240,9 @@ class _GameCelebrationOverlayState extends State<GameCelebrationOverlay>
 
   /// Enhanced multi-popper confetti bursts with staggered waves, varied shapes,
   /// and SkillVerse signature palette.
-  List<_CelebrationParticle> _buildEnhancedParticles({required bool isPerfect}) {
+  List<_CelebrationParticle> _buildEnhancedParticles({
+    required bool isPerfect,
+  }) {
     final particles = <_CelebrationParticle>[];
 
     // SkillVerse color constants
@@ -254,23 +253,9 @@ class _GameCelebrationOverlayState extends State<GameCelebrationOverlay>
     const gold = AppColors.coinGold; // #FFB82E
     const white = Colors.white;
 
-    final standardPalette = [
-      purple,
-      gold,
-      cyan,
-      violet,
-      gemCyan,
-      white,
-    ];
+    final standardPalette = [purple, gold, cyan, violet, gemCyan, white];
 
-    final perfectPalette = [
-      gold,
-      gold,
-      gemCyan,
-      white,
-      violet,
-      purple,
-    ];
+    final perfectPalette = [gold, gold, gemCyan, white, violet, purple];
 
     final palette = isPerfect ? perfectPalette : standardPalette;
 
@@ -278,7 +263,9 @@ class _GameCelebrationOverlayState extends State<GameCelebrationOverlay>
     // Bottom-left & Bottom-right edge cannons
     for (var side = 0; side < 2; side++) {
       final isLeft = side == 0;
-      final origin = isLeft ? _BurstOrigin.bottomLeft : _BurstOrigin.bottomRight;
+      final origin = isLeft
+          ? _BurstOrigin.bottomLeft
+          : _BurstOrigin.bottomRight;
       final count = isPerfect ? 18 : 14;
 
       for (var i = 0; i < count; i++) {
@@ -340,7 +327,9 @@ class _GameCelebrationOverlayState extends State<GameCelebrationOverlay>
     // --- Wave 2: Staggered secondary burst (delay 0.20 -> 0.28) ---
     for (var side = 0; side < 2; side++) {
       final isLeft = side == 0;
-      final origin = isLeft ? _BurstOrigin.bottomLeft : _BurstOrigin.bottomRight;
+      final origin = isLeft
+          ? _BurstOrigin.bottomLeft
+          : _BurstOrigin.bottomRight;
       final count = isPerfect ? 8 : 6;
 
       for (var i = 0; i < count; i++) {
@@ -465,8 +454,8 @@ class _GlowPainter extends CustomPainter {
     }
 
     final center = Offset(size.width * 0.5, size.height * 0.40);
-    final radius = size.shortestSide *
-        (type == CelebrationType.perfect ? 0.62 : 0.48);
+    final radius =
+        size.shortestSide * (type == CelebrationType.perfect ? 0.62 : 0.48);
 
     final List<Color> gradientColors = switch (type) {
       CelebrationType.perfect => [
@@ -536,12 +525,14 @@ class _CelebrationPainter extends CustomPainter {
 
     // 2. Render all active particles
     for (final p in particles) {
-      final localProgress =
-          ((progress - p.delay) / (1.0 - p.delay)).clamp(0.0, 1.0).toDouble();
+      final localProgress = ((progress - p.delay) / (1.0 - p.delay))
+          .clamp(0.0, 1.0)
+          .toDouble();
       if (localProgress <= 0 || localProgress >= 1.0) continue;
 
       final origin = _resolveOrigin(p.origin, size);
-      final isMirrored = p.origin == _BurstOrigin.bottomRight ||
+      final isMirrored =
+          p.origin == _BurstOrigin.bottomRight ||
           p.origin == _BurstOrigin.topRight;
 
       // Coordinate physics: explosive easeOut velocity + gravity drop + sway
@@ -549,12 +540,13 @@ class _CelebrationPainter extends CustomPainter {
       final distance = size.shortestSide * p.speed;
       final horizontalDir = isMirrored ? -1.0 : 1.0;
 
-      final sway = math.sin(localProgress * math.pi * p.wobbleFrequency) *
+      final sway =
+          math.sin(localProgress * math.pi * p.wobbleFrequency) *
           (size.width * 0.028);
 
-      final dx =
-          math.cos(p.angle) * distance * velocity * horizontalDir + sway;
-      final dy = math.sin(p.angle) * distance * velocity +
+      final dx = math.cos(p.angle) * distance * velocity * horizontalDir + sway;
+      final dy =
+          math.sin(p.angle) * distance * velocity +
           (size.height * 0.42 * p.gravity * localProgress * localProgress);
 
       final center = origin + Offset(dx, dy);
@@ -783,13 +775,7 @@ class _CelebrationPainter extends CustomPainter {
   }
 }
 
-enum _BurstOrigin {
-  bottomLeft,
-  bottomRight,
-  topLeft,
-  topRight,
-  centerTop,
-}
+enum _BurstOrigin { bottomLeft, bottomRight, topLeft, topRight, centerTop }
 
 enum _ConfettiShape {
   rectangle,

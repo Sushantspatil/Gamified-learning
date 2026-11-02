@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skillverse_app/app/theme/app_theme.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
-import 'package:skillverse_app/features/quiz/presentation/widgets/mcq_character_widget.dart';
+import 'package:skillverse_app/features/character/application/character_controller.dart';
+import 'package:skillverse_app/features/character/presentation/character_view.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/sort_it_right_view.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/match_the_following_view.dart';
 import 'package:skillverse_app/shared/widgets/animated_count_text.dart';
@@ -17,20 +18,20 @@ void main() {
 
   group('Quiz Animation Compatibility with Samsung / Accessible Navigation', () {
     testWidgets(
-      'McqCharacterWidget animates and properly responds to app lifecycle state',
+      'CharacterView animates and properly responds to app lifecycle state',
       (tester) async {
+        final controller = CharacterController();
+        addTearDown(controller.dispose);
         await tester.pumpWidget(
           MaterialApp(
             theme: AppTheme.darkTheme,
-            home: const MediaQuery(
-              data: MediaQueryData(
+            home: MediaQuery(
+              data: const MediaQueryData(
                 disableAnimations: false,
                 accessibleNavigation: true, // TalkBack enabled
               ),
               child: Scaffold(
-                body: McqCharacterWidget(
-                  state: McqCharacterState.idle,
-                ),
+                body: CharacterView(controller: controller, size: 150),
               ),
             ),
           ),
@@ -38,17 +39,16 @@ void main() {
 
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 200));
-
-        // Character section must be visible and rendered
-        expect(find.byKey(const Key('mcq_character_section')), findsOneWidget);
-        expect(find.byKey(const Key('mcq_scholar_companion_art')), findsOneWidget);
+        expect(find.byKey(const Key('character_view')), findsOneWidget);
 
         // Simulate app entering background
         tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
         await tester.pump();
 
         // Simulate app resuming
-        tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
         await tester.pump(const Duration(milliseconds: 200));
 
         expect(tester.takeException(), isNull);

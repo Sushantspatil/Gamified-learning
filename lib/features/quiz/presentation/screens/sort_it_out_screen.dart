@@ -117,9 +117,7 @@ class _SortItOutScreenState extends ConsumerState<SortItOutScreen>
         backgroundColor: colors.background,
         body: SafeArea(
           child: stateAsync.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
             error: (err, stack) => Center(
               child: Padding(
                 padding: AppSpacing.paddingLg,
@@ -222,7 +220,9 @@ class _SortItOutScreenState extends ConsumerState<SortItOutScreen>
                         AppButton(
                           label: 'Retry',
                           onPressed: () => ref
-                              .read(sortItOutControllerProvider(_request).notifier)
+                              .read(
+                                sortItOutControllerProvider(_request).notifier,
+                              )
                               .retryCompletion(),
                         ),
                       ],
@@ -246,7 +246,8 @@ class _SortItOutScreenState extends ConsumerState<SortItOutScreen>
                 return Center(
                   child: AppEmptyState(
                     title: 'Sort It Out',
-                    description: 'No classification cards available for this topic.',
+                    description:
+                        'No classification cards available for this topic.',
                     action: AppButton(
                       label: 'Go back',
                       onPressed: () => Navigator.of(context).pop(),

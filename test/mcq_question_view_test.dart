@@ -62,12 +62,15 @@ Future<void> _tapPowerUp(WidgetTester tester, String label) async {
 
 void main() {
   testWidgets('MCQ renders with assistance controls', (tester) async {
+    // Portrait phone: the character is hidden in landscape.
+    tester.view.physicalSize = const Size(400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await _pumpMcqView(tester);
 
     expect(find.text('Which item is an asset?'), findsOneWidget);
     expect(find.byKey(const Key('mcq_character_section')), findsOneWidget);
-    expect(find.byKey(const Key('mcq_scholar_companion_art')), findsOneWidget);
-    expect(find.text('Think carefully.'), findsOneWidget);
+    expect(find.byKey(const Key('character_view')), findsOneWidget);
     expect(find.text('50:50'), findsOneWidget);
     expect(find.text('Hint'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);

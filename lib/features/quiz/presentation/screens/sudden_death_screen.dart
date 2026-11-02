@@ -100,7 +100,9 @@ class _SuddenDeathScreenState extends ConsumerState<SuddenDeathScreen>
           } else if (answer.isSkipped) {
             ref.read(gameAudioServiceProvider).play(GameSound.skip);
           } else {
-            ref.read(gameAudioServiceProvider).playAuthoritativeAnswerResult(
+            ref
+                .read(gameAudioServiceProvider)
+                .playAuthoritativeAnswerResult(
                   isCorrect: answer.isCorrect,
                   streak: nextVal.currentStreak,
                 );
@@ -111,14 +113,14 @@ class _SuddenDeathScreenState extends ConsumerState<SuddenDeathScreen>
         if (nextVal.result != null &&
             (prevVal == null || prevVal.result == null)) {
           final result = nextVal.result!;
-          final isPerfect = result.score.percentage >= 1.0 &&
+          final isPerfect =
+              result.score.percentage >= 1.0 &&
               !result.endedEarly &&
               result.score.correctCount == result.score.totalCount;
           final leveledUp = result.didLevelUp;
-          ref.read(gameAudioServiceProvider).playQuizCompletion(
-                isPerfect: isPerfect,
-                leveledUp: leveledUp,
-              );
+          ref
+              .read(gameAudioServiceProvider)
+              .playQuizCompletion(isPerfect: isPerfect, leveledUp: leveledUp);
         }
       },
     );

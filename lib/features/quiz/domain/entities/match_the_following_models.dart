@@ -7,10 +7,7 @@ class MatchPairItem {
   final String id;
   final String text;
 
-  const MatchPairItem({
-    required this.id,
-    required this.text,
-  });
+  const MatchPairItem({required this.id, required this.text});
 
   @override
   bool operator ==(Object other) =>
@@ -76,12 +73,12 @@ class MatchBoardSubmission {
   });
 
   MatchBoardAnswerSubmissionDto toDto() => MatchBoardAnswerSubmissionDto(
-        questionCode: questionCode,
-        matches: matches,
-        mistakes: mistakes,
-        timeTakenMs: timeTakenMs,
-        isTimeout: isTimeout,
-      );
+    questionCode: questionCode,
+    matches: matches,
+    mistakes: mistakes,
+    timeTakenMs: timeTakenMs,
+    isTimeout: isTimeout,
+  );
 }
 
 /// Audited breakdown of a single Match board returned authoritatively from the backend.
@@ -119,23 +116,22 @@ class MatchBoardReview {
     this.explanation,
   });
 
-  factory MatchBoardReview.fromDto(MatchBoardReviewDto dto) =>
-      MatchBoardReview(
-        questionCode: dto.questionCode,
-        prompt: dto.prompt,
-        pairsMatched: dto.pairsMatched,
-        totalPairs: dto.totalPairs,
-        mistakes: dto.mistakes,
-        timeTakenMs: dto.timeTakenMs,
-        isFlawless: dto.isFlawless,
-        isTimeout: dto.isTimeout,
-        basePoints: dto.basePoints,
-        flawlessBonus: dto.flawlessBonus,
-        speedBonus: dto.speedBonus,
-        mistakePenalty: dto.mistakePenalty,
-        totalBoardScore: dto.totalBoardScore,
-        explanation: dto.explanation,
-      );
+  factory MatchBoardReview.fromDto(MatchBoardReviewDto dto) => MatchBoardReview(
+    questionCode: dto.questionCode,
+    prompt: dto.prompt,
+    pairsMatched: dto.pairsMatched,
+    totalPairs: dto.totalPairs,
+    mistakes: dto.mistakes,
+    timeTakenMs: dto.timeTakenMs,
+    isFlawless: dto.isFlawless,
+    isTimeout: dto.isTimeout,
+    basePoints: dto.basePoints,
+    flawlessBonus: dto.flawlessBonus,
+    speedBonus: dto.speedBonus,
+    mistakePenalty: dto.mistakePenalty,
+    totalBoardScore: dto.totalBoardScore,
+    explanation: dto.explanation,
+  );
 }
 
 /// Rich authoritatively reconciled end-of-game summary for Match the Following.
@@ -182,27 +178,27 @@ class MatchTheFollowingResult {
   });
 
   factory MatchTheFollowingResult.fromDto(
-          CompleteMatchTheFollowingResponseDto dto) =>
-      MatchTheFollowingResult(
-        session: dto.session,
-        totalBoards: dto.totalBoards,
-        clearedBoards: dto.clearedBoards,
-        totalPairsMatched: dto.totalPairsMatched,
-        totalPairsCount: dto.totalPairsCount,
-        totalMistakes: dto.totalMistakes,
-        accuracyPercentage: dto.accuracyPercentage,
-        finalScore: dto.finalScore,
-        coinsAwarded: dto.coinsAwarded,
-        xpAwarded: dto.xpAwarded,
-        gemsAwarded: dto.gemsAwarded,
-        scoreBreakdown: dto.scoreBreakdown,
-        coinBreakdown: dto.coinBreakdown,
-        xpBreakdown: dto.xpBreakdown,
-        levelUpReward: dto.levelUpReward,
-        level: dto.level,
-        streak: dto.streak,
-        boardsReview: dto.boardsReview
-            .map((b) => MatchBoardReview.fromDto(b))
-            .toList(growable: false),
-      );
+    CompleteMatchTheFollowingResponseDto dto,
+  ) => MatchTheFollowingResult(
+    session: dto.session,
+    totalBoards: dto.totalBoards,
+    clearedBoards: dto.clearedBoards,
+    totalPairsMatched: dto.totalPairsMatched,
+    totalPairsCount: dto.totalPairsCount,
+    totalMistakes: dto.totalMistakes,
+    accuracyPercentage: dto.accuracyPercentage,
+    finalScore: dto.finalScore,
+    coinsAwarded: dto.coinsAwarded,
+    xpAwarded: dto.xpAwarded,
+    gemsAwarded: dto.gemsAwarded,
+    scoreBreakdown: dto.scoreBreakdown,
+    coinBreakdown: dto.coinBreakdown,
+    xpBreakdown: dto.xpBreakdown,
+    levelUpReward: dto.levelUpReward,
+    level: dto.level,
+    streak: dto.streak,
+    boardsReview: dto.boardsReview
+        .map((b) => MatchBoardReview.fromDto(b))
+        .toList(growable: false),
+  );
 }

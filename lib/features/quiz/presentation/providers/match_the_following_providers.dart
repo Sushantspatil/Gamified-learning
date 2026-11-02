@@ -20,7 +20,8 @@ class MatchTheFollowingViewState extends Equatable {
   final List<MatchBoard> boards;
   final int currentBoardIndex;
   final String? selectedLeftId;
-  final Map<String, String> correctMatches; // confirmed correct left_id -> right_id
+  final Map<String, String>
+  correctMatches; // confirmed correct left_id -> right_id
   final int mistakes;
   final DateTime? boardStartedAt;
   final int remainingMs;
@@ -54,13 +55,12 @@ class MatchTheFollowingViewState extends Equatable {
 
   MatchBoard? get currentBoard =>
       boards.isNotEmpty && currentBoardIndex < boards.length
-          ? boards[currentBoardIndex]
-          : null;
+      ? boards[currentBoardIndex]
+      : null;
 
   bool get isLastBoard => currentBoardIndex >= boards.length - 1;
 
-  bool get isLocked =>
-      boardResolved || isCompleting || result != null;
+  bool get isLocked => boardResolved || isCompleting || result != null;
 
   MatchTheFollowingViewState copyWith({
     String? sessionId,
@@ -84,8 +84,9 @@ class MatchTheFollowingViewState extends Equatable {
       sessionId: sessionId ?? this.sessionId,
       boards: boards ?? this.boards,
       currentBoardIndex: currentBoardIndex ?? this.currentBoardIndex,
-      selectedLeftId:
-          selectedLeftId != null ? selectedLeftId() : this.selectedLeftId,
+      selectedLeftId: selectedLeftId != null
+          ? selectedLeftId()
+          : this.selectedLeftId,
       correctMatches: correctMatches ?? this.correctMatches,
       mistakes: mistakes ?? this.mistakes,
       boardStartedAt: boardStartedAt ?? this.boardStartedAt,
@@ -93,8 +94,9 @@ class MatchTheFollowingViewState extends Equatable {
       boardResolved: boardResolved ?? this.boardResolved,
       boardSubmissions: boardSubmissions ?? this.boardSubmissions,
       isCompleting: isCompleting ?? this.isCompleting,
-      completionError:
-          completionError != null ? completionError() : this.completionError,
+      completionError: completionError != null
+          ? completionError()
+          : this.completionError,
       result: result != null ? result() : this.result,
       lastWrongAttemptLeftId: lastWrongAttemptLeftId != null
           ? lastWrongAttemptLeftId()
@@ -108,33 +110,39 @@ class MatchTheFollowingViewState extends Equatable {
 
   @override
   List<Object?> get props => [
-        sessionId,
-        boards,
-        currentBoardIndex,
-        selectedLeftId,
-        correctMatches,
-        mistakes,
-        boardStartedAt,
-        boardResolved,
-        boardSubmissions,
-        isCompleting,
-        completionError,
-        result,
-        lastWrongAttemptLeftId,
-        lastWrongAttemptRightId,
-        isHintVisible,
-        remainingMs ~/ 1000,
-      ];
+    sessionId,
+    boards,
+    currentBoardIndex,
+    selectedLeftId,
+    correctMatches,
+    mistakes,
+    boardStartedAt,
+    boardResolved,
+    boardSubmissions,
+    isCompleting,
+    completionError,
+    result,
+    lastWrongAttemptLeftId,
+    lastWrongAttemptRightId,
+    isHintVisible,
+    remainingMs ~/ 1000,
+  ];
 }
 
 /// Provider managing Match the Following state and gameplay interactions.
-final matchTheFollowingControllerProvider = AutoDisposeAsyncNotifierProviderFamily<
-    MatchTheFollowingController, MatchTheFollowingViewState, QuizSessionRequest>(
-  MatchTheFollowingController.new,
-);
+final matchTheFollowingControllerProvider =
+    AutoDisposeAsyncNotifierProviderFamily<
+      MatchTheFollowingController,
+      MatchTheFollowingViewState,
+      QuizSessionRequest
+    >(MatchTheFollowingController.new);
 
 class MatchTheFollowingController
-    extends AutoDisposeFamilyAsyncNotifier<MatchTheFollowingViewState, QuizSessionRequest> {
+    extends
+        AutoDisposeFamilyAsyncNotifier<
+          MatchTheFollowingViewState,
+          QuizSessionRequest
+        > {
   Timer? _ticker;
   bool _disposed = false;
 
@@ -211,7 +219,10 @@ class MatchTheFollowingController
     required int mistakes,
   }) async {
     final current = state.valueOrNull;
-    if (current == null || current.boardResolved || current.isCompleting || current.result != null) {
+    if (current == null ||
+        current.boardResolved ||
+        current.isCompleting ||
+        current.result != null) {
       return;
     }
 
@@ -316,7 +327,10 @@ class MatchTheFollowingController
   /// Resolves the current board as a timeout and preserves partial correct matches.
   Future<void> handleTimeout() async {
     final current = state.valueOrNull;
-    if (current == null || current.boardResolved || current.isCompleting || current.result != null) {
+    if (current == null ||
+        current.boardResolved ||
+        current.isCompleting ||
+        current.result != null) {
       return;
     }
 
@@ -387,15 +401,13 @@ class MatchTheFollowingController
   /// Sends the single batch completion request to /api/v1/quiz/match-the-following/complete.
   Future<void> completeBatch() async {
     final current = state.valueOrNull;
-    if (current == null || current.isCompleting || current.result != null) return;
+    if (current == null || current.isCompleting || current.result != null)
+      return;
 
     _ticker?.cancel();
 
     state = AsyncValue.data(
-      current.copyWith(
-        isCompleting: true,
-        completionError: () => null,
-      ),
+      current.copyWith(isCompleting: true, completionError: () => null),
     );
 
     final ds = ref.read(quizDatasourceProvider);
@@ -403,7 +415,8 @@ class MatchTheFollowingController
       state = AsyncValue.data(
         current.copyWith(
           isCompleting: false,
-          completionError: () => "Cannot complete Match session: not a remote datasource.",
+          completionError: () =>
+              "Cannot complete Match session: not a remote datasource.",
         ),
       );
       return;
@@ -417,14 +430,14 @@ class MatchTheFollowingController
 
       final domainResult = MatchTheFollowingResult.fromDto(responseDto);
 
-      final isPerfect = domainResult.accuracyPercentage >= 100.0 &&
+      final isPerfect =
+          domainResult.accuracyPercentage >= 100.0 &&
           domainResult.totalMistakes == 0;
       final didLevelUp = responseDto.level?.didLevelUp ?? false;
 
-      ref.read(gameAudioServiceProvider).playQuizCompletion(
-            isPerfect: isPerfect,
-            leveledUp: didLevelUp,
-          );
+      ref
+          .read(gameAudioServiceProvider)
+          .playQuizCompletion(isPerfect: isPerfect, leveledUp: didLevelUp);
 
       // Reconcile wallet state if available
       try {
@@ -439,7 +452,11 @@ class MatchTheFollowingController
         ),
       );
     } catch (e, stack) {
-      developer.log('Match the Following completion failed: $e', error: e, stackTrace: stack);
+      developer.log(
+        'Match the Following completion failed: $e',
+        error: e,
+        stackTrace: stack,
+      );
       if (_disposed) return;
 
       state = AsyncValue.data(

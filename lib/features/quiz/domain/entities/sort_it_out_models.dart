@@ -38,16 +38,16 @@ class SortItOutCard extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        prompt,
-        points,
-        hint,
-        timeLimitSec,
-        options,
-        correctOption,
-        pairType,
-        explanation,
-      ];
+    id,
+    prompt,
+    points,
+    hint,
+    timeLimitSec,
+    options,
+    correctOption,
+    pairType,
+    explanation,
+  ];
 }
 
 /// Represents a recorded answer for a single Sort It Out card.
@@ -65,11 +65,11 @@ class SortItOutAnswer extends Equatable {
   });
 
   SortItOutAnswerSubmissionDto toDto() => SortItOutAnswerSubmissionDto(
-        question: question,
-        option: option,
-        timeTakenMs: timeTakenMs,
-        isTimeout: isTimeout,
-      );
+    question: question,
+    option: option,
+    timeTakenMs: timeTakenMs,
+    isTimeout: isTimeout,
+  );
 
   @override
   List<Object?> get props => [question, option, timeTakenMs, isTimeout];
@@ -123,19 +123,19 @@ class SortItOutCardReview extends Equatable {
 
   @override
   List<Object?> get props => [
-        question,
-        prompt,
-        selectedOption,
-        correctOption,
-        isCorrect,
-        isTimeout,
-        timeTakenMs,
-        basePoints,
-        speedBonus,
-        comboBonus,
-        pointsEarned,
-        explanation,
-      ];
+    question,
+    prompt,
+    selectedOption,
+    correctOption,
+    isCorrect,
+    isTimeout,
+    timeTakenMs,
+    basePoints,
+    speedBonus,
+    comboBonus,
+    pointsEarned,
+    explanation,
+  ];
 }
 
 /// Authoritative end-of-deck summary returned by the backend for Sort It Out.
@@ -199,8 +199,7 @@ class SortItOutResult extends Equatable {
         levelUpReward: dto.levelUpReward,
         level: dto.level,
         streak: dto.streak,
-        cardsReview:
-            dto.cardsReview.map(SortItOutCardReview.fromDto).toList(),
+        cardsReview: dto.cardsReview.map(SortItOutCardReview.fromDto).toList(),
       );
 
   int get basePoints => scoreBreakdown['base_points'] ?? (correctCount * 10);
@@ -210,23 +209,23 @@ class SortItOutResult extends Equatable {
 
   @override
   List<Object?> get props => [
-        session,
-        pairType,
-        totalQuestions,
-        correctCount,
-        timeoutCount,
-        bestStreak,
-        accuracyPercentage,
-        finalScore,
-        coinsAwarded,
-        xpAwarded,
-        gemsAwarded,
-        scoreBreakdown,
-        coinBreakdown,
-        xpBreakdown,
-        levelUpReward,
-        level,
-        streak,
-        cardsReview,
-      ];
+    session,
+    pairType,
+    totalQuestions,
+    correctCount,
+    timeoutCount,
+    bestStreak,
+    accuracyPercentage,
+    finalScore,
+    coinsAwarded,
+    xpAwarded,
+    gemsAwarded,
+    scoreBreakdown,
+    coinBreakdown,
+    xpBreakdown,
+    levelUpReward,
+    level,
+    streak,
+    cardsReview,
+  ];
 }

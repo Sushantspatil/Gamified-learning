@@ -30,14 +30,15 @@ class MatchTheFollowingScreen extends ConsumerStatefulWidget {
       _MatchTheFollowingScreenState();
 }
 
-class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScreen>
+class _MatchTheFollowingScreenState
+    extends ConsumerState<MatchTheFollowingScreen>
     with WidgetsBindingObserver {
   QuizSessionRequest get _request => QuizSessionRequest(
-        topicId: widget.topicId,
-        quizType: QuestionType.matchTheFollowing,
-        subjectId: widget.subjectId,
-        chapterId: widget.chapterId,
-      );
+    topicId: widget.topicId,
+    quizType: QuestionType.matchTheFollowing,
+    subjectId: widget.subjectId,
+    chapterId: widget.chapterId,
+  );
 
   @override
   void initState() {
@@ -54,13 +55,16 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      ref.read(matchTheFollowingControllerProvider(_request).notifier).checkAppResumed();
+      ref
+          .read(matchTheFollowingControllerProvider(_request).notifier)
+          .checkAppResumed();
     }
   }
 
   Future<bool> _handleExit() async {
-    final state =
-        ref.read(matchTheFollowingControllerProvider(_request)).valueOrNull;
+    final state = ref
+        .read(matchTheFollowingControllerProvider(_request))
+        .valueOrNull;
     if (state == null || state.result != null || state.boards.isEmpty) {
       return true;
     }
@@ -80,10 +84,7 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
           ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(
-              'Exit Game',
-              style: TextStyle(color: colors.error),
-            ),
+            child: Text('Exit Game', style: TextStyle(color: colors.error)),
           ),
         ],
       ),
@@ -117,9 +118,7 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
         backgroundColor: colors.background,
         body: SafeArea(
           child: asyncState.when(
-            loading: () => const Center(
-              child: CircularProgressIndicator(),
-            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
             error: (error, stack) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -210,7 +209,11 @@ class _MatchTheFollowingScreenState extends ConsumerState<MatchTheFollowingScree
                         AppButton(
                           label: 'Retry',
                           onPressed: () => ref
-                              .read(matchTheFollowingControllerProvider(_request).notifier)
+                              .read(
+                                matchTheFollowingControllerProvider(
+                                  _request,
+                                ).notifier,
+                              )
                               .retryCompletion(),
                         ),
                       ],

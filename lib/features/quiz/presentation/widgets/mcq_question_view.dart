@@ -16,7 +16,10 @@ import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import 'game_power_up_bar.dart';
-import 'mcq_character_widget.dart';
+import '../../../character/application/character_controller.dart';
+import '../../../character/presentation/character_providers.dart';
+import '../../../character/presentation/character_stage.dart';
+import '../../../character/presentation/mcq_character_adapter.dart';
 
 class McqQuestionView extends ConsumerStatefulWidget {
   final McqQuestion question;
@@ -56,18 +59,14 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
   bool _isSkipUsed = false;
   bool _isSubmitted = false;
 
-  /// How long the companion's reaction stays visible before moving on.
-  static const Duration _reactionHold = Duration(milliseconds: 650);
+  late final McqCharacterAdapter _character;
 
-  /// Set once per submitted answer; cleared when the next question loads.
-  McqCharacterState? _reaction;
-
-  /// The companion only mirrors the view's existing state; it never feeds
-  /// back into answer selection, grading or navigation.
-  McqCharacterState get _characterState {
-    if (_reaction != null) return _reaction!;
-    if (_selectedOptionId != null) return McqCharacterState.thinking;
-    return McqCharacterState.idle;
+  /// Tells the character a question appeared (after the frame, so listeners
+  /// are never notified mid-build).
+  void _announceQuestion() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _character.questionShown(isFirst: widget.currentIndex == 0);
+    });
   }
 
   bool get _isFinalQuestion => widget.currentIndex >= widget.totalQuestions - 1;
@@ -75,6 +74,8 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
   @override
   void initState() {
     super.initState();
+    _character = McqCharacterAdapter(ref.read(characterControllerProvider));
+    _announceQuestion();
     _questionMotionController = AnimationController(
       vsync: this,
       duration: AppMotion.page,
@@ -105,8 +106,8 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
       _isHintVisible = false;
       _isSkipUsed = false;
       _isSubmitted = false;
-      _reaction = null;
       _questionMotionController.forward(from: 0);
+      _announceQuestion();
     }
   }
 
@@ -167,22 +168,8 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
   Future<void> _submitAnswer(String selectedOptionId) async {
     if (_isSubmitted) return;
 
-    final isSkip = selectedOptionId == _skippedOptionId;
-    final isCorrect = selectedOptionId == widget.question.correctOptionId;
-    setState(() {
-      _isSubmitted = true;
-      _reaction = isSkip
-          ? McqCharacterState.transition
-          : isCorrect
-          ? McqCharacterState.celebrate
-          : McqCharacterState.encourage;
-    });
-    // Let the reaction be seen before the question animates out. A skip has
-    // no verdict to show, so it moves on immediately.
-    if (!isSkip && !AppMotion.reduceMotion(context)) {
-      await Future<void>.delayed(_reactionHold);
-      if (!mounted) return;
-    }
+    setState(() => _isSubmitted = true);
+    _character.answerSubmitted(isFinal: _isFinalQuestion);
     await _questionMotionController.reverse();
     if (!mounted) return;
 
@@ -196,6 +183,7 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
 
   @override
   Widget build(BuildContext context) {
+    final character = ref.watch(characterControllerProvider);
     final progress = widget.totalQuestions == 0
         ? 0.0
         : (widget.currentIndex + 1) / widget.totalQuestions;
@@ -270,8 +258,8 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
                             style: context.appTextStyles.titleLarge,
                           ),
                           const SizedBox(height: AppSpacing.md),
-                          McqCharacterWidget(
-                            state: _characterState,
+                          _CharacterSlot(
+                            controller: character,
                             height: companionHeight,
                           ),
                           const SizedBox(height: AppSpacing.md),
@@ -670,6 +658,27 @@ class _McqOptionCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Reserved area for the host character and its speech bubble, between the
+/// question and the options. Hidden in landscape where there is no room.
+class _CharacterSlot extends StatelessWidget {
+  final CharacterController controller;
+  final double height;
+
+  const _CharacterSlot({required this.controller, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    if (MediaQuery.orientationOf(context) == Orientation.landscape) {
+      return const SizedBox.shrink();
+    }
+    return SizedBox(
+      key: const Key('mcq_character_section'),
+      height: height,
+      child: CharacterStage(controller: controller, height: height),
     );
   }
 }

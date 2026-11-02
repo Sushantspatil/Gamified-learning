@@ -17,6 +17,7 @@ import '../providers/quiz_providers.dart';
 import '../providers/quiz_session_view_state.dart';
 import '../widgets/match_the_following_view.dart';
 import '../widgets/mcq_question_view.dart';
+import '../../../character/presentation/character_assets.dart';
 import '../widgets/quiz_result_view.dart';
 import '../widgets/sort_it_right_view.dart';
 import '../../../../core/audio/audio_providers.dart';
@@ -65,6 +66,7 @@ class QuizScreen extends ConsumerWidget {
     }
 
     final colors = context.themeColors;
+    if (quizType == QuestionType.mcq) precacheCharacter(context);
     final request = QuizSessionRequest(
       topicId: topicId,
       quizType: quizType,

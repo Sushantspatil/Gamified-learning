@@ -68,7 +68,8 @@ void main() {
             home: MediaQuery(
               data: const MediaQueryData(
                 disableAnimations: false,
-                accessibleNavigation: true, // E.g., TalkBack active on Samsung device
+                accessibleNavigation:
+                    true, // E.g., TalkBack active on Samsung device
               ),
               child: Builder(
                 builder: (context) {
@@ -275,9 +276,7 @@ void main() {
                 disableAnimations: false,
                 accessibleNavigation: true,
               ),
-              child: QuizCelebrationOverlay(
-                child: Text('Quiz Completed!'),
-              ),
+              child: QuizCelebrationOverlay(child: Text('Quiz Completed!')),
             ),
           ),
         );

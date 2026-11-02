@@ -165,10 +165,7 @@ class QuizController
       if (!reachedEnd) {
         // Advance immediately to next question with zero network wait
         state = AsyncValue.data(
-          current.copyWith(
-            records: updatedRecords,
-            currentIndex: nextIndex,
-          ),
+          current.copyWith(records: updatedRecords, currentIndex: nextIndex),
         );
         return;
       }

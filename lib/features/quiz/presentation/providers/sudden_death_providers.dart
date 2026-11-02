@@ -290,7 +290,8 @@ class SuddenDeathController
       if (request.sessionId != null && request.sessionId!.isNotEmpty) {
         sessionId = request.sessionId!;
         ds.activeSessionId = sessionId;
-      } else if (ds.activeSessionId != null && ds.activeTopicId == request.topicId) {
+      } else if (ds.activeSessionId != null &&
+          ds.activeTopicId == request.topicId) {
         sessionId = ds.activeSessionId!;
       } else {
         sessionId = await ds.createSession(

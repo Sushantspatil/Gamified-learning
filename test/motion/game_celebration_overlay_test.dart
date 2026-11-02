@@ -186,11 +186,7 @@ void main() {
     testWidgets(
       'Zero correct answers triggers subdued celebration rather than victory cannons',
       (tester) async {
-        final zeroResult = _createResult(
-          correct: 0,
-          total: 5,
-          earnedPoints: 0,
-        );
+        final zeroResult = _createResult(correct: 0, total: 5, earnedPoints: 0);
 
         await tester.pumpWidget(
           _buildWrapper(
@@ -253,36 +249,35 @@ void main() {
       },
     );
 
-    testWidgets(
-      'Genuine new session triggers a new celebration instance',
-      (tester) async {
-        final resultSession1 = _createResult(sessionId: 'session-first');
-        final resultSession2 = _createResult(sessionId: 'session-second');
+    testWidgets('Genuine new session triggers a new celebration instance', (
+      tester,
+    ) async {
+      final resultSession1 = _createResult(sessionId: 'session-first');
+      final resultSession2 = _createResult(sessionId: 'session-second');
 
-        await tester.pumpWidget(
-          _buildWrapper(
-            child: QuizResultView(result: resultSession1, onDone: () {}),
-          ),
-        );
-        await tester.pump();
-        expect(
-          find.byKey(const ValueKey('celebration-session-first')),
-          findsOneWidget,
-        );
+      await tester.pumpWidget(
+        _buildWrapper(
+          child: QuizResultView(result: resultSession1, onDone: () {}),
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('celebration-session-first')),
+        findsOneWidget,
+      );
 
-        // Switch to session 2
-        await tester.pumpWidget(
-          _buildWrapper(
-            child: QuizResultView(result: resultSession2, onDone: () {}),
-          ),
-        );
-        await tester.pump();
-        expect(
-          find.byKey(const ValueKey('celebration-session-second')),
-          findsOneWidget,
-        );
-      },
-    );
+      // Switch to session 2
+      await tester.pumpWidget(
+        _buildWrapper(
+          child: QuizResultView(result: resultSession2, onDone: () {}),
+        ),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('celebration-session-second')),
+        findsOneWidget,
+      );
+    });
 
     testWidgets(
       'Reduced-motion setting (disableAnimations=true) immediately suppresses particles and renders clean static view',
@@ -303,10 +298,7 @@ void main() {
           find.byKey(const Key('celebration-particles-canvas')),
           findsNothing,
         );
-        expect(
-          find.byKey(const Key('celebration-glow-canvas')),
-          findsNothing,
-        );
+        expect(find.byKey(const Key('celebration-glow-canvas')), findsNothing);
         expect(find.text('Quiz Complete!'), findsOneWidget);
         expect(find.text('Done'), findsOneWidget);
       },
