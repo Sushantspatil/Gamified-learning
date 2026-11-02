@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../../app/motion/app_motion.dart';
@@ -8,10 +11,12 @@ import 'character_assets.dart';
 import 'character_speech_bubble.dart';
 import 'character_view.dart';
 
-/// Reserved strip that holds the character and its speech bubble. The
-/// character walks to the opposite side whenever the game moves to a new
-/// phase (new question, waiting on the result, a reaction, game end), so it
-/// never sits in the same spot. The bubble always takes the free side.
+/// Reserved strip that holds the character and its speech bubble.
+///
+/// The character never stays put: it hops to the opposite side when the game
+/// enters a new phase (new question, waiting on the result, a reaction, game
+/// end) and, while idle or thinking, strolls to a new spot every few seconds.
+/// The bubble always takes the side the character is not on.
 class CharacterStage extends StatefulWidget {
   final CharacterController controller;
   final double height;
@@ -39,14 +44,27 @@ class _CharacterStageState extends State<CharacterStage> {
     CharacterState.lose,
   };
 
-  bool _onRight = false;
+  static const Duration _strollEvery = Duration(milliseconds: 2800);
+  static const Duration _travel = Duration(milliseconds: 750);
+
+  final math.Random _random = math.Random();
+
+  /// Horizontal position, -1 (left edge) .. 1 (right edge).
+  double _x = -1;
+
+  /// Bumped per move; restarts the hop animation.
+  int _moves = 0;
+  Timer? _stroll;
   late CharacterState _previous;
+
+  bool get _onRight => _x > 0;
 
   @override
   void initState() {
     super.initState();
     _previous = widget.controller.state.value;
     widget.controller.state.addListener(_onState);
+    _scheduleStroll();
   }
 
   @override
@@ -59,15 +77,42 @@ class _CharacterStageState extends State<CharacterStage> {
     }
   }
 
+  void _moveTo(double x) {
+    if (!mounted) return;
+    setState(() {
+      _x = x.clamp(-1.0, 1.0);
+      _moves++;
+    });
+    _scheduleStroll();
+  }
+
   void _onState() {
     final next = widget.controller.state.value;
     final moves = next != _previous && _moveOn.contains(next);
     _previous = next;
-    if (moves && mounted) setState(() => _onRight = !_onRight);
+    if (moves) _moveTo(_onRight ? -1 : 1);
+  }
+
+  /// Idle wandering: only while calm, and never with reduce-motion.
+  void _scheduleStroll() {
+    _stroll?.cancel();
+    _stroll = Timer(_strollEvery, () {
+      final state = widget.controller.state.value;
+      final calm =
+          state == CharacterState.idle || state == CharacterState.thinking;
+      if (mounted && calm && !AppMotion.reduceMotion(context)) {
+        // Go to a new spot on the other half of the strip.
+        final distance = 0.4 + _random.nextDouble() * 0.6;
+        _moveTo(_onRight ? -distance : distance);
+      } else {
+        _scheduleStroll();
+      }
+    });
   }
 
   @override
   void dispose() {
+    _stroll?.cancel();
     widget.controller.state.removeListener(_onState);
     super.dispose();
   }
@@ -76,6 +121,7 @@ class _CharacterStageState extends State<CharacterStage> {
   Widget build(BuildContext context) {
     final characterWidth = widget.height * CharacterAssets.aspectRatio;
     final bubbleInset = characterWidth + AppSpacing.sm;
+    final reduceMotion = AppMotion.reduceMotion(context);
 
     return Stack(
       children: [
@@ -90,15 +136,30 @@ class _CharacterStageState extends State<CharacterStage> {
           ),
         ),
         AnimatedAlign(
-          duration: AppMotion.duration(
-            context,
-            const Duration(milliseconds: 750),
-          ),
+          duration: AppMotion.duration(context, _travel),
           curve: Curves.easeInOutCubic,
-          alignment: _onRight ? Alignment.centerRight : Alignment.centerLeft,
-          child: CharacterView(
-            controller: widget.controller,
-            size: widget.height,
+          alignment: Alignment(_x, 0),
+          // Two small hops while travelling, like steps.
+          child: TweenAnimationBuilder<double>(
+            key: ValueKey(_moves),
+            tween: Tween(begin: 0, end: 1),
+            duration: AppMotion.duration(context, _travel),
+            builder: (context, t, child) => Transform.translate(
+              offset: Offset(
+                0,
+                reduceMotion
+                    ? 0
+                    : -math.sin(t * 4 * math.pi).abs() *
+                          widget.height *
+                          0.06 *
+                          (1 - t),
+              ),
+              child: child,
+            ),
+            child: CharacterView(
+              controller: widget.controller,
+              size: widget.height,
+            ),
           ),
         ),
       ],
