@@ -15,10 +15,15 @@ class CharacterView extends StatefulWidget {
   final CharacterController controller;
   final double size;
 
+  /// True while the stage is walking the character: calm poses stop swaying
+  /// so they do not fight the walk cycle.
+  final bool walking;
+
   const CharacterView({
     super.key,
     required this.controller,
     required this.size,
+    this.walking = false,
   });
 
   @override
@@ -194,13 +199,22 @@ class _CharacterViewState extends State<CharacterView>
           child: AnimatedBuilder(
             animation: _anim,
             builder: (context, _) {
-              final pose = characterPose(
-                _state,
-                _anim.value,
-                intensity: widget.controller.intensity.value,
-                streakLevel: widget.controller.streakLevel,
-                reduceMotion: reduceMotion,
-              );
+              final calm = const {
+                CharacterState.idle,
+                CharacterState.presenting,
+                CharacterState.thinking,
+                CharacterState.hurry,
+              }.contains(_state);
+              // The stage supplies the walk cycle; calm poses stand down.
+              final pose = widget.walking && calm
+                  ? CharacterPose.rest
+                  : characterPose(
+                      _state,
+                      _anim.value,
+                      intensity: widget.controller.intensity.value,
+                      streakLevel: widget.controller.streakLevel,
+                      reduceMotion: reduceMotion,
+                    );
               return Stack(
                 alignment: Alignment.bottomCenter,
                 clipBehavior: Clip.none,

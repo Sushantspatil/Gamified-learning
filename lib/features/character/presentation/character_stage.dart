@@ -3,36 +3,45 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import 'character_motion.dart';
-import '../../../app/theme/app_spacing.dart';
 import '../application/character_controller.dart';
 import '../domain/character_state.dart';
 import 'character_assets.dart';
+import 'character_motion.dart';
 import 'character_speech_bubble.dart';
 import 'character_view.dart';
 
-/// Reserved strip that holds the character and its speech bubble.
+/// Reserved strip where the character lives and walks.
 ///
-/// The character never stays put: it hops to the opposite side when the game
-/// enters a new phase (new question, waiting on the result, a reaction, game
-/// end) and, while idle or thinking, strolls to a new spot every few seconds.
-/// The bubble always takes the side the character is not on.
+/// With a single still image there are no legs to animate, so walking is a
+/// steady-pace stroll with a step cycle built from transforms: a bounce and a
+/// side-to-side rock once per step, a slight squash, and the character faces
+/// the direction it is heading (mirrored when going left). It stops, pauses,
+/// then walks somewhere else. When the game enters a new phase it walks to
+/// the other end of the strip. The speech bubble travels with it, on
+/// whichever side has more room.
 class CharacterStage extends StatefulWidget {
   final CharacterController controller;
   final double height;
+
+  /// Whether the character also wanders on its own while the game is calm.
+  /// Game events still make it walk when false.
+  final bool wander;
 
   const CharacterStage({
     super.key,
     required this.controller,
     required this.height,
+    this.wander = true,
   });
 
   @override
   State<CharacterStage> createState() => _CharacterStageState();
 }
 
-class _CharacterStageState extends State<CharacterStage> {
-  /// Entering one of these (from a different state) moves the character.
+class _CharacterStageState extends State<CharacterStage>
+    with SingleTickerProviderStateMixin {
+  /// Entering one of these (from a different state) sends the character
+  /// walking to the other end of the strip.
   static const _moveOn = {
     CharacterState.presenting,
     CharacterState.thinking,
@@ -44,32 +53,42 @@ class _CharacterStageState extends State<CharacterStage> {
     CharacterState.lose,
   };
 
-  static const Duration _strollEvery = Duration(milliseconds: 2800);
-  static const Duration _travel = Duration(milliseconds: 750);
+  /// Walking speed and stride, in logical pixels.
+  static const double _speed = 95;
+  static const double _stepLength = 42;
+  static const double _bubbleGap = 8;
 
-  /// Strolls allowed without any game activity (~35 s), so an unattended
-  /// screen eventually stops animating.
-  static const int _maxStrolls = 12;
+  /// Idle strolls allowed without game activity, so an unattended screen
+  /// eventually stops animating.
+  static const int _maxStrolls = 10;
 
   final math.Random _random = math.Random();
-
-  /// Horizontal position, -1 (left edge) .. 1 (right edge).
-  double _x = -1;
-
-  /// Bumped per move; restarts the hop animation.
-  int _moves = 0;
-  int _strolls = 0;
-  Timer? _stroll;
+  late final AnimationController _walk;
   late CharacterState _previous;
+  Timer? _pause;
 
-  bool get _onRight => _x > 0;
+  /// Position along the strip, 0 (left end) .. 1 (right end).
+  double _from = 0;
+  double _to = 0;
+  double _range = 250; // px the character can travel; set from layout
+  bool _walking = false;
+  bool _facingLeft = false;
+  int _strolls = 0;
+
+  double get _fraction => _walking
+      ? _from + (_to - _from) * Curves.easeInOutSine.transform(_walk.value)
+      : _to;
 
   @override
   void initState() {
     super.initState();
+    _walk = AnimationController(vsync: this)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) _arrive();
+      });
     _previous = widget.controller.state.value;
     widget.controller.state.addListener(_onState);
-    _scheduleStroll();
+    _schedulePause();
   }
 
   @override
@@ -82,97 +101,157 @@ class _CharacterStageState extends State<CharacterStage> {
     }
   }
 
-  void _moveTo(double x) {
-    if (!mounted) return;
-    setState(() {
-      _x = x.clamp(-1.0, 1.0);
-      _moves++;
-    });
-    _scheduleStroll();
-  }
-
   void _onState() {
     final next = widget.controller.state.value;
     final moves = next != _previous && _moveOn.contains(next);
     _previous = next;
     if (moves) {
       _strolls = 0;
-      _moveTo(_onRight ? -1 : 1);
+      _walkTo(_fraction > 0.5 ? 0 : 1);
     }
   }
 
-  /// Idle wandering: only while calm, and never with reduce-motion.
-  void _scheduleStroll() {
-    _stroll?.cancel();
-    if (_strolls >= _maxStrolls) return;
-    _stroll = Timer(_strollEvery, () {
+  void _walkTo(double target) {
+    if (!mounted) return;
+    _pause?.cancel();
+    final current = _fraction;
+    final distance = (target - current).abs() * _range;
+    _from = current;
+    _to = target;
+    if (distance < 4 || CharacterMotion.reduce(context)) {
+      _walk.stop();
+      setState(() => _walking = false);
+      _schedulePause();
+      return;
+    }
+    _facingLeft = target < current;
+    _walk.duration = Duration(milliseconds: (distance / _speed * 1000).round());
+    setState(() => _walking = true);
+    _walk.forward(from: 0);
+  }
+
+  void _arrive() {
+    if (!mounted) return;
+    setState(() => _walking = false);
+    _schedulePause();
+  }
+
+  /// Stand still for a moment, then (if the game is calm) stroll again.
+  void _schedulePause() {
+    _pause?.cancel();
+    if (!widget.wander || _strolls >= _maxStrolls) return;
+    _pause = Timer(Duration(milliseconds: 1200 + _random.nextInt(1400)), () {
       final state = widget.controller.state.value;
       final calm =
           state == CharacterState.idle || state == CharacterState.thinking;
-      if (mounted && calm && !CharacterMotion.reduce(context)) {
-        // Go to a new spot on the other half of the strip.
-        final distance = 0.4 + _random.nextDouble() * 0.6;
-        _strolls++;
-        _moveTo(_onRight ? -distance : distance);
-      } else {
-        _scheduleStroll();
+      if (!mounted || !calm || CharacterMotion.reduce(context)) {
+        _schedulePause();
+        return;
       }
+      // A new spot at least a third of the strip away.
+      var target = _random.nextDouble();
+      for (var i = 0; i < 6 && (target - _to).abs() < 0.35; i++) {
+        target = _random.nextDouble();
+      }
+      if ((target - _to).abs() < 0.35) target = _to > 0.5 ? 0 : 1;
+      _strolls++;
+      _walkTo(target);
     });
   }
 
   @override
   void dispose() {
-    _stroll?.cancel();
+    _pause?.cancel();
     widget.controller.state.removeListener(_onState);
+    _walk.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final characterWidth = widget.height * CharacterAssets.aspectRatio;
-    final bubbleInset = characterWidth + AppSpacing.sm;
-    final reduceMotion = CharacterMotion.reduce(context);
+    final height = widget.height;
+    final width = height * CharacterAssets.aspectRatio;
 
-    return Stack(
-      children: [
-        Padding(
-          padding: EdgeInsets.only(
-            left: _onRight ? 0 : bubbleInset,
-            right: _onRight ? bubbleInset : 0,
-          ),
-          child: Align(
-            alignment: _onRight ? Alignment.centerLeft : Alignment.centerRight,
-            child: CharacterSpeechBubble(controller: widget.controller),
-          ),
-        ),
-        AnimatedAlign(
-          duration: CharacterMotion.duration(context, _travel),
-          curve: Curves.easeInOutCubic,
-          alignment: Alignment(_x, 0),
-          // Two small hops while travelling, like steps.
-          child: TweenAnimationBuilder<double>(
-            key: ValueKey(_moves),
-            tween: Tween(begin: 0, end: 1),
-            duration: CharacterMotion.duration(context, _travel),
-            builder: (context, t, child) => Transform.translate(
-              offset: Offset(
-                0,
-                reduceMotion
-                    ? 0
-                    : -math.sin(t * 4 * math.pi).abs() *
-                          widget.height *
-                          0.06 *
-                          (1 - t),
-              ),
-              child: child,
-            ),
-            child: CharacterView(
-              controller: widget.controller,
-              size: widget.height,
-            ),
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _range = math.max(0.0, constraints.maxWidth - width);
+        return AnimatedBuilder(
+          animation: _walk,
+          builder: (context, _) {
+            final left = _fraction * _range;
+            final roomRight = constraints.maxWidth - left - width - _bubbleGap;
+            final roomLeft = left - _bubbleGap;
+            final bubbleRight = roomRight >= roomLeft;
+            final bubbleWidth = math.min(
+              200.0,
+              bubbleRight ? roomRight : roomLeft,
+            );
+
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: left,
+                  top: 0,
+                  bottom: 0,
+                  width: width,
+                  child: _stepCycle(
+                    height,
+                    CharacterView(
+                      controller: widget.controller,
+                      size: height,
+                      walking: _walking,
+                    ),
+                  ),
+                ),
+                if (bubbleWidth >= 70)
+                  Positioned(
+                    left: bubbleRight
+                        ? left + width + _bubbleGap
+                        : left - _bubbleGap - bubbleWidth,
+                    top: 0,
+                    bottom: 0,
+                    width: bubbleWidth,
+                    child: Align(
+                      alignment: bubbleRight
+                          ? Alignment.centerLeft
+                          : Alignment.centerRight,
+                      child: CharacterSpeechBubble(
+                        controller: widget.controller,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Walk cycle: one bounce per step, a rock between left and right foot,
+  /// a small squash on footfall, and facing the direction of travel.
+  Widget _stepCycle(double height, Widget child) {
+    if (!_walking) return child;
+    final travelled = (_fraction - _from).abs() * _range;
+    final phase = travelled / _stepLength; // 1.0 = one step
+    final stride = math.sin(phase * math.pi).abs(); // 0 at footfall, 1 mid-step
+    final rock = math.sin(phase * math.pi); // sign flips each step
+    final matrix = Matrix4.identity()
+      ..rotateZ(rock * 0.06)
+      ..scaleByDouble(
+        (_facingLeft ? -1.0 : 1.0) * (1 + 0.015 * (1 - stride)),
+        1 - 0.025 * (1 - stride),
+        1,
+        1,
+      );
+    return Transform.translate(
+      offset: Offset(0, -stride * height * 0.05),
+      child: Transform(
+        alignment: Alignment.bottomCenter,
+        transform: matrix,
+        child: child,
+      ),
     );
   }
 }
