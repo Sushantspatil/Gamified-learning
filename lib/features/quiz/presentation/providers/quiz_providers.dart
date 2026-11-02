@@ -16,6 +16,7 @@ import '../../domain/entities/question_answer_record.dart';
 import '../../domain/entities/quiz_session.dart';
 import '../../domain/repositories/quiz_repository.dart';
 import 'quiz_session_view_state.dart';
+import '../../../rewards/application/rewards_controller.dart';
 
 final quizDatasourceProvider = Provider<QuizDatasource>((ref) {
   final apiClient = ref.watch(apiClientProvider);
@@ -228,6 +229,12 @@ class QuizController
           leveledUp: result.didLevelUp,
         ),
       );
+
+      // Chest Box: one completed attempt counts once (keyed by session id).
+      // Rewards bookkeeping must never affect the quiz result.
+      try {
+        ref.read(rewardsProvider.notifier).recordQuizCompleted(_sessionId);
+      } catch (_) {}
     } catch (error, stackTrace) {
       state = AsyncValue.error(error, stackTrace);
     } finally {

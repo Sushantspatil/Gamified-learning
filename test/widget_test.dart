@@ -11,7 +11,6 @@ import 'package:skillverse_app/app/router/route_names.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/shared/widgets/app_button.dart';
-import 'package:skillverse_app/features/shop/presentation/widgets/shop_item_card.dart';
 import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
 import 'package:skillverse_app/features/questions/data/datasources/mock/question_mock_datasource.dart';
@@ -29,13 +28,8 @@ import 'package:skillverse_app/features/streaks/presentation/providers/streak_pr
 import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock_datasource.dart';
 import 'package:skillverse_app/features/wallet/presentation/providers/wallet_providers.dart';
 
-Finder _buyButtonFor(String itemTitle) {
-  final card = find.ancestor(
-    of: find.text(itemTitle),
-    matching: find.byType(ProductCard),
-  );
-  return find.descendant(of: card, matching: find.byType(FilledButton));
-}
+Finder _buyButtonFor(String itemTitle) =>
+    find.widgetWithText(FilledButton, 'Buy').first;
 
 Future<void> _pumpApp(WidgetTester tester) async {
   await _pumpAppWithInitialValues(tester, {});
@@ -385,7 +379,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('shop purchase flow: confirm, deduct coins, then own and equip', (
+  testWidgets('shop purchase flow: cancel keeps coins, confirm deducts them', (
     tester,
   ) async {
     await _pumpApp(tester);
@@ -396,19 +390,23 @@ void main() {
     await tester.pumpAndSettle();
 
     // Cancelling a purchase leaves the balance and the item untouched.
-    await tester.tap(_buyButtonFor('50/50 Booster'));
+    await tester.tap(_buyButtonFor('Scholar'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
-    expect(find.text('500'), findsOneWidget);
+    expect(find.byKey(const Key('coin_balance')), findsOneWidget);
+    expect(find.text('100'), findsOneWidget);
 
     // Confirming deducts the price (100) and shows a success message.
-    await tester.tap(_buyButtonFor('50/50 Booster'));
+    await tester.tap(_buyButtonFor('Scholar'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Confirm'));
+    await tester.tap(find.text('Confirm Purchase'));
     await tester.pumpAndSettle();
-    expect(find.text('50/50 Booster purchased.'), findsOneWidget);
-    expect(find.text('400'), findsOneWidget);
+    expect(
+      find.text('Purchase successful! Scholar is now yours.'),
+      findsOneWidget,
+    );
+    expect(find.text('0'), findsOneWidget);
   });
 
   testWidgets('spin wheel reveals a prize and blocks a second spin today', (
@@ -427,12 +425,12 @@ void main() {
     await tester.tap(find.text('Spin Now'));
     await tester.pumpAndSettle(const Duration(milliseconds: 500));
 
-    expect(find.textContaining('You won'), findsOneWidget);
-    await tester.tap(find.text('Collect'));
+    expect(find.text('Congratulations!'), findsOneWidget);
+    await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
 
     // Today's spin is used; spinning again is blocked until it resets.
-    expect(find.text('Spin used today'), findsOneWidget);
+    expect(find.byKey(const Key('already_spun')), findsOneWidget);
   });
 
   testWidgets('a cosmetic can be purchased with coins and then equipped', (

@@ -112,8 +112,6 @@ class RouteNames {
   static const String wallet = '/wallet';
   static const String shop = '/shop';
   static const String chest = '/chest';
-  static const String chestPattern = '/chest/:type';
-  static String chestPath(String type) => '/chest/$type';
   static const String spinWheel = '/spin-wheel';
   static const String settings = '/settings';
 }

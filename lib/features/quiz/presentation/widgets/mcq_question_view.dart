@@ -15,6 +15,8 @@ import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
+import '../../../rewards/application/rewards_controller.dart';
+import '../../../rewards/domain/rewards_models.dart';
 import 'game_power_up_bar.dart';
 import '../../../character/application/character_controller.dart';
 import '../../../character/presentation/character_providers.dart';
@@ -149,6 +151,37 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
     setState(() => _isHintVisible = true);
   }
 
+  // ---- Reward tokens (bought in the Shop) ----------------------------
+
+  /// Only a hint the question really has; never a made-up one.
+  bool get _canUseHintToken =>
+      !_isSubmitted && !_isHintVisible && widget.question.hint != null;
+
+  /// Needs 4+ options so exactly two wrong ones go and two remain.
+  bool get _canUseFiftyFiftyToken =>
+      !_isSubmitted &&
+      !_isFiftyFiftyUsed &&
+      widget.question.options.length >= 4;
+
+  void _useHintToken() {
+    if (!_canUseHintToken) return;
+    final rewards = ref.read(rewardsProvider.notifier);
+    if (ref.read(rewardsProvider).powerUpCount(PowerUpType.hint) <= 0) return;
+    _showHint(); // shows the question's own hint
+    if (_isHintVisible) rewards.consumePowerUp(PowerUpType.hint);
+  }
+
+  void _useFiftyFiftyToken() {
+    if (!_canUseFiftyFiftyToken) return;
+    final rewards = ref.read(rewardsProvider.notifier);
+    final owned = ref
+        .read(rewardsProvider)
+        .powerUpCount(PowerUpType.fiftyFifty);
+    if (owned <= 0) return;
+    _useFiftyFifty(); // removes exactly two wrong options
+    if (_isFiftyFiftyUsed) rewards.consumePowerUp(PowerUpType.fiftyFifty);
+  }
+
   void _skipQuestion() {
     if (_isSubmitted || _isSkipUsed) return;
     ref.read(gameAudioServiceProvider).play(GameSound.skip);
@@ -184,6 +217,12 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
   @override
   Widget build(BuildContext context) {
     final character = ref.watch(characterControllerProvider);
+    final hintTokens = ref.watch(
+      rewardsProvider.select((s) => s.powerUpCount(PowerUpType.hint)),
+    );
+    final fiftyFiftyTokens = ref.watch(
+      rewardsProvider.select((s) => s.powerUpCount(PowerUpType.fiftyFifty)),
+    );
     final progress = widget.totalQuestions == 0
         ? 0.0
         : (widget.currentIndex + 1) / widget.totalQuestions;
@@ -348,6 +387,23 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
                                 onUse: _skipQuestion,
                               ),
                             ],
+                          ),
+                          _TokenRow(
+                            hintTokens: hintTokens,
+                            fiftyFiftyTokens: fiftyFiftyTokens,
+                            canUseHint: _canUseHintToken,
+                            canUseFiftyFifty: _canUseFiftyFiftyToken,
+                            onHint: _useHintToken,
+                            onFiftyFifty: _useFiftyFiftyToken,
+                            hintNote:
+                                hintTokens > 0 && widget.question.hint == null
+                                ? "This question has no hint."
+                                : null,
+                            fiftyFiftyNote:
+                                fiftyFiftyTokens > 0 &&
+                                    widget.question.options.length < 4
+                                ? "50/50 is not available for this question."
+                                : null,
                           ),
                           const SizedBox(height: AppSpacing.md),
                           submitButton,
@@ -679,6 +735,77 @@ class _CharacterSlot extends StatelessWidget {
       key: const Key('mcq_character_section'),
       height: height,
       child: CharacterStage(controller: controller, height: height),
+    );
+  }
+}
+
+/// Shop tokens the student owns, shown only when there is at least one.
+/// A token is spent only after its effect has been applied.
+class _TokenRow extends StatelessWidget {
+  final int hintTokens;
+  final int fiftyFiftyTokens;
+  final bool canUseHint;
+  final bool canUseFiftyFifty;
+  final VoidCallback onHint;
+  final VoidCallback onFiftyFifty;
+  final String? hintNote;
+  final String? fiftyFiftyNote;
+
+  const _TokenRow({
+    required this.hintTokens,
+    required this.fiftyFiftyTokens,
+    required this.canUseHint,
+    required this.canUseFiftyFifty,
+    required this.onHint,
+    required this.onFiftyFifty,
+    this.hintNote,
+    this.fiftyFiftyNote,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (hintTokens == 0 && fiftyFiftyTokens == 0) {
+      return const SizedBox.shrink();
+    }
+    final styles = context.appTextStyles;
+    final colors = context.themeColors;
+    final notes = [?hintNote, ?fiftyFiftyNote];
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              if (hintTokens > 0)
+                OutlinedButton.icon(
+                  key: const Key('use_hint_token'),
+                  onPressed: canUseHint ? onHint : null,
+                  icon: const Icon(Icons.lightbulb_outline, size: 18),
+                  label: Text('Hint Token x$hintTokens'),
+                ),
+              if (fiftyFiftyTokens > 0)
+                OutlinedButton.icon(
+                  key: const Key('use_fifty_fifty_token'),
+                  onPressed: canUseFiftyFifty ? onFiftyFifty : null,
+                  icon: const Icon(Icons.filter_2, size: 18),
+                  label: Text('50/50 Token x$fiftyFiftyTokens'),
+                ),
+            ],
+          ),
+          for (final note in notes)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Text(
+                note,
+                style: styles.caption.copyWith(color: colors.textSecondary),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

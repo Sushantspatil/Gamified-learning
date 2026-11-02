@@ -1206,7 +1206,7 @@ class _RewardShortcuts extends StatelessWidget {
             icon: Icons.inventory_2_rounded,
             label: 'Chests',
             color: AppColors.accentGold,
-            onTap: () => context.push(RouteNames.chestPath('daily')),
+            onTap: () => context.push(RouteNames.chest),
           ),
         ),
         const SizedBox(width: AppSpacing.sm),

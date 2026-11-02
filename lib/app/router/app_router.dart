@@ -220,7 +220,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ShopScreen(),
       ),
       GoRoute(
-        path: RouteNames.chestPattern,
+        path: RouteNames.chest,
         builder: (context, state) => const ChestScreen(),
       ),
       GoRoute(
