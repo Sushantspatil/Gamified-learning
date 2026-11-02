@@ -65,9 +65,9 @@ void main() {
     await _pumpMcqView(tester);
 
     expect(find.text('Which item is an asset?'), findsOneWidget);
-    expect(find.byKey(const Key('quiz_companion_placeholder')), findsOneWidget);
-    expect(find.text('Your Quiz Companion'), findsOneWidget);
-    expect(find.text('Coming Soon'), findsOneWidget);
+    expect(find.byKey(const Key('mcq_character_section')), findsOneWidget);
+    expect(find.byKey(const Key('mcq_scholar_companion_art')), findsOneWidget);
+    expect(find.text('Think carefully.'), findsOneWidget);
     expect(find.text('50:50'), findsOneWidget);
     expect(find.text('Hint'), findsOneWidget);
     expect(find.text('Skip'), findsOneWidget);

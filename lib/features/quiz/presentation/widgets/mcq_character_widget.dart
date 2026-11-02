@@ -9,13 +9,42 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 
-enum McqCharacterState { idle, thinking, acknowledge, powerUp, transition }
+enum McqCharacterState {
+  idle,
+  thinking,
+  acknowledge,
+  powerUp,
+  transition,
+  celebrate,
+  encourage,
+}
+
+Color _accentFor(AppThemeColors colors, McqCharacterState state) {
+  return switch (state) {
+    McqCharacterState.powerUp => colors.secondary,
+    McqCharacterState.thinking => colors.warning,
+    McqCharacterState.transition => colors.violet,
+    McqCharacterState.celebrate => colors.success,
+    McqCharacterState.encourage => colors.info,
+    _ => colors.primary,
+  };
+}
 
 class McqCharacterWidget extends StatefulWidget {
   final McqCharacterState state;
   final String? message;
 
-  const McqCharacterWidget({super.key, required this.state, this.message});
+  /// Height of the companion zone. When null the widget picks a height from
+  /// the screen height; the MCQ view passes the space it can spare so the
+  /// companion shrinks instead of pushing the options off screen.
+  final double? height;
+
+  const McqCharacterWidget({
+    super.key,
+    required this.state,
+    this.message,
+    this.height,
+  });
 
   @override
   State<McqCharacterWidget> createState() => _McqCharacterWidgetState();
@@ -23,7 +52,16 @@ class McqCharacterWidget extends StatefulWidget {
 
 class _McqCharacterWidgetState extends State<McqCharacterWidget>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  /// The gentle idle loop is bounded (~45s) instead of running forever; it
+  /// is restarted whenever the state changes, e.g. on the next question.
+  static const int _idlePasses = 24;
+
   late final AnimationController _idleController;
+
+  void _startIdle() {
+    if (AppMotion.reduceMotion(context) || _idleController.isAnimating) return;
+    _idleController.repeat(reverse: true, count: _idlePasses);
+  }
 
   @override
   void initState() {
@@ -32,18 +70,23 @@ class _McqCharacterWidgetState extends State<McqCharacterWidget>
     _idleController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
+    );
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (AppMotion.reduceMotion(context) && _idleController.isAnimating) {
-      _idleController.stop();
-    } else if (!AppMotion.reduceMotion(context) &&
-        !_idleController.isAnimating) {
-      _idleController.repeat(reverse: true);
+    if (AppMotion.reduceMotion(context)) {
+      if (_idleController.isAnimating) _idleController.stop();
+    } else {
+      _startIdle();
     }
+  }
+
+  @override
+  void didUpdateWidget(covariant McqCharacterWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.state != widget.state) _startIdle();
   }
 
   @override
@@ -55,9 +98,7 @@ class _McqCharacterWidgetState extends State<McqCharacterWidget>
         _idleController.stop();
       }
     } else if (state == AppLifecycleState.resumed) {
-      if (!AppMotion.reduceMotion(context) && !_idleController.isAnimating) {
-        _idleController.repeat(reverse: true);
-      }
+      _startIdle();
     }
   }
 
@@ -71,8 +112,10 @@ class _McqCharacterWidgetState extends State<McqCharacterWidget>
   @override
   Widget build(BuildContext context) {
     final isCompact = MediaQuery.sizeOf(context).height < 700;
-    final characterSize = isCompact ? 112.0 : 150.0;
-    final sectionHeight = isCompact ? 132.0 : 178.0;
+    final sectionHeight = widget.height ?? (isCompact ? 132.0 : 178.0);
+    // The bubble occupies the top ~38px; the artwork has transparent
+    // margin at its top, so a small overlap is invisible.
+    final characterSize = (sectionHeight - 30).clamp(64.0, 150.0);
     final effectiveMessage = widget.message ?? _messageForState(widget.state);
     final reduceMotion = AppMotion.reduceMotion(context);
 
@@ -151,12 +194,14 @@ class _McqCharacterWidgetState extends State<McqCharacterWidget>
                         child: SizedBox(
                           width: characterSize,
                           height: characterSize,
-                          child: CustomPaint(
-                            key: const Key('mcq_scholar_companion_art'),
-                            painter: _ScholarCompanionPainter(
-                              colors: context.themeColors,
-                              state: widget.state,
-                              idleValue: t,
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              key: const Key('mcq_scholar_companion_art'),
+                              painter: _ScholarCompanionPainter(
+                                colors: context.themeColors,
+                                state: widget.state,
+                                idleValue: t,
+                              ),
                             ),
                           ),
                         ),
@@ -177,6 +222,8 @@ class _McqCharacterWidgetState extends State<McqCharacterWidget>
       McqCharacterState.acknowledge => 1.025,
       McqCharacterState.powerUp => 1.045,
       McqCharacterState.transition => 0.96,
+      McqCharacterState.celebrate => 1.08,
+      McqCharacterState.encourage => 1.02,
       _ => 1,
     };
   }
@@ -188,6 +235,8 @@ class _McqCharacterWidgetState extends State<McqCharacterWidget>
       McqCharacterState.acknowledge => 'Nice choice.',
       McqCharacterState.powerUp => "Let's narrow it down.",
       McqCharacterState.transition => 'Next one!',
+      McqCharacterState.celebrate => 'Great job!',
+      McqCharacterState.encourage => "Good try. You've got this!",
     };
   }
 }
@@ -201,12 +250,7 @@ class _SpeechBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final accent = switch (state) {
-      McqCharacterState.powerUp => colors.secondary,
-      McqCharacterState.thinking => colors.warning,
-      McqCharacterState.transition => colors.violet,
-      _ => colors.primary,
-    };
+    final accent = _accentFor(colors, state);
 
     return Align(
       alignment: Alignment.topCenter,
@@ -280,12 +324,7 @@ class _CompanionStagePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width * 0.5, size.height * 0.62);
-    final accent = switch (state) {
-      McqCharacterState.powerUp => colors.secondary,
-      McqCharacterState.thinking => colors.warning,
-      McqCharacterState.transition => colors.violet,
-      _ => colors.primary,
-    };
+    final accent = _accentFor(colors, state);
 
     final haloPaint = Paint()
       ..shader =
@@ -370,12 +409,7 @@ class _ScholarCompanionPainter extends CustomPainter {
     canvas.save();
     canvas.scale(sx, sy);
 
-    final accent = switch (state) {
-      McqCharacterState.powerUp => colors.secondary,
-      McqCharacterState.thinking => colors.warning,
-      McqCharacterState.transition => colors.violet,
-      _ => colors.primary,
-    };
+    final accent = _accentFor(colors, state);
     final jacket = Paint()..color = colors.primaryDark;
     final jacketLight = Paint()..color = colors.primary;
     final face = Paint()..color = const Color(0xFFFFD6B8);
@@ -481,25 +515,49 @@ class _ScholarCompanionPainter extends CustomPainter {
       Paint()..color = colors.secondary.withValues(alpha: 0.62),
     );
 
-    canvas.drawCircle(
-      const Offset(64, 49),
-      2.1,
-      Paint()..color = colors.textPrimary,
-    );
-    canvas.drawCircle(
-      const Offset(86, 49),
-      2.1,
-      Paint()..color = colors.textPrimary,
-    );
+    if (state == McqCharacterState.celebrate) {
+      // Happy closed eyes (^ ^).
+      for (final eyeX in const [64.0, 86.0]) {
+        canvas.drawArc(
+          Rect.fromCenter(center: Offset(eyeX, 51), width: 8, height: 7),
+          math.pi,
+          math.pi,
+          false,
+          line..strokeWidth = 2,
+        );
+      }
+    } else {
+      canvas.drawCircle(
+        const Offset(64, 49),
+        2.1,
+        Paint()..color = colors.textPrimary,
+      );
+      canvas.drawCircle(
+        const Offset(86, 49),
+        2.1,
+        Paint()..color = colors.textPrimary,
+      );
+    }
 
-    final mouthY = state == McqCharacterState.thinking ? 59.0 : 58.0;
-    canvas.drawArc(
-      Rect.fromCenter(center: Offset(75, mouthY), width: 18, height: 9),
-      0.10,
-      state == McqCharacterState.thinking ? 2.3 : 2.85,
-      false,
-      line..strokeWidth = 2,
-    );
+    if (state == McqCharacterState.celebrate) {
+      // Open, happy mouth.
+      canvas.drawPath(
+        Path()
+          ..moveTo(67, 57)
+          ..quadraticBezierTo(75, 68, 83, 57)
+          ..close(),
+        Paint()..color = colors.textPrimary,
+      );
+    } else {
+      final mouthY = state == McqCharacterState.thinking ? 59.0 : 58.0;
+      canvas.drawArc(
+        Rect.fromCenter(center: Offset(75, mouthY), width: 18, height: 9),
+        0.10,
+        state == McqCharacterState.thinking ? 2.3 : 2.85,
+        false,
+        line..strokeWidth = 2,
+      );
+    }
 
     final capTop = Path()
       ..moveTo(44, 27)
@@ -566,11 +624,14 @@ class _ScholarCompanionPainter extends CustomPainter {
       McqCharacterState.thinking => const Offset(57, 58),
       McqCharacterState.acknowledge => const Offset(31, 71),
       McqCharacterState.transition => const Offset(31, 93),
+      McqCharacterState.celebrate => const Offset(26, 54),
+      McqCharacterState.encourage => const Offset(30, 66),
       _ => const Offset(42, 98),
     };
     final rightArmEnd = switch (state) {
       McqCharacterState.powerUp => const Offset(93, 92),
       McqCharacterState.transition => const Offset(124, 83),
+      McqCharacterState.celebrate => const Offset(124, 54),
       _ => const Offset(98, 95),
     };
     final armPaint = Paint()
@@ -590,6 +651,37 @@ class _ScholarCompanionPainter extends CustomPainter {
       final pulse = math.sin(idleValue * math.pi) * 4;
       canvas.drawCircle(const Offset(109, 106), 29 + pulse, scan);
       canvas.drawCircle(const Offset(109, 106), 39 + pulse, scan);
+    }
+
+    if (state == McqCharacterState.celebrate) {
+      // Soft twinkle that breathes with the idle value; no extra controller.
+      final twinkle = 0.55 + 0.45 * math.sin(idleValue * math.pi);
+      final star = Paint()
+        ..color = AppColors.coinGold.withValues(alpha: twinkle);
+      for (final p in const [Offset(20, 30), Offset(130, 30), Offset(75, 4)]) {
+        canvas.drawPath(
+          Path()
+            ..moveTo(p.dx, p.dy - 6)
+            ..quadraticBezierTo(p.dx, p.dy, p.dx + 6, p.dy)
+            ..quadraticBezierTo(p.dx, p.dy, p.dx, p.dy + 6)
+            ..quadraticBezierTo(p.dx, p.dy, p.dx - 6, p.dy)
+            ..quadraticBezierTo(p.dx, p.dy, p.dx, p.dy - 6)
+            ..close(),
+          star,
+        );
+      }
+    }
+
+    if (state == McqCharacterState.encourage) {
+      // Small heart: a supportive, never negative, cue.
+      canvas.drawPath(
+        Path()
+          ..moveTo(126, 52)
+          ..cubicTo(116, 42, 120, 32, 126, 38)
+          ..cubicTo(132, 32, 136, 42, 126, 52)
+          ..close(),
+        Paint()..color = colors.error.withValues(alpha: 0.85),
+      );
     }
 
     if (state == McqCharacterState.acknowledge) {

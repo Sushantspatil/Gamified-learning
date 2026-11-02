@@ -85,6 +85,8 @@ class DashboardScreen extends ConsumerWidget {
             _QuickPracticeSection(selectedPathId: selectedPathId),
             const SizedBox(height: AppSpacing.lg),
             const _DailyRewardCard(),
+            const SizedBox(height: AppSpacing.md),
+            const _RewardShortcuts(),
           ],
         ),
       ),
@@ -1178,6 +1180,79 @@ class _DailyRewardCard extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Entry points to the demo rewards screens (spin wheel, chests, shop).
+class _RewardShortcuts extends StatelessWidget {
+  const _RewardShortcuts();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _RewardShortcut(
+            icon: Icons.casino_rounded,
+            label: 'Spin',
+            color: AppColors.streakFire,
+            onTap: () => context.push(RouteNames.spinWheel),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _RewardShortcut(
+            icon: Icons.inventory_2_rounded,
+            label: 'Chests',
+            color: AppColors.accentGold,
+            onTap: () => context.push(RouteNames.chestPath('daily')),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: _RewardShortcut(
+            icon: Icons.storefront_rounded,
+            label: 'Shop',
+            color: AppColors.primary,
+            onTap: () => context.push(RouteNames.shop),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RewardShortcut extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _RewardShortcut({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppPressable(
+      onTap: onTap,
+      borderRadius: AppDimensions.radiusCard,
+      child: AppCard(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.ms),
+        variant: AppCardVariant.tinted,
+        tintColor: color,
+        child: Column(
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(height: AppSpacing.xs),
+            Text(label, style: context.appTextStyles.labelLarge),
+          ],
+        ),
+      ),
     );
   }
 }

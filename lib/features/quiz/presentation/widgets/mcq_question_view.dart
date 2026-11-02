@@ -16,6 +16,7 @@ import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import 'game_power_up_bar.dart';
+import 'mcq_character_widget.dart';
 
 class McqQuestionView extends ConsumerStatefulWidget {
   final McqQuestion question;
@@ -55,6 +56,20 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
   bool _isSkipUsed = false;
   bool _isSubmitted = false;
 
+  /// How long the companion's reaction stays visible before moving on.
+  static const Duration _reactionHold = Duration(milliseconds: 650);
+
+  /// Set once per submitted answer; cleared when the next question loads.
+  McqCharacterState? _reaction;
+
+  /// The companion only mirrors the view's existing state; it never feeds
+  /// back into answer selection, grading or navigation.
+  McqCharacterState get _characterState {
+    if (_reaction != null) return _reaction!;
+    if (_selectedOptionId != null) return McqCharacterState.thinking;
+    return McqCharacterState.idle;
+  }
+
   bool get _isFinalQuestion => widget.currentIndex >= widget.totalQuestions - 1;
 
   @override
@@ -90,6 +105,7 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
       _isHintVisible = false;
       _isSkipUsed = false;
       _isSubmitted = false;
+      _reaction = null;
       _questionMotionController.forward(from: 0);
     }
   }
@@ -151,7 +167,22 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
   Future<void> _submitAnswer(String selectedOptionId) async {
     if (_isSubmitted) return;
 
-    setState(() => _isSubmitted = true);
+    final isSkip = selectedOptionId == _skippedOptionId;
+    final isCorrect = selectedOptionId == widget.question.correctOptionId;
+    setState(() {
+      _isSubmitted = true;
+      _reaction = isSkip
+          ? McqCharacterState.transition
+          : isCorrect
+          ? McqCharacterState.celebrate
+          : McqCharacterState.encourage;
+    });
+    // Let the reaction be seen before the question animates out. A skip has
+    // no verdict to show, so it moves on immediately.
+    if (!isSkip && !AppMotion.reduceMotion(context)) {
+      await Future<void>.delayed(_reactionHold);
+      if (!mounted) return;
+    }
     await _questionMotionController.reverse();
     if (!mounted) return;
 
@@ -239,7 +270,10 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
                             style: context.appTextStyles.titleLarge,
                           ),
                           const SizedBox(height: AppSpacing.md),
-                          QuizCompanionPlaceholder(height: companionHeight),
+                          McqCharacterWidget(
+                            state: _characterState,
+                            height: companionHeight,
+                          ),
                           const SizedBox(height: AppSpacing.md),
                           for (final indexed
                               in widget.question.options.indexed) ...[
@@ -347,357 +381,6 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
     final targetHeight = availableHeight - reservedControlHeight;
     final promptPenalty = widget.question.prompt.length > 80 ? 32.0 : 0.0;
     return (targetHeight - promptPenalty).clamp(90.0, 200.0);
-  }
-}
-
-class QuizCompanionPlaceholder extends StatefulWidget {
-  final double? height;
-
-  const QuizCompanionPlaceholder({super.key, this.height});
-
-  @override
-  State<QuizCompanionPlaceholder> createState() =>
-      _QuizCompanionPlaceholderState();
-}
-
-class _QuizCompanionPlaceholderState extends State<QuizCompanionPlaceholder>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  late final AnimationController _loopController;
-
-  bool get _isWidgetTestBinding {
-    return WidgetsBinding.instance.runtimeType.toString().contains(
-      'TestWidgetsFlutterBinding',
-    );
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _loopController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-      value: 0.45,
-    );
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final shouldAnimate =
-        !AppMotion.reduceMotion(context) && !_isWidgetTestBinding;
-
-    if (shouldAnimate && !_loopController.isAnimating) {
-      _loopController.repeat(reverse: true);
-    } else if (!shouldAnimate && _loopController.isAnimating) {
-      _loopController.stop();
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (!mounted) return;
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      if (_loopController.isAnimating) {
-        _loopController.stop();
-      }
-    } else if (state == AppLifecycleState.resumed) {
-      final shouldAnimate =
-          !AppMotion.reduceMotion(context) && !_isWidgetTestBinding;
-      if (shouldAnimate && !_loopController.isAnimating) {
-        _loopController.repeat(reverse: true);
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _loopController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final height =
-        widget.height ?? _placeholderHeight(MediaQuery.sizeOf(context).height);
-
-    return Semantics(
-      container: true,
-      label: 'Your Quiz Companion coming soon',
-      child: SizedBox(
-        key: const Key('quiz_companion_placeholder'),
-        height: height,
-        child: AnimatedBuilder(
-          animation: _loopController,
-          builder: (context, child) {
-            final pulse = Curves.easeInOut.transform(_loopController.value);
-            final translateY = -4 * pulse;
-            final glowOpacity = 0.4 + (0.4 * pulse);
-            final textOpacity = 0.82 + (0.14 * pulse);
-
-            return Transform.translate(
-              offset: Offset(0, translateY),
-              child: _QuizCompanionPlaceholderContent(
-                glowOpacity: glowOpacity,
-                textOpacity: textOpacity,
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  double _placeholderHeight(double screenHeight) {
-    if (screenHeight < 680) return 110;
-    if (screenHeight < 780) return 124;
-    return 140;
-  }
-}
-
-class _QuizCompanionPlaceholderContent extends StatelessWidget {
-  final double glowOpacity;
-  final double textOpacity;
-
-  const _QuizCompanionPlaceholderContent({
-    required this.glowOpacity,
-    required this.textOpacity,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: AppDimensions.radiusMd,
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            colors.primaryDark.withValues(alpha: 0.24),
-            colors.surfaceElevated.withValues(alpha: 0.70),
-            colors.secondary.withValues(alpha: 0.10),
-          ],
-        ),
-        border: Border.all(color: colors.primary.withValues(alpha: 0.22)),
-        boxShadow: [
-          BoxShadow(
-            color: colors.violet.withValues(alpha: 0.14 * glowOpacity),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: AppDimensions.radiusMd,
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final isCompact = constraints.maxHeight < 104;
-            final avatarSize = isCompact ? 34.0 : 50.0;
-            final verticalPadding = isCompact ? 4.0 : AppSpacing.sm;
-            final avatarGap = isCompact ? 0.0 : AppSpacing.xs;
-
-            return CustomPaint(
-              painter: _QuizCompanionGlowPainter(
-                colors: colors,
-                glowOpacity: glowOpacity,
-              ),
-              child: Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: verticalPadding,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      SizedBox(
-                        width: avatarSize,
-                        height: avatarSize,
-                        child: CustomPaint(
-                          painter: _QuizCompanionSilhouettePainter(
-                            colors: colors,
-                            glowOpacity: glowOpacity,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: avatarGap),
-                      Opacity(
-                        opacity: textOpacity,
-                        child: Text(
-                          'Your Quiz Companion',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: context.appTextStyles.labelLarge.copyWith(
-                            color: colors.textPrimary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Opacity(
-                        opacity: textOpacity,
-                        child: Text(
-                          'Coming Soon',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: context.appTextStyles.bodySmall.copyWith(
-                            color: colors.secondary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _QuizCompanionGlowPainter extends CustomPainter {
-  final AppThemeColors colors;
-  final double glowOpacity;
-
-  const _QuizCompanionGlowPainter({
-    required this.colors,
-    required this.glowOpacity,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final glowPaint = Paint()
-      ..shader =
-          RadialGradient(
-            colors: [
-              colors.secondary.withValues(alpha: 0.26 * glowOpacity),
-              colors.violet.withValues(alpha: 0.18 * glowOpacity),
-              Colors.transparent,
-            ],
-          ).createShader(
-            Rect.fromCircle(
-              center: Offset(size.width * 0.5, size.height * 0.48),
-              radius: size.width * 0.48,
-            ),
-          );
-
-    canvas.drawCircle(
-      Offset(size.width * 0.5, size.height * 0.48),
-      size.width * 0.40,
-      glowPaint,
-    );
-
-    final linePaint = Paint()
-      ..color = colors.secondary.withValues(alpha: 0.14 * glowOpacity)
-      ..strokeWidth = 1;
-
-    canvas.drawLine(
-      Offset(size.width * 0.18, size.height * 0.24),
-      Offset(size.width * 0.82, size.height * 0.24),
-      linePaint,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.24, size.height * 0.78),
-      Offset(size.width * 0.76, size.height * 0.78),
-      linePaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_QuizCompanionGlowPainter oldDelegate) {
-    return oldDelegate.colors != colors ||
-        oldDelegate.glowOpacity != glowOpacity;
-  }
-}
-
-class _QuizCompanionSilhouettePainter extends CustomPainter {
-  final AppThemeColors colors;
-  final double glowOpacity;
-
-  const _QuizCompanionSilhouettePainter({
-    required this.colors,
-    required this.glowOpacity,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final haloPaint = Paint()
-      ..shader =
-          RadialGradient(
-            colors: [
-              colors.secondary.withValues(alpha: 0.36 * glowOpacity),
-              colors.violet.withValues(alpha: 0.18 * glowOpacity),
-              Colors.transparent,
-            ],
-          ).createShader(
-            Rect.fromCircle(center: center, radius: size.shortestSide * 0.55),
-          );
-
-    canvas.drawCircle(center, size.shortestSide * 0.48, haloPaint);
-
-    final strokePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..shader = LinearGradient(
-        colors: [colors.secondary, colors.violet],
-      ).createShader(Offset.zero & size);
-
-    final fillPaint = Paint()
-      ..color = colors.primaryDark.withValues(alpha: 0.32);
-
-    final head = Rect.fromCircle(
-      center: Offset(size.width * 0.5, size.height * 0.34),
-      radius: size.shortestSide * 0.13,
-    );
-    canvas.drawOval(head, fillPaint);
-    canvas.drawOval(head, strokePaint);
-
-    final body = Path()
-      ..moveTo(size.width * 0.28, size.height * 0.76)
-      ..quadraticBezierTo(
-        size.width * 0.34,
-        size.height * 0.54,
-        size.width * 0.50,
-        size.height * 0.54,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.66,
-        size.height * 0.54,
-        size.width * 0.72,
-        size.height * 0.76,
-      );
-    canvas.drawPath(body, strokePaint);
-
-    final visor = RRect.fromRectAndRadius(
-      Rect.fromCenter(
-        center: Offset(size.width * 0.5, size.height * 0.34),
-        width: size.width * 0.25,
-        height: size.height * 0.08,
-      ),
-      const Radius.circular(10),
-    );
-    canvas.drawRRect(
-      visor,
-      Paint()..color = colors.secondary.withValues(alpha: 0.34 * glowOpacity),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_QuizCompanionSilhouettePainter oldDelegate) {
-    return oldDelegate.colors != colors ||
-        oldDelegate.glowOpacity != glowOpacity;
   }
 }
 

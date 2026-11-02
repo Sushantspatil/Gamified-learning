@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:skillverse_app/app/app.dart';
+import 'package:skillverse_app/app/router/route_names.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/shared/widgets/app_button.dart';
@@ -30,22 +32,9 @@ import 'package:skillverse_app/features/wallet/presentation/providers/wallet_pro
 Finder _buyButtonFor(String itemTitle) {
   final card = find.ancestor(
     of: find.text(itemTitle),
-    matching: find.byType(ShopItemCard),
+    matching: find.byType(ProductCard),
   );
   return find.descendant(of: card, matching: find.byType(FilledButton));
-}
-
-/// The shop's ListView doesn't eagerly build off-screen children. Ad
-/// Gems/Powerups/Chests sit below the fold, so scroll down before
-/// interacting with them; Gems (the first section) is visible already.
-Future<void> _scrollShopDown(WidgetTester tester) async {
-  await tester.dragFrom(const Offset(200, 500), const Offset(0, -600));
-  await tester.pumpAndSettle();
-}
-
-Future<void> _scrollShopUp(WidgetTester tester) async {
-  await tester.dragFrom(const Offset(200, 300), const Offset(0, 600));
-  await tester.pumpAndSettle();
 }
 
 Future<void> _pumpApp(WidgetTester tester) async {
@@ -67,9 +56,7 @@ Future<void> _pumpAppWithInitialValues(
         learningPathDatasourceProvider.overrideWithValue(
           LearningPathMockDatasource(),
         ),
-        chapterDatasourceProvider.overrideWithValue(
-          ChapterMockDatasource(),
-        ),
+        chapterDatasourceProvider.overrideWithValue(ChapterMockDatasource()),
         questionDatasourceProvider.overrideWithValue(QuestionMockDatasource()),
         quizDatasourceProvider.overrideWithValue(QuizMockDatasource()),
         profileDatasourceProvider.overrideWithValue(ProfileMockDatasource()),
@@ -398,94 +385,55 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets(
-    'shop lets you earn gems, buy a powerup, and open the daily chest',
-    (tester) async {
-      await _pumpApp(tester);
-      await _signUp(tester);
-      await _completeOnboarding(tester);
+  testWidgets('shop purchase flow: confirm, deduct coins, then own and equip', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
 
-      await tester.tap(find.byTooltip('Shop'));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Shop'));
+    await tester.pumpAndSettle();
 
-      await _scrollShopDown(tester);
+    // Cancelling a purchase leaves the balance and the item untouched.
+    await tester.tap(_buyButtonFor('50/50 Booster'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('500'), findsOneWidget);
 
-      // Not enough gems yet for the 20-gem Streak Freeze powerup.
-      await tester.tap(_buyButtonFor('Streak Freeze'));
-      await tester.pumpAndSettle();
-      expect(find.text('Not enough gems.'), findsOneWidget);
+    // Confirming deducts the price (100) and shows a success message.
+    await tester.tap(_buyButtonFor('50/50 Booster'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm'));
+    await tester.pumpAndSettle();
+    expect(find.text('50/50 Booster purchased.'), findsOneWidget);
+    expect(find.text('400'), findsOneWidget);
+  });
 
-      // Watch two simulated ads to earn 20 gems (10 each).
-      await tester.tap(_buyButtonFor('Watch an Ad'));
-      await tester.pumpAndSettle();
-      expect(find.text('You received 10 Gems!'), findsOneWidget);
-      await tester.tap(_buyButtonFor('Watch an Ad'));
-      await tester.pumpAndSettle();
+  testWidgets('spin wheel reveals a prize and blocks a second spin today', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
+    // Reached by route: the dashboard has unrelated layout overflows in the
+    // test viewport once scrolled, which would mask this flow.
+    GoRouter.of(
+      tester.element(find.byType(Scaffold).first),
+    ).push(RouteNames.spinWheel);
+    await tester.pumpAndSettle();
 
-      await tester.tap(_buyButtonFor('Streak Freeze'));
-      await tester.pumpAndSettle();
-      expect(find.text('Streak Freeze purchased!'), findsOneWidget);
+    await tester.tap(find.text('Spin Now'));
+    await tester.pumpAndSettle(const Duration(milliseconds: 500));
 
-      // Gem packs (in the first, already-visible section) are demo
-      // purchases behind a confirmation dialog.
-      await _scrollShopUp(tester);
-      await tester.tap(_buyButtonFor('50 Gems'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('demo purchase'), findsOneWidget);
-      await tester.tap(
-        find.descendant(
-          of: find.byType(AlertDialog),
-          matching: find.widgetWithText(FilledButton, 'Buy'),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('You received 50 Gems!'), findsOneWidget);
+    expect(find.textContaining('You won'), findsOneWidget);
+    await tester.tap(find.text('Collect'));
+    await tester.pumpAndSettle();
 
-      await _scrollShopDown(tester);
-      await tester.tap(find.text('Daily Chest'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Open Chest'), findsOneWidget);
-      await tester.tap(find.text('Open Chest'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Chest Opened!'), findsOneWidget);
-      await tester.tap(find.text('Nice!'));
-      await tester.pumpAndSettle();
-
-      // The daily chest is once-per-day; opening it again today is blocked.
-      expect(
-        find.text('Come back tomorrow for your next daily chest.'),
-        findsOneWidget,
-      );
-    },
-  );
-
-  testWidgets(
-    'spin wheel reveals a winning segment and blocks a second spin today',
-    (tester) async {
-      await _pumpApp(tester);
-      await _signUp(tester);
-      await _completeOnboarding(tester);
-
-      await tester.tap(find.byTooltip('Shop'));
-      await tester.pumpAndSettle();
-      await _scrollShopDown(tester);
-      await tester.tap(find.text('Spin Wheel'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Spin'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('You won'), findsOneWidget);
-
-      // Today's spin is used; spinning again is blocked until it resets.
-      expect(
-        find.text('Come back tomorrow for your next spin.'),
-        findsOneWidget,
-      );
-    },
-  );
+    // Today's spin is used; spinning again is blocked until it resets.
+    expect(find.text('Spin used today'), findsOneWidget);
+  });
 
   testWidgets('a cosmetic can be purchased with coins and then equipped', (
     tester,

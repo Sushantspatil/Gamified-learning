@@ -9,7 +9,6 @@ import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/chapters/presentation/screens/chapter_list_screen.dart';
 import '../../features/chapters/presentation/screens/chapter_summary_screen.dart';
 import '../../features/chapters/presentation/screens/topic_learning_screen.dart';
-import '../../features/chests/domain/entities/chest_type.dart';
 import '../../features/chests/presentation/screens/chest_screen.dart';
 import '../../features/cosmetics/presentation/screens/cosmetics_screen.dart';
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
@@ -222,11 +221,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: RouteNames.chestPattern,
-        builder: (context, state) => ChestScreen(
-          type: state.pathParameters['type'] == 'daily'
-              ? ChestType.daily
-              : ChestType.ad,
-        ),
+        builder: (context, state) => const ChestScreen(),
       ),
       GoRoute(
         path: RouteNames.spinWheel,
