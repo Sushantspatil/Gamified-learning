@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../app/motion/app_motion.dart';
+import 'character_motion.dart';
 import '../application/character_controller.dart';
 import '../domain/character_state.dart';
 import 'character_assets.dart';
@@ -112,7 +112,7 @@ class _CharacterViewState extends State<CharacterView>
   void _restartAnimation() {
     if (!mounted || _inBackground) return;
     final state = _state;
-    if (AppMotion.reduceMotion(context)) {
+    if (CharacterMotion.reduce(context)) {
       _anim.stop();
       _anim.value = 0;
       setState(() {});
@@ -180,7 +180,7 @@ class _CharacterViewState extends State<CharacterView>
   Widget build(BuildContext context) {
     final size = widget.size;
     final width = size * CharacterAssets.aspectRatio;
-    final reduceMotion = AppMotion.reduceMotion(context);
+    final reduceMotion = CharacterMotion.reduce(context);
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
     return Semantics(

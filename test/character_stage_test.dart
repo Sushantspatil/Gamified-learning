@@ -7,6 +7,7 @@ import 'package:skillverse_app/features/character/presentation/character_stage.d
 import 'package:skillverse_app/features/character/presentation/character_speech_bubble.dart';
 
 void main() {
+  strollTests();
   testWidgets('character changes sides as the game moves on', (tester) async {
     final controller = CharacterController();
     await tester.pumpWidget(
@@ -50,6 +51,39 @@ void main() {
     final character = tester.getRect(find.byKey(const Key('character_view')));
     expect(bubble.overlaps(character), isFalse);
     expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+}
+
+void strollTests() {
+  testWidgets('strolls to a new spot while idle, even with OS animations off', (
+    tester,
+  ) async {
+    final controller = CharacterController();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.lightTheme,
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: Scaffold(
+            body: SizedBox(
+              width: 400,
+              child: CharacterStage(controller: controller, height: 120),
+            ),
+          ),
+        ),
+      ),
+    );
+    Alignment at() =>
+        tester.widget<AnimatedAlign>(find.byType(AnimatedAlign)).alignment
+            as Alignment;
+    final start = at();
+
+    await tester.pump(const Duration(milliseconds: 3000));
+    await tester.pump();
+    expect(at(), isNot(start));
 
     await tester.pumpWidget(const SizedBox());
     controller.dispose();

@@ -3,7 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../app/motion/app_motion.dart';
+import 'character_motion.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../application/character_controller.dart';
 import '../domain/character_state.dart';
@@ -100,7 +100,7 @@ class _CharacterStageState extends State<CharacterStage> {
       final state = widget.controller.state.value;
       final calm =
           state == CharacterState.idle || state == CharacterState.thinking;
-      if (mounted && calm && !AppMotion.reduceMotion(context)) {
+      if (mounted && calm && !CharacterMotion.reduce(context)) {
         // Go to a new spot on the other half of the strip.
         final distance = 0.4 + _random.nextDouble() * 0.6;
         _moveTo(_onRight ? -distance : distance);
@@ -121,7 +121,7 @@ class _CharacterStageState extends State<CharacterStage> {
   Widget build(BuildContext context) {
     final characterWidth = widget.height * CharacterAssets.aspectRatio;
     final bubbleInset = characterWidth + AppSpacing.sm;
-    final reduceMotion = AppMotion.reduceMotion(context);
+    final reduceMotion = CharacterMotion.reduce(context);
 
     return Stack(
       children: [
@@ -136,14 +136,14 @@ class _CharacterStageState extends State<CharacterStage> {
           ),
         ),
         AnimatedAlign(
-          duration: AppMotion.duration(context, _travel),
+          duration: CharacterMotion.duration(context, _travel),
           curve: Curves.easeInOutCubic,
           alignment: Alignment(_x, 0),
           // Two small hops while travelling, like steps.
           child: TweenAnimationBuilder<double>(
             key: ValueKey(_moves),
             tween: Tween(begin: 0, end: 1),
-            duration: AppMotion.duration(context, _travel),
+            duration: CharacterMotion.duration(context, _travel),
             builder: (context, t, child) => Transform.translate(
               offset: Offset(
                 0,

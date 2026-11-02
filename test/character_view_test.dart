@@ -5,6 +5,7 @@ import 'package:skillverse_app/app/theme/app_theme.dart';
 import 'package:skillverse_app/features/character/application/character_controller.dart';
 import 'package:skillverse_app/features/character/domain/character_event.dart';
 import 'package:skillverse_app/features/character/domain/character_state.dart';
+import 'package:skillverse_app/features/character/presentation/character_motion.dart';
 import 'package:skillverse_app/features/character/presentation/character_pose.dart';
 import 'package:skillverse_app/features/character/presentation/character_speech_bubble.dart';
 import 'package:skillverse_app/features/character/presentation/character_view.dart';
@@ -20,6 +21,7 @@ class _BrokenBundle extends CachingAssetBundle {
     return rootBundle.load(key);
   }
 }
+
 Widget _host(
   CharacterController controller, {
   bool disableAnimations = false,
@@ -120,7 +122,11 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('reduce motion keeps the character static', (tester) async {
+  testWidgets('strict reduce motion keeps the character static', (
+    tester,
+  ) async {
+    CharacterMotion.respectReduceMotion = true;
+    addTearDown(() => CharacterMotion.respectReduceMotion = false);
     final controller = CharacterController();
     await tester.pumpWidget(_host(controller, disableAnimations: true));
     controller.send(const CharacterEvent.resultCorrect());
@@ -128,6 +134,18 @@ void main() {
 
     expect(tester.hasRunningAnimations, isFalse);
     expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+  });
+
+  testWidgets('keeps moving even when the OS has animations turned off', (
+    tester,
+  ) async {
+    final controller = CharacterController();
+    await tester.pumpWidget(_host(controller, disableAnimations: true));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.hasRunningAnimations, isTrue);
 
     await tester.pumpWidget(const SizedBox());
     controller.dispose();
