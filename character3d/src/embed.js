@@ -27,8 +27,8 @@ const send = (message) => {
   }
 };
 
-/** Where the character stops after walking in, as a fraction of the half width. */
-const REST_AT = 0.4;
+/** Where the character stops after walking in: 0 = centre, 1 = right edge. */
+const REST_AT = 0; // the centre of the strip
 /** How far past the edge it starts / ends, so it is fully out of sight (metres). */
 const OFF_SCREEN = 0.6;
 

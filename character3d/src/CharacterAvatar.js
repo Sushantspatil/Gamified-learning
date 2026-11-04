@@ -323,7 +323,7 @@ export class CharacterAvatar extends Emitter {
    * `fromX` (default: where it is now). Resolves on arrival, or when another
    * travel() replaces this one.
    */
-  travel({ fromX, toX, duration, endYaw = 0.3 }) {
+  travel({ fromX, toX, duration, endYaw = 0 }) {
     this.#assertAlive();
     this.#path?.done();
     const here = this.#root.position.x;
@@ -379,7 +379,7 @@ export class CharacterAvatar extends Emitter {
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * this.#camera.aspect);
     const half = h * preset.half; // half of the height that must stay in view
     const distance = Math.max(half / Math.tan(vFov / 2), (half * 0.55) / Math.tan(hFov / 2));
-    const [dx, dy, dz] = preset.dir ?? [0.35, 0.08, 1];
+    const [dx, dy, dz] = preset.dir ?? [0, 0.06, 1]; // straight on: the character faces the viewer
     const offset = new THREE.Vector3(dx, dy, dz).normalize().multiplyScalar(distance);
     this.#camera.position.copy(target).add(offset);
     this.#controls.target.copy(target);
