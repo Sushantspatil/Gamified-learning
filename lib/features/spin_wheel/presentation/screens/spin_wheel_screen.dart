@@ -5,15 +5,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/motion/app_motion.dart';
 import '../../../../app/theme/app_spacing.dart';
-import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/utils/date_key.dart';
-import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../../../rewards/data/rewards_catalog.dart';
 import '../../../rewards/presentation/widgets/coin_balance_chip.dart';
 import '../widgets/spin_wheel_painter.dart';
+
+/// Deep red casino backdrop, as in the reference design. It is part of the
+/// wheel's look, so it is the same in light and dark themes.
+const Color _screenDark = Color(0xFF2A0306);
+const Color _gold = Color(0xFFFFB900);
+const Color _onGold = Color(0xFF5A0A00);
 
 class SpinWheelScreen extends ConsumerStatefulWidget {
   const SpinWheelScreen({super.key});
@@ -24,11 +28,15 @@ class SpinWheelScreen extends ConsumerStatefulWidget {
 
 class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
     with SingleTickerProviderStateMixin {
-  static const int _extraTurns = 5;
+  /// Extra full turns before settling on the prize (6 plus the final part).
+  static const int _extraTurns = 6;
+  static const Duration _spinDuration = Duration(milliseconds: 6000);
 
   late final AnimationController _controller;
-  Animation<double> _rotation = const AlwaysStoppedAnimation<double>(0);
-  double _angle = 0;
+
+  /// Segment 0 rests centred under the pointer, like the reference.
+  late double _angle = wheelRestAngle(0, RewardsCatalog.wheel.length);
+  late Animation<double> _rotation = AlwaysStoppedAnimation<double>(_angle);
   bool _spinning = false;
 
   @override
@@ -41,12 +49,7 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
       final pending = ref.read(rewardsProvider).pendingSpinReward;
       if (pending == null) return;
       final index = RewardsCatalog.wheel.indexWhere((s) => s.coins == pending);
-      _angle = wheelTargetAngle(
-        index: index,
-        segmentCount: RewardsCatalog.wheel.length,
-        currentAngle: 0,
-        turns: 0,
-      );
+      _angle = wheelRestAngle(index, RewardsCatalog.wheel.length);
       _rotation = AlwaysStoppedAnimation<double>(_angle);
       _spinning = true;
       _finishSpin();
@@ -70,6 +73,8 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
 
     final count = RewardsCatalog.wheel.length;
     final random = ref.read(rewardsRandomProvider);
+    // The stop angle is computed from the chosen segment itself, so the
+    // pointer ends inside exactly that segment (never on a neighbour).
     final target = wheelTargetAngle(
       index: index,
       segmentCount: count,
@@ -81,7 +86,7 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
 
     _controller.duration = AppMotion.reduceMotion(context)
         ? const Duration(milliseconds: 400)
-        : const Duration(milliseconds: 4500);
+        : _spinDuration;
     _rotation = Tween<double>(
       begin: _angle,
       end: target,
@@ -108,7 +113,6 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.themeColors;
     final styles = context.appTextStyles;
     final todayKey = dateKey(ref.read(rewardsClockProvider)());
     final canSpin = ref.watch(
@@ -117,7 +121,12 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
     final available = canSpin && !_spinning;
 
     return Scaffold(
+      backgroundColor: _screenDark,
       appBar: AppBar(
+        backgroundColor: _screenDark,
+        foregroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         title: const Text('Spin the Wheel'),
         actions: const [
           CoinBalanceChip(),
@@ -125,35 +134,43 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
           ThemeModeMenu(),
         ],
       ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: ListView(
-              padding: AppSpacing.paddingMd,
-              children: [
-                Text(
-                  'Spin once a day to win coins.',
-                  textAlign: TextAlign.center,
-                  style: styles.bodyLarge.copyWith(color: colors.textSecondary),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _WheelStage(rotation: _rotation),
-                const SizedBox(height: AppSpacing.lg),
-                AppButton(
-                  label: _spinning ? 'Spinning…' : 'Spin Now',
-                  leadingIcon: const Icon(Icons.casino_rounded),
-                  onPressed: available ? _spin : null,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                if (!canSpin && !_spinning)
-                  Text(
-                    "You've already spun today. Come back tomorrow!",
-                    key: const Key('already_spun'),
-                    textAlign: TextAlign.center,
-                    style: styles.bodyLarge,
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: RadialGradient(
+            center: Alignment(0, -0.35),
+            radius: 1.1,
+            colors: [Color(0xFF9B1A10), Color(0xFF5A0A0C), _screenDark],
+            stops: [0.0, 0.55, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: ListView(
+                padding: AppSpacing.paddingMd,
+                children: [
+                  // The wheel comes first: its glow and rays spill past its
+                  // box, and everything after it is painted on top of them.
+                  _WheelStage(rotation: _rotation, spinning: _spinning),
+                  const SizedBox(height: AppSpacing.lg),
+                  _SpinButton(
+                    label: _spinning ? 'Spinning…' : 'Spin Now',
+                    onPressed: available ? _spin : null,
                   ),
-              ],
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    !canSpin && !_spinning
+                        ? "You've already spun today. Come back tomorrow!"
+                        : 'Spin once a day to win coins.',
+                    key: !canSpin && !_spinning
+                        ? const Key('already_spun')
+                        : null,
+                    textAlign: TextAlign.center,
+                    style: styles.bodyLarge.copyWith(color: Colors.white70),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -162,76 +179,144 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
   }
 }
 
-class _WheelStage extends StatelessWidget {
-  final Animation<double> rotation;
+class _SpinButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
 
-  const _WheelStage({required this.rotation});
+  const _SpinButton({required this.label, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.themeColors;
+    return SizedBox(
+      height: 52,
+      child: FilledButton.icon(
+        onPressed: onPressed,
+        icon: const Icon(Icons.casino_rounded),
+        label: Text(label),
+        style: FilledButton.styleFrom(
+          backgroundColor: _gold,
+          foregroundColor: _onGold,
+          disabledBackgroundColor: const Color(0xFF6B4A12),
+          disabledForegroundColor: const Color(0xFFD9B766),
+          textStyle: context.appTextStyles.button.copyWith(
+            fontWeight: FontWeight.w900,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Layers, back to front: glow and rays, the spinning face, the fixed metal
+/// ring and hub, the blinking bulbs, and the pointer. Only the face rotates;
+/// the rest stay put, like a real prize wheel.
+class _WheelStage extends StatefulWidget {
+  final Animation<double> rotation;
+  final bool spinning;
+
+  const _WheelStage({required this.rotation, required this.spinning});
+
+  @override
+  State<_WheelStage> createState() => _WheelStageState();
+}
+
+class _WheelStageState extends State<_WheelStage>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _twinkle;
+
+  @override
+  void initState() {
+    super.initState();
+    _twinkle = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduceMotion(context)) {
+      _twinkle.stop();
+      _twinkle.value = 0.5;
+    } else if (!_twinkle.isAnimating) {
+      // Bounded (about a minute) so an unattended screen stops animating.
+      _twinkle.repeat(reverse: true, count: 90);
+    }
+  }
+
+  @override
+  void dispose() {
+    _twinkle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final screenHeight = MediaQuery.sizeOf(context).height;
+    final labelStyle = context.appTextStyles.headingLarge;
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wheelSize = math
-            .min(constraints.maxWidth - 16, math.min(320.0, screenHeight * 0.5))
-            .clamp(180.0, 320.0);
-        final pointerWidth = wheelSize * 0.12;
-        final pointerHeight = pointerWidth * 1.2;
+        final size = math
+            .min(constraints.maxWidth - 24, math.min(360.0, screenHeight * 0.5))
+            .clamp(220.0, 360.0);
 
-        return Center(
-          child: SizedBox(
-            width: wheelSize,
-            height: wheelSize + pointerHeight * 0.6,
-            child: Stack(
-              alignment: Alignment.topCenter,
-              children: [
-                Positioned(
-                  top: pointerHeight * 0.6,
-                  child: SizedBox(
-                    width: wheelSize,
-                    height: wheelSize,
-                    child: RepaintBoundary(
+        Widget layer(Widget child) => Positioned.fill(child: child);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          child: Center(
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  layer(
+                    const RepaintBoundary(
+                      child: CustomPaint(painter: WheelBackdropPainter()),
+                    ),
+                  ),
+                  layer(
+                    RepaintBoundary(
                       child: AnimatedBuilder(
-                        animation: rotation,
+                        animation: widget.rotation,
                         builder: (context, child) => Transform.rotate(
-                          angle: rotation.value,
+                          angle: widget.rotation.value,
                           child: child,
                         ),
                         child: CustomPaint(
-                          size: Size.square(wheelSize),
                           painter: SpinWheelPainter(
                             segments: RewardsCatalog.wheel,
-                            rimColor: colors.primaryDark,
+                            labelStyle: labelStyle,
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  top: pointerHeight * 0.6 + wheelSize / 2 - wheelSize * 0.07,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: colors.primary,
-                      border: Border.all(color: Colors.white, width: 3),
-                    ),
-                    child: SizedBox.square(dimension: wheelSize * 0.14),
-                  ),
-                ),
-                Positioned(
-                  top: 0,
-                  child: SizedBox(
-                    width: pointerWidth,
-                    height: pointerHeight,
-                    child: CustomPaint(
-                      painter: WheelPointerPainter(color: colors.error),
+                  layer(
+                    const RepaintBoundary(
+                      child: CustomPaint(painter: WheelRingPainter()),
                     ),
                   ),
-                ),
-              ],
+                  layer(
+                    RepaintBoundary(
+                      child: CustomPaint(
+                        painter: WheelBulbsPainter(phase: _twinkle),
+                      ),
+                    ),
+                  ),
+                  layer(
+                    const RepaintBoundary(
+                      child: CustomPaint(painter: WheelPointerPainter()),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );

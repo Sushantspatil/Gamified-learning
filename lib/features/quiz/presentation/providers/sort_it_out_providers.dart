@@ -9,6 +9,7 @@ import '../../../../core/errors/app_exception.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
+import '../../../rewards/application/rewards_controller.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../data/datasources/remote/quiz_remote_datasource.dart';
 import '../../domain/entities/sort_it_out_models.dart';
@@ -566,6 +567,19 @@ class SortItOutController
           result: result,
         ),
       );
+
+      // Chest Box: a finished game counts once. Offline/mock games may have
+      // no session id, so fall back to a unique one for this attempt.
+      // Rewards bookkeeping must never affect the game result.
+      try {
+        final sessionId = current.sessionId;
+        final attemptId = (sessionId != null && sessionId.isNotEmpty)
+            ? sessionId
+            : DateTime.now().microsecondsSinceEpoch.toString();
+        ref
+            .read(rewardsProvider.notifier)
+            .recordQuizCompleted('sort-$attemptId');
+      } catch (_) {}
     } catch (e) {
       state = AsyncValue.data(
         current.copyWith(

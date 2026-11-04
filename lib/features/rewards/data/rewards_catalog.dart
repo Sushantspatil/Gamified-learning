@@ -6,14 +6,25 @@ import '../domain/rewards_models.dart';
 class RewardsCatalog {
   RewardsCatalog._();
 
-  /// Six equally likely segments.
+  static const Color _red = Color(0xFFB90000);
+  static const Color _gold = Color(0xFFFFB900);
+
+  /// Ten equally likely segments (36 degrees each), clockwise from the top.
+  /// Red and gold alternate; the prizes are spread so high and low values
+  /// are mixed, and the average prize is about 42 coins. Edit the list to
+  /// change the prizes: the painter and the spin logic follow it. Keep an
+  /// even number of segments so the colours alternate cleanly.
   static const List<WheelSegment> wheel = [
-    WheelSegment(coins: 10, color: Color(0xFF6D5DFE)),
-    WheelSegment(coins: 20, color: Color(0xFF00B8D9)),
-    WheelSegment(coins: 30, color: Color(0xFFFFB82E)),
-    WheelSegment(coins: 40, color: Color(0xFFE5485E)),
-    WheelSegment(coins: 50, color: Color(0xFF2EB67D)),
-    WheelSegment(coins: 100, color: Color(0xFFB052FF)),
+    WheelSegment(coins: 100, color: _red),
+    WheelSegment(coins: 15, color: _gold),
+    WheelSegment(coins: 50, color: _red),
+    WheelSegment(coins: 20, color: _gold),
+    WheelSegment(coins: 75, color: _red),
+    WheelSegment(coins: 10, color: _gold),
+    WheelSegment(coins: 60, color: _red),
+    WheelSegment(coins: 25, color: _gold),
+    WheelSegment(coins: 40, color: _red),
+    WheelSegment(coins: 30, color: _gold),
   ];
 
   static const List<ShopProduct> avatars = [

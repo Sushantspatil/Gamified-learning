@@ -19,6 +19,7 @@ import 'package:skillverse_app/features/questions/domain/entities/question.dart'
 import 'package:skillverse_app/features/quiz/data/datasources/remote/quiz_remote_datasource.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/match_the_following_providers.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/quiz_providers.dart';
+import 'package:skillverse_app/features/rewards/application/rewards_controller.dart';
 import 'package:skillverse_app/features/quiz/presentation/screens/match_the_following_screen.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/match_the_following_view.dart';
 
@@ -589,6 +590,8 @@ void main() {
       expect(state.currentBoard?.questionCode, 'board_2');
       expect(state.correctMatches.isEmpty, true);
 
+      // An unfinished game never counts.
+      expect(container.read(rewardsProvider).chestProgress, 0);
       // 2. Submit Board 2 with 0 mistakes
       await controller.submitBoard(
         matches: {'b2_l1': 'b2_r1', 'b2_l2': 'b2_r2'},
@@ -603,6 +606,8 @@ void main() {
       expect(state.result?.finalScore, 68);
       expect(state.result?.totalMistakes, 1);
       expect(state.result?.boardsReview.length, 2);
+      // Chest Box: the finished game counted exactly once.
+      expect(container.read(rewardsProvider).chestProgress, 1);
     });
 
     test('timeout preserves partial matches and auto-advances', () async {

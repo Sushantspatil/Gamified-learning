@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/audio/audio_providers.dart';
 import '../../../../core/audio/game_sound.dart';
 import '../../../../core/errors/app_exception.dart';
+import '../../../rewards/application/rewards_controller.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../data/datasources/remote/quiz_remote_datasource.dart';
 import '../../domain/entities/match_the_following_models.dart';
@@ -451,6 +452,14 @@ class MatchTheFollowingController
           result: () => domainResult,
         ),
       );
+
+      // Chest Box: a finished game counts once (keyed by its session id).
+      // Rewards bookkeeping must never affect the game result.
+      try {
+        ref
+            .read(rewardsProvider.notifier)
+            .recordQuizCompleted('match-${current.sessionId}');
+      } catch (_) {}
     } catch (e, stack) {
       developer.log(
         'Match the Following completion failed: $e',

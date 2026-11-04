@@ -20,6 +20,7 @@ import 'package:skillverse_app/features/questions/domain/entities/question.dart'
 import 'package:skillverse_app/features/quiz/data/datasources/remote/quiz_remote_datasource.dart';
 import 'package:skillverse_app/features/quiz/domain/entities/sort_it_out_models.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/quiz_providers.dart';
+import 'package:skillverse_app/features/rewards/application/rewards_controller.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/sort_it_out_providers.dart';
 import 'package:skillverse_app/features/quiz/presentation/screens/sort_it_out_screen.dart';
 
@@ -573,6 +574,8 @@ void main() {
       expect(state.answers[0].option, 'a');
       expect(state.answers[0].isTimeout, false);
 
+      // An unfinished game never counts.
+      expect(container.read(rewardsProvider).chestProgress, 0);
       // 2. Second card: Commission Received -> submit 'b' (correct)
       await controller.submitOption('b');
 
@@ -583,6 +586,11 @@ void main() {
       expect(state.result?.finalScore, 30);
       expect(state.result?.correctCount, 2);
       expect(state.result?.cardsReview.length, 2);
+      // Chest Box: the finished game counted once, and re-finalizing (a retry
+      // or repeated callback) does not count it again.
+      expect(container.read(rewardsProvider).chestProgress, 1);
+      await controller.finalizeSession();
+      expect(container.read(rewardsProvider).chestProgress, 1);
     });
 
     test('input locking prevents multiple swipes or race with timer from duplicating answer', () async {

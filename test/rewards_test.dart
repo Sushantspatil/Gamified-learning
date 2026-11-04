@@ -102,7 +102,7 @@ void main() {
     });
 
     test('everything survives a restart', () {
-      final first = launch(random: FixedRandom(5)); // 100 coins prize
+      final first = launch(random: FixedRandom(0)); // 100 coins prize
       final c = rewards(first);
       c.startSpin();
       c.completeSpin();
@@ -125,48 +125,55 @@ void main() {
   });
 
   group('spin the wheel', () {
-    test('six segments with the configured prizes', () {
+    test('ten segments with the configured prizes', () {
       expect(RewardsCatalog.wheel.map((s) => s.coins), [
-        10,
-        20,
-        30,
-        40,
-        50,
         100,
+        15,
+        50,
+        20,
+        75,
+        10,
+        60,
+        25,
+        40,
+        30,
       ]);
     });
 
-    test('each segment is chosen uniformly: selection is nextInt(6)', () async {
-      final seen = <int>{};
-      for (var i = 0; i < 6; i++) {
-        SharedPreferences.setMockInitialValues({}); // fresh device each time
-        storage = await LocalStorageService.create();
-        final random = FixedRandom(i);
-        final c = launch(random: random);
-        final index = rewards(c).startSpin();
-        expect(index, i);
-        seen.add(RewardsCatalog.wheel[index!].coins);
-      }
-      expect(seen, {10, 20, 30, 40, 50, 100});
+    test(
+      'each segment is chosen uniformly: selection is nextInt(10)',
+      () async {
+        final seen = <int>{};
+        for (var i = 0; i < 10; i++) {
+          SharedPreferences.setMockInitialValues({}); // fresh device each time
+          storage = await LocalStorageService.create();
+          final random = FixedRandom(i);
+          final c = launch(random: random);
+          final index = rewards(c).startSpin();
+          expect(index, i);
+          seen.add(RewardsCatalog.wheel[index!].coins);
+        }
+        expect(seen, {100, 15, 50, 20, 75, 10, 60, 25, 40, 30});
 
-      // The generator is asked for one of exactly six equal outcomes.
-      SharedPreferences.setMockInitialValues({});
-      storage = await LocalStorageService.create();
-      var asked = 0;
-      rewards(launch(random: _SpyRandom((max) => asked = max))).startSpin();
-      expect(asked, 6);
-    });
+        // The generator is asked for one of exactly ten equal outcomes.
+        SharedPreferences.setMockInitialValues({});
+        storage = await LocalStorageService.create();
+        var asked = 0;
+        rewards(launch(random: _SpyRandom((max) => asked = max))).startSpin();
+        expect(asked, 10);
+      },
+    );
 
     test('a spin pays once and blocks a second spin the same day', () {
-      final c = launch(random: FixedRandom(2)); // 30 coins
+      final c = launch(random: FixedRandom(2)); // 50 coins
       final r = rewards(c);
 
       expect(r.startSpin(), 2);
       expect(r.startSpin(), isNull); // rapid second tap
       expect(stateOf(c).coins, 100); // not paid until the wheel stops
-      expect(r.completeSpin(), 30);
+      expect(r.completeSpin(), 50);
       expect(r.completeSpin(), isNull); // cannot pay twice
-      expect(stateOf(c).coins, 130);
+      expect(stateOf(c).coins, 150);
       expect(r.startSpin(), isNull);
       expect(r.canSpinToday(), isFalse);
     });
@@ -204,30 +211,30 @@ void main() {
     test(
       'closing the app mid-spin pays the prize exactly once on relaunch',
       () {
-        final first = launch(random: FixedRandom(4)); // 50 coins
+        final first = launch(random: FixedRandom(4)); // 75 coins
         rewards(first).startSpin(); // never completed
         expect(stateOf(first).coins, 100);
 
         final second = launch();
-        expect(stateOf(second).coins, 150);
+        expect(stateOf(second).coins, 175);
         expect(stateOf(second).pendingSpinReward, isNull);
         final third = launch();
-        expect(stateOf(third).coins, 150);
+        expect(stateOf(third).coins, 175);
       },
     );
 
     test('the target angle lands on the chosen segment for every segment', () {
       final random = Random(3);
-      for (var i = 0; i < 6; i++) {
+      for (var i = 0; i < 10; i++) {
         for (final offset in [-0.4, 0.0, 0.4]) {
           final target = wheelTargetAngle(
             index: i,
-            segmentCount: 6,
+            segmentCount: 10,
             currentAngle: random.nextDouble() * 30,
             turns: 5,
             offsetFraction: offset,
           );
-          expect(segmentIndexAtPointer(target, 6), i);
+          expect(segmentIndexAtPointer(target, 10), i);
         }
       }
     });
