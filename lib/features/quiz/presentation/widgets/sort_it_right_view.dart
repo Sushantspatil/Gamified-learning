@@ -433,14 +433,14 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                     coins: widget.coins,
                     currentIndex: displayIndex - 1,
                     totalQuestions: total,
-                    progress: total > 0 ? _currentItemIndex / total : 0.0,
+                    progress: total > 0 ? displayIndex / total : 0.0,
                     semanticLabel: 'Items sorted',
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(
                     'Classify each item into the correct group',
-                    textAlign: TextAlign.center,
-                    style: context.appTextStyles.titleMedium,
+                    textAlign: TextAlign.start,
+                    style: context.appTextStyles.titleLarge,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Expanded(
@@ -515,7 +515,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                   GamePowerUpBar(
                     onBusyChanged: _setPowerUpBusy,
                     isDense: true,
-                    showWallet: false,
+                    coinBalanceOverride: widget.coins,
                     isDisabled:
                         _phase != _SortPhase.falling ||
                         _isDragging ||
@@ -601,7 +601,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
     final instruction = _textSize(
       context,
       'Classify each item into the correct group',
-      styles.titleMedium,
+      styles.titleLarge,
       width,
     );
     final categoryWidth = (width - AppSpacing.sm) / 2 - AppSpacing.md * 2;
@@ -665,7 +665,9 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
         categoryHeight +
         AppSpacing.sm +
         64 * textScale +
-        64;
+        64 +
+        // the "coins / Power-ups" row above the buttons
+        36 * textScale;
   }
 
   Widget _buildIntro(BuildContext context, int total) => Center(

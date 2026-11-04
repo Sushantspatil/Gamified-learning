@@ -540,7 +540,11 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
               Text(
                 promptText,
                 softWrap: true,
-                style: context.appTextStyles.titleLarge,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: context.appTextStyles.titleMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: AppSpacing.xs),
               Text.rich(

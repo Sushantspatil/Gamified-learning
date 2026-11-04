@@ -523,7 +523,7 @@ class _SuddenDeathQuestionViewState
                 child: SingleChildScrollView(
                   padding: EdgeInsets.fromLTRB(
                     AppSpacing.md,
-                    AppSpacing.sm,
+                    AppSpacing.md,
                     AppSpacing.md,
                     isCompact ? AppSpacing.sm : AppSpacing.md,
                   ),
