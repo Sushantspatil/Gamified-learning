@@ -8,6 +8,8 @@
 //   setFraming('full' | 'bust' | 'face' | 'strip')
 //   setPaused(true | false)                  stop / resume drawing
 //   setCosmetics({ avatar, frame })          equipped items (see cosmetics.js)
+//   setStyle({ dark, accent })               theme-aware lighting and sparkle colour
+//   sparkle()                                a burst of sparkles above the character
 //   setAmbient(true | false)                 now and then a small idle gesture
 //   play('wave' | 'cheer' | 'sad' | 'think' | 'clap' | 'lookaround')
 //   stopAction()
@@ -83,6 +85,12 @@ window.CharacterEmbed = {
   },
   setCosmetics(items) {
     avatar?.setCosmetics(items ?? {});
+  },
+  setStyle(style) {
+    avatar?.setStyle(style ?? {});
+  },
+  sparkle() {
+    avatar?.sparkle();
   },
   setAmbient(on) {
     clearTimeout(ambientTimer);

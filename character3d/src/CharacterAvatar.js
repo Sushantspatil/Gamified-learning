@@ -14,6 +14,7 @@ import { LocomotionController } from './LocomotionController.js';
 import { Emitter } from './emitter.js';
 import { disposeObject3D, disposeTexture } from './dispose.js';
 import { createEmblem, createFrameRing } from './cosmetics.js';
+import { Sparkles } from './sparkles.js';
 import {
   DEFAULT_SPEEDS,
   LocomotionState,
@@ -119,6 +120,12 @@ export class CharacterAvatar extends Emitter {
   #blob;
   #blobTexture;
   #glowMaterials = [];
+  #rimA; // back light, left (cool / accent)
+  #rimB; // back light, right (warm)
+  #fill; // sky/ground bounce
+  #sparkles = null;
+  #lastActing = null;
+  #burstTimer = 0;
   #ring = null; // floor ring for the equipped frame
   #emblem = null; // floating emblem for the equipped avatar
   #clock = 0;
@@ -477,6 +484,7 @@ export class CharacterAvatar extends Emitter {
     this.#renderer.domElement.removeEventListener('webglcontextrestored', this.#onContextRestored);
 
     this.#clearCosmetics();
+    this.#sparkles?.dispose();
     this.#unloadModel();
 
     this.#env?.dispose();
@@ -508,7 +516,8 @@ export class CharacterAvatar extends Emitter {
     this.#scene.environment = this.#env.texture;
     this.#scene.environmentIntensity = 0.45;
 
-    this.#scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x2b2540, 0.55));
+    this.#fill = new THREE.HemisphereLight(0xdfe8ff, 0x2b2540, 0.55);
+    this.#scene.add(this.#fill);
 
     const key = new THREE.DirectionalLight(0xfff3e6, 2.1);
     key.position.set(2.8, 5, 3.6);
@@ -526,10 +535,37 @@ export class CharacterAvatar extends Emitter {
     this.#scene.add(key, key.target);
     this.#keyLight = key;
 
-    // Cool rim light from behind to separate the silhouette from the backdrop.
-    const rim = new THREE.DirectionalLight(0x7fd8ff, 1.1);
-    rim.position.set(-3, 2.6, -4);
-    this.#scene.add(rim);
+    // Two lights from behind, one each side, so the silhouette stands out
+    // from the card behind it. setStyle() tunes them for dark / light themes.
+    this.#rimA = new THREE.DirectionalLight(0x7fd8ff, 1.1);
+    this.#rimA.position.set(-3, 2.6, -4);
+    this.#rimB = new THREE.DirectionalLight(0xffb27a, 0.6);
+    this.#rimB.position.set(3, 2.2, -4);
+    this.#scene.add(this.#rimA, this.#rimB);
+    this.#sparkles = new Sparkles(this.#scene);
+  }
+
+  /**
+   * Adapts the lighting to the app's theme: `dark` strengthens the back lights
+   * so the character glows against a dark card; `accent` (a CSS colour) tints
+   * the left back light and the sparkles.
+   */
+  setStyle({ dark = true, accent = '#8b7bff' } = {}) {
+    this.#assertAlive();
+    const tint = new THREE.Color(accent);
+    this.#rimA.color.set(0x7fd8ff).lerp(tint, 0.55);
+    this.#rimA.intensity = dark ? 2.0 : 0.9;
+    this.#rimB.intensity = dark ? 1.3 : 0.5;
+    this.#fill.intensity = dark ? 0.75 : 0.5;
+    this.#renderer.toneMappingExposure = dark ? 1.12 : 1.0;
+    this.#sparkles.accent.copy(tint);
+  }
+
+  /** A burst of sparkles above the character (e.g. when a prize is won). */
+  sparkle({ n = 18, height = 1.9 } = {}) {
+    this.#assertAlive();
+    const p = this.#root.position;
+    this.#sparkles.burst({ x: p.x, y: height, z: p.z }, { n, speed: 1.5, upward: 1.5, spread: 0.3 });
   }
 
   #buildGround() {
@@ -678,6 +714,7 @@ export class CharacterAvatar extends Emitter {
       this.#mixer.update(dt);
     }
 
+    this.#sparkles?.update(dt);
     this.#controls.update();
     if (this.#composer) this.#composer.render(dt);
     else this.#renderer.render(this.#scene, this.#camera);
@@ -751,11 +788,36 @@ export class CharacterAvatar extends Emitter {
       const hop = this.#hop;
       hop.t += dt;
       const u = hop.t / hop.duration;
-      if (u >= 1) this.#hop = null;
-      else lift = 4 * hop.height * u * (1 - u);
+      if (u >= 1) {
+        this.#hop = null;
+        this.#sparkles.burst(
+          { x: this.#root.position.x, y: 0.06, z: this.#root.position.z },
+          { n: 7, speed: 0.9, upward: 0.9, spread: 0.18 },
+        );
+      } else {
+        lift = 4 * hop.height * u * (1 - u);
+      }
     }
     this.#root.position.y = lift;
     this.#clock += dt;
+    const acting = this.#loco.acting;
+    if (acting === 'cheer') {
+      this.#burstTimer -= dt;
+      const first = this.#lastActing !== 'cheer';
+      if (first || this.#burstTimer <= 0) {
+        this.#burstTimer = 0.26;
+        const side = Math.random() < 0.5 ? -1 : 1;
+        this.#sparkles.burst(
+          {
+            x: this.#root.position.x + side * (0.35 + Math.random() * 0.25),
+            y: 1.3 + Math.random() * 0.35,
+            z: this.#root.position.z,
+          },
+          { n: first ? 28 : 14, speed: 1.2, upward: 0.9, spread: 0.25 },
+        );
+      }
+    }
+    this.#lastActing = acting;
     if (this.#ring) {
       this.#ring.position.set(this.#root.position.x, 0.012, this.#root.position.z);
       this.#ring.userData.update(this.#clock);

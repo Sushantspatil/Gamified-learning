@@ -7,6 +7,7 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../character3d/presentation/character_glow.dart';
 import '../../../character3d/presentation/equipped_cosmetics.dart';
 import '../../application/rewards_controller.dart';
 
@@ -116,13 +117,16 @@ Future<void> showRewardDialog(
       backgroundColor: context.themeColors.surface,
       shape: RoundedRectangleBorder(borderRadius: AppDimensions.radiusLg),
       icon: mascot
-          ? Character3dView(
-              width: 140,
-              height: 130,
-              state: Character3dState.idle,
-              initialAction: Character3dAction.cheer,
-              cosmetics: equippedCosmetics(context),
-              fallback: Icon(icon, size: 40, color: AppColors.coinGold),
+          ? CharacterGlow(
+              color: AppColors.coinGold,
+              child: Character3dView(
+                width: 140,
+                height: 130,
+                state: Character3dState.idle,
+                initialAction: Character3dAction.cheer,
+                cosmetics: equippedCosmetics(context),
+                fallback: Icon(icon, size: 40, color: AppColors.coinGold),
+              ),
             )
           : Icon(icon, size: 40, color: AppColors.coinGold),
       title: Text(

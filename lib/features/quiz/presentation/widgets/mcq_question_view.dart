@@ -23,6 +23,7 @@ import '../../../character/presentation/character_providers.dart';
 import '../../../character/presentation/character_stage.dart';
 import '../../../character/presentation/mcq_character_adapter.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../character3d/presentation/character_glow.dart';
 import '../../../character/presentation/character_speech_bubble.dart';
 
 class McqQuestionView extends ConsumerStatefulWidget {
@@ -783,6 +784,19 @@ class _CharacterSlot extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) => Stack(
           children: [
+            // A pool of light on the floor under the spot where it stands.
+            Positioned.fill(
+              child: ValueListenableBuilder<Character3dStatus>(
+                valueListenable: character3d.status,
+                builder: (context, status, _) =>
+                    status == Character3dStatus.ready
+                    ? const CharacterGlow.floor(
+                        strength: 0.9,
+                        child: SizedBox(),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
             Character3dView(
               width: constraints.maxWidth,
               height: height,

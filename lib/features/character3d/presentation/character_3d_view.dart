@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../../app/theme/app_theme_colors.dart';
+
 /// What the 3D character is doing. The model has these three loops.
 enum Character3dState { idle, walk, run }
 
@@ -126,6 +128,9 @@ class Character3dController {
   void play(Character3dAction action) =>
       _view?._command('CharacterEmbed.play("${action.id}")', hold: 'play');
 
+  /// A burst of sparkles above the character.
+  void sparkle() => _view?._command('CharacterEmbed.sparkle()');
+
   /// Ends a held action (sad, think) and returns to the relaxed pose.
   void stopAction() => _view?._command('CharacterEmbed.stopAction()');
 
@@ -228,6 +233,7 @@ class _Character3dViewState extends State<Character3dView>
   bool _routeActive = true;
   bool _appActive = true;
   bool? _lastPaused;
+  String? _styleSent;
 
   /// Commands sent before the character was on screen, by kind.
   final Map<String, String> _held = {};
@@ -357,8 +363,21 @@ class _Character3dViewState extends State<Character3dView>
     _run('CharacterEmbed.setFraming("${widget.framing.name}")');
     _run('CharacterEmbed.setCosmetics(${widget.cosmetics.toJson()})');
     _run('CharacterEmbed.setAmbient(${widget.ambient})');
+    _pushStyle(force: true);
     _lastPaused = null;
     _applyPaused();
+  }
+
+  /// Light and sparkle colours follow the app's theme (dark / light, accent).
+  void _pushStyle({bool force = false}) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accent = context.themeColors.primary;
+    final hex =
+        '#${(accent.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+    final script = 'CharacterEmbed.setStyle({"dark":$dark,"accent":"$hex"})';
+    if (!force && script == _styleSent) return;
+    _styleSent = script;
+    _run(script);
   }
 
   void _applyPaused() {
@@ -377,6 +396,7 @@ class _Character3dViewState extends State<Character3dView>
       _routeActive = active;
       _applyPaused();
     }
+    if (_ready || _loaded) _pushStyle(); // the theme was switched
   }
 
   @override

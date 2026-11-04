@@ -13,6 +13,7 @@ import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../character3d/presentation/character_glow.dart';
 import '../../../character3d/presentation/equipped_cosmetics.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 
@@ -74,16 +75,18 @@ class _HowToPlayTutorialScreenState
                 if (status == Character3dStatus.unavailable) {
                   return const SizedBox.shrink();
                 }
-                return Character3dView(
-                  key: const Key('tutorial_guide'),
-                  width: 130,
-                  height: 130,
-                  state: Character3dState.idle,
-                  controller: _guide,
-                  initialAction: _guideActions.first,
-                  cosmetics: equippedCosmetics(context),
-                  placeholder: const Character3dPoster(height: 130),
-                  fallback: const SizedBox.shrink(),
+                return CharacterGlow(
+                  child: Character3dView(
+                    key: const Key('tutorial_guide'),
+                    width: 130,
+                    height: 130,
+                    state: Character3dState.idle,
+                    controller: _guide,
+                    initialAction: _guideActions.first,
+                    cosmetics: equippedCosmetics(context),
+                    placeholder: const Character3dPoster(height: 130),
+                    fallback: const SizedBox.shrink(),
+                  ),
                 );
               },
             ),

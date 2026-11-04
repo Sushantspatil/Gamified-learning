@@ -5,6 +5,7 @@ import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../character3d/presentation/character_glow.dart';
 
 /// Dashboard card with the 3D character beside a short line about what is
 /// waiting for the player. The character waves when it appears, now and then
@@ -99,19 +100,21 @@ class _MascotCardState extends State<MascotCard> {
             key: const Key('mascot_tap'),
             behavior: HitTestBehavior.opaque,
             onTap: _react,
-            child: Character3dView(
-              width: _characterWidth,
-              height: _characterHeight,
-              state: Character3dState.idle,
-              controller: _character,
-              cosmetics: widget.cosmetics,
-              ambient: true,
-              initialAction: Character3dAction.wave,
-              placeholder: const Character3dPoster(height: _characterHeight),
-              fallback: Icon(
-                Icons.sports_esports_rounded,
-                size: 56,
-                color: colors.primary,
+            child: CharacterGlow(
+              child: Character3dView(
+                width: _characterWidth,
+                height: _characterHeight,
+                state: Character3dState.idle,
+                controller: _character,
+                cosmetics: widget.cosmetics,
+                ambient: true,
+                initialAction: Character3dAction.wave,
+                placeholder: const Character3dPoster(height: _characterHeight),
+                fallback: Icon(
+                  Icons.sports_esports_rounded,
+                  size: 56,
+                  color: colors.primary,
+                ),
               ),
             ),
           ),

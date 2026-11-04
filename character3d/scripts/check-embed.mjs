@@ -49,8 +49,17 @@ try {
   await page.evaluate("document.body.style.background = '#ff00ff'");
   await sleep(500);
   await page.screenshot({ path: join(shots, 'embed-walk.png') });
+  // theme-aware lighting
+  await page.evaluate("document.body.style.background = '#1b2140'; CharacterEmbed.setStyle({ dark: true, accent: '#8b7bff' })");
+  await sleep(300);
+  await page.screenshot({ path: join(shots, 'embed-dark.png') });
+  await page.evaluate("document.body.style.background = '#f1f3fb'; CharacterEmbed.setStyle({ dark: false, accent: '#5b4bdb' })");
+  await sleep(300);
+  await page.screenshot({ path: join(shots, 'embed-light.png') });
+  await page.evaluate("document.body.style.background = '#1b2140'; CharacterEmbed.setStyle({ dark: true, accent: '#8b7bff' })");
+
   // actions and cosmetics
-  await page.evaluate("CharacterEmbed.setState('idle'); CharacterEmbed.setCosmetics({ avatar: 'champion', frame: 'gold' })");
+  await page.evaluate("CharacterEmbed.setState('idle'); CharacterEmbed.setCosmetics({ avatar: 'champion', frame: 'gold' }); document.body.style.background = '#1b2140'");
   await sleep(400);
   await page.screenshot({ path: join(shots, 'embed-cosmetics.png') });
   const played = await page.evaluate("CharacterEmbed.play('nonsense')");

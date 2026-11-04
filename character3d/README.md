@@ -175,6 +175,13 @@ The app shows this character in a transparent WebView (`webview_flutter`):
 - Login and splash keep their own animated heroes; a WebView there would only
   delay or cover them.
 
+Polish: a soft glow (`character_glow.dart`) sits behind the character on every
+card, stronger on dark themes, tinted by mood on results (warm for a win, cool
+when sad) and a pool of light on the floor under the MCQ strip. Inside the
+page, two back lights give the silhouette an edge on dark cards (the page is
+told the theme and accent colour through `CharacterEmbed.setStyle`), and
+cheers and landed hops throw sparkles (`src/sparkles.js`).
+
 Animations in the model (`npm run rig` builds them): Idle, Walk, Run, Wave,
 Cheer, Sad, Think, Clap, LookAround. Arm poses (wave, cheer, think, clap) are
 placed with a two-bone IK solver in `scripts/rig/rig-model.js`: state where the
