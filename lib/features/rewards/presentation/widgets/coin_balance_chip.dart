@@ -53,6 +53,49 @@ class CoinBalanceChip extends ConsumerWidget {
   }
 }
 
+/// The gem balance (gems come from the Galaxy chest).
+class GemBalanceChip extends ConsumerWidget {
+  static const Color gemColor = Color(0xFFB57BFF);
+
+  const GemBalanceChip({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final gems = ref.watch(rewardsProvider.select((s) => s.gems));
+    return Semantics(
+      label: 'Gem balance $gems',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: gemColor.withValues(alpha: 0.14),
+          borderRadius: AppDimensions.radiusCircular,
+          border: Border.all(color: gemColor.withValues(alpha: 0.4)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.ms,
+            vertical: AppSpacing.xs + 2,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.diamond_rounded, size: 20, color: gemColor),
+              const SizedBox(width: AppSpacing.xs + 2),
+              Text(
+                '$gems',
+                key: const Key('gem_balance'),
+                style: context.appTextStyles.labelLarge.copyWith(
+                  color: context.themeColors.textPrimary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Simple one-message dialog used for rewards and purchase results.
 Future<void> showRewardDialog(
   BuildContext context, {

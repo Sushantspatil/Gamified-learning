@@ -91,34 +91,107 @@ class RewardsController extends Notifier<RewardsState> {
 
   // ---- Chest Box ----------------------------------------------------------
 
-  /// Counts one successfully completed quiz attempt. Safe to call repeatedly
-  /// with the same [attemptId]. While the chest is full (waiting to be
-  /// opened) the attempt is recorded but progress stays at 3/3.
+  /// Counts one finished game. Safe to call repeatedly with the same
+  /// [attemptId]. The cycle earns the Golden chest at 3 games, the Cyber
+  /// chest at 6 and the Galaxy chest at 10, then starts again. Earned chests
+  /// wait until they are opened; none is ever lost.
   void recordQuizCompleted(String attemptId) {
     if (state.processedQuizIds.contains(attemptId)) return;
     final ids = [...state.processedQuizIds, attemptId];
+
+    var progress = state.chestProgress + 1;
+    final earned = <ChestTier>[
+      for (final tier in ChestTier.values)
+        if (tier.unlockAt == progress) tier,
+    ];
+    if (progress >= RewardsState.chestCycle) progress = 0;
+
+    final ready = {...state.chestsReady};
+    for (final tier in earned) {
+      ready[tier] = (ready[tier] ?? 0) + 1;
+    }
     _commit(
       state.copyWith(
         processedQuizIds: ids.length > 100
             ? ids.sublist(ids.length - 100)
             : ids,
-        chestProgress: state.chestReady
-            ? state.chestProgress
-            : state.chestProgress + 1,
+        chestProgress: progress,
+        chestsReady: ready,
       ),
     );
   }
 
-  /// Opens a ready chest: +50 coins and progress back to 0/3.
-  bool openChest() {
-    if (!state.chestReady) return false;
-    _commit(
-      state.copyWith(
-        coins: state.coins + RewardsState.chestReward,
-        chestProgress: 0,
-      ),
-    );
-    return true;
+  /// Opens a chest that was earned by playing. The reward is chosen and paid
+  /// here, once; an unearned chest pays nothing.
+  ChestOpenResult openChest(ChestTier tier) {
+    if (!state.chestReady(tier)) {
+      return const ChestOpenResult(ChestOpenStatus.notEarned);
+    }
+    return _open(tier, price: 0);
+  }
+
+  /// Opens a chest that was not earned yet by paying [ChestTier.forcePrice]
+  /// coins. It does not change game progress and never uses an earned chest.
+  ChestOpenResult forceOpenChest(ChestTier tier) {
+    if (state.chestReady(tier)) {
+      return const ChestOpenResult(ChestOpenStatus.alreadyEarned);
+    }
+    if (state.coins < tier.forcePrice) {
+      return const ChestOpenResult(ChestOpenStatus.notEnoughCoins);
+    }
+    return _open(tier, price: tier.forcePrice);
+  }
+
+  ChestOpenResult _open(ChestTier tier, {required int price}) {
+    final random = ref.read(rewardsRandomProvider);
+    var next = state.copyWith(coins: state.coins - price);
+    if (price == 0) {
+      final ready = {...state.chestsReady};
+      final left = (ready[tier] ?? 0) - 1;
+      if (left > 0) {
+        ready[tier] = left;
+      } else {
+        ready.remove(tier);
+      }
+      next = next.copyWith(chestsReady: ready);
+    }
+
+    final ChestReward reward;
+    switch (tier) {
+      case ChestTier.golden:
+        const min = RewardsCatalog.goldenMinCoins;
+        const max = RewardsCatalog.goldenMaxCoins;
+        final coins = min + random.nextInt(max - min + 1);
+        reward = ChestReward(tier: tier, coins: coins);
+        next = next.copyWith(coins: next.coins + coins);
+      case ChestTier.cyber:
+        final unowned = [
+          for (final p in [...RewardsCatalog.avatars, ...RewardsCatalog.frames])
+            if (!(p.kind == ProductKind.avatar
+                ? next.ownedAvatars.contains(p.id)
+                : next.ownedFrames.contains(p.id)))
+              p,
+        ];
+        if (unowned.isEmpty) {
+          const coins = RewardsCatalog.cyberFallbackCoins;
+          reward = ChestReward(tier: tier, coins: coins);
+          next = next.copyWith(coins: next.coins + coins);
+        } else {
+          final item = unowned[random.nextInt(unowned.length)];
+          reward = ChestReward(tier: tier, cosmetic: item);
+          next = item.kind == ProductKind.avatar
+              ? next.copyWith(ownedAvatars: {...next.ownedAvatars, item.id})
+              : next.copyWith(ownedFrames: {...next.ownedFrames, item.id});
+        }
+      case ChestTier.galaxy:
+        const min = RewardsCatalog.galaxyMinGems;
+        const max = RewardsCatalog.galaxyMaxGems;
+        final gems = min + random.nextInt(max - min + 1);
+        reward = ChestReward(tier: tier, gems: gems);
+        next = next.copyWith(gems: next.gems + gems);
+    }
+    _commit(next);
+    return ChestOpenResult(ChestOpenStatus.opened, reward);
   }
 
   // ---- Shop ---------------------------------------------------------------

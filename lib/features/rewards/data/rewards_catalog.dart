@@ -27,6 +27,17 @@ class RewardsCatalog {
     WheelSegment(coins: 30, color: _gold),
   ];
 
+  // ---- Chest rewards ------------------------------------------------------
+  // Golden pays coins, Cyber a cosmetic, Galaxy gems. Edit the amounts here.
+
+  static const int goldenMinCoins = 40;
+  static const int goldenMaxCoins = 100;
+
+  /// Paid by the Cyber chest when every avatar and frame is already owned.
+  static const int cyberFallbackCoins = 150;
+  static const int galaxyMinGems = 10;
+  static const int galaxyMaxGems = 25;
+
   static const List<ShopProduct> avatars = [
     ShopProduct(
       id: 'avatar-scholar',

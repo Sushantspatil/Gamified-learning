@@ -9,6 +9,7 @@ import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/features/chests/presentation/screens/chest_screen.dart';
 import 'package:skillverse_app/features/rewards/application/rewards_controller.dart';
+import 'package:skillverse_app/features/rewards/domain/rewards_models.dart';
 import 'package:skillverse_app/features/shop/presentation/screens/shop_screen.dart';
 import 'package:skillverse_app/features/spin_wheel/presentation/screens/spin_wheel_screen.dart';
 import 'package:skillverse_app/features/spin_wheel/presentation/widgets/spin_wheel_painter.dart';
@@ -42,8 +43,9 @@ Future<void> _show(
   ProviderContainer container,
   Widget screen, {
   bool dark = false,
+  Size size = const Size(800, 1800),
 }) async {
-  tester.view.physicalSize = const Size(800, 1800);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
   await tester.pumpWidget(
@@ -124,117 +126,210 @@ void main() {
   });
 
   group('Chest Box screen', () {
-    /// The asset paths of the frames shown by one chest tile.
-    List<String> framesOf(WidgetTester tester, String chest) => tester
-        .widgetList<Image>(
-          find.descendant(
-            of: find.byKey(Key('chest-$chest')),
-            matching: find.byType(Image),
-          ),
-        )
-        .map((i) => (i.image as AssetImage).assetName)
-        .toList();
+    void play(ProviderContainer container, int games, [String tag = 'g']) {
+      final rewards = container.read(rewardsProvider.notifier);
+      for (var i = 0; i < games; i++) {
+        rewards.recordQuizCompleted('$tag-$i');
+      }
+    }
 
-    testWidgets('three chests, each with only its own artwork', (tester) async {
+    String gems(WidgetTester tester) =>
+        tester.widget<Text>(find.byKey(const Key('gem_balance'))).data!;
+
+    testWidgets('three chests sit side by side, earned order, closed art', (
+      tester,
+    ) async {
       await _show(tester, _launch(), const ChestScreen());
 
-      for (final chest in ['galaxy', 'golden', 'cyber']) {
-        final frames = framesOf(tester, chest);
-        expect(frames, [
-          'assets/chests/$chest/closed.png',
-          'assets/chests/$chest/opening.png',
-          'assets/chests/$chest/burst.png',
-          'assets/chests/$chest/opened.png',
-        ]);
+      final golden = find.byKey(const Key('chest-golden'));
+      final cyber = find.byKey(const Key('chest-cyber'));
+      final galaxy = find.byKey(const Key('chest-galaxy'));
+      expect(
+        tester.getTopLeft(golden).dx,
+        lessThan(tester.getTopLeft(cyber).dx),
+      );
+      expect(
+        tester.getTopLeft(cyber).dx,
+        lessThan(tester.getTopLeft(galaxy).dx),
+      );
+      expect(tester.getTopLeft(golden).dy, tester.getTopLeft(cyber).dy);
+      expect(tester.getTopLeft(cyber).dy, tester.getTopLeft(galaxy).dy);
+
+      for (final chest in ['golden', 'cyber', 'galaxy']) {
+        final frames = tester
+            .widgetList<Image>(
+              find.descendant(
+                of: find.byKey(Key('chest-$chest')),
+                matching: find.byType(Image),
+              ),
+            )
+            .map((i) => (i.image as AssetImage).assetName)
+            .toList();
+        expect(frames, ['assets/chests/$chest/closed.png']);
       }
-      expect(find.text('Galaxy Chest'), findsOneWidget);
       expect(find.text('Golden Chest'), findsOneWidget);
       expect(find.text('Cyber Chest'), findsOneWidget);
+      expect(find.text('Galaxy Chest'), findsOneWidget);
+      expect(find.text('3 more games'), findsOneWidget);
+      expect(find.text('6 more games'), findsOneWidget);
+      expect(find.text('10 more games'), findsOneWidget);
+      expect(find.text('200'), findsOneWidget);
+      expect(find.text('500'), findsOneWidget);
+      expect(find.text('1000'), findsOneWidget);
+      expect(find.text('0/10'), findsOneWidget);
+      expect(find.text('Next: Golden Chest in 3 games'), findsOneWidget);
     });
 
-    testWidgets('locked: tapping a chest explains and pays nothing', (
+    testWidgets('fits a small phone without overflow', (tester) async {
+      final container = _launch();
+      play(container, 3);
+      await _show(
+        tester,
+        container,
+        const ChestScreen(),
+        size: const Size(720, 1280), // 360 x 640 logical
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Tap to open'), findsOneWidget);
+
+      // The opening view and its reward also fit this screen.
+      await tester.tap(find.byKey(const Key('chest-golden')));
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(tester.takeException(), isNull);
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final collect = tester.getRect(find.byKey(const Key('chest_collect')));
+      expect(collect.bottom, lessThanOrEqualTo(640));
+      await tester.tap(find.byKey(const Key('chest_collect')));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('locked chest explains and cannot be bought without coins', (
       tester,
     ) async {
       final container = _launch();
-      container.read(rewardsProvider.notifier)
-        ..recordQuizCompleted('a')
-        ..recordQuizCompleted('b');
+      play(container, 2);
       await _show(tester, container, const ChestScreen());
+      expect(find.text('2/10'), findsOneWidget);
 
-      expect(find.text('Treasure Chest'), findsOneWidget);
-      expect(find.text('2/3'), findsOneWidget);
-      expect(find.text('Locked'), findsNWidgets(3));
-
-      await tester.tap(find.byKey(const Key('chest-galaxy')));
-      await tester.pump();
+      await tester.tap(find.byKey(const Key('chest-golden')));
+      await tester.pumpAndSettle();
       expect(
-        find.text('Complete 3 games to unlock your chest.'),
-        findsWidgets, // header text and the snackbar
+        find.text(
+          'Finish 1 more game to earn it for free, or open it now with coins.',
+        ),
+        findsOneWidget,
       );
+      // 100 coins cannot pay the 200-coin Golden chest.
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('chest_force_open')))
+            .onPressed,
+        isNull,
+      );
+      expect(find.text('You need 100 more coins.'), findsOneWidget);
+
+      await tester.tap(find.text('Keep playing'));
+      await tester.pumpAndSettle();
       expect(_coins(tester), '100');
       expect(container.read(rewardsProvider).chestProgress, 2);
+      expect(find.byKey(const Key('chest_stage_title')), findsNothing);
     });
 
-    testWidgets(
-      'ready: only the tapped chest opens, rapid taps do nothing, one claim',
-      (tester) async {
-        final container = _launch();
-        final rewards = container.read(rewardsProvider.notifier);
-        for (final id in ['a', 'b', 'c']) {
-          rewards.recordQuizCompleted(id);
-        }
-        await _show(tester, container, const ChestScreen());
-        expect(find.text('Your chest is ready!'), findsOneWidget);
-        expect(find.text('Tap to open'), findsNWidgets(3));
+    testWidgets('paying opens it in the large centred view, once', (
+      tester,
+    ) async {
+      final container = _launch(); // first wheel prize: +100 coins
+      container.read(rewardsProvider.notifier)
+        ..startSpin()
+        ..completeSpin();
+      play(container, 2);
+      await _show(tester, container, const ChestScreen());
+      expect(_coins(tester), '200');
 
-        double opened(String chest) {
-          final images = tester
-              .widgetList<Image>(
-                find.descendant(
-                  of: find.byKey(Key('chest-$chest')),
-                  matching: find.byType(Image),
-                ),
-              )
-              .toList();
-          // Fourth frame is the fully open artwork.
-          return images[3].opacity!.value;
-        }
+      await tester.tap(find.byKey(const Key('chest-golden')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('chest_force_open')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
 
-        await tester.tap(find.byKey(const Key('chest-golden')));
-        // A second tap on the same chest and a tap on another one: both ignored.
-        await tester.tap(
-          find.byKey(const Key('chest-golden')),
-          warnIfMissed: false,
-        );
-        await tester.tap(
-          find.byKey(const Key('chest-cyber')),
-          warnIfMissed: false,
-        );
-        await tester.pump(const Duration(milliseconds: 100));
-        await tester.pump(const Duration(milliseconds: 1000));
+      // The stage is on screen, centred, larger than the row tile; nothing is
+      // charged until the animation has finished.
+      final chest = find.byKey(const Key('chest_stage_chest'));
+      expect(chest, findsOneWidget);
+      final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+      expect(tester.getCenter(chest).dx, closeTo(screen.width / 2, 1));
+      expect(tester.getSize(chest).height, greaterThan(150));
+      expect(find.text('Opening…'), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 1000));
+      expect(_coins(tester), '200');
 
-        // Mid-animation: the paid-out reward has not happened yet and the
-        // other chests have not moved from their closed frame.
-        expect(_coins(tester), '100');
-        expect(opened('galaxy'), 0);
-        expect(opened('cyber'), 0);
+      await tester.pumpAndSettle();
+      expect(find.text('+40 Coins'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chest_collect')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('chest_stage_chest')), findsNothing);
+      expect(_coins(tester), '40'); // 200 - 200 + 40
+      expect(container.read(rewardsProvider).chestProgress, 2);
+      expect(tester.takeException(), isNull);
+    });
 
-        await tester.pumpAndSettle();
-        expect(find.text('Chest opened!'), findsOneWidget);
-        expect(find.text('You received 50 Coins.'), findsOneWidget);
-        // The golden chest stays fully open behind the reward dialog.
-        expect(opened('golden'), 1);
+    testWidgets('an earned chest opens free; rapid taps claim it once', (
+      tester,
+    ) async {
+      final container = _launch();
+      play(container, 3);
+      await _show(tester, container, const ChestScreen());
+      expect(find.text('Tap to open'), findsOneWidget);
+      expect(find.text('A chest is ready. Tap it to open!'), findsOneWidget);
 
-        await tester.tap(find.text('OK'));
-        await tester.pumpAndSettle();
-        expect(_coins(tester), '150'); // exactly one claim
-        expect(find.text('0/3'), findsOneWidget);
-        expect(find.text('Locked'), findsNWidgets(3));
-        expect(opened('golden'), 0); // closed again for the next cycle
-        expect(tester.takeException(), isNull);
-      },
-    );
+      await tester.tap(find.byKey(const Key('chest-golden')));
+      await tester.tap(
+        find.byKey(const Key('chest-golden')),
+        warnIfMissed: false,
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 1000));
+      expect(_coins(tester), '100'); // not paid mid-animation
+
+      await tester.pumpAndSettle();
+      expect(find.text('+40 Coins'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chest_collect')));
+      await tester.pumpAndSettle();
+      expect(_coins(tester), '140'); // exactly one claim
+      expect(
+        container.read(rewardsProvider).chestReady(ChestTier.golden),
+        isFalse,
+      );
+      expect(find.text('Tap to open'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('Cyber shows the cosmetic, Galaxy adds gems', (tester) async {
+      final container = _launch();
+      play(container, 10);
+      await _show(tester, container, const ChestScreen());
+      expect(find.text('Tap to open'), findsNWidgets(3));
+      expect(gems(tester), '0');
+
+      await tester.tap(find.byKey(const Key('chest-cyber')));
+      await tester.pumpAndSettle();
+      expect(find.text('Scholar unlocked!'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chest_collect')));
+      await tester.pumpAndSettle();
+      expect(container.read(rewardsProvider).ownedAvatars, {'avatar-scholar'});
+      expect(_coins(tester), '100');
+
+      await tester.tap(find.byKey(const Key('chest-galaxy')));
+      await tester.pumpAndSettle();
+      expect(find.text('+10 Gems'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('chest_collect')));
+      await tester.pumpAndSettle();
+      expect(gems(tester), '10');
+      expect(tester.takeException(), isNull);
+    });
   });
+
   group('Shop screen', () {
     Finder tile(String name) =>
         find.ancestor(of: find.text(name), matching: find.byType(DecoratedBox));

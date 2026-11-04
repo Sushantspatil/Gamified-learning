@@ -29,8 +29,20 @@ class RewardsStore {
       final ids = (json['processedQuizIds'] as List? ?? const [])
           .whereType<String>()
           .toList();
-      final progress = json['chestProgress'];
       final pending = json['pendingSpinReward'];
+      final gems = json['gems'];
+
+      // Older saves had a single chest: 3/3 meant "ready". Keep that player's
+      // earned chest as one banked Golden chest.
+      var progress = json['chestProgress'] is int
+          ? json['chestProgress'] as int
+          : 0;
+      var ready = _chests(json['chestsReady']);
+      if (json['chestsReady'] == null && progress >= 3) {
+        ready = {ChestTier.golden: 1};
+        progress = 0;
+      }
+      progress = progress.clamp(0, RewardsState.chestCycle - 1);
       return RewardsState(
         coins: coins,
         lastSpinDate: _string(json['lastSpinDate']),
@@ -38,9 +50,9 @@ class RewardsStore {
         pendingSpinReward: pending is int && _isWheelPrize(pending)
             ? pending
             : null,
-        chestProgress: progress is int
-            ? progress.clamp(0, RewardsState.chestTarget)
-            : 0,
+        chestProgress: progress,
+        chestsReady: ready,
+        gems: gems is int && gems > 0 ? gems : 0,
         processedQuizIds: ids.length > _maxProcessedIds
             ? ids.sublist(ids.length - _maxProcessedIds)
             : ids,
@@ -63,6 +75,11 @@ class RewardsStore {
       'lastSpinReward': state.lastSpinReward,
       'pendingSpinReward': state.pendingSpinReward,
       'chestProgress': state.chestProgress,
+      'chestsReady': {
+        for (final entry in state.chestsReady.entries)
+          entry.key.name: entry.value,
+      },
+      'gems': state.gems,
       'processedQuizIds': ids.length > _maxProcessedIds
           ? ids.sublist(ids.length - _maxProcessedIds)
           : ids,
@@ -93,6 +110,16 @@ class RewardsStore {
         .whereType<String>()
         .where((id) => RewardsCatalog.byId(id)?.kind == kind)
         .toSet();
+  }
+
+  static Map<ChestTier, int> _chests(Object? value) {
+    if (value is! Map) return const {};
+    final result = <ChestTier, int>{};
+    for (final tier in ChestTier.values) {
+      final count = value[tier.name];
+      if (count is int && count > 0) result[tier] = count;
+    }
+    return result;
   }
 
   static Map<PowerUpType, int> _powerUps(Object? value) {

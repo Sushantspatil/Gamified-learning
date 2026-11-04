@@ -88,6 +88,7 @@ void main() {
         jsonEncode({
           'coins': 240,
           'chestProgress': 99,
+          'chestsReady': {'golden': 2, 'cyber': -1, 'bogus': 4},
           'ownedAvatars': ['avatar-scholar', 'avatar-nope', 7],
           'powerUps': {'hint': -3, 'fiftyFifty': 2, 'bogus': 1},
           'pendingSpinReward': 12345,
@@ -95,7 +96,8 @@ void main() {
       );
       final s = stateOf(launch());
       expect(s.coins, 240);
-      expect(s.chestProgress, 3); // clamped
+      expect(s.chestProgress, 9); // clamped to the cycle
+      expect(s.chestsReady, {ChestTier.golden: 2});
       expect(s.ownedAvatars, {'avatar-scholar'});
       expect(s.powerUps, {PowerUpType.fiftyFifty: 2});
       expect(s.pendingSpinReward, isNull);
@@ -241,23 +243,60 @@ void main() {
   });
 
   group('chest box', () {
-    test('three completed quizzes unlock it; opening pays 50 and resets', () {
-      final c = launch();
-      final r = rewards(c);
-      expect(stateOf(c).chestProgress, 0);
-      r.recordQuizCompleted('q1');
-      r.recordQuizCompleted('q2');
-      expect(stateOf(c).chestReady, isFalse);
-      expect(r.openChest(), isFalse);
-      expect(stateOf(c).coins, 100);
+    var n = 0;
+    void play(RewardsController r, int games) {
+      for (var i = 0; i < games; i++) {
+        r.recordQuizCompleted('game-${n++}');
+      }
+    }
 
-      r.recordQuizCompleted('q3');
-      expect(stateOf(c).chestReady, isTrue);
-      expect(r.openChest(), isTrue);
-      expect(stateOf(c).coins, 150);
-      expect(stateOf(c).chestProgress, 0);
-      expect(r.openChest(), isFalse); // no double claim
-      expect(stateOf(c).coins, 150);
+    Future<void> seed(Map<String, Object?> json) =>
+        storage.setString(RewardsStore.key, jsonEncode(json));
+
+    test(
+      'games earn Golden at 3, Cyber at 6 and Galaxy at 10, then restart',
+      () {
+        final c = launch();
+        final r = rewards(c);
+        expect(stateOf(c).anyChestReady, isFalse);
+
+        play(r, 2);
+        expect(stateOf(c).chestProgress, 2);
+        expect(stateOf(c).anyChestReady, isFalse);
+        play(r, 1);
+        expect(stateOf(c).chestReady(ChestTier.golden), isTrue);
+        expect(stateOf(c).chestReady(ChestTier.cyber), isFalse);
+
+        play(r, 2);
+        expect(stateOf(c).chestReady(ChestTier.cyber), isFalse);
+        play(r, 1);
+        expect(stateOf(c).chestReady(ChestTier.cyber), isTrue);
+        expect(stateOf(c).chestReady(ChestTier.galaxy), isFalse);
+
+        play(r, 3);
+        expect(stateOf(c).chestReady(ChestTier.galaxy), isFalse);
+        play(r, 1);
+        expect(stateOf(c).chestReady(ChestTier.galaxy), isTrue);
+        expect(stateOf(c).chestProgress, 0); // new cycle
+      },
+    );
+
+    test('earned chests wait and stack; nothing is lost or stalls', () {
+      final c = launch();
+      play(rewards(c), 13); // a whole cycle plus 3 more games
+      expect(stateOf(c).chestsReadyCount(ChestTier.golden), 2);
+      expect(stateOf(c).chestsReadyCount(ChestTier.cyber), 1);
+      expect(stateOf(c).chestsReadyCount(ChestTier.galaxy), 1);
+      expect(stateOf(c).chestProgress, 3);
+    });
+
+    test('games until each chest, counting into the next cycle', () {
+      final c = launch();
+      play(rewards(c), 4);
+      final s = stateOf(c);
+      expect(s.gamesUntil(ChestTier.golden), 9);
+      expect(s.gamesUntil(ChestTier.cyber), 2);
+      expect(s.gamesUntil(ChestTier.galaxy), 6);
     });
 
     test('the same attempt never counts twice', () {
@@ -271,21 +310,146 @@ void main() {
       expect(stateOf(launch()).chestProgress, 1);
     });
 
-    test(
-      'a full chest does not collect extra progress, then a new cycle starts',
-      () {
-        final c = launch();
-        final r = rewards(c);
-        for (final id in ['a', 'b', 'c', 'd', 'e']) {
-          r.recordQuizCompleted(id);
-        }
-        expect(stateOf(c).chestProgress, 3);
-        r.openChest();
-        expect(stateOf(c).chestProgress, 0); // d and e were not banked
-        r.recordQuizCompleted('f');
-        expect(stateOf(c).chestProgress, 1);
-      },
-    );
+    test('Golden pays coins once and uses up the earned chest', () {
+      final c = launch(random: FixedRandom(0)); // lowest roll: 40 coins
+      final r = rewards(c);
+      expect(r.openChest(ChestTier.golden).status, ChestOpenStatus.notEarned);
+      expect(stateOf(c).coins, 100);
+
+      play(r, 3);
+      final result = r.openChest(ChestTier.golden);
+      expect(result.opened, isTrue);
+      expect(result.reward!.coins, 40);
+      expect(stateOf(c).coins, 140);
+      expect(stateOf(c).chestReady(ChestTier.golden), isFalse);
+      expect(r.openChest(ChestTier.golden).opened, isFalse); // no double claim
+      expect(stateOf(c).coins, 140);
+    });
+
+    test('Golden coins stay inside the configured range', () async {
+      for (final roll in [0, 60]) {
+        SharedPreferences.setMockInitialValues({}); // fresh device each time
+        storage = await LocalStorageService.create();
+        final c = launch(random: FixedRandom(roll));
+        play(rewards(c), 3);
+        final coins = rewards(c).openChest(ChestTier.golden).reward!.coins;
+        expect(coins, 40 + roll);
+        expect(coins, inInclusiveRange(40, 100));
+      }
+    });
+
+    test('Cyber gives an unowned cosmetic and no coins', () {
+      final c = launch(random: FixedRandom(1));
+      final r = rewards(c);
+      play(r, 6);
+      final reward = r.openChest(ChestTier.cyber).reward!;
+      expect(reward.cosmetic?.id, 'avatar-explorer'); // second unowned item
+      expect(reward.coins, 0);
+      expect(stateOf(c).ownedAvatars, {'avatar-explorer'});
+      expect(stateOf(c).coins, 100);
+    });
+
+    test('Cyber pays coins when every cosmetic is already owned', () async {
+      await seed({
+        'coins': 100,
+        'ownedAvatars': [for (final p in RewardsCatalog.avatars) p.id],
+        'ownedFrames': [for (final p in RewardsCatalog.frames) p.id],
+      });
+      final c = launch(random: FixedRandom(0));
+      final r = rewards(c);
+      play(r, 6);
+      final reward = r.openChest(ChestTier.cyber).reward!;
+      expect(reward.cosmetic, isNull);
+      expect(reward.coins, 150);
+      expect(stateOf(c).coins, 250);
+    });
+
+    test('Galaxy pays gems', () {
+      final c = launch(random: FixedRandom(5));
+      final r = rewards(c);
+      play(r, 10);
+      final reward = r.openChest(ChestTier.galaxy).reward!;
+      expect(reward.gems, 15);
+      expect(reward.gems, inInclusiveRange(10, 25));
+      expect(stateOf(c).gems, 15);
+      expect(stateOf(c).coins, 100);
+    });
+
+    test('forcing a chest open costs coins and changes no progress', () {
+      expect(
+        [for (final t in ChestTier.values) t.forcePrice],
+        [200, 500, 1000],
+      );
+      final c = launch(random: FixedRandom(0));
+      final r = rewards(c);
+      play(r, 2);
+
+      // 100 coins is not enough for the 200-coin Golden chest.
+      expect(
+        r.forceOpenChest(ChestTier.golden).status,
+        ChestOpenStatus.notEnoughCoins,
+      );
+      expect(stateOf(c).coins, 100);
+
+      r.startSpin();
+      r.completeSpin(); // +100 coins from the first wheel segment
+      expect(stateOf(c).coins, 200);
+
+      final result = r.forceOpenChest(ChestTier.golden);
+      expect(result.opened, isTrue);
+      expect(stateOf(c).coins, 200 - 200 + 40);
+      expect(stateOf(c).chestProgress, 2);
+      expect(stateOf(c).anyChestReady, isFalse);
+    });
+
+    test('an earned chest is opened free, never by paying', () {
+      final c = launch(random: FixedRandom(0));
+      final r = rewards(c);
+      play(r, 3);
+      expect(
+        r.forceOpenChest(ChestTier.golden).status,
+        ChestOpenStatus.alreadyEarned,
+      );
+      expect(stateOf(c).coins, 100);
+      expect(stateOf(c).chestReady(ChestTier.golden), isTrue);
+    });
+
+    test('forcing one chest leaves an earned chest of another kind', () async {
+      await seed({'coins': 600});
+      final c = launch(random: FixedRandom(0));
+      final r = rewards(c);
+      play(r, 3); // Golden earned
+      expect(r.forceOpenChest(ChestTier.cyber).opened, isTrue);
+      expect(stateOf(c).coins, 100);
+      expect(stateOf(c).chestReady(ChestTier.golden), isTrue);
+      expect(stateOf(c).chestProgress, 3);
+    });
+
+    test('chests and gems survive a restart', () {
+      final first = launch(random: FixedRandom(0));
+      play(rewards(first), 13);
+      rewards(first).openChest(ChestTier.galaxy);
+
+      final s = stateOf(launch());
+      expect(s.chestProgress, 3);
+      expect(s.chestsReadyCount(ChestTier.golden), 2);
+      expect(s.chestsReadyCount(ChestTier.cyber), 1);
+      expect(s.chestReady(ChestTier.galaxy), isFalse);
+      expect(s.gems, 10);
+    });
+
+    test('an old single-chest save keeps its ready chest as Golden', () async {
+      await seed({'coins': 120, 'chestProgress': 3});
+      final s = stateOf(launch());
+      expect(s.coins, 120);
+      expect(s.chestsReadyCount(ChestTier.golden), 1);
+      expect(s.chestProgress, 0);
+
+      await seed({'coins': 120, 'chestProgress': 2});
+      final partway = stateOf(launch());
+      expect(partway.chestProgress, 2);
+      expect(partway.anyChestReady, isFalse);
+    });
   });
 
   group('shop', () {
