@@ -98,7 +98,7 @@ void main() {
     await _pumpMatchView(tester);
 
     expect(find.byKey(const Key('match_it_view')), findsOneWidget);
-    expect(find.text('Accountancy'), findsOneWidget);
+    expect(find.text('Match It'), findsOneWidget);
     expect(find.text('Match each concept'), findsOneWidget);
     expect(find.textContaining('0 of 3'), findsOneWidget);
     expect(find.byIcon(Icons.check_circle_rounded), findsNothing);

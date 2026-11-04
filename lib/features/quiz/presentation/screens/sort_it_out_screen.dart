@@ -6,6 +6,7 @@ import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/quit_game_dialog.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../providers/quiz_providers.dart';
@@ -67,30 +68,9 @@ class _SortItOutScreenState extends ConsumerState<SortItOutScreen>
       return true;
     }
 
-    final shouldExit = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Quit Sort It Out?'),
-        content: const Text(
-          'Your progress in this rapid-fire round will be abandoned.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Keep playing'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(ctx).colorScheme.error,
-            ),
-            child: const Text('Quit round'),
-          ),
-        ],
-      ),
-    );
+    final shouldExit = await confirmQuitGame(context, mode: 'Sort It Out');
 
-    if (shouldExit == true) {
+    if (shouldExit) {
       await ref
           .read(sortItOutControllerProvider(_request).notifier)
           .abandonSession();

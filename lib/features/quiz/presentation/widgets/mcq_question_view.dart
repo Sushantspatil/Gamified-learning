@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/motion/app_motion.dart';
-import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_elevation.dart';
 import '../../../../app/theme/app_spacing.dart';
@@ -12,7 +11,7 @@ import '../../../../core/audio/audio_providers.dart';
 import '../../../../core/audio/game_sound.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_pressable.dart';
-import '../../../../shared/widgets/app_progress_bar.dart';
+import '../../../../shared/widgets/game_header.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../rewards/application/rewards_controller.dart';
@@ -272,11 +271,13 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _McqHeader(
+        GameHeader(
+          title: 'MCQ Quiz',
           currentIndex: widget.currentIndex,
           totalQuestions: widget.totalQuestions,
           progress: progress,
           coins: widget.coins,
+          semanticLabel: 'MCQ progress',
         ),
         const SizedBox(height: AppSpacing.md),
         Expanded(
@@ -462,99 +463,6 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
     final targetHeight = availableHeight - reservedControlHeight;
     final promptPenalty = widget.question.prompt.length > 80 ? 32.0 : 0.0;
     return (targetHeight - promptPenalty).clamp(90.0, 200.0);
-  }
-}
-
-class _McqHeader extends StatelessWidget {
-  final int currentIndex;
-  final int totalQuestions;
-  final double progress;
-  final int coins;
-
-  const _McqHeader({
-    required this.currentIndex,
-    required this.totalQuestions,
-    required this.progress,
-    required this.coins,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text('MCQ Quiz', style: context.appTextStyles.titleLarge),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: 4,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.coinGold.withValues(alpha: 0.12),
-                borderRadius: AppDimensions.radiusSm,
-                border: Border.all(
-                  color: AppColors.coinGold.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.monetization_on_rounded,
-                    color: AppColors.coinGold,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 4),
-                  AnimatedSwitcher(
-                    duration: AppMotion.duration(context, AppMotion.fast),
-                    child: Text(
-                      '$coins',
-                      key: ValueKey(coins),
-                      style: context.appTextStyles.labelLarge.copyWith(
-                        color: AppColors.coinGold,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            AnimatedSwitcher(
-              duration: AppMotion.duration(context, AppMotion.fast),
-              child: Text(
-                '${currentIndex + 1} / $totalQuestions',
-                key: ValueKey(currentIndex),
-                style: context.appTextStyles.labelLarge.copyWith(
-                  color: colors.primary,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: progress),
-          duration: AppMotion.duration(context, AppMotion.normal),
-          curve: AppMotion.easeOut,
-          builder: (context, value, child) {
-            return AppProgressBar(
-              value: value,
-              height: 8,
-              accentColor: colors.primary,
-              trackColor: colors.primary.withValues(alpha: 0.10),
-              semanticLabel: 'MCQ progress',
-            );
-          },
-        ),
-      ],
-    );
   }
 }
 

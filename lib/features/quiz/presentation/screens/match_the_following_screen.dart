@@ -6,6 +6,7 @@ import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/quit_game_dialog.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../providers/match_the_following_providers.dart';
 import '../providers/quiz_providers.dart';
@@ -69,28 +70,9 @@ class _MatchTheFollowingScreenState
       return true;
     }
 
-    final colors = context.themeColors;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Exit Match Game?'),
-        content: const Text(
-          'Leaving now will abandon this game session. Your progress will not be saved.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Continue Playing'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text('Exit Game', style: TextStyle(color: colors.error)),
-          ),
-        ],
-      ),
-    );
+    final confirmed = await confirmQuitGame(context, mode: 'Match It');
 
-    if (confirmed == true) {
+    if (confirmed) {
       await ref
           .read(matchTheFollowingControllerProvider(_request).notifier)
           .abandonSession();

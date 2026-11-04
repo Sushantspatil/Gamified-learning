@@ -10,6 +10,7 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../../shared/widgets/game_scaffold.dart';
+import '../../../../shared/widgets/quit_game_dialog.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
@@ -98,135 +99,188 @@ class QuizScreen extends ConsumerWidget {
     final isMcqQuiz = quizType == QuestionType.mcq;
     final isSortItOutQuiz = quizType == QuestionType.sortItRight;
 
-    return GameScaffold(
-      appBar: isMcqQuiz || isSortItOutQuiz || isMatchQuestion
-          ? null
-          : AppBar(
-              title: Text(quizType.label),
-              actions: const [ThemeModeMenu()],
-            ),
-      body: SafeArea(
-        child: sessionAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => Center(
-            child: Padding(
-              padding: AppSpacing.paddingMd,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Could not load this quiz.',
-                    style: context.appTextStyles.bodyLarge,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  AppButton(
-                    label: 'Retry',
-                    onPressed: () =>
-                        ref.invalidate(quizControllerProvider(request)),
-                  ),
-                ],
+    final inRound =
+        isMcqQuiz &&
+        sessionAsync.valueOrNull != null &&
+        sessionAsync.valueOrNull!.result == null &&
+        sessionAsync.valueOrNull!.currentQuestion != null;
+
+    return PopScope(
+      canPop: !inRound,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final leave = await confirmQuitGame(context, mode: 'MCQ Quiz');
+        if (leave && context.mounted) Navigator.of(context).pop();
+      },
+      child: GameScaffold(
+        appBar: isMcqQuiz || isSortItOutQuiz || isMatchQuestion
+            ? null
+            : AppBar(
+                title: Text(quizType.label),
+                actions: const [ThemeModeMenu()],
               ),
-            ),
-          ),
-          data: (session) {
-            if (session.isSubmittingResult) {
-              return Center(
+        body: SafeArea(
+          child: sessionAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (error, stackTrace) => Center(
+              child: Padding(
+                padding: AppSpacing.paddingMd,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: CircularProgressIndicator(strokeWidth: 3),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
                     Text(
-                      'Calculating quiz results...',
-                      style: context.appTextStyles.titleMedium.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                      'Could not load this quiz.',
+                      style: context.appTextStyles.bodyLarge,
                     ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Evaluating answers with the backend',
-                      style: context.appTextStyles.bodyMedium.copyWith(
-                        color: colors.textSecondary,
-                      ),
+                    const SizedBox(height: AppSpacing.md),
+                    AppButton(
+                      label: 'Retry',
+                      onPressed: () =>
+                          ref.invalidate(quizControllerProvider(request)),
                     ),
                   ],
                 ),
-              );
-            }
-
-            if (session.result != null) {
-              return QuizResultView(
-                result: session.result!,
-                rewardXp: session.rewardXp,
-                rewardCoins: session.rewardCoins,
-                leveledUp: session.leveledUp,
-                onDone: () => Navigator.of(context).pop(),
-                onPlayAgain: () =>
-                    ref.invalidate(quizControllerProvider(request)),
-              );
-            }
-
-            final question = session.currentQuestion;
-            if (question == null) {
-              return Center(
-                child: Padding(
-                  padding: AppSpacing.paddingMd,
+              ),
+            ),
+            data: (session) {
+              if (session.isSubmittingResult) {
+                return Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        quizType.emptyStateLabel,
-                        textAlign: TextAlign.center,
-                        style: context.appTextStyles.bodyLarge,
+                      const SizedBox(
+                        width: 48,
+                        height: 48,
+                        child: CircularProgressIndicator(strokeWidth: 3),
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      AppButton(
-                        label: 'Change Mode',
-                        onPressed: () => context.go(
-                          RouteNames.playSetupPath(
-                            subjectId: subjectId,
-                            chapterId: chapterId,
-                            topicId: topicId,
-                          ),
+                      const SizedBox(height: AppSpacing.lg),
+                      Text(
+                        'Calculating quiz results...',
+                        style: context.appTextStyles.titleMedium.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Evaluating answers with the backend',
+                        style: context.appTextStyles.bodyMedium.copyWith(
+                          color: colors.textSecondary,
                         ),
                       ),
                     ],
                   ),
-                ),
-              );
-            }
+                );
+              }
 
-            void handleAnswer(Answer answer) {
-              ref
-                  .read(quizControllerProvider(request).notifier)
-                  .submitAnswer(answer);
-            }
+              if (session.result != null) {
+                return QuizResultView(
+                  result: session.result!,
+                  rewardXp: session.rewardXp,
+                  rewardCoins: session.rewardCoins,
+                  leveledUp: session.leveledUp,
+                  onDone: () => Navigator.of(context).pop(),
+                  onPlayAgain: () =>
+                      ref.invalidate(quizControllerProvider(request)),
+                );
+              }
 
-            if (question is McqQuestion) {
-              final currentStreak = session.records
-                  .where((record) => record.evaluation.isCorrect)
-                  .length;
-              final appStreak =
-                  ref
-                      .watch(streakControllerProvider)
-                      .valueOrNull
-                      ?.currentStreak ??
-                  0;
-              final wallet = ref.watch(walletControllerProvider).valueOrNull;
-              final bestStreak = appStreak > currentStreak
-                  ? appStreak
-                  : currentStreak;
+              final question = session.currentQuestion;
+              if (question == null) {
+                return Center(
+                  child: Padding(
+                    padding: AppSpacing.paddingMd,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          quizType.emptyStateLabel,
+                          textAlign: TextAlign.center,
+                          style: context.appTextStyles.bodyLarge,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        AppButton(
+                          label: 'Change Mode',
+                          onPressed: () => context.go(
+                            RouteNames.playSetupPath(
+                              subjectId: subjectId,
+                              chapterId: chapterId,
+                              topicId: topicId,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
 
-              return Padding(
-                padding: AppSpacing.paddingMd,
-                child: McqQuestionView(
-                  // One stable key: the same view (and its 3D character) serves every
-                  // question of the game; it resets itself when the question changes.
-                  key: const ValueKey('mcq-question-view'),
+              void handleAnswer(Answer answer) {
+                ref
+                    .read(quizControllerProvider(request).notifier)
+                    .submitAnswer(answer);
+              }
+
+              if (question is McqQuestion) {
+                final currentStreak = session.records
+                    .where((record) => record.evaluation.isCorrect)
+                    .length;
+                final appStreak =
+                    ref
+                        .watch(streakControllerProvider)
+                        .valueOrNull
+                        ?.currentStreak ??
+                    0;
+                final wallet = ref.watch(walletControllerProvider).valueOrNull;
+                final bestStreak = appStreak > currentStreak
+                    ? appStreak
+                    : currentStreak;
+
+                return Padding(
+                  padding: AppSpacing.paddingMd,
+                  child: McqQuestionView(
+                    // One stable key: the same view (and its 3D character) serves every
+                    // question of the game; it resets itself when the question changes.
+                    key: const ValueKey('mcq-question-view'),
+                    question: question,
+                    currentIndex: session.currentIndex,
+                    totalQuestions: session.questions.length,
+                    currentStreak: bestStreak,
+                    coins: wallet?.coins ?? 0,
+                    energy: wallet?.gems ?? 0,
+                    onExit: () => Navigator.of(context).maybePop(),
+                    onSubmit: handleAnswer,
+                  ),
+                );
+              }
+
+              if (question is MatchTheFollowingQuestion) {
+                return MatchTheFollowingView(
+                  key: ValueKey(question.id),
+                  question: question,
+                  currentIndex: session.currentIndex,
+                  totalQuestions: session.questions.length,
+                  onSubmit: handleAnswer,
+                  onExit: () => Navigator.of(context).maybePop(),
+                );
+              }
+
+              if (question is SortItRightQuestion) {
+                final currentStreak = session.records
+                    .where((record) => record.evaluation.isCorrect)
+                    .length;
+                final appStreak =
+                    ref
+                        .watch(streakControllerProvider)
+                        .valueOrNull
+                        ?.currentStreak ??
+                    0;
+                final wallet = ref.watch(walletControllerProvider).valueOrNull;
+                final bestStreak = appStreak > currentStreak
+                    ? appStreak
+                    : currentStreak;
+
+                return SortItRightView(
+                  key: ValueKey(question.id),
                   question: question,
                   currentIndex: session.currentIndex,
                   totalQuestions: session.questions.length,
@@ -235,79 +289,40 @@ class QuizScreen extends ConsumerWidget {
                   energy: wallet?.gems ?? 0,
                   onExit: () => Navigator.of(context).maybePop(),
                   onSubmit: handleAnswer,
+                );
+              }
+
+              return Padding(
+                padding: AppSpacing.paddingMd,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _QuizProgressHeader(
+                      currentIndex: session.currentIndex,
+                      totalQuestions: session.questions.length,
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Expanded(
+                      child: switch (question) {
+                        McqQuestion() => throw StateError(
+                          'MCQ questions render above.',
+                        ),
+                        SortItRightQuestion() => throw StateError(
+                          'Sort It Out questions render above.',
+                        ),
+                        SuddenDeathQuestion() => throw StateError(
+                          'Sudden Death questions render above.',
+                        ),
+                        MatchTheFollowingQuestion() => throw StateError(
+                          'Match questions render above.',
+                        ),
+                      },
+                    ),
+                  ],
                 ),
               );
-            }
-
-            if (question is MatchTheFollowingQuestion) {
-              return MatchTheFollowingView(
-                key: ValueKey(question.id),
-                question: question,
-                currentIndex: session.currentIndex,
-                totalQuestions: session.questions.length,
-                onSubmit: handleAnswer,
-                onExit: () => Navigator.of(context).maybePop(),
-              );
-            }
-
-            if (question is SortItRightQuestion) {
-              final currentStreak = session.records
-                  .where((record) => record.evaluation.isCorrect)
-                  .length;
-              final appStreak =
-                  ref
-                      .watch(streakControllerProvider)
-                      .valueOrNull
-                      ?.currentStreak ??
-                  0;
-              final wallet = ref.watch(walletControllerProvider).valueOrNull;
-              final bestStreak = appStreak > currentStreak
-                  ? appStreak
-                  : currentStreak;
-
-              return SortItRightView(
-                key: ValueKey(question.id),
-                question: question,
-                currentIndex: session.currentIndex,
-                totalQuestions: session.questions.length,
-                currentStreak: bestStreak,
-                coins: wallet?.coins ?? 0,
-                energy: wallet?.gems ?? 0,
-                onExit: () => Navigator.of(context).maybePop(),
-                onSubmit: handleAnswer,
-              );
-            }
-
-            return Padding(
-              padding: AppSpacing.paddingMd,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _QuizProgressHeader(
-                    currentIndex: session.currentIndex,
-                    totalQuestions: session.questions.length,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Expanded(
-                    child: switch (question) {
-                      McqQuestion() => throw StateError(
-                        'MCQ questions render above.',
-                      ),
-                      SortItRightQuestion() => throw StateError(
-                        'Sort It Out questions render above.',
-                      ),
-                      SuddenDeathQuestion() => throw StateError(
-                        'Sudden Death questions render above.',
-                      ),
-                      MatchTheFollowingQuestion() => throw StateError(
-                        'Match questions render above.',
-                      ),
-                    },
-                  ),
-                ],
-              ),
-            );
-          },
+            },
+          ),
         ),
       ),
     );

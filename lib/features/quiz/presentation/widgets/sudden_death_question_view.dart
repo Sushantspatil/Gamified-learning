@@ -14,6 +14,7 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/game_header.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
@@ -529,18 +530,22 @@ class _SuddenDeathQuestionViewState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _SuddenDeathTopBar(
-                        energy: widget.energy,
+                      GameHeader(
+                        title: 'Sudden Death',
                         coins: widget.coins,
-                        isPreviewMode: widget.isPreviewMode,
-                        onExit: widget.onExit,
+                        currentIndex: widget.currentIndex,
+                        totalQuestions: widget.totalQuestions,
+                        progress: widget.totalQuestions == 0
+                            ? 0.0
+                            : (widget.currentIndex + 1) / widget.totalQuestions,
+                        semanticLabel: 'Sudden Death progress',
                       ),
+                      const SizedBox(height: AppSpacing.xs),
+                      _RuleLine(isPreviewMode: widget.isPreviewMode),
                       SizedBox(
                         height: isCompact ? AppSpacing.sm : AppSpacing.ms,
                       ),
                       _SuddenDeathStatusRow(
-                        currentIndex: widget.currentIndex,
-                        totalQuestions: widget.totalQuestions,
                         currentStreak: widget.currentStreak,
                         bestStreak: widget.bestStreak,
                         remainingTime: _remainingTime,
@@ -607,8 +612,6 @@ class _SuddenDeathQuestionViewState
                       SizedBox(
                         height: isCompact ? AppSpacing.sm : AppSpacing.ms,
                       ),
-                      const _DangerBanner(),
-                      const SizedBox(height: AppSpacing.sm),
                       if (!isCompact) const _MascotCallout(),
                     ],
                   ),
@@ -715,191 +718,59 @@ class _SuddenDeathQuestionViewState
   }
 }
 
-class _SuddenDeathTopBar extends StatelessWidget {
-  final int energy;
-  final int coins;
+/// One quiet line under the header: the rule of the mode (and a marker when
+/// the screen is only a UI preview).
+class _RuleLine extends StatelessWidget {
   final bool isPreviewMode;
-  final VoidCallback onExit;
 
-  const _SuddenDeathTopBar({
-    required this.energy,
-    required this.coins,
-    required this.isPreviewMode,
-    required this.onExit,
-  });
+  const _RuleLine({required this.isPreviewMode});
 
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Row(
       children: [
-        Row(
-          children: [
-            Tooltip(
-              message: 'Back',
-              child: InkWell(
-                onTap: onExit,
-                borderRadius: AppDimensions.radiusSm,
-                child: Ink(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: colors.primary.withValues(alpha: 0.16),
-                    borderRadius: AppDimensions.radiusSm,
-                    border: Border.all(
-                      color: colors.primary.withValues(alpha: 0.38),
-                    ),
-                  ),
-                  child: Icon(
-                    Icons.arrow_back_rounded,
-                    color: colors.primary,
-                    size: 22,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.local_fire_department_rounded,
-                        color: AppColors.streakFire,
-                        size: 22,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Flexible(
-                        child: FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            'Sudden Death',
-                            maxLines: 1,
-                            style: context.appTextStyles.titleMedium.copyWith(
-                              color: colors.error,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'One wrong answer ends the run.',
-                    maxLines: 2,
-                    style: context.appTextStyles.caption.copyWith(
-                      color: colors.textSecondary,
-                    ),
-                  ),
-                  if (isPreviewMode) ...[
-                    const SizedBox(height: AppSpacing.xs),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.xs,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colors.warning.withValues(alpha: 0.14),
-                          borderRadius: AppDimensions.radiusSm,
-                          border: Border.all(
-                            color: colors.warning.withValues(alpha: 0.32),
-                          ),
-                        ),
-                        child: Text(
-                          'UI preview',
-                          style: context.appTextStyles.labelSmall.copyWith(
-                            color: colors.warning,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
+        Icon(
+          Icons.local_fire_department_rounded,
+          size: 16,
+          color: AppColors.streakFire,
         ),
-        const SizedBox(height: AppSpacing.xs),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _ResourceChip(
-                icon: Icons.bolt_rounded,
-                value: energy,
-                color: AppColors.coinGold,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              _ResourceChip(
-                icon: Icons.monetization_on_rounded,
-                value: coins,
-                color: AppColors.coinGold,
-              ),
-            ],
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(
+            'One wrong answer ends the run.',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: context.appTextStyles.caption.copyWith(
+              color: colors.textSecondary,
+            ),
           ),
         ),
+        if (isPreviewMode)
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xs,
+              vertical: 2,
+            ),
+            decoration: BoxDecoration(
+              color: colors.warning.withValues(alpha: 0.14),
+              borderRadius: AppDimensions.radiusSm,
+              border: Border.all(color: colors.warning.withValues(alpha: 0.32)),
+            ),
+            child: Text(
+              'UI preview',
+              style: context.appTextStyles.labelSmall.copyWith(
+                color: colors.warning,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
       ],
     );
   }
 }
 
-class _ResourceChip extends StatelessWidget {
-  final IconData icon;
-  final int value;
-  final Color color;
-
-  const _ResourceChip({
-    required this.icon,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return Container(
-      constraints: const BoxConstraints(minWidth: 50),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 3,
-      ),
-      decoration: BoxDecoration(
-        color: colors.primary.withValues(alpha: 0.16),
-        borderRadius: AppDimensions.radiusSm,
-        border: Border.all(color: colors.primary.withValues(alpha: 0.34)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            '$value',
-            style: context.appTextStyles.labelLarge.copyWith(
-              color: colors.textPrimary,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _SuddenDeathStatusRow extends StatelessWidget {
-  final int currentIndex;
-  final int totalQuestions;
   final int currentStreak;
   final int bestStreak;
   final Duration remainingTime;
@@ -907,8 +778,6 @@ class _SuddenDeathStatusRow extends StatelessWidget {
   final bool showTimeBoost;
 
   const _SuddenDeathStatusRow({
-    required this.currentIndex,
-    required this.totalQuestions,
     required this.currentStreak,
     required this.bestStreak,
     required this.remainingTime,
@@ -934,10 +803,10 @@ class _SuddenDeathStatusRow extends StatelessWidget {
         children: [
           Expanded(
             child: _HudMetric(
-              label: 'Question',
-              value: '${currentIndex + 1} / $totalQuestions',
-              icon: Icons.quiz_rounded,
-              color: colors.secondary,
+              label: 'Current streak',
+              value: '$currentStreak',
+              icon: Icons.whatshot_rounded,
+              color: AppColors.streakFire,
             ),
           ),
           Padding(
@@ -949,28 +818,29 @@ class _SuddenDeathStatusRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _HudMetric(
-                  label: 'Current streak',
-                  value: '$currentStreak',
-                  icon: Icons.whatshot_rounded,
-                  color: AppColors.streakFire,
-                  alignEnd: true,
-                ),
-                const SizedBox(height: 2),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    'Best streak: $bestStreak',
-                    style: context.appTextStyles.labelSmall.copyWith(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.emoji_events_rounded,
+                      size: 18,
                       color: AppColors.coinGold,
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      'Best streak: $bestStreak',
+                      style: context.appTextStyles.labelLarge.copyWith(
+                        color: AppColors.coinGold,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -984,22 +854,18 @@ class _HudMetric extends StatelessWidget {
   final String value;
   final IconData icon;
   final Color color;
-  final bool alignEnd;
 
   const _HudMetric({
     required this.label,
     required this.value,
     required this.icon,
     required this.color,
-    this.alignEnd = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: alignEnd
-          ? CrossAxisAlignment.end
-          : CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         FittedBox(
           fit: BoxFit.scaleDown,
@@ -1013,16 +879,12 @@ class _HudMetric extends StatelessWidget {
         const SizedBox(height: 2),
         Row(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: alignEnd
-              ? MainAxisAlignment.end
-              : MainAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.start,
           children: [
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                alignment: alignEnd
-                    ? Alignment.centerRight
-                    : Alignment.centerLeft,
+                alignment: Alignment.centerLeft,
                 child: Text(
                   value,
                   style: context.appTextStyles.headingSmall.copyWith(
@@ -1624,64 +1486,6 @@ class _AnswerCard extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _DangerBanner extends StatelessWidget {
-  const _DangerBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: 10,
-      ),
-      decoration: BoxDecoration(
-        color: colors.error.withValues(alpha: 0.12),
-        borderRadius: AppDimensions.radiusCard,
-        border: Border.all(color: colors.error.withValues(alpha: 0.34)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: colors.error.withValues(alpha: 0.14),
-              borderRadius: AppDimensions.radiusMd,
-              border: Border.all(color: colors.error.withValues(alpha: 0.44)),
-            ),
-            child: Icon(Icons.dangerous_rounded, color: colors.error, size: 24),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'One wrong answer',
-                  style: context.appTextStyles.labelLarge.copyWith(
-                    color: colors.error,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Survive each question and build your streak.',
-                  style: context.appTextStyles.bodySmall.copyWith(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

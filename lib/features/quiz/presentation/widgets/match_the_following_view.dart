@@ -6,18 +6,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/motion/app_motion.dart';
-import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_elevation.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
-import '../../../../shared/widgets/animated_count_text.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_pressable.dart';
-import '../../../../shared/widgets/app_progress_bar.dart';
-import '../../../streaks/presentation/providers/streak_providers.dart';
+import '../../../../shared/widgets/game_header.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
@@ -503,8 +500,6 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final streak =
-        ref.watch(streakControllerProvider).valueOrNull?.currentStreak ?? 0;
     final leftPairs = _effectiveLeftPairs;
     final rightPairs = _effectiveRightPairs;
     final matches = _effectiveMatches;
@@ -513,12 +508,6 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     final allMatched = totalPairs > 0 && matchedCount == totalPairs;
     final isAnalysis = _phase == _MatchFlowPhase.analysis;
     final boardHeight = totalPairs * (_cardHeight + _rowGap);
-
-    final title = widget.title != null
-        ? _subjectTitle(widget.title!)
-        : (widget.question != null
-              ? _subjectTitle(widget.question!.topicId)
-              : 'Match It');
 
     final promptText =
         widget.board?.prompt ?? widget.question?.prompt ?? 'Match each concept';
@@ -537,19 +526,40 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _MatchItHeader(
-                title: title,
+              GameHeader(
+                title: 'Match It',
                 currentIndex: widget.currentIndex,
                 totalQuestions: widget.totalQuestions,
-                streak: streak,
+                progress: widget.totalQuestions == 0
+                    ? 0.0
+                    : (widget.currentIndex + 1) / widget.totalQuestions,
                 coins: _availableCoins,
-                onExit: widget.onExit ?? () => Navigator.of(context).pop(),
+                semanticLabel: 'Match It progress',
               ),
               const SizedBox(height: AppSpacing.md),
-              _ProgressHud(
-                matchedCount: matchedCount,
-                totalPairs: totalPairs,
-                prompt: promptText,
+              Text(
+                promptText,
+                softWrap: true,
+                style: context.appTextStyles.titleLarge,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$matchedCount of $totalPairs',
+                      style: TextStyle(
+                        color: colors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const TextSpan(text: ' matched'),
+                  ],
+                ),
+                key: const Key('match_matched_count'),
+                style: context.appTextStyles.bodyMedium.copyWith(
+                  color: colors.textSecondary,
+                ),
               ),
               const SizedBox(height: AppSpacing.md),
               SizedBox(
@@ -836,298 +846,9 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     }
     return null;
   }
-
-  String _subjectTitle(String topicId) {
-    final pathId = topicId.split('-chapter-').first;
-    final words = pathId.split('-').where((word) => word.isNotEmpty);
-    if (words.isEmpty) return 'Match It';
-    return words
-        .map((word) => '${word[0].toUpperCase()}${word.substring(1)}')
-        .join(' ');
-  }
 }
 
 enum _MatchFlowPhase { playing, analysis, submitting }
-
-class _MatchItHeader extends StatelessWidget {
-  final String title;
-  final int currentIndex;
-  final int totalQuestions;
-  final int streak;
-  final int coins;
-  final VoidCallback onExit;
-
-  const _MatchItHeader({
-    required this.title,
-    required this.currentIndex,
-    required this.totalQuestions,
-    required this.streak,
-    required this.coins,
-    required this.onExit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 420;
-
-        final mainRow = Row(
-          children: [
-            AppPressable(
-              onTap: onExit,
-              borderRadius: AppDimensions.radiusCircular,
-              child: Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  shape: BoxShape.circle,
-                  boxShadow: AppElevation.shadows(colors, 2),
-                ),
-                child: Icon(Icons.close, color: colors.primary, size: 26),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.workspace_premium,
-                        color: colors.warning,
-                        size: 20,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Flexible(
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.appTextStyles.headingSmall.copyWith(
-                            color: colors.primaryDark,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Icon(
-                        Icons.workspace_premium,
-                        color: colors.warning,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '✦ Match It ✦',
-                    style: context.appTextStyles.bodySmall.copyWith(
-                      color: colors.primaryDark,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              decoration: BoxDecoration(
-                color: colors.surface,
-                borderRadius: AppDimensions.radiusMd,
-                border: Border.all(color: colors.borderStrong),
-              ),
-              child: Text(
-                '${currentIndex + 1} / $totalQuestions',
-                style: context.appTextStyles.labelLarge.copyWith(
-                  color: colors.textSecondary,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            if (!isCompact) ...[
-              const SizedBox(width: AppSpacing.sm),
-              _StatusPill(
-                icon: Icons.local_fire_department,
-                iconColor: AppColors.streakFire,
-                value: streak,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              _StatusPill(
-                icon: Icons.bolt,
-                iconColor: AppColors.coinGold,
-                value: coins,
-              ),
-            ],
-          ],
-        );
-
-        if (!isCompact) {
-          return mainRow;
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            mainRow,
-            const SizedBox(height: AppSpacing.xs),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                _StatusPill(
-                  icon: Icons.local_fire_department,
-                  iconColor: AppColors.streakFire,
-                  value: streak,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                _StatusPill(
-                  icon: Icons.bolt,
-                  iconColor: AppColors.coinGold,
-                  value: coins,
-                ),
-              ],
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final int value;
-
-  const _StatusPill({
-    required this.icon,
-    required this.iconColor,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return Container(
-      height: 38,
-      constraints: const BoxConstraints(minWidth: 64),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: AppDimensions.radiusLg,
-        border: Border.all(color: colors.borderStrong),
-        boxShadow: AppElevation.shadows(colors, 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: iconColor, size: 20),
-          const SizedBox(width: AppSpacing.xs),
-          AnimatedCountText(
-            value: value,
-            style: context.appTextStyles.labelLarge.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProgressHud extends StatelessWidget {
-  final int matchedCount;
-  final int totalPairs;
-  final String? prompt;
-
-  const _ProgressHud({
-    required this.matchedCount,
-    required this.totalPairs,
-    this.prompt,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-    final progress = totalPairs == 0 ? 0.0 : matchedCount / totalPairs;
-
-    return AppCard(
-      borderRadius: AppDimensions.radiusLg,
-      elevationLevel: 1,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  prompt ?? 'Match each concept',
-                  softWrap: true,
-                  style: context.appTextStyles.titleMedium.copyWith(
-                    color: colors.primaryDark,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: '$matchedCount of $totalPairs',
-                      style: TextStyle(
-                        color: colors.primary,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const TextSpan(text: ' matched'),
-                  ],
-                ),
-                style: context.appTextStyles.bodyMedium.copyWith(
-                  color: colors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.ms),
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              AppProgressBar(
-                value: progress,
-                height: 10,
-                accentColor: colors.primary,
-                trackColor: colors.primary.withValues(alpha: 0.10),
-                semanticLabel: 'Match progress',
-              ),
-              Positioned(
-                left: max(0, progress * 100).clamp(0, 100) == 0 ? 0 : null,
-                right: progress >= 1 ? 0 : null,
-                top: -7,
-                child: FractionalTranslation(
-                  translation: Offset(progress >= 1 ? 0 : progress * 19, 0),
-                  child: Icon(Icons.star, color: colors.violet, size: 24),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _MatchAnalysisSummary extends StatelessWidget {
   final List<MatchPair> leftPairs;

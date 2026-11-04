@@ -905,31 +905,32 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap close button (X)
-      await tester.tap(find.byIcon(Icons.close));
+      // There is no on-screen X any more: the back gesture asks first.
+      expect(find.byIcon(Icons.close), findsNothing);
+      await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
 
       // Exit confirmation dialog appears
-      expect(find.text('Exit Match Game?'), findsOneWidget);
-      expect(find.text('Continue Playing'), findsOneWidget);
-      expect(find.text('Exit Game'), findsOneWidget);
+      expect(find.text('Quit Match It?'), findsOneWidget);
+      expect(find.text('Keep playing'), findsOneWidget);
+      expect(find.text('Quit'), findsOneWidget);
 
-      // Tap Continue Playing
-      await tester.tap(find.text('Continue Playing'));
+      // Keep playing
+      await tester.tap(find.text('Keep playing'));
       await tester.pumpAndSettle();
 
       // Dialog is dismissed and game view remains mounted
-      expect(find.text('Exit Match Game?'), findsNothing);
-      // Tap close button (X) again
-      await tester.tap(find.byIcon(Icons.close));
-      await tester.pumpAndSettle();
+      expect(find.text('Quit Match It?'), findsNothing);
+      expect(find.byKey(const Key('match_it_view')), findsOneWidget);
 
-      // Tap Exit Game
-      await tester.tap(find.text('Exit Game'));
+      // Back again, then Quit
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Quit'));
       await tester.pumpAndSettle();
 
       // Dialog is dismissed
-      expect(find.text('Exit Match Game?'), findsNothing);
+      expect(find.text('Quit Match It?'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();

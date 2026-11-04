@@ -287,7 +287,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Accounting Match'), findsOneWidget);
+      expect(find.text('Match It'), findsOneWidget);
       expect(find.text('Intangible Asset'), findsOneWidget);
       expect(
         find.text(

@@ -13,7 +13,7 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_choice_card.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/app_progress_bar.dart';
+import '../../../../shared/widgets/game_header.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../domain/entities/sort_it_out_models.dart';
@@ -428,48 +428,13 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        tooltip: 'Back',
-                        onPressed: widget.onExit,
-                        icon: const Icon(Icons.arrow_back_rounded),
-                      ),
-                      Expanded(
-                        child: Text(
-                          'Sort It Out',
-                          style: context.appTextStyles.titleLarge,
-                        ),
-                      ),
-                      Semantics(
-                        label: 'Question $displayIndex of $total',
-                        child: Text(
-                          '$displayIndex / $total',
-                          style: context.appTextStyles.labelLarge,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: AppProgressBar(
-                          value: total > 0 ? _currentItemIndex / total : 0.0,
-                          semanticLabel: 'Items sorted',
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      Icon(
-                        Icons.monetization_on_outlined,
-                        size: 18,
-                        color: colors.warning,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        '${widget.coins}',
-                        style: context.appTextStyles.labelLarge,
-                      ),
-                    ],
+                  GameHeader(
+                    title: 'Sort It Out',
+                    coins: widget.coins,
+                    currentIndex: displayIndex - 1,
+                    totalQuestions: total,
+                    progress: total > 0 ? _currentItemIndex / total : 0.0,
+                    semanticLabel: 'Items sorted',
                   ),
                   const SizedBox(height: AppSpacing.md),
                   Text(

@@ -9,6 +9,7 @@ import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/game_scaffold.dart';
+import '../../../../shared/widgets/quit_game_dialog.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../providers/quiz_providers.dart';
@@ -126,195 +127,111 @@ class _SuddenDeathScreenState extends ConsumerState<SuddenDeathScreen>
     );
 
     final suddenAsync = ref.watch(suddenDeathControllerProvider(request));
+    final suddenNow = suddenAsync.valueOrNull;
+    // A round is "in progress" until it has a result or has failed to start.
+    final inRound =
+        suddenNow != null &&
+        suddenNow.result == null &&
+        suddenNow.status != SuddenDeathStatus.error &&
+        suddenNow.status != SuddenDeathStatus.gameOver;
 
-    return GameScaffold(
-      body: SafeArea(
-        child: suddenAsync.when(
-          loading: () => Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(
-                  width: 56,
-                  height: 56,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 4,
-                    color: AppColors.streakFire,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                Text(
-                  'Entering Sudden Death Arena...',
-                  style: context.appTextStyles.titleLarge.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Connecting to real-time engine',
-                  style: context.appTextStyles.bodyMedium.copyWith(
-                    color: colors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          error: (error, stack) => Center(
-            child: Padding(
-              padding: AppSpacing.paddingLg,
+    return PopScope(
+      canPop: !inRound,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final leave = await confirmQuitGame(context, mode: 'Sudden Death');
+        if (!leave || !context.mounted) return;
+        unawaited(
+          ref.read(suddenDeathControllerProvider(request).notifier).abandon(),
+        );
+        Navigator.of(context).pop();
+      },
+      child: GameScaffold(
+        body: SafeArea(
+          child: suddenAsync.when(
+            loading: () => Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.wifi_off_rounded, size: 56, color: colors.error),
-                  const SizedBox(height: AppSpacing.md),
+                  const SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 4,
+                      color: AppColors.streakFire,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
                   Text(
-                    'Sudden Death Connection Error',
+                    'Entering Sudden Death Arena...',
                     style: context.appTextStyles.titleLarge.copyWith(
-                      color: colors.error,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
-                    error.toString(),
-                    textAlign: TextAlign.center,
-                    style: context.appTextStyles.bodyMedium,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AppButton(
-                        label: 'Go Back',
-                        variant: AppButtonVariant.secondary,
-                        onPressed: () => Navigator.of(context).maybePop(),
-                      ),
-                      const SizedBox(width: AppSpacing.md),
-                      AppButton(
-                        label: 'Retry',
-                        onPressed: () => ref
-                            .read(
-                              suddenDeathControllerProvider(request).notifier,
-                            )
-                            .retry(),
-                      ),
-                    ],
+                    'Connecting to real-time engine',
+                    style: context.appTextStyles.bodyMedium.copyWith(
+                      color: colors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
-          ),
-          data: (suddenState) {
-            if (suddenState.status == SuddenDeathStatus.connecting) {
-              return Center(
+            error: (error, stack) => Center(
+              child: Padding(
+                padding: AppSpacing.paddingLg,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(
-                      width: 56,
-                      height: 56,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 4,
-                        color: AppColors.streakFire,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
+                    Icon(Icons.wifi_off_rounded, size: 56, color: colors.error),
+                    const SizedBox(height: AppSpacing.md),
                     Text(
-                      'Entering Sudden Death Arena...',
+                      'Sudden Death Connection Error',
                       style: context.appTextStyles.titleLarge.copyWith(
+                        color: colors.error,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: AppSpacing.sm),
                     Text(
-                      'Connecting to real-time engine',
-                      style: context.appTextStyles.bodyMedium.copyWith(
-                        color: colors.textSecondary,
-                      ),
+                      error.toString(),
+                      textAlign: TextAlign.center,
+                      style: context.appTextStyles.bodyMedium,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        AppButton(
+                          label: 'Go Back',
+                          variant: AppButtonVariant.secondary,
+                          onPressed: () => Navigator.of(context).maybePop(),
+                        ),
+                        const SizedBox(width: AppSpacing.md),
+                        AppButton(
+                          label: 'Retry',
+                          onPressed: () => ref
+                              .read(
+                                suddenDeathControllerProvider(request).notifier,
+                              )
+                              .retry(),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              );
-            }
-
-            if (suddenState.status == SuddenDeathStatus.error) {
-              return Center(
-                child: Padding(
-                  padding: AppSpacing.paddingLg,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.error_outline_rounded,
-                        size: 56,
-                        color: colors.error,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        'Could Not Join Live Game',
-                        style: context.appTextStyles.titleLarge.copyWith(
-                          color: colors.error,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        suddenState.errorMessage ?? 'An error occurred.',
-                        textAlign: TextAlign.center,
-                        style: context.appTextStyles.bodyMedium,
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AppButton(
-                            label: 'Go Back',
-                            variant: AppButtonVariant.secondary,
-                            onPressed: () => Navigator.of(context).maybePop(),
-                          ),
-                          const SizedBox(width: AppSpacing.md),
-                          AppButton(
-                            label: 'Retry',
-                            onPressed: () => ref
-                                .read(
-                                  suddenDeathControllerProvider(
-                                    request,
-                                  ).notifier,
-                                )
-                                .retry(),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
-            if (suddenState.status == SuddenDeathStatus.gameOver &&
-                suddenState.result != null) {
-              return QuizResultView(
-                result: suddenState.result!,
-                rewardXp: suddenState.result!.xpAwarded,
-                rewardCoins: suddenState.result!.coinsAwarded,
-                leveledUp: suddenState.result!.didLevelUp,
-                onDone: () => Navigator.of(context).pop(),
-                onPlayAgain: () =>
-                    ref.invalidate(suddenDeathControllerProvider(request)),
-              );
-            }
-
-            if (suddenState.status == SuddenDeathStatus.gameOver &&
-                suddenState.result == null) {
-              return Center(
-                child: Padding(
-                  padding: AppSpacing.paddingLg,
+              ),
+            ),
+            data: (suddenState) {
+              if (suddenState.status == SuddenDeathStatus.connecting) {
+                return Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const SizedBox(
-                        width: 52,
-                        height: 52,
+                        width: 56,
+                        height: 56,
                         child: CircularProgressIndicator(
                           strokeWidth: 4,
                           color: AppColors.streakFire,
@@ -322,86 +239,191 @@ class _SuddenDeathScreenState extends ConsumerState<SuddenDeathScreen>
                       ),
                       const SizedBox(height: AppSpacing.lg),
                       Text(
-                        'Calculating Survival Results...',
+                        'Entering Sudden Death Arena...',
                         style: context.appTextStyles.titleLarge.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Finalizing points & rewards with backend',
+                        'Connecting to real-time engine',
                         style: context.appTextStyles.bodyMedium.copyWith(
                           color: colors.textSecondary,
                         ),
                       ),
                     ],
                   ),
-                ),
-              );
-            }
+                );
+              }
 
-            final question = suddenState.currentQuestion;
-            if (question == null) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final wallet = ref.watch(walletControllerProvider).valueOrNull;
-
-            return Column(
-              children: [
-                if (suddenState.errorMessage != null &&
-                    suddenState.status != SuddenDeathStatus.error)
-                  _SuddenDeathLiveErrorBanner(
-                    message: suddenState.errorMessage!,
-                  ),
-                Expanded(
-                  child: SuddenDeathQuestionView(
-                    question: question,
-                    currentIndex: suddenState.currentIndex,
-                    totalQuestions: suddenState.totalQuestions,
-                    currentStreak: suddenState.currentStreak,
-                    bestStreak: suddenState.bestStreak,
-                    energy: wallet?.gems ?? 0,
-                    coins: wallet?.coins ?? 0,
-                    remainingTimeMs: suddenState.remainingTimeMs,
-                    externalAddTimeUsed: suddenState.addTimeUsed,
-                    isAddTimePending: suddenState.isAddTimePending,
-                    externalSkipUsed: suddenState.skipUsed,
-                    isLiveConnectionReady:
-                        suddenState.connectionStatus ==
-                        SuddenDeathConnectionStatus.connected,
-                    serverAnswerResult: suddenState.lastAnswerResult,
-                    isSubmitting: suddenState.isSubmitting,
-                    externalSelectedOptionId: suddenState.selectedOptionId,
-                    onExit: () {
-                      final notifier = ref.read(
-                        suddenDeathControllerProvider(request).notifier,
-                      );
-                      unawaited(notifier.abandon());
-                      Navigator.of(context).maybePop();
-                    },
-                    onSelectOption: (opt) => ref
-                        .read(suddenDeathControllerProvider(request).notifier)
-                        .submitAnswer(opt),
-                    onAddTime: () => unawaited(
-                      ref
-                          .read(suddenDeathControllerProvider(request).notifier)
-                          .addFiveSeconds(),
+              if (suddenState.status == SuddenDeathStatus.error) {
+                return Center(
+                  child: Padding(
+                    padding: AppSpacing.paddingLg,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.error_outline_rounded,
+                          size: 56,
+                          color: colors.error,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          'Could Not Join Live Game',
+                          style: context.appTextStyles.titleLarge.copyWith(
+                            color: colors.error,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          suddenState.errorMessage ?? 'An error occurred.',
+                          textAlign: TextAlign.center,
+                          style: context.appTextStyles.bodyMedium,
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            AppButton(
+                              label: 'Go Back',
+                              variant: AppButtonVariant.secondary,
+                              onPressed: () => Navigator.of(context).maybePop(),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            AppButton(
+                              label: 'Retry',
+                              onPressed: () => ref
+                                  .read(
+                                    suddenDeathControllerProvider(
+                                      request,
+                                    ).notifier,
+                                  )
+                                  .retry(),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    onPowerUpPreflight: () => ref
-                        .read(suddenDeathControllerProvider(request).notifier)
-                        .ensureLiveConnection(),
-                    onTimeout: () => ref
-                        .read(suddenDeathControllerProvider(request).notifier)
-                        .handleDisplayedTimerExpired(),
-                    onSkip: () => ref
-                        .read(suddenDeathControllerProvider(request).notifier)
-                        .skipQuestion(),
                   ),
-                ),
-              ],
-            );
-          },
+                );
+              }
+
+              if (suddenState.status == SuddenDeathStatus.gameOver &&
+                  suddenState.result != null) {
+                return QuizResultView(
+                  result: suddenState.result!,
+                  rewardXp: suddenState.result!.xpAwarded,
+                  rewardCoins: suddenState.result!.coinsAwarded,
+                  leveledUp: suddenState.result!.didLevelUp,
+                  onDone: () => Navigator.of(context).pop(),
+                  onPlayAgain: () =>
+                      ref.invalidate(suddenDeathControllerProvider(request)),
+                );
+              }
+
+              if (suddenState.status == SuddenDeathStatus.gameOver &&
+                  suddenState.result == null) {
+                return Center(
+                  child: Padding(
+                    padding: AppSpacing.paddingLg,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(
+                          width: 52,
+                          height: 52,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 4,
+                            color: AppColors.streakFire,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        Text(
+                          'Calculating Survival Results...',
+                          style: context.appTextStyles.titleLarge.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'Finalizing points & rewards with backend',
+                          style: context.appTextStyles.bodyMedium.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final question = suddenState.currentQuestion;
+              if (question == null) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final wallet = ref.watch(walletControllerProvider).valueOrNull;
+
+              return Column(
+                children: [
+                  if (suddenState.errorMessage != null &&
+                      suddenState.status != SuddenDeathStatus.error)
+                    _SuddenDeathLiveErrorBanner(
+                      message: suddenState.errorMessage!,
+                    ),
+                  Expanded(
+                    child: SuddenDeathQuestionView(
+                      question: question,
+                      currentIndex: suddenState.currentIndex,
+                      totalQuestions: suddenState.totalQuestions,
+                      currentStreak: suddenState.currentStreak,
+                      bestStreak: suddenState.bestStreak,
+                      energy: wallet?.gems ?? 0,
+                      coins: wallet?.coins ?? 0,
+                      remainingTimeMs: suddenState.remainingTimeMs,
+                      externalAddTimeUsed: suddenState.addTimeUsed,
+                      isAddTimePending: suddenState.isAddTimePending,
+                      externalSkipUsed: suddenState.skipUsed,
+                      isLiveConnectionReady:
+                          suddenState.connectionStatus ==
+                          SuddenDeathConnectionStatus.connected,
+                      serverAnswerResult: suddenState.lastAnswerResult,
+                      isSubmitting: suddenState.isSubmitting,
+                      externalSelectedOptionId: suddenState.selectedOptionId,
+                      onExit: () {
+                        final notifier = ref.read(
+                          suddenDeathControllerProvider(request).notifier,
+                        );
+                        unawaited(notifier.abandon());
+                        Navigator.of(context).maybePop();
+                      },
+                      onSelectOption: (opt) => ref
+                          .read(suddenDeathControllerProvider(request).notifier)
+                          .submitAnswer(opt),
+                      onAddTime: () => unawaited(
+                        ref
+                            .read(
+                              suddenDeathControllerProvider(request).notifier,
+                            )
+                            .addFiveSeconds(),
+                      ),
+                      onPowerUpPreflight: () => ref
+                          .read(suddenDeathControllerProvider(request).notifier)
+                          .ensureLiveConnection(),
+                      onTimeout: () => ref
+                          .read(suddenDeathControllerProvider(request).notifier)
+                          .handleDisplayedTimerExpired(),
+                      onSkip: () => ref
+                          .read(suddenDeathControllerProvider(request).notifier)
+                          .skipQuestion(),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
