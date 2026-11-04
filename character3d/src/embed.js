@@ -117,6 +117,10 @@ window.CharacterEmbed = {
   hop() {
     avatar?.hop();
   },
+  /** The loop playing now ("idle" | "walk" | "run"), for tests. */
+  currentState() {
+    return avatar?.state ?? null;
+  },
   exit(ms) {
     if (!avatar) return;
     const half = avatar.visibleHalfWidth();

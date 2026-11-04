@@ -15,6 +15,7 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/game_header.dart';
+import '../../../../shared/widgets/size_reporter.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
 import '../../../character3d/presentation/character_glow.dart';
 import '../../../character3d/presentation/equipped_cosmetics.dart';
@@ -76,8 +77,13 @@ class MatchTheFollowingView extends ConsumerStatefulWidget {
 
 class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     with TickerProviderStateMixin {
-  static const double _cardHeight = 82;
-  static const double _rowGap = 12;
+  /// A card is never shorter than this, and grows with its text.
+  static const double _minCardHeight = 56;
+  static const double _rowGap = 10;
+
+  /// Sizes the character slot from what is left of the screen (see build).
+  double? _topHeight;
+  double? _bottomHeight;
   static const double _connectorGap = 52;
 
   late List<MatchPair> _shuffledRight;
@@ -501,6 +507,46 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     }
   }
 
+  /// Height of every row: the taller of its two labels, never below the
+  /// minimum. Long answers get the room they need; short ones stay compact.
+  List<double> _rowHeights(
+    BuildContext context,
+    List<MatchPair> left,
+    List<MatchPair> right,
+    double cardWidth,
+  ) {
+    final style = context.appTextStyles.bodySmall.copyWith(
+      fontWeight: FontWeight.w600,
+      height: 1.25,
+    );
+    final scaler = MediaQuery.textScalerOf(context);
+    final direction = Directionality.of(context);
+    double textHeight(String label) {
+      final painter = TextPainter(
+        text: TextSpan(text: label, style: style),
+        textDirection: direction,
+        textScaler: scaler,
+        maxLines: 4,
+        textAlign: TextAlign.center,
+      )..layout(maxWidth: max(1.0, cardWidth - 20 - 4));
+      final h = painter.height;
+      painter.dispose();
+      return h;
+    }
+
+    return [
+      for (var i = 0; i < left.length; i++)
+        max(
+          _minCardHeight,
+          max(
+                textHeight(left[i].left),
+                i < right.length ? textHeight(right[i].right) : 0,
+              ) +
+              24, // padding and breathing room
+        ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
@@ -510,7 +556,6 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
     final matchedCount = matches.length;
     final totalPairs = leftPairs.length;
     final allMatched = totalPairs > 0 && matchedCount == totalPairs;
-    final boardHeight = totalPairs * (_cardHeight + _rowGap);
 
     final promptText =
         widget.board?.prompt ?? widget.question?.prompt ?? 'Match each concept';
@@ -522,8 +567,30 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
         child: LayoutBuilder(
           builder: (context, viewport) {
             const verticalPadding = AppSpacing.md + AppSpacing.lg;
-            // Room for the character only when the screen is tall enough.
-            final showCharacter = viewport.maxHeight >= 640;
+            final boardWidth = viewport.maxWidth - AppSpacing.screenPadding * 2;
+            final cardWidth = (boardWidth - _connectorGap) / 2;
+            final rowHeights = _rowHeights(
+              context,
+              leftPairs,
+              rightPairs,
+              cardWidth,
+            );
+            final boardHeight = rowHeights.fold<double>(
+              0,
+              (sum, h) => sum + h + _rowGap,
+            );
+            // What is left once the header, prompt, pairs, power-ups and
+            // button have their room: the character fills it (up to a limit),
+            // or is left out when there is not enough.
+            final free = (_topHeight == null || _bottomHeight == null)
+                ? 0.0
+                : viewport.maxHeight -
+                      verticalPadding -
+                      _topHeight! -
+                      _bottomHeight! -
+                      AppSpacing.md * 2;
+            final showCharacter = free >= 96;
+            final characterHeight = free.clamp(96.0, 240.0);
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.screenPadding,
@@ -539,50 +606,39 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        GameHeader(
-                          title: 'Match It',
-                          currentIndex: widget.currentIndex,
-                          totalQuestions: widget.totalQuestions,
-                          progress: widget.totalQuestions == 0
-                              ? 0.0
-                              : (widget.currentIndex + 1) /
-                                    widget.totalQuestions,
-                          coins: _availableCoins,
-                          semanticLabel: 'Match It progress',
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          promptText,
-                          softWrap: true,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: context.appTextStyles.titleMedium.copyWith(
-                            fontWeight: FontWeight.w700,
+                    SizeReporter(
+                      onSize: (size) {
+                        if (_topHeight == null ||
+                            (_topHeight! - size.height).abs() > 0.5) {
+                          setState(() => _topHeight = size.height);
+                        }
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          GameHeader(
+                            title: 'Match It',
+                            currentIndex: widget.currentIndex,
+                            totalQuestions: widget.totalQuestions,
+                            progress: widget.totalQuestions == 0
+                                ? 0.0
+                                : (widget.currentIndex + 1) /
+                                      widget.totalQuestions,
+                            coins: _availableCoins,
+                            semanticLabel: 'Match It progress',
                           ),
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: '$matchedCount of $totalPairs',
-                                style: TextStyle(
-                                  color: colors.primary,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const TextSpan(text: ' matched'),
-                            ],
+                          const SizedBox(height: AppSpacing.md),
+                          Text(
+                            promptText,
+                            softWrap: true,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.appTextStyles.titleMedium.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                          key: const Key('match_matched_count'),
-                          style: context.appTextStyles.bodyMedium.copyWith(
-                            color: colors.textSecondary,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     if (showCharacter)
                       Padding(
@@ -592,256 +648,285 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                         child: Center(
                           child: CharacterGlow(
                             child: Character3dView(
-                              width: 120,
-                              height: 120,
+                              width: characterHeight * 0.85,
+                              height: characterHeight,
                               state: Character3dState.idle,
                               controller: _character,
                               cosmetics: equippedCosmetics(context),
                               initialAction: Character3dAction.think,
-                              placeholder: const Character3dPoster(height: 120),
+                              placeholder: Character3dPoster(
+                                height: characterHeight,
+                              ),
                               fallback: const SizedBox.shrink(),
                             ),
                           ),
                         ),
                       ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: AppSpacing.md),
-                        SizedBox(
-                          height: boardHeight,
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              _scheduleMeasurements();
-                              return Stack(
-                                key: _boardKey,
-                                children: [
-                                  Positioned.fill(
-                                    child: IgnorePointer(
-                                      key: const Key('match_connection_layer'),
-                                      child: AnimatedBuilder(
-                                        animation: _connectorController,
-                                        builder: (context, _) {
-                                          return CustomPaint(
-                                            painter: _MatchConnectionPainter(
-                                              connectorAnimation:
-                                                  _connectorCurve,
-                                              resultAnimation:
-                                                  _resultController,
-                                              leftPairs: leftPairs,
-                                              rightPairs: rightPairs,
-                                              matches: matches,
-                                              solutionMap:
-                                                  _effectiveSolutionMap,
-                                              animatingPairLeftId:
-                                                  _animatingPairLeftId,
-                                              leftAnchors: _leftAnchors,
-                                              rightAnchors: _rightAnchors,
-                                              hasSubmitted: false,
-                                              selectedLeftPairId:
-                                                  _selectedLeftPairId ??
-                                                  _effectiveSelectedLeftId,
-                                              selectedRightPairId:
-                                                  _selectedRightPairId,
-                                              cardHeight: _cardHeight,
-                                              rowGap: _rowGap,
-                                              connectorGap: _connectorGap,
-                                              successColor: colors.success,
-                                              errorColor: colors.error,
-                                              selectedColor: colors.secondary,
-                                              neutralColor: colors.borderStrong,
-                                              isBackendMode: _isBackendMode,
-                                            ),
-                                          );
-                                        },
+                    SizeReporter(
+                      onSize: (size) {
+                        if (_bottomHeight == null ||
+                            (_bottomHeight! - size.height).abs() > 0.5) {
+                          setState(() => _bottomHeight = size.height);
+                        }
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: AppSpacing.md),
+                          SizedBox(
+                            height: boardHeight,
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                _scheduleMeasurements();
+                                return Stack(
+                                  key: _boardKey,
+                                  children: [
+                                    Positioned.fill(
+                                      child: IgnorePointer(
+                                        key: const Key(
+                                          'match_connection_layer',
+                                        ),
+                                        child: AnimatedBuilder(
+                                          animation: _connectorController,
+                                          builder: (context, _) {
+                                            return CustomPaint(
+                                              painter: _MatchConnectionPainter(
+                                                connectorAnimation:
+                                                    _connectorCurve,
+                                                resultAnimation:
+                                                    _resultController,
+                                                leftPairs: leftPairs,
+                                                rightPairs: rightPairs,
+                                                matches: matches,
+                                                solutionMap:
+                                                    _effectiveSolutionMap,
+                                                animatingPairLeftId:
+                                                    _animatingPairLeftId,
+                                                leftAnchors: _leftAnchors,
+                                                rightAnchors: _rightAnchors,
+                                                hasSubmitted: false,
+                                                selectedLeftPairId:
+                                                    _selectedLeftPairId ??
+                                                    _effectiveSelectedLeftId,
+                                                selectedRightPairId:
+                                                    _selectedRightPairId,
+                                                cardHeight:
+                                                    boardHeight /
+                                                        max(1, totalPairs) -
+                                                    _rowGap,
+                                                rowGap: _rowGap,
+                                                connectorGap: _connectorGap,
+                                                successColor: colors.success,
+                                                errorColor: colors.error,
+                                                selectedColor: colors.secondary,
+                                                neutralColor:
+                                                    colors.borderStrong,
+                                                isBackendMode: _isBackendMode,
+                                              ),
+                                            );
+                                          },
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  AnimatedBuilder(
-                                    animation: _shakeAnimation,
-                                    builder: (context, _) {
-                                      final shakeVal = _shakeAnimation.value;
-                                      return Row(
-                                        children: [
-                                          Expanded(
-                                            child: Column(
-                                              children: [
-                                                for (final indexed
-                                                    in leftPairs.indexed)
-                                                  _EntryMotion(
-                                                    controller:
-                                                        _entryController,
-                                                    index: indexed.$1,
-                                                    side: _MatchCardSide.left,
-                                                    child: _MatchConceptCard(
-                                                      key: Key(
-                                                        'match-left-${indexed.$2.id}',
-                                                      ),
-                                                      anchorKey: _anchorKey(
-                                                        _leftAnchorKeys,
-                                                        indexed.$2.id,
-                                                      ),
-                                                      anchorSemanticKey: Key(
-                                                        'match-left-anchor-${indexed.$2.id}',
-                                                      ),
-                                                      label: indexed.$2.left,
+                                    AnimatedBuilder(
+                                      animation: _shakeAnimation,
+                                      builder: (context, _) {
+                                        final shakeVal = _shakeAnimation.value;
+                                        return Row(
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                children: [
+                                                  for (final indexed
+                                                      in leftPairs.indexed)
+                                                    _EntryMotion(
+                                                      controller:
+                                                          _entryController,
+                                                      index: indexed.$1,
                                                       side: _MatchCardSide.left,
-                                                      state: _leftState(
-                                                        indexed.$2.id,
+                                                      child: _MatchConceptCard(
+                                                        key: Key(
+                                                          'match-left-${indexed.$2.id}',
+                                                        ),
+                                                        anchorKey: _anchorKey(
+                                                          _leftAnchorKeys,
+                                                          indexed.$2.id,
+                                                        ),
+                                                        anchorSemanticKey: Key(
+                                                          'match-left-anchor-${indexed.$2.id}',
+                                                        ),
+                                                        height:
+                                                            rowHeights[indexed
+                                                                .$1],
+                                                        label: indexed.$2.left,
+                                                        side:
+                                                            _MatchCardSide.left,
+                                                        state: _leftState(
+                                                          indexed.$2.id,
+                                                        ),
+                                                        shakeOffset:
+                                                            widget.lastWrongAttemptLeftId ==
+                                                                indexed.$2.id
+                                                            ? shakeVal
+                                                            : 0,
+                                                        onTap: _isLocked
+                                                            ? null
+                                                            : () =>
+                                                                  _handleLeftTap(
+                                                                    indexed
+                                                                        .$2
+                                                                        .id,
+                                                                  ),
                                                       ),
-                                                      shakeOffset:
-                                                          widget.lastWrongAttemptLeftId ==
-                                                              indexed.$2.id
-                                                          ? shakeVal
-                                                          : 0,
-                                                      onTap: _isLocked
-                                                          ? null
-                                                          : () =>
-                                                                _handleLeftTap(
-                                                                  indexed.$2.id,
-                                                                ),
                                                     ),
-                                                  ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: _connectorGap),
-                                          Expanded(
-                                            child: Column(
-                                              children: [
-                                                for (final indexed
-                                                    in rightPairs.indexed)
-                                                  _EntryMotion(
-                                                    key: ValueKey(
-                                                      'match-right-entry-${indexed.$2.id}',
-                                                    ),
-                                                    controller:
-                                                        _entryController,
-                                                    index: indexed.$1,
-                                                    side: _MatchCardSide.right,
-                                                    child: _MatchConceptCard(
-                                                      key: Key(
-                                                        'match-right-${indexed.$2.id}',
+                                            const SizedBox(
+                                              width: _connectorGap,
+                                            ),
+                                            Expanded(
+                                              child: Column(
+                                                children: [
+                                                  for (final indexed
+                                                      in rightPairs.indexed)
+                                                    _EntryMotion(
+                                                      key: ValueKey(
+                                                        'match-right-entry-${indexed.$2.id}',
                                                       ),
-                                                      anchorKey: _anchorKey(
-                                                        _rightAnchorKeys,
-                                                        indexed.$2.id,
-                                                      ),
-                                                      anchorSemanticKey: Key(
-                                                        'match-right-anchor-${indexed.$2.id}',
-                                                      ),
-                                                      label: indexed.$2.right,
+                                                      controller:
+                                                          _entryController,
+                                                      index: indexed.$1,
                                                       side:
                                                           _MatchCardSide.right,
-                                                      state: _rightState(
-                                                        indexed.$2.id,
+                                                      child: _MatchConceptCard(
+                                                        key: Key(
+                                                          'match-right-${indexed.$2.id}',
+                                                        ),
+                                                        anchorKey: _anchorKey(
+                                                          _rightAnchorKeys,
+                                                          indexed.$2.id,
+                                                        ),
+                                                        anchorSemanticKey: Key(
+                                                          'match-right-anchor-${indexed.$2.id}',
+                                                        ),
+                                                        height:
+                                                            rowHeights[indexed
+                                                                .$1],
+                                                        label: indexed.$2.right,
+                                                        side: _MatchCardSide
+                                                            .right,
+                                                        state: _rightState(
+                                                          indexed.$2.id,
+                                                        ),
+                                                        shakeOffset:
+                                                            widget.lastWrongAttemptRightId ==
+                                                                indexed.$2.id
+                                                            ? shakeVal
+                                                            : 0,
+                                                        onTap: _isLocked
+                                                            ? null
+                                                            : () =>
+                                                                  _handleRightTap(
+                                                                    indexed
+                                                                        .$2
+                                                                        .id,
+                                                                  ),
                                                       ),
-                                                      shakeOffset:
-                                                          widget.lastWrongAttemptRightId ==
-                                                              indexed.$2.id
-                                                          ? shakeVal
-                                                          : 0,
-                                                      onTap: _isLocked
-                                                          ? null
-                                                          : () =>
-                                                                _handleRightTap(
-                                                                  indexed.$2.id,
-                                                                ),
                                                     ),
-                                                  ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
-                        ),
-                        if (_isHintVisible) ...[
-                          const SizedBox(height: AppSpacing.sm),
-                          AppCard(
-                            variant: AppCardVariant.tinted,
-                            tintColor: colors.primary,
-                            borderRadius: AppDimensions.radiusLg,
-                            child: Text(
-                              widget.board?.hint ??
-                                  'Start with the clearest concept, then remove any pair you are unsure about before final submit.',
-                              style: context.appTextStyles.bodyMedium.copyWith(
-                                color: colors.textPrimary,
-                              ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ),
-                        ],
-                        ...[
-                          const SizedBox(height: AppSpacing.md),
-                          GamePowerUpBar(
-                            isDense: true,
-                            coinBalanceOverride: widget.coinBalanceOverride,
-                            isDisabled: _isLocked,
-                            actions: [
-                              GamePowerUpAction(
-                                id: 'match-hint',
-                                label: 'Hint',
-                                description:
-                                    'Show a pairing strategy for this board.',
-                                coinCost: 10,
-                                icon: Icons.lightbulb_outline,
-                                isUsed: _isHintVisible,
-                                onUse: _showHint,
+                          if (_isHintVisible) ...[
+                            const SizedBox(height: AppSpacing.sm),
+                            AppCard(
+                              variant: AppCardVariant.tinted,
+                              tintColor: colors.primary,
+                              borderRadius: AppDimensions.radiusLg,
+                              child: Text(
+                                widget.board?.hint ??
+                                    'Start with the clearest concept, then remove any pair you are unsure about before final submit.',
+                                style: context.appTextStyles.bodyMedium
+                                    .copyWith(color: colors.textPrimary),
                               ),
-                              GamePowerUpAction(
-                                id: 'auto-match',
-                                label: 'Auto',
-                                description:
-                                    'Correctly match one remaining pair.',
-                                coinCost: 30,
-                                icon: Icons.auto_awesome_rounded,
-                                isDisabled: _isLocked,
-                                isUsed: _isAutoMatchUsed,
-                                onUse: _autoMatchOne,
-                              ),
-                              GamePowerUpAction(
-                                id: 'shuffle',
-                                label: 'Shuffle',
-                                description: _isBackendMode
-                                    ? 'Answer order is fixed by the server.'
-                                    : 'Shuffle the answer side.',
-                                coinCost: 15,
-                                icon: Icons.shuffle_rounded,
-                                isDisabled: _isBackendMode || _isLocked,
-                                isUsed: _isShuffleUsed,
-                                onUse: _shuffleAnswers,
-                              ),
-                            ],
-                          ),
-                        ],
-                        const SizedBox(height: AppSpacing.lg),
-                        AnimatedScale(
-                          duration: AppMotion.duration(
-                            context,
-                            AppMotion.normal,
-                          ),
-                          curve: AppMotion.easeOut,
-                          scale: allMatched ? 1 : 0.98,
-                          child: AnimatedOpacity(
+                            ),
+                          ],
+                          ...[
+                            const SizedBox(height: AppSpacing.md),
+                            GamePowerUpBar(
+                              isDense: true,
+                              coinBalanceOverride: widget.coinBalanceOverride,
+                              isDisabled: _isLocked,
+                              actions: [
+                                GamePowerUpAction(
+                                  id: 'match-hint',
+                                  label: 'Hint',
+                                  description:
+                                      'Show a pairing strategy for this board.',
+                                  coinCost: 10,
+                                  icon: Icons.lightbulb_outline,
+                                  isUsed: _isHintVisible,
+                                  onUse: _showHint,
+                                ),
+                                GamePowerUpAction(
+                                  id: 'auto-match',
+                                  label: 'Auto',
+                                  description:
+                                      'Correctly match one remaining pair.',
+                                  coinCost: 30,
+                                  icon: Icons.auto_awesome_rounded,
+                                  isDisabled: _isLocked,
+                                  isUsed: _isAutoMatchUsed,
+                                  onUse: _autoMatchOne,
+                                ),
+                                GamePowerUpAction(
+                                  id: 'shuffle',
+                                  label: 'Shuffle',
+                                  description: _isBackendMode
+                                      ? 'Answer order is fixed by the server.'
+                                      : 'Shuffle the answer side.',
+                                  coinCost: 15,
+                                  icon: Icons.shuffle_rounded,
+                                  isDisabled: _isBackendMode || _isLocked,
+                                  isUsed: _isShuffleUsed,
+                                  onUse: _shuffleAnswers,
+                                ),
+                              ],
+                            ),
+                          ],
+                          const SizedBox(height: AppSpacing.lg),
+                          AnimatedScale(
                             duration: AppMotion.duration(
                               context,
                               AppMotion.normal,
                             ),
-                            opacity: allMatched ? 1 : 0.58,
-                            child: AppButton(
-                              key: const Key('match_next_button'),
-                              label: _isLastBoard ? 'Submit' : 'Next',
-                              isLoading: _phase == _MatchFlowPhase.submitting,
-                              onPressed: allMatched ? _submitIfReady : null,
+                            curve: AppMotion.easeOut,
+                            scale: allMatched ? 1 : 0.98,
+                            child: AnimatedOpacity(
+                              duration: AppMotion.duration(
+                                context,
+                                AppMotion.normal,
+                              ),
+                              opacity: allMatched ? 1 : 0.58,
+                              child: AppButton(
+                                key: const Key('match_next_button'),
+                                label: _isLastBoard ? 'Submit' : 'Next',
+                                isLoading: _phase == _MatchFlowPhase.submitting,
+                                onPressed: allMatched ? _submitIfReady : null,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -938,6 +1023,7 @@ class _MatchConceptCard extends StatelessWidget {
   final GlobalKey anchorKey;
   final Key anchorSemanticKey;
   final String label;
+  final double height;
   final _MatchCardSide side;
   final _MatchCardState state;
   final double shakeOffset;
@@ -948,6 +1034,7 @@ class _MatchConceptCard extends StatelessWidget {
     required this.anchorKey,
     required this.anchorSemanticKey,
     required this.label,
+    required this.height,
     required this.side,
     required this.state,
     this.shakeOffset = 0,
@@ -976,7 +1063,7 @@ class _MatchConceptCard extends StatelessWidget {
                 duration: AppMotion.duration(context, AppMotion.normal),
                 curve: AppMotion.easeOut,
                 width: double.infinity,
-                height: _MatchTheFollowingViewState._cardHeight,
+                height: height,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 4,

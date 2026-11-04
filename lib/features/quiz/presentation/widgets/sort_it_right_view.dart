@@ -746,18 +746,18 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  height: math.min(190.0, constraints.maxHeight * 0.8),
+                  height: math.min(240.0, constraints.maxHeight * 0.85),
                   child: Center(
                     child: CharacterGlow(
                       child: Character3dView(
                         width: 150,
-                        height: math.min(190.0, constraints.maxHeight * 0.8),
+                        height: math.min(240.0, constraints.maxHeight * 0.85),
                         state: Character3dState.idle,
                         controller: _character,
                         cosmetics: equippedCosmetics(context),
                         initialAction: Character3dAction.think,
                         placeholder: Character3dPoster(
-                          height: math.min(190.0, constraints.maxHeight * 0.8),
+                          height: math.min(240.0, constraints.maxHeight * 0.85),
                         ),
                         fallback: const SizedBox.shrink(),
                       ),

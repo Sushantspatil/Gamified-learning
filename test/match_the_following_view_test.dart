@@ -95,7 +95,7 @@ void main() {
     expect(find.byKey(const Key('match_it_view')), findsOneWidget);
     expect(find.text('Match It'), findsOneWidget);
     expect(find.text('Match each concept'), findsOneWidget);
-    expect(find.textContaining('0 of 3'), findsOneWidget);
+    expect(find.textContaining(' matched'), findsNothing); // no running counter
     expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
     expect(find.byIcon(Icons.cancel_rounded), findsNothing);
     expect(find.byKey(const Key('power_up_sheet')), findsNothing);
@@ -134,7 +134,7 @@ void main() {
 
     expect(layer.ignoring, isTrue);
     await _selectPair(tester, 'p1', 'p2');
-    expect(find.textContaining('1 of 3'), findsOneWidget);
+    expect(find.textContaining(' matched'), findsNothing); // no running counter
   });
 
   testWidgets('wrong pair is only a neutral selection before submit', (
@@ -144,7 +144,7 @@ void main() {
 
     await _selectPair(tester, 'p1', 'p2');
 
-    expect(find.textContaining('1 of 3'), findsOneWidget);
+    expect(find.textContaining(' matched'), findsNothing); // no running counter
     expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
     expect(find.byIcon(Icons.cancel_rounded), findsNothing);
     expect(find.byKey(const Key('match_analysis_summary')), findsNothing);

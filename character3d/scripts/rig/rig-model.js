@@ -79,6 +79,32 @@ const normalise = new THREE.Matrix4()
 
 const p = (v) => new THREE.Vector3(v[0] * HEIGHT, v[1] * HEIGHT, v[2] * HEIGHT);
 
+// ---- arm geometry (also used to keep the hands rigid when skinning) ----
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const armRig = Object.fromEntries(
+  [1, -1].map((sign) => {
+    const m = (v) => p(sign === 1 ? v : mirror(v));
+    const S = m(JOINTS.Arm);
+    const E = m(JOINTS.ForeArm);
+    const W = m(JOINTS.Hand);
+    const T = m(JOINTS.HandTip);
+    return [
+      sign,
+      {
+        S,
+        E,
+        W,
+        L1: S.distanceTo(E),
+        L2: E.distanceTo(W),
+        u0: E.clone().sub(S).normalize(),
+        f0: W.clone().sub(E).normalize(),
+        h0: T.clone().sub(W).normalize(),
+      },
+    ];
+  }),
+);
+
+
 // ---- skeleton ---------------------------------------------------------------
 const bones = BONES.map((def) => {
   const bone = new THREE.Bone();
@@ -138,6 +164,23 @@ function rawWeights(point) {
     sum = 1;
   }
   for (let i = 0; i < w.length; i++) w[i] /= sum;
+
+  // Hands: anything at or past the wrist plane (fingers, thumb, the glove) moves
+  // with the Hand bone alone. Blending it with the forearm is what stretched the
+  // thumb and left a ragged cuff when the hand turned.
+  for (const sign of [1, -1]) {
+    const handIndex = boneIndex[(sign === 1 ? 'Left' : 'Right') + 'Hand'];
+    const reach = distToSegment(point, segs[handIndex]) / (BONES[handIndex].r * HEIGHT);
+    const onSide = sign === 1 ? smooth(-0.012 * HEIGHT, 0.012 * HEIGHT, point.x) : 1 - smooth(-0.012 * HEIGHT, 0.012 * HEIGHT, point.x);
+    if (reach > 2.4 || onSide < 0.5) continue;
+    const rig = armRig[sign];
+    const wrist = rig.S.clone().add(rig.E.clone().sub(rig.S)).add(rig.W.clone().sub(rig.E));
+    const past = point.clone().sub(wrist).dot(rig.f0); // metres beyond the wrist plane
+    const lock = smooth(-0.042 * HEIGHT, 0.022 * HEIGHT, past) * (1 - smooth(1.6, 2.4, reach));
+    if (lock <= 0) continue;
+    for (let i = 0; i < w.length; i++) w[i] *= 1 - lock;
+    w[handIndex] += lock;
+  }
 
   // everything above the neck (hair, cap, hood top) moves with the head
   const t = smooth(0.745 * HEIGHT, 0.79 * HEIGHT, point.y);
@@ -358,30 +401,8 @@ const REST = {
 // together" are stated as where the hands go, not as guessed angles. Positions
 // are fractions of the height in LEFT-arm space (x > 0 outward); the right arm
 // is mirrored automatically.
-const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
-const armRig = Object.fromEntries(
-  [1, -1].map((sign) => {
-    const m = (v) => p(sign === 1 ? v : mirror(v));
-    const S = m(JOINTS.Arm);
-    const E = m(JOINTS.ForeArm);
-    const W = m(JOINTS.Hand);
-    const T = m(JOINTS.HandTip);
-    return [
-      sign,
-      {
-        S,
-        L1: S.distanceTo(E),
-        L2: E.distanceTo(W),
-        u0: E.clone().sub(S).normalize(),
-        f0: W.clone().sub(E).normalize(),
-        h0: T.clone().sub(W).normalize(),
-      },
-    ];
-  }),
-);
-
 /** Returns { Arm, ForeArm, Hand } quaternions that put the wrist at `wrist`. */
-function armIK(sign, { wrist, pole, handDir }) {
+function armIK(sign, { wrist, pole, handDir, twist = 0 }) {
   const rig = armRig[sign];
   const mir = (a) => V3(a[0] * sign, a[1], a[2]);
   const target = mir(wrist).multiplyScalar(HEIGHT);
@@ -397,9 +418,16 @@ function armIK(sign, { wrist, pole, handDir }) {
 
   const qArm = new THREE.Quaternion().setFromUnitVectors(rig.u0, elbow.clone().sub(rig.S).normalize());
   const foreWorld = new THREE.Quaternion().setFromUnitVectors(rig.f0, wristAt.clone().sub(elbow).normalize());
-  const qFore = qArm.clone().invert().multiply(foreWorld);
-  const handWorld = new THREE.Quaternion().setFromUnitVectors(rig.h0, mir(handDir).normalize());
-  const qHand = foreWorld.clone().invert().multiply(handWorld);
+  // Roll the forearm by half of `twist` and the hand by all of it (about the
+  // limb's own axis), so the palm turns without a candy-wrapper at the wrist.
+  const foreAxis = wristAt.clone().sub(elbow).normalize();
+  const foreTwisted = new THREE.Quaternion().setFromAxisAngle(foreAxis, twist * 0.5 * sign).multiply(foreWorld);
+  const qFore = qArm.clone().invert().multiply(foreTwisted);
+  const handDirV = mir(handDir).normalize();
+  const handWorld = new THREE.Quaternion()
+    .setFromAxisAngle(handDirV, twist * sign)
+    .multiply(new THREE.Quaternion().setFromUnitVectors(rig.h0, handDirV));
+  const qHand = foreTwisted.clone().invert().multiply(handWorld);
   return { Arm: qArm, ForeArm: qFore, Hand: qHand };
 }
 
@@ -453,6 +481,9 @@ function action(name, duration, { loop = false, inT = 0.15, outT = 0.2, over = {
   return new THREE.AnimationClip(name, duration, tracks);
 }
 
+/** Palm to the viewer when the right hand is raised (radians; tuned by eye). */
+const WAVE_TWIST = 1.2;
+
 const idle = action('Idle', 3.2, {
   loop: true,
   over: {
@@ -464,23 +495,25 @@ const idle = action('Idle', 3.2, {
   lift: (ph) => -0.004 * (1 - Math.cos(ph * TAU)),
 });
 
-// Waves the right hand beside the head.
+// Waves the right hand beside the head: arm up, palm to the viewer, the hand
+// swinging side to side from the wrist three times (the forearm sways a little).
 const waveArms = armTargets((ph, sign) =>
   sign === -1
     ? {
-        wrist: [0.2 + 0.035 * sn(ph, 4), 0.83, 0.03],
-        pole: [0.9, -0.5, -0.2],
-        handDir: [0.45 * sn(ph, 4, 0.25), 1, 0.1],
+        wrist: [0.215 + 0.022 * sn(ph, 3), 0.8 + 0.008 * sn(ph, 6), 0.05],
+        pole: [0.9, -0.5, -0.3],
+        handDir: [0.55 * sn(ph, 3, 0.25) + 0.1, 1, 0.12],
+        twist: WAVE_TWIST,
       }
     : null,
 );
 const wave = action('Wave', 2.2, {
-  inT: 0.18,
+  inT: 0.2,
   outT: 0.22,
   over: {
-    Spine: () => [0, 0, 0.04],
-    Head: () => [-0.02, 0.12, 0.07],
-    Shoulder: (ph, sign) => (sign === -1 ? [0, 0, -0.12] : [0, 0, 0]),
+    Spine: () => [0, 0, 0.03],
+    Head: () => [-0.02, 0.1, 0.06],
+    Shoulder: (ph, sign) => (sign === -1 ? [0, 0, -0.1] : [0, 0, 0]),
     ...waveArms,
   },
 });

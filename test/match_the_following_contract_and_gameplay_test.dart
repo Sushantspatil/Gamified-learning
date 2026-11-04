@@ -852,7 +852,7 @@ void main() {
       await tester.tap(find.byKey(const Key('match-left-ui_l1')));
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.textContaining('1 of 4'), findsOneWidget);
+      expect(find.textContaining(' matched'), findsNothing); // no running counter
 
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
@@ -878,7 +878,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       // Successfully connected as 1 pair without instant failure
-      expect(find.textContaining('1 of 4'), findsOneWidget);
+      expect(find.textContaining(' matched'), findsNothing); // no running counter
 
       // 2. Change pair: Tap Left 1 to disconnect/re-pair with Right 1 (Real)
       await tester.tap(find.byKey(const Key('match-left-ui_l1')));
@@ -887,7 +887,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       // Still 1 pair connected, now correctly updated
-      expect(find.textContaining('1 of 4'), findsOneWidget);
+      expect(find.textContaining(' matched'), findsNothing); // no running counter
 
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();
@@ -972,7 +972,7 @@ void main() {
       await tester.tap(find.byKey(const Key('match-right-ui_r4')));
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.textContaining('4 of 4'), findsOneWidget);
+      expect(find.textContaining(' matched'), findsNothing); // no running counter
 
       // The button is active. This is the only board, so it says Submit; it
       // sends the board at once and shows no per-board right / wrong step.

@@ -58,6 +58,24 @@ try {
   await page.screenshot({ path: join(shots, 'embed-light.png') });
   await page.evaluate("document.body.style.background = '#1b2140'; CharacterEmbed.setStyle({ dark: true, accent: '#8b7bff' })");
 
+  // a hop must not leave a standing character running afterwards
+  await page.evaluate("CharacterEmbed.setState('idle')");
+  await sleep(500);
+  await page.evaluate('CharacterEmbed.hop()');
+  await sleep(150);
+  check((await page.evaluate('CharacterEmbed.currentState()')) === 'run', 'a hop kicks the legs while in the air');
+  await sleep(1400);
+  check((await page.evaluate('CharacterEmbed.currentState()')) === 'idle', 'and the character stands again afterwards');
+  // the "hurry" run, then back to standing
+  await page.evaluate("CharacterEmbed.setState('run')");
+  await sleep(400);
+  await page.evaluate('CharacterEmbed.hop()');
+  await sleep(1200);
+  check((await page.evaluate('CharacterEmbed.currentState()')) === 'run', 'a hop during the hurry run keeps running');
+  await page.evaluate("CharacterEmbed.setState('idle')");
+  await sleep(400);
+  check((await page.evaluate('CharacterEmbed.currentState()')) === 'idle', 'and the next question brings it back to idle');
+
   // actions and cosmetics
   await page.evaluate("CharacterEmbed.setState('idle'); CharacterEmbed.setCosmetics({ avatar: 'champion', frame: 'gold' }); document.body.style.background = '#1b2140'");
   await sleep(400);

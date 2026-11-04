@@ -24,11 +24,14 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDraw
 renderer.setSize(canvas.width, canvas.height, false);
 renderer.setScissorTest(true);
 const tw = canvas.width / cols, th = canvas.height / 2;
-const half = 1.05;
+const half = Number(params.get('half') ?? 1.05);
+const cy = Number(params.get('cy') ?? 0.9);
+const cx = Number(params.get('cx') ?? 0);
+const shift = params.has('half') ? 0 : 0.1;
 const cams = ['side', 'front'].map((v) => {
-  const c = new THREE.OrthographicCamera(-half * (tw / th), half * (tw / th), half + 0.1, -half + 0.1, 0.1, 50);
-  c.position.set(v === 'side' ? 5 : 0, 0.9, v === 'side' ? 0 : 5);
-  c.lookAt(0, 0.9, 0);
+  const c = new THREE.OrthographicCamera(-half * (tw / th), half * (tw / th), half + shift, -half + shift, 0.1, 50);
+  c.position.set(v === 'side' ? 5 : cx, cy, v === 'side' ? 0 : 5);
+  c.lookAt(v === 'side' ? 0 : cx, cy, 0);
   return c;
 });
 for (let i = 0; i < cols; i++) {

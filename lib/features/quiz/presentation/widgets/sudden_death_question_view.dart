@@ -15,6 +15,7 @@ import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/game_header.dart';
+import '../../../../shared/widgets/size_reporter.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
 import '../../../character3d/presentation/character_glow.dart';
 import '../../../character3d/presentation/equipped_cosmetics.dart';
@@ -136,6 +137,8 @@ class _SuddenDeathQuestionViewState
   _SuddenDeathPowerUpEffect _powerUpEffect = _SuddenDeathPowerUpEffect.none;
   bool _showTimeBoost = false;
   final Character3dController _character = Character3dController();
+  double? _topHeight; // header, status and question: what must always fit
+  bool _wasHurry = false;
   bool _hasSubmitted = false;
   bool _extraTimeUsed = false;
   bool _skipUsed = false;
@@ -538,6 +541,24 @@ class _SuddenDeathQuestionViewState
                         _remainingTime > Duration.zero &&
                         _remainingTime <= const Duration(seconds: 5) &&
                         !_hasSubmitted;
+                    if (hurry != _wasHurry) {
+                      _wasHurry = hurry;
+                      // Back to the thinking pose once the rush is over.
+                      if (!hurry) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) _character.play(Character3dAction.think);
+                        });
+                      }
+                    }
+                    final free = _topHeight == null
+                        ? 0.0
+                        : box.maxHeight -
+                              AppSpacing.md -
+                              bottomPad -
+                              _topHeight! -
+                              AppSpacing.sm * 2;
+                    final showCharacter = free >= 96;
+                    final characterHeight = free.clamp(96.0, 240.0);
                     return SingleChildScrollView(
                       padding: EdgeInsets.fromLTRB(
                         AppSpacing.md,
@@ -553,108 +574,119 @@ class _SuddenDeathQuestionViewState
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                GameHeader(
-                                  title: 'Sudden Death',
-                                  coins: widget.coins,
-                                  currentIndex: widget.currentIndex,
-                                  totalQuestions: widget.totalQuestions,
-                                  progress: widget.totalQuestions == 0
-                                      ? 0.0
-                                      : (widget.currentIndex + 1) /
-                                            widget.totalQuestions,
-                                  semanticLabel: 'Sudden Death progress',
-                                ),
-                                const SizedBox(height: AppSpacing.xs),
-                                _RuleLine(isPreviewMode: widget.isPreviewMode),
-                                SizedBox(
-                                  height: isCompact
-                                      ? AppSpacing.sm
-                                      : AppSpacing.ms,
-                                ),
-                                _SuddenDeathStatusRow(
-                                  currentStreak: widget.currentStreak,
-                                  bestStreak: widget.bestStreak,
-                                  remainingTime: _remainingTime,
-                                  timeLimit:
-                                      SuddenDeathConfig.questionTimeLimit,
-                                  showTimeBoost: _showTimeBoost,
-                                ),
-                                SizedBox(
-                                  height: isCompact
-                                      ? AppSpacing.sm
-                                      : AppSpacing.ms,
-                                ),
-                                FadeTransition(
-                                  opacity: _entryController.drive(
-                                    CurveTween(curve: AppMotion.easeOut),
+                            SizeReporter(
+                              onSize: (size) {
+                                if (_topHeight == null ||
+                                    (_topHeight! - size.height).abs() > 0.5) {
+                                  setState(() => _topHeight = size.height);
+                                }
+                              },
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  GameHeader(
+                                    title: 'Sudden Death',
+                                    coins: widget.coins,
+                                    currentIndex: widget.currentIndex,
+                                    totalQuestions: widget.totalQuestions,
+                                    progress: widget.totalQuestions == 0
+                                        ? 0.0
+                                        : (widget.currentIndex + 1) /
+                                              widget.totalQuestions,
+                                    semanticLabel: 'Sudden Death progress',
                                   ),
-                                  child: SlideTransition(
-                                    position:
-                                        Tween<Offset>(
-                                          begin: const Offset(0, -0.035),
-                                          end: Offset.zero,
-                                        ).animate(
-                                          CurvedAnimation(
-                                            parent: _entryController,
-                                            curve: AppMotion.easeOut,
-                                            reverseCurve: AppMotion.easeIn,
+                                  const SizedBox(height: AppSpacing.xs),
+                                  _RuleLine(
+                                    isPreviewMode: widget.isPreviewMode,
+                                  ),
+                                  SizedBox(
+                                    height: isCompact
+                                        ? AppSpacing.sm
+                                        : AppSpacing.ms,
+                                  ),
+                                  _SuddenDeathStatusRow(
+                                    currentStreak: widget.currentStreak,
+                                    bestStreak: widget.bestStreak,
+                                    remainingTime: _remainingTime,
+                                    timeLimit:
+                                        SuddenDeathConfig.questionTimeLimit,
+                                    showTimeBoost: _showTimeBoost,
+                                  ),
+                                  SizedBox(
+                                    height: isCompact
+                                        ? AppSpacing.sm
+                                        : AppSpacing.ms,
+                                  ),
+                                  FadeTransition(
+                                    opacity: _entryController.drive(
+                                      CurveTween(curve: AppMotion.easeOut),
+                                    ),
+                                    child: SlideTransition(
+                                      position:
+                                          Tween<Offset>(
+                                            begin: const Offset(0, -0.035),
+                                            end: Offset.zero,
+                                          ).animate(
+                                            CurvedAnimation(
+                                              parent: _entryController,
+                                              curve: AppMotion.easeOut,
+                                              reverseCurve: AppMotion.easeIn,
+                                            ),
                                           ),
+                                      child: AnimatedSwitcher(
+                                        key: const Key(
+                                          'sudden-question-transition',
                                         ),
-                                    child: AnimatedSwitcher(
-                                      key: const Key(
-                                        'sudden-question-transition',
-                                      ),
-                                      duration: AppMotion.duration(
-                                        context,
-                                        const Duration(milliseconds: 380),
-                                      ),
-                                      reverseDuration: AppMotion.duration(
-                                        context,
-                                        const Duration(milliseconds: 280),
-                                      ),
-                                      layoutBuilder:
-                                          (currentChild, previousChildren) {
-                                            return Stack(
-                                              alignment: Alignment.topCenter,
-                                              children: [
-                                                ...previousChildren,
-                                                ?currentChild,
-                                              ],
-                                            );
-                                          },
-                                      transitionBuilder: (child, animation) =>
-                                          _buildQuestionTransition(
-                                            child: child,
-                                            animation: animation,
-                                            isIncoming:
-                                                child.key ==
-                                                ValueKey(widget.question.id),
-                                            reduceMotion: reduceMotion,
-                                          ),
-                                      child: _QuestionPanel(
-                                        key: ValueKey(widget.question.id),
-                                        question: widget.question,
-                                        selectedOptionId: selectedOptionId,
-                                        feedback: feedback,
-                                        feedbackAnimation: _feedbackController,
-                                        serverAnswerResult:
-                                            widget.serverAnswerResult,
-                                        onSelected: isInteractionLocked
-                                            ? null
-                                            : _handleOptionTap,
+                                        duration: AppMotion.duration(
+                                          context,
+                                          const Duration(milliseconds: 380),
+                                        ),
+                                        reverseDuration: AppMotion.duration(
+                                          context,
+                                          const Duration(milliseconds: 280),
+                                        ),
+                                        layoutBuilder:
+                                            (currentChild, previousChildren) {
+                                              return Stack(
+                                                alignment: Alignment.topCenter,
+                                                children: [
+                                                  ...previousChildren,
+                                                  ?currentChild,
+                                                ],
+                                              );
+                                            },
+                                        transitionBuilder: (child, animation) =>
+                                            _buildQuestionTransition(
+                                              child: child,
+                                              animation: animation,
+                                              isIncoming:
+                                                  child.key ==
+                                                  ValueKey(widget.question.id),
+                                              reduceMotion: reduceMotion,
+                                            ),
+                                        child: _QuestionPanel(
+                                          key: ValueKey(widget.question.id),
+                                          question: widget.question,
+                                          selectedOptionId: selectedOptionId,
+                                          feedback: feedback,
+                                          feedbackAnimation:
+                                              _feedbackController,
+                                          serverAnswerResult:
+                                              widget.serverAnswerResult,
+                                          onSelected: isInteractionLocked
+                                              ? null
+                                              : _handleOptionTap,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            // The character stands at the bottom, above the power-ups. It
-                            // hops after a correct answer and runs on the spot when time
-                            // is nearly up.
-                            if (!isCompact)
+                            // The character stands at the bottom, above the power-ups,
+                            // as large as the free space allows. It hops after a
+                            // correct answer and runs on the spot when time is nearly up.
+                            if (showCharacter)
                               Padding(
                                 padding: const EdgeInsets.only(
                                   top: AppSpacing.sm,
@@ -662,16 +694,16 @@ class _SuddenDeathQuestionViewState
                                 child: Center(
                                   child: CharacterGlow(
                                     child: Character3dView(
-                                      width: 130,
-                                      height: 150,
+                                      width: characterHeight * 0.85,
+                                      height: characterHeight,
                                       state: hurry
                                           ? Character3dState.run
                                           : Character3dState.idle,
                                       controller: _character,
                                       cosmetics: equippedCosmetics(context),
                                       initialAction: Character3dAction.think,
-                                      placeholder: const Character3dPoster(
-                                        height: 150,
+                                      placeholder: Character3dPoster(
+                                        height: characterHeight,
                                       ),
                                       fallback: const SizedBox.shrink(),
                                     ),

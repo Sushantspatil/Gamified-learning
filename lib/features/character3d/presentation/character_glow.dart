@@ -7,8 +7,9 @@ import '../../../app/theme/app_theme_colors.dart';
 /// it sits on. It follows the theme (stronger on dark cards, gentler on light
 /// ones), and breathes very slowly unless the player prefers reduced motion.
 ///
-/// Wrap the character: `CharacterGlow(child: Character3dView(...))`. The glow
-/// is painted beneath the child and never takes touches.
+/// The light is an ellipse that fades to nothing before it reaches the edge of
+/// the box it is given, so it never ends in a straight edge. Wrap the character:
+/// `CharacterGlow(child: Character3dView(...))`. It never takes touches.
 class CharacterGlow extends StatefulWidget {
   final Widget child;
 
@@ -19,19 +20,19 @@ class CharacterGlow extends StatefulWidget {
   /// 1 is the normal strength.
   final double strength;
 
-  /// Where the glow is centred inside the box.
-  final Alignment alignment;
+  /// Where the glow is centred, as a fraction of the box (0.5, 0.5 = middle).
+  final Offset center;
 
-  /// Size of the glow as a fraction of the box's shorter side.
-  final double radius;
+  /// Half-width and half-height of the light, as a fraction of the box.
+  final Size reach;
 
   const CharacterGlow({
     super.key,
     required this.child,
     this.color,
     this.strength = 1,
-    this.alignment = const Alignment(0, 0.15),
-    this.radius = 0.62,
+    this.center = const Offset(0.5, 0.56),
+    this.reach = const Size(0.46, 0.46),
   });
 
   /// A low pool of light on the floor, for a wide strip the character walks along.
@@ -40,8 +41,8 @@ class CharacterGlow extends StatefulWidget {
     required this.child,
     this.color,
     this.strength = 1,
-  }) : alignment = const Alignment(0, 0.9),
-       radius = 0.55;
+  }) : center = const Offset(0.5, 0.8),
+       reach = const Size(0.34, 0.2);
 
   @override
   State<CharacterGlow> createState() => _CharacterGlowState();
@@ -85,25 +86,23 @@ class _CharacterGlowState extends State<CharacterGlow>
       children: [
         Positioned.fill(
           child: IgnorePointer(
-            child: AnimatedBuilder(
-              animation: _breath,
-              builder: (context, _) {
-                final k = 0.8 + 0.2 * Curves.easeInOut.transform(_breath.value);
-                return DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: RadialGradient(
-                      center: widget.alignment,
-                      radius: widget.radius,
-                      colors: [
-                        base.withValues(alpha: peak * k),
-                        base.withValues(alpha: peak * k * 0.35),
-                        base.withValues(alpha: 0),
-                      ],
-                      stops: const [0, 0.55, 1],
+            child: RepaintBoundary(
+              child: AnimatedBuilder(
+                animation: _breath,
+                builder: (context, _) {
+                  final k =
+                      0.8 + 0.2 * Curves.easeInOut.transform(_breath.value);
+                  return CustomPaint(
+                    key: const Key('character_glow_light'),
+                    painter: GlowPainter(
+                      color: base,
+                      peakAlpha: peak * k,
+                      center: widget.center,
+                      reach: widget.reach,
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ),
@@ -111,4 +110,60 @@ class _CharacterGlowState extends State<CharacterGlow>
       ],
     );
   }
+}
+
+/// Paints the glow: a radial gradient squeezed into an ellipse that lies wholly
+/// inside the box, fading to fully transparent at its rim.
+class GlowPainter extends CustomPainter {
+  final Color color;
+  final double peakAlpha;
+  final Offset center;
+  final Size reach;
+
+  const GlowPainter({
+    required this.color,
+    required this.peakAlpha,
+    required this.center,
+    required this.reach,
+  });
+
+  /// The ellipse the light covers, clamped to stay inside [size].
+  static Rect lightRect(Size size, Offset center, Size reach) {
+    final rx = (reach.width * size.width).clamp(0.0, size.width / 2);
+    final ry = (reach.height * size.height).clamp(0.0, size.height / 2);
+    final cx = (center.dx * size.width).clamp(rx, size.width - rx);
+    final cy = (center.dy * size.height).clamp(ry, size.height - ry);
+    return Rect.fromCenter(
+      center: Offset(cx, cy),
+      width: rx * 2,
+      height: ry * 2,
+    );
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty || peakAlpha <= 0) return;
+    final rect = lightRect(size, center, reach);
+    if (rect.isEmpty) return;
+    final paint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          color.withValues(alpha: peakAlpha),
+          color.withValues(alpha: peakAlpha * 0.4),
+          color.withValues(alpha: peakAlpha * 0.1),
+          color.withValues(alpha: 0),
+        ],
+        stops: const [0, 0.45, 0.78, 1],
+      ).createShader(rect);
+    // drawOval fills the whole rect; the gradient is already transparent at
+    // its rim, so there is no visible edge.
+    canvas.drawOval(rect, paint);
+  }
+
+  @override
+  bool shouldRepaint(GlowPainter old) =>
+      old.color != color ||
+      old.peakAlpha != peakAlpha ||
+      old.center != center ||
+      old.reach != reach;
 }

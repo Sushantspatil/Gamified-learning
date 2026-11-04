@@ -89,6 +89,78 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('there is no running "x of y matched" line', (tester) async {
+      await _pumpMatch(tester, size: const Size(412, 915));
+      expect(find.textContaining(' matched'), findsNothing);
+      expect(find.textContaining('0 of 4'), findsNothing);
+    });
+
+    testWidgets('cards are compact for short text and grow for long text', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final storage = await LocalStorageService.create();
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      const mixed = MatchTheFollowingQuestion(
+        id: 'm2',
+        topicId: 'accounting',
+        prompt: 'Match',
+        points: 10,
+        pairs: [
+          MatchPair(id: 's', left: '1 + 3', right: '4'),
+          MatchPair(
+            id: 'l',
+            left:
+                'The revenue realization and matching principle under the standard framework',
+            right: 'Accrual accounting',
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [localStorageServiceProvider.overrideWithValue(storage)],
+          child: MaterialApp(
+            theme: AppTheme.darkTheme,
+            home: const Scaffold(
+              body: MatchTheFollowingView(
+                question: mixed,
+                coinBalanceOverride: 10,
+                totalQuestions: 3,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final short = tester.getSize(find.byKey(const Key('match-left-s')));
+      final long = tester.getSize(find.byKey(const Key('match-left-l')));
+      expect(short.height, lessThan(70)); // compact (was a fixed 82)
+      expect(long.height, greaterThan(short.height + 20)); // grew to fit
+      // the long label is fully readable: no ellipsis forced by a fixed height
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the character takes the room that is left, within limits', (
+      tester,
+    ) async {
+      final sizes = <double>[];
+      for (final height in [700.0, 760.0, 820.0]) {
+        await _pumpMatch(tester, size: Size(412, height));
+        final found = find.byType(Character3dView);
+        sizes.add(found.evaluate().isEmpty ? 0 : tester.getSize(found).height);
+      }
+      // more screen, more character (never beyond the limits), and a screen that
+      // is too short for it simply has none
+      for (final h in sizes.where((h) => h > 0)) {
+        expect(h, inInclusiveRange(96, 240));
+      }
+      expect(sizes[1], greaterThanOrEqualTo(sizes[0]));
+      expect(sizes[2], greaterThanOrEqualTo(sizes[1]));
+      expect(sizes[2], greaterThan(sizes[0]));
+    });
+
     testWidgets('a short screen leaves the character out and just scrolls', (
       tester,
     ) async {
@@ -151,6 +223,22 @@ void main() {
         greaterThan(card.bottom),
       );
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the character is as large as the free space allows', (
+      tester,
+    ) async {
+      final sizes = <double>[];
+      for (final height in [760.0, 850.0, 960.0]) {
+        await pump(tester, Size(412, height));
+        final found = find.byType(Character3dView);
+        sizes.add(found.evaluate().isEmpty ? 0 : tester.getSize(found).height);
+      }
+      for (final h in sizes.where((h) => h > 0)) {
+        expect(h, inInclusiveRange(96, 240));
+      }
+      expect(sizes[2], greaterThan(sizes[0]));
+      expect(sizes[1], greaterThanOrEqualTo(sizes[0]));
     });
 
     testWidgets('a short screen simply has no character', (tester) async {

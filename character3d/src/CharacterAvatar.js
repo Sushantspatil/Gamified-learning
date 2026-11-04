@@ -413,10 +413,14 @@ export class CharacterAvatar extends Emitter {
   hop({ height = 0.45, duration = 0.6 } = {}) {
     this.#assertAlive();
     if (!this.#loco) return;
-    this.#hop = { t: 0, duration, height };
-    if (this.#loco.state === LocomotionState.IDLE && !this.#loco.acting) {
-      this.#loco.setState(LocomotionState.RUN);
-    }
+    // A standing character kicks its legs (Run) for the jump; remember to stand
+    // again afterwards, or it would keep running on the spot.
+    const restore =
+      this.#loco.state === LocomotionState.IDLE && !this.#loco.acting
+        ? LocomotionState.IDLE
+        : null;
+    this.#hop = { t: 0, duration, height, restore };
+    if (restore) this.#loco.setState(LocomotionState.RUN);
   }
 
   /** Stops rendering (e.g. the page is hidden). The pose is kept; `resume()` continues. */
@@ -790,6 +794,16 @@ export class CharacterAvatar extends Emitter {
       const u = hop.t / hop.duration;
       if (u >= 1) {
         this.#hop = null;
+        // Back to standing, unless the app chose something else meanwhile
+        // (e.g. the "hurry" run, or an action such as a wave).
+        if (
+          hop.restore &&
+          this.#manualState === hop.restore &&
+          this.#loco.state === LocomotionState.RUN &&
+          !this.#loco.acting
+        ) {
+          this.#loco.setState(hop.restore);
+        }
         this.#sparkles.burst(
           { x: this.#root.position.x, y: 0.06, z: this.#root.position.z },
           { n: 7, speed: 0.9, upward: 0.9, spread: 0.18 },

@@ -8,7 +8,12 @@ Future<void> _show(
   required ThemeData theme,
   bool reduceMotion = false,
   Widget? child,
+  Size box = const Size(120, 150),
+  Widget Function(Widget child)? wrap,
 }) async {
+  final glow = wrap != null
+      ? wrap(child ?? const SizedBox(key: Key('inner')))
+      : CharacterGlow(child: child ?? const SizedBox(key: Key('inner')));
   await tester.pumpWidget(
     MaterialApp(
       theme: theme,
@@ -18,31 +23,18 @@ Future<void> _show(
       ),
       home: Scaffold(
         body: Center(
-          child: SizedBox(
-            width: 120,
-            height: 150,
-            child: CharacterGlow(
-              child: child ?? const SizedBox(key: Key('inner')),
-            ),
-          ),
+          child: SizedBox(width: box.width, height: box.height, child: glow),
         ),
       ),
     ),
   );
 }
 
-/// The colour of the glow's centre, from its radial gradient.
-double _peakAlpha(WidgetTester tester) {
-  final box = tester.widget<DecoratedBox>(
-    find.descendant(
-      of: find.byType(CharacterGlow),
-      matching: find.byType(DecoratedBox),
-    ),
-  );
-  final gradient =
-      (box.decoration as BoxDecoration).gradient! as RadialGradient;
-  return gradient.colors.first.a;
-}
+GlowPainter _painter(WidgetTester tester) =>
+    tester
+            .widget<CustomPaint>(find.byKey(const Key('character_glow_light')))
+            .painter!
+        as GlowPainter;
 
 void main() {
   testWidgets('the glow is stronger on dark cards than on light ones', (
@@ -50,10 +42,10 @@ void main() {
   ) async {
     await _show(tester, theme: AppTheme.lightTheme, reduceMotion: true);
     await tester.pumpAndSettle();
-    final light = _peakAlpha(tester);
+    final light = _painter(tester).peakAlpha;
     await _show(tester, theme: AppTheme.darkTheme, reduceMotion: true);
     await tester.pumpAndSettle(); // the theme change animates
-    final dark = _peakAlpha(tester);
+    final dark = _painter(tester).peakAlpha;
     expect(dark, greaterThan(light));
     expect(light, greaterThan(0));
   });
@@ -63,9 +55,9 @@ void main() {
   ) async {
     await _show(tester, theme: AppTheme.darkTheme);
     await tester.pump(const Duration(milliseconds: 2500));
-    final mid = _peakAlpha(tester);
+    final mid = _painter(tester).peakAlpha;
     await tester.pump(const Duration(milliseconds: 2500));
-    final end = _peakAlpha(tester);
+    final end = _painter(tester).peakAlpha;
     expect(mid, isNot(closeTo(end, 0.001))); // it moves...
     await tester.pumpAndSettle(); // ...but not forever
     expect(tester.takeException(), isNull);
@@ -75,9 +67,9 @@ void main() {
     tester,
   ) async {
     await _show(tester, theme: AppTheme.darkTheme, reduceMotion: true);
-    final a = _peakAlpha(tester);
+    final a = _painter(tester).peakAlpha;
     await tester.pump(const Duration(seconds: 2));
-    expect(_peakAlpha(tester), a);
+    expect(_painter(tester).peakAlpha, a);
     await tester.pumpAndSettle();
   });
 
@@ -96,6 +88,42 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('hit')));
     expect(taps, 1);
+  });
+
+  group('the light stays inside its box (no square edges)', () {
+    test('for every shape the app uses, the ellipse never leaves the box', () {
+      const shapes = [
+        Size(120, 150), // dashboard card
+        Size(150, 150), // results
+        Size(102, 120), // Match It, small
+        Size(204, 240), // Match It / Sudden Death, large
+        Size(360, 110), // the MCQ strip
+        Size(140, 130), // reward dialog
+      ];
+      for (final size in shapes) {
+        for (final glow in [
+          (const Offset(0.5, 0.56), const Size(0.46, 0.46)), // normal
+          (const Offset(0.5, 0.8), const Size(0.34, 0.2)), // floor
+        ]) {
+          final rect = GlowPainter.lightRect(size, glow.$1, glow.$2);
+          expect(rect.left, greaterThanOrEqualTo(0), reason: '$size');
+          expect(rect.top, greaterThanOrEqualTo(0), reason: '$size');
+          expect(rect.right, lessThanOrEqualTo(size.width), reason: '$size');
+          expect(rect.bottom, lessThanOrEqualTo(size.height), reason: '$size');
+        }
+      }
+    });
+
+    test('even an oversized request is clamped inside', () {
+      final rect = GlowPainter.lightRect(
+        const Size(100, 100),
+        const Offset(0.9, 0.95),
+        const Size(0.9, 0.9),
+      );
+      expect(rect.left, greaterThanOrEqualTo(0));
+      expect(rect.right, lessThanOrEqualTo(100));
+      expect(rect.bottom, lessThanOrEqualTo(100));
+    });
   });
 
   testWidgets('the floor variant fits a wide, short strip', (tester) async {
