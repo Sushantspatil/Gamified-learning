@@ -67,6 +67,7 @@ class MatchTheFollowingResultView extends StatelessWidget {
                 // 1. Top Emblem Badge (Matches MCQ, Sudden Death, and Sort It Out)
                 ResultMascot(
                   unsuccessful: isUnsuccessful,
+                  accuracy: (result.accuracyPercentage / 100).clamp(0.0, 1.0).toDouble(),
                   trophy: Container(
                     width: 86,
                     height: 86,

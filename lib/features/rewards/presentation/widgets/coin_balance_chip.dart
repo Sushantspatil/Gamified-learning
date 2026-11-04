@@ -6,6 +6,8 @@ import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
+import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../character3d/presentation/equipped_cosmetics.dart';
 import '../../application/rewards_controller.dart';
 
 /// The shared coin balance, shown at the top of every rewards screen.
@@ -97,11 +99,15 @@ class GemBalanceChip extends ConsumerWidget {
 }
 
 /// Simple one-message dialog used for rewards and purchase results.
+///
+/// With [mascot] the 3D character cheers above the message (the icon shows
+/// while it loads, and stays if 3D cannot run).
 Future<void> showRewardDialog(
   BuildContext context, {
   required String title,
   required String message,
   IconData icon = Icons.celebration_rounded,
+  bool mascot = false,
 }) {
   return showDialog<void>(
     context: context,
@@ -109,7 +115,16 @@ Future<void> showRewardDialog(
     builder: (context) => AlertDialog(
       backgroundColor: context.themeColors.surface,
       shape: RoundedRectangleBorder(borderRadius: AppDimensions.radiusLg),
-      icon: Icon(icon, size: 40, color: AppColors.coinGold),
+      icon: mascot
+          ? Character3dView(
+              width: 140,
+              height: 130,
+              state: Character3dState.idle,
+              initialAction: Character3dAction.cheer,
+              cosmetics: equippedCosmetics(context),
+              fallback: Icon(icon, size: 40, color: AppColors.coinGold),
+            )
+          : Icon(icon, size: 40, color: AppColors.coinGold),
       title: Text(
         title,
         textAlign: TextAlign.center,

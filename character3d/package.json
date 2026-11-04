@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "node --test",
     "rig": "node scripts/rig/rig-model.mjs",
-    "build:embed": "node scripts/build-embed.mjs",
+    "build:embed": "node scripts/build-embed.mjs && node scripts/make-poster.mjs",
     "make:model": "node scripts/make-test-model.mjs",
     "check:render": "node scripts/render-check.mjs"
   },

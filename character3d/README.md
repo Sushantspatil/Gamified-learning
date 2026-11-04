@@ -158,6 +158,34 @@ The app shows this character in a transparent WebView (`webview_flutter`):
   Following result cards. It walks after a good game and stands after a bad
   one (`lib/features/character3d/presentation/result_mascot.dart`).
 
+- **Dashboard card**: the character waves when it appears, looks around or waves
+  now and then, reacts when tapped, and the line beside it follows what is
+  waiting (an unopened chest, the free spin, your streak).
+- **Results**: cheers for 80% or more, applauds for 50-79%, looks disappointed
+  below that or after a lost game.
+- **MCQ**: walks in, stands thinking (hand to chin) while you choose, hops when
+  you pick an option, runs off when you submit. The host's short neutral lines
+  appear in a bubble beside it.
+- **Spin wheel / chest**: it cheers when a prize is won or a chest pays out.
+- **How to Play**: it guides you above the slides (wave, look around, think,
+  cheer, clap), and its space is given back if 3D is unavailable.
+- **Equipped items** (Shop / chests): the profile frame is a glowing ring at its
+  feet (bronze, silver, gold); the avatar is an emblem floating above its head
+  (scholar book, explorer compass, champion crown, genius light bulb).
+- Login and splash keep their own animated heroes; a WebView there would only
+  delay or cover them.
+
+Animations in the model (`npm run rig` builds them): Idle, Walk, Run, Wave,
+Cheer, Sad, Think, Clap, LookAround. Arm poses (wave, cheer, think, clap) are
+placed with a two-bone IK solver in `scripts/rig/rig-model.js`: state where the
+hands go, not angles. The skeleton has shoulder and toe bones.
+
+Loading: a still picture (`assets/character3d/poster.png`, made by
+`npm run build:embed`) shows while the page loads, and the system WebView is
+started early after the first frame (`Character3dView.prewarm()`), so the live
+character appears sooner. Both are best effort: if either does nothing, the
+character still appears.
+
 How it works: `npm run build:embed` bundles `src/embed.js`, the avatar code and
 `public/models/character.glb` into ONE page,
 `../assets/character3d/character.html` (about 4 MB, works offline).

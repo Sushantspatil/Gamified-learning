@@ -49,6 +49,28 @@ try {
   await page.evaluate("document.body.style.background = '#ff00ff'");
   await sleep(500);
   await page.screenshot({ path: join(shots, 'embed-walk.png') });
+  // actions and cosmetics
+  await page.evaluate("CharacterEmbed.setState('idle'); CharacterEmbed.setCosmetics({ avatar: 'champion', frame: 'gold' })");
+  await sleep(400);
+  await page.screenshot({ path: join(shots, 'embed-cosmetics.png') });
+  const played = await page.evaluate("CharacterEmbed.play('nonsense')");
+  check(played === false, 'an unknown action is refused, not thrown');
+  await page.evaluate("window.__cheered = null; void CharacterEmbed.play('cheer').then((v) => { window.__cheered = v; })");
+  await sleep(700);
+  await page.screenshot({ path: join(shots, 'embed-cheer.png') });
+  await sleep(1500);
+  await page.screenshot({ path: join(shots, 'embed-after-cheer.png') });
+  check((await page.evaluate('window.__cheered')) === true, 'a one-shot action finishes and reports it');
+  await page.evaluate("void CharacterEmbed.play('think')");
+  await sleep(900);
+  await page.screenshot({ path: join(shots, 'embed-think.png') });
+  await page.evaluate("CharacterEmbed.stopAction(); CharacterEmbed.setAmbient(true); CharacterEmbed.setAmbient(false)");
+  for (const avatar of ['scholar', 'explorer', 'genius']) {
+    await page.evaluate(`CharacterEmbed.setCosmetics({ avatar: '${avatar}', frame: 'silver' })`);
+    await sleep(250);
+    await page.screenshot({ path: join(shots, `embed-emblem-${avatar}.png`) });
+  }
+  await page.evaluate('CharacterEmbed.setCosmetics({})');
   await page.evaluate('CharacterEmbed.setPaused(true)');
   await page.evaluate('CharacterEmbed.setPaused(false)');
   check(errors.length === 0, `card: no page errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
@@ -62,7 +84,7 @@ try {
   await wire(page);
   await page.goto(pathToFileURL(page_).href);
   await waitFor('loaded');
-  await page.evaluate("CharacterEmbed.setState('idle'); CharacterEmbed.setFraming('strip'); CharacterEmbed.enter(3000); CharacterEmbed.show()");
+  await page.evaluate("CharacterEmbed.setState('idle'); CharacterEmbed.setFraming('strip'); CharacterEmbed.enter(2500, true); CharacterEmbed.show()");
   await waitFor('ready');
   await page.evaluate("document.body.style.background = '#1b2140'");
   const shotsAt = [300, 900, 1500, 2300];

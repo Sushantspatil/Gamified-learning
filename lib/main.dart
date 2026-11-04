@@ -6,6 +6,7 @@ import 'app/config/app_config.dart';
 import 'app/config/environment.dart';
 import 'core/providers/core_providers.dart';
 import 'core/storage/local_storage_service.dart';
+import 'features/character3d/presentation/character_3d_view.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,5 +21,11 @@ Future<void> main() async {
       ],
       child: const SkillverseApp(),
     ),
+  );
+
+  // After the first frame, so it never slows the app's start: warm up the
+  // system WebView so the first 3D character appears sooner.
+  WidgetsBinding.instance.addPostFrameCallback(
+    (_) => Character3dView.prewarm(),
   );
 }

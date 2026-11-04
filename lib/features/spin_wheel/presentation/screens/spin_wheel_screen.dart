@@ -108,6 +108,7 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
       context,
       title: 'Congratulations!',
       message: 'You won $coins Coins.',
+      mascot: true,
     );
   }
 

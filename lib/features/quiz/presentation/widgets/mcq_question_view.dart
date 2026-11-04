@@ -23,6 +23,7 @@ import '../../../character/presentation/character_providers.dart';
 import '../../../character/presentation/character_stage.dart';
 import '../../../character/presentation/mcq_character_adapter.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../character/presentation/character_speech_bubble.dart';
 
 class McqQuestionView extends ConsumerStatefulWidget {
   final McqQuestion question;
@@ -74,7 +75,7 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _character.questionShown(isFirst: widget.currentIndex == 0);
-      _character3d.enter();
+      _character3d.enter(thenThink: true);
     });
   }
 
@@ -225,6 +226,13 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
   @override
   Widget build(BuildContext context) {
     final character = ref.watch(characterControllerProvider);
+    final equipped = ref.watch(
+      rewardsProvider.select((s) => (s.equippedAvatar, s.equippedFrame)),
+    );
+    final cosmetics = Character3dCosmetics.fromShopIds(
+      avatarId: equipped.$1,
+      frameId: equipped.$2,
+    );
     final hintTokens = ref.watch(
       rewardsProvider.select((s) => s.powerUpCount(PowerUpType.hint)),
     );
@@ -316,6 +324,7 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
                       _CharacterSlot(
                         controller: character,
                         character3d: _character3d,
+                        cosmetics: cosmetics,
                         height: companionHeight,
                       ),
                       const SizedBox(height: AppSpacing.md),
@@ -750,11 +759,13 @@ class _McqOptionCard extends StatelessWidget {
 class _CharacterSlot extends StatelessWidget {
   final CharacterController controller;
   final Character3dController character3d;
+  final Character3dCosmetics cosmetics;
   final double height;
 
   const _CharacterSlot({
     required this.controller,
     required this.character3d,
+    required this.cosmetics,
     required this.height,
   });
 
@@ -766,20 +777,46 @@ class _CharacterSlot extends StatelessWidget {
     return SizedBox(
       key: const Key('mcq_character_section'),
       height: height,
-      // The 3D character walks along the strip. If it cannot run (or while it
-      // loads) the original 2D host is shown instead.
+      // The 3D character walks along the strip. Nothing shows while it loads
+      // (it simply walks in when ready); if it cannot run, the original 2D host
+      // is shown instead.
       child: LayoutBuilder(
-        builder: (context, constraints) => Character3dView(
-          width: constraints.maxWidth,
-          height: height,
-          state: Character3dState.idle,
-          framing: Character3dFraming.strip,
-          controller: character3d,
-          fallback: SizedBox(
-            width: constraints.maxWidth,
-            height: height,
-            child: CharacterStage(controller: controller, height: height),
-          ),
+        builder: (context, constraints) => Stack(
+          children: [
+            Character3dView(
+              width: constraints.maxWidth,
+              height: height,
+              state: Character3dState.idle,
+              framing: Character3dFraming.strip,
+              controller: character3d,
+              cosmetics: cosmetics,
+              placeholder: const SizedBox.shrink(),
+              fallback: SizedBox(
+                width: constraints.maxWidth,
+                height: height,
+                child: CharacterStage(controller: controller, height: height),
+              ),
+            ),
+            // The host's short, neutral lines, beside the 3D character (the 2D
+            // fallback draws its own bubble).
+            ValueListenableBuilder<Character3dStatus>(
+              valueListenable: character3d.status,
+              builder: (context, status, _) {
+                if (status != Character3dStatus.ready) {
+                  return const SizedBox.shrink();
+                }
+                return Positioned(
+                  top: 2,
+                  left: constraints.maxWidth / 2 + 44,
+                  right: 4,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: CharacterSpeechBubble(controller: controller),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );

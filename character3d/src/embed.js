@@ -7,8 +7,12 @@
 //   setState('idle' | 'walk' | 'run')        loop to play
 //   setFraming('full' | 'bust' | 'face' | 'strip')
 //   setPaused(true | false)                  stop / resume drawing
+//   setCosmetics({ avatar, frame })          equipped items (see cosmetics.js)
+//   setAmbient(true | false)                 now and then a small idle gesture
+//   play('wave' | 'cheer' | 'sad' | 'think' | 'clap' | 'lookaround')
+//   stopAction()
 //   show()                                   reveal the canvas (replies 'ready')
-//   enter(ms)  walk in from the left edge to a resting spot   ('strip' framing)
+//   enter(ms, thenThink)  walk in from the left edge to the centre ('strip' framing)
 //   hop()      jump on the spot
 //   exit(ms)   run off the right edge (the next enter() waits for it)
 // and hears back through the `CharacterBridge` JavaScript channel:
@@ -31,11 +35,37 @@ const send = (message) => {
 const REST_AT = 0; // the centre of the strip
 /** How far past the edge it starts / ends, so it is fully out of sight (metres). */
 const OFF_SCREEN = 0.6;
+/** Small gestures an idle character makes now and then, with how often. */
+const AMBIENT = [
+  ['lookaround', 3],
+  ['wave', 1],
+];
 
 let avatar = null;
 let exiting = Promise.resolve();
+let paused = false;
+let ambientTimer = null;
 let pendingState = params.get('state') ?? 'walk';
 let pendingFraming = params.get('framing') ?? 'full';
+
+function scheduleAmbient() {
+  clearTimeout(ambientTimer);
+  ambientTimer = setTimeout(() => {
+    const busy = !avatar || paused || avatar.acting || avatar.state !== 'idle';
+    if (!busy) {
+      const total = AMBIENT.reduce((n, [, weight]) => n + weight, 0);
+      let pick = Math.random() * total;
+      for (const [name, weight] of AMBIENT) {
+        pick -= weight;
+        if (pick <= 0) {
+          avatar.playAction(name);
+          break;
+        }
+      }
+    }
+    scheduleAmbient();
+  }, 6000 + Math.random() * 5000);
+}
 
 window.CharacterEmbed = {
   setState(state) {
@@ -46,19 +76,35 @@ window.CharacterEmbed = {
     pendingFraming = framing;
     if (avatar) avatar.frameCharacter(framing);
   },
-  setPaused(paused) {
+  setPaused(value) {
+    paused = value;
     if (!avatar) return;
-    paused ? avatar.pause() : avatar.resume();
+    value ? avatar.pause() : avatar.resume();
+  },
+  setCosmetics(items) {
+    avatar?.setCosmetics(items ?? {});
+  },
+  setAmbient(on) {
+    clearTimeout(ambientTimer);
+    if (on) scheduleAmbient();
+  },
+  play(name) {
+    return avatar ? avatar.playAction(name) : Promise.resolve(false);
+  },
+  stopAction() {
+    avatar?.stopAction();
   },
   show() {
     stage.style.visibility = 'visible';
     send('ready');
   },
-  async enter(ms) {
+  async enter(ms, thenThink = false) {
     await exiting; // let the previous run-off finish first
     if (!avatar) return;
     const half = avatar.visibleHalfWidth();
     await avatar.travel({ fromX: -(half + OFF_SCREEN), toX: half * REST_AT, duration: ms / 1000 });
+    // Waiting for the answer: hand to chin (ends by itself when it moves again).
+    if (thenThink && avatar && !avatar.acting) avatar.playAction('think');
   },
   hop() {
     avatar?.hop();
@@ -95,4 +141,7 @@ start().catch((error) => {
   send(`error:${error?.message ?? error}`);
 });
 
-window.addEventListener('pagehide', () => avatar?.dispose());
+window.addEventListener('pagehide', () => {
+  clearTimeout(ambientTimer);
+  avatar?.dispose();
+});

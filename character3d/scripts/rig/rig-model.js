@@ -30,7 +30,9 @@ const JOINTS = {
   Leg: [0.085, 0.235, -0.015],
   Foot: [0.1, 0.085, -0.035],
   Toe: [0.105, 0.015, 0.09],
+  Shoulder: [0.055, 0.685, -0.03],
   Arm: [0.125, 0.675, -0.03],
+  Ball: [0.105, 0.03, 0.045],
   ForeArm: [0.215, 0.575, 0.02],
   Hand: [0.285, 0.495, 0.055],
   HandTip: [0.335, 0.405, 0.1],
@@ -53,8 +55,10 @@ for (const [side, sign] of [['Left', 1], ['Right', -1]]) {
   BONES.push(
     { name: `${side}UpLeg`, parent: 'Hips', joint: m(JOINTS.UpLeg), seg: [m(JOINTS.UpLeg), m(JOINTS.Leg)], r: 0.075, side: sign },
     { name: `${side}Leg`, parent: `${side}UpLeg`, joint: m(JOINTS.Leg), seg: [m(JOINTS.Leg), m(JOINTS.Foot)], r: 0.06, side: sign },
-    { name: `${side}Foot`, parent: `${side}Leg`, joint: m(JOINTS.Foot), seg: [m(JOINTS.Foot), m(JOINTS.Toe)], r: 0.065, side: sign },
-    { name: `${side}Arm`, parent: 'Chest', joint: m(JOINTS.Arm), seg: [m(JOINTS.Arm), m(JOINTS.ForeArm)], r: 0.05, side: sign },
+    { name: `${side}Foot`, parent: `${side}Leg`, joint: m(JOINTS.Foot), seg: [m(JOINTS.Foot), m(JOINTS.Ball)], r: 0.065, side: sign },
+    { name: `${side}Toe`, parent: `${side}Foot`, joint: m(JOINTS.Ball), seg: [m(JOINTS.Ball), m(JOINTS.Toe)], r: 0.05, side: sign },
+    { name: `${side}Shoulder`, parent: 'Chest', joint: m(JOINTS.Shoulder), seg: [[sign * 0.025, 0.69, -0.03], m(JOINTS.Arm)], r: 0.055, side: sign },
+    { name: `${side}Arm`, parent: `${side}Shoulder`, joint: m(JOINTS.Arm), seg: [m(JOINTS.Arm), m(JOINTS.ForeArm)], r: 0.05, side: sign },
     { name: `${side}ForeArm`, parent: `${side}Arm`, joint: m(JOINTS.ForeArm), seg: [m(JOINTS.ForeArm), m(JOINTS.Hand)], r: 0.042, side: sign },
     { name: `${side}Hand`, parent: `${side}ForeArm`, joint: m(JOINTS.Hand), seg: [m(JOINTS.Hand), m(JOINTS.HandTip)], r: 0.045, side: sign },
   );
@@ -148,7 +152,7 @@ function rawWeights(point) {
  * Skin weights for a geometry. Identical positions (UV seams) share one set of
  * weights, and the weights are smoothed along the mesh so joints bend softly.
  */
-function skinGeometry(geometry, iterations = 5) {
+function skinGeometry(geometry, iterations = 10) {
   const pos = geometry.attributes.position;
   const keyOf = (i) =>
     `${Math.round(pos.getX(i) * 1e4)},${Math.round(pos.getY(i) * 1e4)},${Math.round(pos.getZ(i) * 1e4)}`;
@@ -258,7 +262,8 @@ function rotation(bone, duration, fn) {
   for (let i = 0; i <= SAMPLES; i++) {
     const phase = i / SAMPLES;
     times.push(phase * duration);
-    quat(...fn(phase)).toArray(values, values.length);
+    const r = fn(phase);
+    (r.isQuaternion ? r : quat(...r)).toArray(values, values.length);
   }
   return new THREE.QuaternionKeyframeTrack(`${bone}.quaternion`, times, values);
 }
@@ -290,6 +295,9 @@ function gait(name, duration, g) {
       rotation(`${side}UpLeg`, duration, (ph) => [hip(ph), 0, 0]),
       rotation(`${side}Leg`, duration, (ph) => [knee(ph), 0, 0]),
       rotation(`${side}Foot`, duration, (ph) => [-(hip(ph) + knee(ph)) * 0.65 + g.toeOff * Math.max(0, -s(ph, off + 0.25)), 0, 0]),
+      // the toes bend as the heel lifts for push-off
+      rotation(`${side}Toe`, duration, (ph) => [-g.toeBend * Math.max(0, -s(ph, off)) + 0.1 * Math.max(0, s(ph, off)), 0, 0]),
+      rotation(`${side}Shoulder`, duration, (ph) => [0, 0, 0]),
       // arms: lowered from the A-pose, swing opposite to the leg on their side
       rotation(`${side}Arm`, duration, (ph) => {
         const swing = g.arm * s(ph, off);
@@ -312,40 +320,261 @@ function gait(name, duration, g) {
 }
 
 // Ground speed of a gait = stride / duration, with leg length 0.55 m:
-//   Walk: stride ~1.05 m in 0.8 s  -> ~1.3 m/s   (WALK_SPEED in locomotionLogic.js)
-//   Run:  stride ~1.7 m in 0.52 s  -> ~3.3 m/s   (RUN_SPEED)
+//   Walk: stride ~1.05 m in 0.8 s  -> ~1.3 m/s   (DEFAULT_SPEEDS in locomotionLogic.js)
+//   Run:  stride ~1.7 m in 0.52 s  -> ~3.3 m/s
 const walk = gait('Walk', 0.8, {
-  hip: 0.5, knee: 0.95, kneeBase: 0.06, toeOff: 0.5,
+  hip: 0.5, knee: 0.95, kneeBase: 0.06, toeOff: 0.5, toeBend: 0.5,
   arm: 0.35, armDown: 0.3, elbow: 0.25,
   bob: 0.034, sway: 0.008, lean: 0.04, twist: 0.09, roll: 0.03,
 });
 const run = gait('Run', 0.52, {
-  hip: 0.8, knee: 1.55, kneeBase: 0.1, toeOff: 0.9,
+  hip: 0.8, knee: 1.55, kneeBase: 0.1, toeOff: 0.9, toeBend: 0.7,
   arm: 0.7, armDown: 0.36, elbow: 1.2,
   bob: 0.04, sway: 0.01, lean: 0.2, twist: 0.2, roll: 0.05,
 });
 
-const idleDuration = 3.2;
-const idleTracks = [
-  rotation('Spine', idleDuration, (ph) => [0.012 * Math.sin(ph * TAU), 0, 0]),
-  rotation('Chest', idleDuration, (ph) => [0.018 * Math.sin(ph * TAU + 0.6), 0, 0]),
-  rotation('Head', idleDuration, (ph) => [0.01 * Math.sin(ph * TAU + 1.2), 0.03 * Math.sin(ph * TAU), 0]),
-  hipsPosition(idleDuration, (ph) => [0, -0.004 * (1 - Math.cos(ph * TAU))]),
-];
-for (const [side, sign] of [['Left', 1], ['Right', -1]]) {
-  idleTracks.push(
-    rotation(`${side}Arm`, idleDuration, (ph) => [0.01 * Math.sin(ph * TAU + 0.4), 0, -sign * (0.34 + 0.015 * Math.sin(ph * TAU))]),
-    rotation(`${side}ForeArm`, idleDuration, () => [-0.18, 0, 0]),
-    rotation(`${side}Hand`, idleDuration, () => [-0.08, 0, 0]),
-  );
+// ---- poses and one-shot actions ---------------------------------------------
+// Every action describes the TARGET pose at full strength for the bones it
+// uses; all other bones sit in the relaxed idle pose. One-shot actions ease in
+// from, and back out to, that relaxed pose, so they join Idle seamlessly.
+const smoothstep = (a, b, x) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+const envelope = (ph, inT, outT) => smoothstep(0, inT, ph) * (1 - smoothstep(1 - outT, 1, ph));
+const sn = (ph, times = 1, off = 0) => Math.sin((ph * times + off) * TAU);
+const toQ = (r) => (r.isQuaternion ? r : quat(...r));
+
+const CENTRE_BONES = ['Hips', 'Spine', 'Chest', 'Neck', 'Head'];
+const SIDE_BONES = ['Shoulder', 'Arm', 'ForeArm', 'Hand', 'UpLeg', 'Leg', 'Foot', 'Toe'];
+const REST = {
+  Arm: (sign) => [0, 0, -sign * 0.34],
+  ForeArm: () => [-0.18, 0, 0],
+  Hand: () => [-0.08, 0, 0],
+};
+
+// ---- two-bone arm IK ---------------------------------------------------------
+// Puts the wrist at a chosen point, so poses like "hand to chin" or "hands
+// together" are stated as where the hands go, not as guessed angles. Positions
+// are fractions of the height in LEFT-arm space (x > 0 outward); the right arm
+// is mirrored automatically.
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const armRig = Object.fromEntries(
+  [1, -1].map((sign) => {
+    const m = (v) => p(sign === 1 ? v : mirror(v));
+    const S = m(JOINTS.Arm);
+    const E = m(JOINTS.ForeArm);
+    const W = m(JOINTS.Hand);
+    const T = m(JOINTS.HandTip);
+    return [
+      sign,
+      {
+        S,
+        L1: S.distanceTo(E),
+        L2: E.distanceTo(W),
+        u0: E.clone().sub(S).normalize(),
+        f0: W.clone().sub(E).normalize(),
+        h0: T.clone().sub(W).normalize(),
+      },
+    ];
+  }),
+);
+
+/** Returns { Arm, ForeArm, Hand } quaternions that put the wrist at `wrist`. */
+function armIK(sign, { wrist, pole, handDir }) {
+  const rig = armRig[sign];
+  const mir = (a) => V3(a[0] * sign, a[1], a[2]);
+  const target = mir(wrist).multiplyScalar(HEIGHT);
+  const d = target.clone().sub(rig.S);
+  const dist = Math.min(Math.max(d.length(), 0.06), rig.L1 + rig.L2 - 1e-3);
+  const dir = d.normalize();
+  const along = (rig.L1 * rig.L1 - rig.L2 * rig.L2 + dist * dist) / (2 * dist);
+  const height = Math.sqrt(Math.max(0, rig.L1 * rig.L1 - along * along));
+  const hint = mir(pole).normalize();
+  const side = hint.sub(dir.clone().multiplyScalar(hint.dot(dir))).normalize();
+  const elbow = rig.S.clone().addScaledVector(dir, along).addScaledVector(side, height);
+  const wristAt = rig.S.clone().addScaledVector(dir, dist);
+
+  const qArm = new THREE.Quaternion().setFromUnitVectors(rig.u0, elbow.clone().sub(rig.S).normalize());
+  const foreWorld = new THREE.Quaternion().setFromUnitVectors(rig.f0, wristAt.clone().sub(elbow).normalize());
+  const qFore = qArm.clone().invert().multiply(foreWorld);
+  const handWorld = new THREE.Quaternion().setFromUnitVectors(rig.h0, mir(handDir).normalize());
+  const qHand = foreWorld.clone().invert().multiply(handWorld);
+  return { Arm: qArm, ForeArm: qFore, Hand: qHand };
 }
-const idle = new THREE.AnimationClip('Idle', idleDuration, idleTracks);
+
+/**
+ * Builds over.Arm / ForeArm / Hand target functions from one description:
+ * `arms(ph, sign)` returns an IK goal, or null to leave that arm relaxed.
+ */
+function armTargets(arms) {
+  const cache = new Map();
+  const pose = (ph, sign) => {
+    const key = `${ph}|${sign}`;
+    if (!cache.has(key)) {
+      const goal = arms(ph, sign);
+      cache.set(key, goal ? armIK(sign, goal) : null);
+    }
+    return cache.get(key);
+  };
+  const pick = (bone) => (ph, sign) => pose(ph, sign)?.[bone] ?? toQ(REST[bone](sign));
+  return { Arm: pick('Arm'), ForeArm: pick('ForeArm'), Hand: pick('Hand') };
+}
+
+/**
+ * @param over  per-bone target functions: centre bones fn(ph), side bones
+ *              fn(ph, sign) with sign +1 left / -1 right; each returns an
+ *              [x, y, z] Euler triple or a Quaternion. `lift(ph)` raises the hips (metres).
+ */
+function action(name, duration, { loop = false, inT = 0.15, outT = 0.2, over = {}, lift } = {}) {
+  const e = (ph) => (loop ? 1 : envelope(ph, inT, outT));
+  const tracks = [];
+  const identity = new THREE.Quaternion();
+  for (const bone of CENTRE_BONES) {
+    const target = over[bone];
+    tracks.push(
+      rotation(bone, duration, (ph) =>
+        target ? identity.clone().slerp(toQ(target(ph)), e(ph)) : identity.clone(),
+      ),
+    );
+  }
+  for (const [side, sign] of [['Left', 1], ['Right', -1]]) {
+    for (const base of SIDE_BONES) {
+      const rest = toQ(REST[base]?.(sign) ?? [0, 0, 0]);
+      const target = over[base];
+      tracks.push(
+        rotation(`${side}${base}`, duration, (ph) =>
+          target ? rest.clone().slerp(toQ(target(ph, sign)), e(ph)) : rest.clone(),
+        ),
+      );
+    }
+  }
+  tracks.push(hipsPosition(duration, (ph) => [0, lift ? lift(ph) * e(ph) : 0]));
+  return new THREE.AnimationClip(name, duration, tracks);
+}
+
+const idle = action('Idle', 3.2, {
+  loop: true,
+  over: {
+    Spine: (ph) => [0.012 * sn(ph), 0, 0],
+    Chest: (ph) => [0.018 * sn(ph, 1, 0.1), 0, 0],
+    Head: (ph) => [0.01 * sn(ph, 1, 0.2), 0.03 * sn(ph), 0],
+    Arm: (ph, sign) => [0.01 * sn(ph, 1, 0.07), 0, -sign * (0.34 + 0.015 * sn(ph))],
+  },
+  lift: (ph) => -0.004 * (1 - Math.cos(ph * TAU)),
+});
+
+// Waves the right hand beside the head.
+const waveArms = armTargets((ph, sign) =>
+  sign === -1
+    ? {
+        wrist: [0.2 + 0.035 * sn(ph, 4), 0.83, 0.03],
+        pole: [0.9, -0.5, -0.2],
+        handDir: [0.45 * sn(ph, 4, 0.25), 1, 0.1],
+      }
+    : null,
+);
+const wave = action('Wave', 2.2, {
+  inT: 0.18,
+  outT: 0.22,
+  over: {
+    Spine: () => [0, 0, 0.04],
+    Head: () => [-0.02, 0.12, 0.07],
+    Shoulder: (ph, sign) => (sign === -1 ? [0, 0, -0.12] : [0, 0, 0]),
+    ...waveArms,
+  },
+});
+
+// Both arms up, two jumps: a victory cheer.
+const cheerUp = (ph) => Math.abs(Math.sin(ph * TAU * 2));
+const cheerArms = armTargets((ph) => ({
+  wrist: [0.2 + 0.01 * sn(ph, 2), 0.94 + 0.01 * cheerUp(ph), 0.0],
+  pole: [1, -0.1, -0.35],
+  handDir: [0.2, 1, 0],
+}));
+const cheer = action('Cheer', 1.8, {
+  inT: 0.12,
+  outT: 0.2,
+  lift: (ph) => 0.15 * cheerUp(ph),
+  over: {
+    Chest: () => [-0.1, 0, 0],
+    Head: () => [-0.2, 0, 0],
+    Shoulder: (ph, sign) => [0, 0, sign * 0.2],
+    UpLeg: (ph) => [-0.5 * cheerUp(ph), 0, 0],
+    Leg: (ph) => [0.9 * cheerUp(ph), 0, 0],
+    Foot: (ph) => [-0.2 * cheerUp(ph), 0, 0],
+    ...cheerArms,
+  },
+});
+
+// Head down, shoulders low: a disappointed stance, with slow breathing.
+const sad = action('Sad', 3.6, {
+  loop: true,
+  lift: (ph) => -0.016 + 0.004 * sn(ph),
+  over: {
+    Spine: (ph) => [0.12 + 0.01 * sn(ph), 0, 0],
+    Chest: (ph) => [0.18 + 0.015 * sn(ph, 1, 0.1), 0, 0],
+    Neck: () => [0.18, 0, 0],
+    Head: (ph) => [0.4, 0.05 * sn(ph), 0.05],
+    Shoulder: (ph, sign) => [0, 0, -sign * 0.12],
+    Arm: (ph, sign) => [0.08, 0, -sign * 0.14],
+    ForeArm: () => [-0.12, 0, 0],
+    Hand: () => [0.1, 0, 0],
+  },
+});
+
+// Right hand to the chin while thinking, left arm folded under the elbow.
+const thinkArms = armTargets((ph, sign) =>
+  sign === -1
+    ? { wrist: [0.045, 0.7, 0.11 + 0.004 * sn(ph)], pole: [0.5, -1, 0.1], handDir: [-0.2, 1, 0.45] }
+    : { wrist: [0.0, 0.575, 0.115], pole: [0.8, -1, -0.1], handDir: [-1, 0.2, 0.2] },
+);
+const think = action('Think', 3.6, {
+  loop: true,
+  over: {
+    Spine: (ph) => [0.02, 0.05 * sn(ph), 0.03],
+    Head: (ph) => [-0.06, 0.12 * sn(ph), -0.1],
+    ...thinkArms,
+  },
+});
+
+// Applause: hands meet in front of the chest.
+const clapPhase = (ph) => 0.5 + 0.5 * Math.sin(ph * TAU * 5);
+const clapArms = armTargets((ph) => ({
+  wrist: [0.018 + 0.1 * (1 - clapPhase(ph)), 0.64, 0.14],
+  pole: [0.8, -1, -0.15],
+  handDir: [-0.15, 1, 0.5],
+}));
+const clap = action('Clap', 1.7, {
+  inT: 0.16,
+  outT: 0.2,
+  over: {
+    Head: (ph) => [0.08 * clapPhase(ph), 0, 0],
+    ...clapArms,
+  },
+});
+
+// A relaxed look to the left, then the right.
+const lookAround = action('LookAround', 3.6, {
+  inT: 0.16,
+  outT: 0.16,
+  over: {
+    Hips: (ph) => [0, 0.05 * sn(ph), 0],
+    Spine: (ph) => [0, 0.08 * sn(ph), 0],
+    Chest: (ph) => [0, 0.1 * sn(ph), 0],
+    Neck: (ph) => [0, 0.25 * sn(ph), 0],
+    Head: (ph) => [0.02 * sn(ph, 2), 0.7 * sn(ph), 0],
+  },
+});
+
+const allClips = [idle, walk, run, wave, cheer, sad, think, clap, lookAround];
+
 
 // ---- export -----------------------------------------------------------------
-window.__rig = { bones, skeleton, root, clips: [idle, walk, run], height: HEIGHT };
+window.__rig = { bones, skeleton, root, clips: allClips, height: HEIGHT };
 const glb = await new GLTFExporter().parseAsync(root, {
   binary: true,
-  animations: [idle, walk, run],
+  animations: allClips,
   maxTextureSize: TEXTURE_SIZE,
   onlyVisible: false,
 });

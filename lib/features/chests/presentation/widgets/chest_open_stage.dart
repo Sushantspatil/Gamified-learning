@@ -10,6 +10,8 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../../../rewards/domain/rewards_models.dart';
 import '../../../rewards/presentation/widgets/coin_balance_chip.dart';
+import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../character3d/presentation/equipped_cosmetics.dart';
 import '../chest_style.dart';
 import 'chest_open_view.dart';
 
@@ -93,62 +95,84 @@ class _ChestOpenStageState extends ConsumerState<ChestOpenStage>
       canPop: done,
       child: Material(
         type: MaterialType.transparency,
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              // As large as the screen allows, but never taller than ~300.
-              final height = math.min(
-                300.0,
-                math.min(
-                  constraints.maxHeight * 0.36,
-                  constraints.maxWidth * 0.78 / style.aspectRatio,
+        child: Stack(
+          children: [
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // As large as the screen allows, but never taller than ~300.
+                  final height = math.min(
+                    300.0,
+                    math.min(
+                      constraints.maxHeight * 0.36,
+                      constraints.maxWidth * 0.78 / style.aspectRatio,
+                    ),
+                  );
+                  return Center(
+                    child: SingleChildScrollView(
+                      padding: AppSpacing.paddingLg,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            style.title,
+                            key: const Key('chest_stage_title'),
+                            textAlign: TextAlign.center,
+                            style: AppTypography.headingMedium.copyWith(
+                              color: Colors.white,
+                            ),
+                          ),
+                          SizedBox(height: height * 0.18),
+                          ChestOpenView(
+                            key: const Key('chest_stage_chest'),
+                            style: style,
+                            progress: _open,
+                            height: height,
+                            reduceMotion: AppMotion.reduceMotion(context),
+                          ),
+                          SizedBox(height: height * 0.18),
+                          AnimatedSwitcher(
+                            duration: AppMotion.duration(
+                              context,
+                              AppMotion.slow,
+                            ),
+                            child: done
+                                ? _ResultPanel(
+                                    key: const ValueKey('result'),
+                                    style: style,
+                                    result: result,
+                                  )
+                                : Text(
+                                    'Opening…',
+                                    key: const ValueKey('opening'),
+                                    style: AppTypography.body.copyWith(
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            // The character joins in when the chest has paid out.
+            if (result != null && result.opened)
+              Positioned(
+                left: 8,
+                bottom: MediaQuery.paddingOf(context).bottom + 8,
+                child: Character3dView(
+                  width: 96,
+                  height: 128,
+                  state: Character3dState.idle,
+                  initialAction: Character3dAction.cheer,
+                  cosmetics: equippedCosmetics(context),
+                  placeholder: const SizedBox.shrink(),
+                  fallback: const SizedBox.shrink(),
                 ),
-              );
-              return Center(
-                child: SingleChildScrollView(
-                  padding: AppSpacing.paddingLg,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        style.title,
-                        key: const Key('chest_stage_title'),
-                        textAlign: TextAlign.center,
-                        style: AppTypography.headingMedium.copyWith(
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(height: height * 0.18),
-                      ChestOpenView(
-                        key: const Key('chest_stage_chest'),
-                        style: style,
-                        progress: _open,
-                        height: height,
-                        reduceMotion: AppMotion.reduceMotion(context),
-                      ),
-                      SizedBox(height: height * 0.18),
-                      AnimatedSwitcher(
-                        duration: AppMotion.duration(context, AppMotion.slow),
-                        child: done
-                            ? _ResultPanel(
-                                key: const ValueKey('result'),
-                                style: style,
-                                result: result,
-                              )
-                            : Text(
-                                'Opening…',
-                                key: const ValueKey('opening'),
-                                style: AppTypography.body.copyWith(
-                                  color: Colors.white70,
-                                ),
-                              ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
+              ),
+          ],
         ),
       ),
     );

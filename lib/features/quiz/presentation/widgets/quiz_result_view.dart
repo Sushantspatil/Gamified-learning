@@ -67,6 +67,7 @@ class QuizResultView extends StatelessWidget {
               children: [
                 ResultMascot(
                   unsuccessful: isUnsuccessful,
+                  accuracy: result.accuracy.clamp(0.0, 1.0).toDouble(),
                   trophy: Container(
                     width: 86,
                     height: 86,

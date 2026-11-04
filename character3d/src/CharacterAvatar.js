@@ -13,6 +13,7 @@ import { InputController } from './InputController.js';
 import { LocomotionController } from './LocomotionController.js';
 import { Emitter } from './emitter.js';
 import { disposeObject3D, disposeTexture } from './dispose.js';
+import { createEmblem, createFrameRing } from './cosmetics.js';
 import {
   DEFAULT_SPEEDS,
   LocomotionState,
@@ -118,6 +119,9 @@ export class CharacterAvatar extends Emitter {
   #blob;
   #blobTexture;
   #glowMaterials = [];
+  #ring = null; // floor ring for the equipped frame
+  #emblem = null; // floating emblem for the equipped avatar
+  #clock = 0;
 
   // ---- controllers -------------------------------------------------------
   #loco = null;
@@ -310,6 +314,63 @@ export class CharacterAvatar extends Emitter {
     return this.#loco.setSpeed(speed);
   }
 
+  /** Names of the extra actions the model offers (wave, cheer, ...). */
+  get actionNames() {
+    return this.#loco?.actionNames ?? [];
+  }
+
+  /**
+   * Plays an action clip on the spot: wave, cheer, sad, think, clap, lookaround.
+   * Resolves when it ends (or is replaced); resolves false at once if the model
+   * does not have it. sad and think hold until stopAction() / setState().
+   */
+  playAction(name, options) {
+    this.#assertAlive();
+    if (!this.#loco) return Promise.resolve(false);
+    return new Promise((resolve) => {
+      if (!this.#loco.playAction(name, options)) return resolve(false);
+      const key = name.toLowerCase().replace(/[^a-z]/g, '');
+      const off = this.#loco.on('actionend', ({ name: ended }) => {
+        if (ended !== key) return;
+        off();
+        resolve(true);
+      });
+    });
+  }
+
+  stopAction() {
+    this.#loco?.stopAction();
+  }
+
+  get acting() {
+    return this.#loco?.acting ?? null;
+  }
+
+  /**
+   * Shows what the player has equipped: `frame` ('bronze' | 'silver' | 'gold')
+   * is a glowing ring on the floor, `avatar` ('scholar' | 'explorer' |
+   * 'champion' | 'genius') an emblem floating above the head. Unknown or empty
+   * values remove that item.
+   */
+  setCosmetics({ avatar, frame } = {}) {
+    this.#assertAlive();
+    this.#clearCosmetics();
+    this.#ring = createFrameRing(frame);
+    if (this.#ring) this.#scene.add(this.#ring);
+    this.#emblem = createEmblem(avatar);
+    if (this.#emblem) this.#scene.add(this.#emblem);
+  }
+
+  #clearCosmetics() {
+    for (const item of [this.#ring, this.#emblem]) {
+      if (!item) continue;
+      this.#scene.remove(item);
+      disposeObject3D(item);
+    }
+    this.#ring = null;
+    this.#emblem = null;
+  }
+
   /** Half the width (metres) of the ground the camera sees, for the 'strip' framing. */
   visibleHalfWidth() {
     const vFov = THREE.MathUtils.degToRad(this.#camera.fov);
@@ -346,7 +407,9 @@ export class CharacterAvatar extends Emitter {
     this.#assertAlive();
     if (!this.#loco) return;
     this.#hop = { t: 0, duration, height };
-    if (this.#loco.state === LocomotionState.IDLE) this.#loco.setState(LocomotionState.RUN);
+    if (this.#loco.state === LocomotionState.IDLE && !this.#loco.acting) {
+      this.#loco.setState(LocomotionState.RUN);
+    }
   }
 
   /** Stops rendering (e.g. the page is hidden). The pose is kept; `resume()` continues. */
@@ -413,6 +476,7 @@ export class CharacterAvatar extends Emitter {
     this.#renderer.domElement.removeEventListener('webglcontextlost', this.#onContextLost);
     this.#renderer.domElement.removeEventListener('webglcontextrestored', this.#onContextRestored);
 
+    this.#clearCosmetics();
     this.#unloadModel();
 
     this.#env?.dispose();
@@ -637,6 +701,10 @@ export class CharacterAvatar extends Emitter {
       if (path.t >= path.duration) {
         this.#path = null;
         this.#settleYaw = path.endYaw;
+        // Arrived: stand still now, so what the caller starts next (a pose) is
+        // not cut short by the walk slowing down.
+        this.#speed = 0;
+        this.#loco.setSpeed(0);
         path.done();
       }
     } else if (input?.active) {
@@ -687,6 +755,19 @@ export class CharacterAvatar extends Emitter {
       else lift = 4 * hop.height * u * (1 - u);
     }
     this.#root.position.y = lift;
+    this.#clock += dt;
+    if (this.#ring) {
+      this.#ring.position.set(this.#root.position.x, 0.012, this.#root.position.z);
+      this.#ring.userData.update(this.#clock);
+    }
+    if (this.#emblem) {
+      this.#emblem.position.set(
+        this.#root.position.x,
+        this.options.targetHeight * 1.06 + lift,
+        this.#root.position.z,
+      );
+      this.#emblem.userData.update(this.#clock);
+    }
     this.#blob.scale.setScalar(this.options.targetHeight * 0.55 * (1 - Math.min(0.5, lift)));
 
     // Shadows and the contact blob stay under the character.

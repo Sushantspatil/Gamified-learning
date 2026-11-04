@@ -12,6 +12,8 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
+import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../character3d/presentation/equipped_cosmetics.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 
 class HowToPlayTutorialScreen extends ConsumerStatefulWidget {
@@ -25,11 +27,22 @@ class HowToPlayTutorialScreen extends ConsumerStatefulWidget {
 class _HowToPlayTutorialScreenState
     extends ConsumerState<HowToPlayTutorialScreen> {
   final _pageController = PageController();
+  final _guide = Character3dController();
   int _index = 0;
+
+  /// What the guide does on each slide (the same order as [_slides]).
+  static const _guideActions = [
+    Character3dAction.wave, // Learn at your pace
+    Character3dAction.lookAround, // Play & practice
+    Character3dAction.think, // Use power-ups
+    Character3dAction.cheer, // Earn rewards
+    Character3dAction.clap, // Compete & grow
+  ];
 
   @override
   void dispose() {
     _pageController.dispose();
+    _guide.dispose();
     super.dispose();
   }
 
@@ -53,11 +66,37 @@ class _HowToPlayTutorialScreenState
                 semanticLabel: 'Tutorial progress',
               ),
             ),
+            // The guide stays above the slides and reacts to each one. If 3D is
+            // not available the space is given back to the slides.
+            ValueListenableBuilder<Character3dStatus>(
+              valueListenable: _guide.status,
+              builder: (context, status, _) {
+                if (status == Character3dStatus.unavailable) {
+                  return const SizedBox.shrink();
+                }
+                return Character3dView(
+                  key: const Key('tutorial_guide'),
+                  width: 130,
+                  height: 130,
+                  state: Character3dState.idle,
+                  controller: _guide,
+                  initialAction: _guideActions.first,
+                  cosmetics: equippedCosmetics(context),
+                  placeholder: const Character3dPoster(height: 130),
+                  fallback: const SizedBox.shrink(),
+                );
+              },
+            ),
             Expanded(
               child: PageView.builder(
                 controller: _pageController,
                 itemCount: _slides.length,
-                onPageChanged: (index) => setState(() => _index = index),
+                onPageChanged: (index) {
+                  setState(() => _index = index);
+                  _guide.play(
+                    _guideActions[index.clamp(0, _guideActions.length - 1)],
+                  );
+                },
                 itemBuilder: (context, index) =>
                     _TutorialSlideCard(slide: _slides[index]),
               ),

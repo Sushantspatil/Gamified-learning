@@ -16,6 +16,10 @@ const CLIP_ALIASES = {
   [LocomotionState.RUN]: ['run', 'jog', 'sprint'],
 };
 
+/** Actions that hold until stopped (the rest play once and return to the idle pose). */
+const HOLD_ACTIONS = new Set(['sad', 'think']);
+const actionKey = (name) => name.toLowerCase().replace(/[^a-z]/g, '');
+
 /** When a clip is missing, play the nearest one instead of freezing. */
 const FALLBACK = {
   [LocomotionState.IDLE]: [],
@@ -37,6 +41,11 @@ export class LocomotionController extends Emitter {
   #state = null;
   #speeds;
   #fade;
+  #extra = new Map(); // action key -> AnimationAction (wave, cheer, ...)
+  #acting = null; // { key, action, hold } while an action plays
+  #onFinished = ({ action }) => {
+    if (this.#acting && this.#acting.action === action && !this.#acting.hold) this.#leaveAction(true);
+  };
 
   constructor(mixer, clips, { fadeDuration = 0.25, ...speeds } = {}) {
     super();
@@ -64,6 +73,72 @@ export class LocomotionController extends Emitter {
       console.warn(`[avatar] using clip "${clips[0].name}" as the walk animation`);
     }
     this.clipNames = clips.map((clip) => clip.name);
+
+    // Every clip that is not Idle / Walk / Run is a named action.
+    const used = new Set([...this.#actions.values()].map((a) => a.getClip()));
+    for (const clip of clips) {
+      if (!used.has(clip)) this.#extra.set(actionKey(clip.name), mixer.clipAction(clip));
+    }
+    mixer.addEventListener('finished', this.#onFinished);
+  }
+
+  /** Names of the actions this model can play (lower-case). */
+  get actionNames() {
+    return [...this.#extra.keys()];
+  }
+
+  /** The action playing now (lower-case name), or null. */
+  get acting() {
+    return this.#acting?.key ?? null;
+  }
+
+  /**
+   * Plays an action clip (wave, cheer, sad, think, clap, lookaround, ...) on top
+   * of the current state. Most play once and ease back to the relaxed pose;
+   * sad and think hold until stopAction() or the next setState(). Returns false
+   * if the model has no such action.
+   */
+  playAction(name, { hold } = {}) {
+    const key = actionKey(name);
+    const action = this.#extra.get(key);
+    if (!action) return false;
+    const base = this.#state ? this.#actions.get(this.#state) : null;
+    if (this.#acting) this.#leaveAction(false);
+
+    const holds = hold ?? HOLD_ACTIONS.has(key);
+    action.reset();
+    action.enabled = true;
+    action.setEffectiveWeight(1);
+    action.setEffectiveTimeScale(1);
+    action.setLoop(holds ? THREE.LoopRepeat : THREE.LoopOnce, holds ? Infinity : 1);
+    action.clampWhenFinished = true;
+    action.play();
+    if (base) base.crossFadeTo(action, this.#fade, false);
+    else action.fadeIn(this.#fade);
+    this.#acting = { key, action, hold: holds };
+    this.emit('action', { name: key });
+    return true;
+  }
+
+  /** Ends a held or playing action, easing back to the current state. */
+  stopAction() {
+    if (this.#acting) this.#leaveAction(true);
+  }
+
+  #leaveAction(restore) {
+    const acting = this.#acting;
+    if (!acting) return;
+    this.#acting = null;
+    acting.action.fadeOut(this.#fade);
+    if (restore) {
+      const base = this.#state ? this.#actions.get(this.#state) : null;
+      if (base) {
+        base.reset();
+        base.fadeIn(this.#fade);
+        base.play();
+      }
+    }
+    this.emit('actionend', { name: acting.key });
   }
 
   get state() {
@@ -80,6 +155,12 @@ export class LocomotionController extends Emitter {
       throw new Error(`Unknown state "${state}". Use idle, walk or run.`);
     }
     const resolved = this.#resolve(state);
+    if (this.#acting) {
+      // Asking for a state ends the action; asking for the one already
+      // underneath simply brings it back.
+      this.#leaveAction(resolved === this.#state);
+      if (resolved === this.#state) return this.#state;
+    }
     if (!resolved || resolved === this.#state) return this.#state;
 
     const next = this.#actions.get(resolved);
@@ -116,6 +197,8 @@ export class LocomotionController extends Emitter {
    */
   setSpeed(speed) {
     const next = nextLocomotionState(this.#state ?? LocomotionState.IDLE, speed, this.#speeds);
+    // Standing still does not interrupt an action; starting to move does.
+    if (this.#acting && next === this.#state) return this.#state;
     this.setState(next);
     this.#applyTimeScale(speed);
     return this.#state;
@@ -142,8 +225,11 @@ export class LocomotionController extends Emitter {
   }
 
   dispose() {
+    this.#mixer.removeEventListener('finished', this.#onFinished);
     this.#mixer.stopAllAction();
     this.#actions.clear();
+    this.#extra.clear();
+    this.#acting = null;
     this.clear();
   }
 }

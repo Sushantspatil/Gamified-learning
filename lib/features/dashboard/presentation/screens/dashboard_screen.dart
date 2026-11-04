@@ -31,6 +31,9 @@ import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../streaks/domain/entities/streak.dart';
 import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import '../../../../core/utils/date_key.dart';
+import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../rewards/application/rewards_controller.dart';
 import '../widgets/mascot_card.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -46,6 +49,7 @@ class DashboardScreen extends ConsumerWidget {
         .watch(selectedLearningPathControllerProvider)
         .valueOrNull;
     final pathsAsync = ref.watch(learningPathsProvider);
+    final rewards = ref.watch(rewardsProvider);
 
     return GameScaffold(
       body: SafeArea(
@@ -72,6 +76,14 @@ class DashboardScreen extends ConsumerWidget {
             MascotCard(
               displayName: user?.displayName ?? 'Learner',
               streak: streakAsync.valueOrNull?.currentStreak ?? 0,
+              chestReady: rewards.anyChestReady,
+              canSpin: rewards.canSpinOn(
+                dateKey(ref.read(rewardsClockProvider)()),
+              ),
+              cosmetics: Character3dCosmetics.fromShopIds(
+                avatarId: rewards.equippedAvatar,
+                frameId: rewards.equippedFrame,
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
             _SelectedPathDashboardSections(
