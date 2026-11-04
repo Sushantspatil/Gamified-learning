@@ -22,6 +22,7 @@ import '../../../character/application/character_controller.dart';
 import '../../../character/presentation/character_providers.dart';
 import '../../../character/presentation/character_stage.dart';
 import '../../../character/presentation/mcq_character_adapter.dart';
+import '../../../character3d/presentation/character_3d_view.dart';
 
 class McqQuestionView extends ConsumerStatefulWidget {
   final McqQuestion question;
@@ -63,11 +64,17 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
 
   late final McqCharacterAdapter _character;
 
+  /// Moves the 3D character along its strip: it walks in for each question,
+  /// hops when an option is picked and runs off when the answer is submitted.
+  final Character3dController _character3d = Character3dController();
+
   /// Tells the character a question appeared (after the frame, so listeners
   /// are never notified mid-build).
   void _announceQuestion() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _character.questionShown(isFirst: widget.currentIndex == 0);
+      if (!mounted) return;
+      _character.questionShown(isFirst: widget.currentIndex == 0);
+      _character3d.enter();
     });
   }
 
@@ -203,6 +210,7 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
 
     setState(() => _isSubmitted = true);
     _character.answerSubmitted(isFinal: _isFinalQuestion);
+    _character3d.exit();
     await _questionMotionController.reverse();
     if (!mounted) return;
 
@@ -269,147 +277,166 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
                 constraints.maxHeight,
               );
 
+              Widget animated(Widget child) => FadeTransition(
+                opacity: _questionMotionController.drive(
+                  CurveTween(curve: AppMotion.easeOut),
+                ),
+                child: SlideTransition(
+                  position:
+                      Tween<Offset>(
+                        begin: const Offset(0, 0.045),
+                        end: Offset.zero,
+                      ).animate(
+                        CurvedAnimation(
+                          parent: _questionMotionController,
+                          curve: AppMotion.easeOut,
+                          reverseCurve: AppMotion.easeIn,
+                        ),
+                      ),
+                  child: child,
+                ),
+              );
+
               return SingleChildScrollView(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: FadeTransition(
-                    opacity: _questionMotionController.drive(
-                      CurveTween(curve: AppMotion.easeOut),
-                    ),
-                    child: SlideTransition(
-                      position:
-                          Tween<Offset>(
-                            begin: const Offset(0, 0.045),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                              parent: _questionMotionController,
-                              curve: AppMotion.easeOut,
-                              reverseCurve: AppMotion.easeIn,
-                            ),
-                          ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            widget.question.prompt,
-                            softWrap: true,
-                            style: context.appTextStyles.titleLarge,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          _CharacterSlot(
-                            controller: character,
-                            height: companionHeight,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          for (final indexed
-                              in widget.question.options.indexed) ...[
-                            _AnimatedMcqOption(
-                              key: ValueKey(
-                                'mcq-option-${widget.question.id}-${indexed.$2.id}',
-                              ),
-                              controller: _questionMotionController,
-                              index: indexed.$1,
-                              option: indexed.$2,
-                              isSelected: _selectedOptionId == indexed.$2.id,
-                              isHidden: _hiddenOptionIds.contains(
-                                indexed.$2.id,
-                              ),
-                              isDisabled: _isSubmitted,
-                              onSelected: () {
-                                if (_isSubmitted ||
-                                    _hiddenOptionIds.contains(indexed.$2.id)) {
-                                  return;
-                                }
-                                ref
-                                    .read(gameAudioServiceProvider)
-                                    .play(GameSound.answerSelect);
-                                setState(
-                                  () => _selectedOptionId = indexed.$2.id,
-                                );
-                              },
-                            ),
-                            if (indexed.$1 !=
-                                widget.question.options.length - 1)
-                              const SizedBox(height: AppSpacing.sm),
-                          ],
-                          AnimatedSize(
-                            duration: AppMotion.duration(
-                              context,
-                              AppMotion.normal,
-                            ),
-                            alignment: Alignment.topCenter,
-                            child: _isHintVisible
-                                ? Padding(
-                                    padding: const EdgeInsets.only(
-                                      top: AppSpacing.md,
-                                    ),
-                                    child: _HintPanel(
-                                      text:
-                                          widget.question.hint ??
-                                          'Read the question carefully and eliminate choices that do not fit.',
-                                    ),
-                                  )
-                                : const SizedBox.shrink(),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          GamePowerUpBar(
-                            coinBalanceOverride: widget.coins,
-                            isDisabled: _isSubmitted,
-                            actions: [
-                              GamePowerUpAction(
-                                id: '50-50',
-                                label: '50:50',
-                                description: 'Remove two wrong answers.',
-                                coinCost: 20,
-                                icon: Icons.filter_2,
-                                isUsed: _isFiftyFiftyUsed,
-                                onUse: _useFiftyFifty,
-                              ),
-                              GamePowerUpAction(
-                                id: 'hint',
-                                label: 'Hint',
-                                description:
-                                    'Show a helpful clue without revealing the answer.',
-                                coinCost: 10,
-                                icon: Icons.lightbulb_outline,
-                                isUsed: _isHintVisible,
-                                onUse: _showHint,
-                              ),
-                              GamePowerUpAction(
-                                id: 'mcq-skip',
-                                label: 'Skip',
-                                description:
-                                    'Move on without selecting an answer.',
-                                coinCost: 25,
-                                icon: Icons.fast_forward_rounded,
-                                isUsed: _isSkipUsed,
-                                onUse: _skipQuestion,
-                              ),
-                            ],
-                          ),
-                          _TokenRow(
-                            hintTokens: hintTokens,
-                            fiftyFiftyTokens: fiftyFiftyTokens,
-                            canUseHint: _canUseHintToken,
-                            canUseFiftyFifty: _canUseFiftyFiftyToken,
-                            onHint: _useHintToken,
-                            onFiftyFifty: _useFiftyFiftyToken,
-                            hintNote:
-                                hintTokens > 0 && widget.question.hint == null
-                                ? "This question has no hint."
-                                : null,
-                            fiftyFiftyNote:
-                                fiftyFiftyTokens > 0 &&
-                                    widget.question.options.length < 4
-                                ? "50/50 is not available for this question."
-                                : null,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          submitButton,
-                        ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      animated(
+                        Text(
+                          widget.question.prompt,
+                          softWrap: true,
+                          style: context.appTextStyles.titleLarge,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: AppSpacing.md),
+                      // Not inside the fade/slide: a WebView must not be
+                      // faded or moved by the question transition.
+                      _CharacterSlot(
+                        controller: character,
+                        character3d: _character3d,
+                        height: companionHeight,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      animated(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final indexed
+                                in widget.question.options.indexed) ...[
+                              _AnimatedMcqOption(
+                                key: ValueKey(
+                                  'mcq-option-${widget.question.id}-${indexed.$2.id}',
+                                ),
+                                controller: _questionMotionController,
+                                index: indexed.$1,
+                                option: indexed.$2,
+                                isSelected: _selectedOptionId == indexed.$2.id,
+                                isHidden: _hiddenOptionIds.contains(
+                                  indexed.$2.id,
+                                ),
+                                isDisabled: _isSubmitted,
+                                onSelected: () {
+                                  if (_isSubmitted ||
+                                      _hiddenOptionIds.contains(
+                                        indexed.$2.id,
+                                      )) {
+                                    return;
+                                  }
+                                  ref
+                                      .read(gameAudioServiceProvider)
+                                      .play(GameSound.answerSelect);
+                                  if (_selectedOptionId != indexed.$2.id) {
+                                    _character3d.hop();
+                                  }
+                                  setState(
+                                    () => _selectedOptionId = indexed.$2.id,
+                                  );
+                                },
+                              ),
+                              if (indexed.$1 !=
+                                  widget.question.options.length - 1)
+                                const SizedBox(height: AppSpacing.sm),
+                            ],
+                            AnimatedSize(
+                              duration: AppMotion.duration(
+                                context,
+                                AppMotion.normal,
+                              ),
+                              alignment: Alignment.topCenter,
+                              child: _isHintVisible
+                                  ? Padding(
+                                      padding: const EdgeInsets.only(
+                                        top: AppSpacing.md,
+                                      ),
+                                      child: _HintPanel(
+                                        text:
+                                            widget.question.hint ??
+                                            'Read the question carefully and eliminate choices that do not fit.',
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            GamePowerUpBar(
+                              coinBalanceOverride: widget.coins,
+                              isDisabled: _isSubmitted,
+                              actions: [
+                                GamePowerUpAction(
+                                  id: '50-50',
+                                  label: '50:50',
+                                  description: 'Remove two wrong answers.',
+                                  coinCost: 20,
+                                  icon: Icons.filter_2,
+                                  isUsed: _isFiftyFiftyUsed,
+                                  onUse: _useFiftyFifty,
+                                ),
+                                GamePowerUpAction(
+                                  id: 'hint',
+                                  label: 'Hint',
+                                  description:
+                                      'Show a helpful clue without revealing the answer.',
+                                  coinCost: 10,
+                                  icon: Icons.lightbulb_outline,
+                                  isUsed: _isHintVisible,
+                                  onUse: _showHint,
+                                ),
+                                GamePowerUpAction(
+                                  id: 'mcq-skip',
+                                  label: 'Skip',
+                                  description:
+                                      'Move on without selecting an answer.',
+                                  coinCost: 25,
+                                  icon: Icons.fast_forward_rounded,
+                                  isUsed: _isSkipUsed,
+                                  onUse: _skipQuestion,
+                                ),
+                              ],
+                            ),
+                            _TokenRow(
+                              hintTokens: hintTokens,
+                              fiftyFiftyTokens: fiftyFiftyTokens,
+                              canUseHint: _canUseHintToken,
+                              canUseFiftyFifty: _canUseFiftyFiftyToken,
+                              onHint: _useHintToken,
+                              onFiftyFifty: _useFiftyFiftyToken,
+                              hintNote:
+                                  hintTokens > 0 && widget.question.hint == null
+                                  ? "This question has no hint."
+                                  : null,
+                              fiftyFiftyNote:
+                                  fiftyFiftyTokens > 0 &&
+                                      widget.question.options.length < 4
+                                  ? "50/50 is not available for this question."
+                                  : null,
+                            ),
+                            const SizedBox(height: AppSpacing.md),
+                            submitButton,
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );
@@ -722,9 +749,14 @@ class _McqOptionCard extends StatelessWidget {
 /// question and the options. Hidden in landscape where there is no room.
 class _CharacterSlot extends StatelessWidget {
   final CharacterController controller;
+  final Character3dController character3d;
   final double height;
 
-  const _CharacterSlot({required this.controller, required this.height});
+  const _CharacterSlot({
+    required this.controller,
+    required this.character3d,
+    required this.height,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -734,7 +766,22 @@ class _CharacterSlot extends StatelessWidget {
     return SizedBox(
       key: const Key('mcq_character_section'),
       height: height,
-      child: CharacterStage(controller: controller, height: height),
+      // The 3D character walks along the strip. If it cannot run (or while it
+      // loads) the original 2D host is shown instead.
+      child: LayoutBuilder(
+        builder: (context, constraints) => Character3dView(
+          width: constraints.maxWidth,
+          height: height,
+          state: Character3dState.idle,
+          framing: Character3dFraming.strip,
+          controller: character3d,
+          fallback: SizedBox(
+            width: constraints.maxWidth,
+            height: height,
+            child: CharacterStage(controller: controller, height: height),
+          ),
+        ),
+      ),
     );
   }
 }

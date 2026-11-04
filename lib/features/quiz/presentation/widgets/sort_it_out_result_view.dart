@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
+import '../../../character3d/presentation/result_mascot.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
@@ -80,27 +81,30 @@ class _SortItOutResultViewState extends State<SortItOutResultView> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 // 1. Top Emblem Badge (Matches MCQ & Sudden Death)
-                Container(
-                  width: 86,
-                  height: 86,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: isUnsuccessful
-                          ? [colors.error, colors.violet]
-                          : [colors.warning, AppColors.accentGold],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: accent.withValues(alpha: 0.22),
-                        blurRadius: 24,
+                ResultMascot(
+                  unsuccessful: isUnsuccessful,
+                  trophy: Container(
+                    width: 86,
+                    height: 86,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(
+                        colors: isUnsuccessful
+                            ? [colors.error, colors.violet]
+                            : [colors.warning, AppColors.accentGold],
                       ),
-                    ],
-                  ),
-                  child: Icon(
-                    isUnsuccessful ? Icons.whatshot : Icons.emoji_events,
-                    color: colors.textInverse,
-                    size: 44,
+                      boxShadow: [
+                        BoxShadow(
+                          color: accent.withValues(alpha: 0.22),
+                          blurRadius: 24,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      isUnsuccessful ? Icons.whatshot : Icons.emoji_events,
+                      color: colors.textInverse,
+                      size: 44,
+                    ),
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),

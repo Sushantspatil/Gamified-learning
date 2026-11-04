@@ -41,6 +41,7 @@ dependencies:
   shared_preferences: ^2.5.3
   http: ^1.2.0
   audioplayers: ^6.1.0
+  webview_flutter: ^4.14.1
 
 dev_dependencies:
   flutter_test:
@@ -70,6 +71,7 @@ flutter:
     - assets/images/splash/
     - assets/images/auth/
     - assets/character/character.png
+    - assets/character3d/
     - assets/chests/galaxy/
     - assets/chests/golden/
     - assets/chests/cyber/

@@ -31,6 +31,7 @@ import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../streaks/domain/entities/streak.dart';
 import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import '../widgets/mascot_card.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -66,6 +67,11 @@ class DashboardScreen extends ConsumerWidget {
               streak: streakAsync.valueOrNull?.currentStreak ?? 0,
               gems: wallet?.gems ?? 0,
               onTap: () => context.go(RouteNames.profile),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            MascotCard(
+              displayName: user?.displayName ?? 'Learner',
+              streak: streakAsync.valueOrNull?.currentStreak ?? 0,
             ),
             const SizedBox(height: AppSpacing.md),
             _SelectedPathDashboardSections(

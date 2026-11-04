@@ -224,7 +224,9 @@ class QuizScreen extends ConsumerWidget {
               return Padding(
                 padding: AppSpacing.paddingMd,
                 child: McqQuestionView(
-                  key: ValueKey(question.id),
+                  // One stable key: the same view (and its 3D character) serves every
+                  // question of the game; it resets itself when the question changes.
+                  key: const ValueKey('mcq-question-view'),
                   question: question,
                   currentIndex: session.currentIndex,
                   totalQuestions: session.questions.length,
