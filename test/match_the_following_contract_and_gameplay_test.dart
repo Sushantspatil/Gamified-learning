@@ -936,7 +936,7 @@ void main() {
       container.dispose();
     });
 
-    testWidgets('TEST 10 — completes all 4 pairs, submits board, reviews analysis, and displays backend results', (tester) async {
+    testWidgets('TEST 10 — completes all 4 pairs, submits the board, and displays backend results', (tester) async {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
@@ -974,20 +974,12 @@ void main() {
 
       expect(find.textContaining('4 of 4'), findsOneWidget);
 
-      // Submit button is now active
+      // The button is active. This is the only board, so it says Submit; it
+      // sends the board at once and shows no per-board right / wrong step.
       await tester.ensureVisible(find.text('Submit'));
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('match_analysis_summary')), findsNothing);
       await tester.tap(find.text('Submit'));
-      await tester.pumpAndSettle();
-
-      // Analysis view is shown with Next button
-      expect(find.byKey(const Key('match_analysis_summary')), findsOneWidget);
-      expect(find.text('Next'), findsOneWidget);
-
-      // Tap Next to submit board and advance
-      await tester.ensureVisible(find.text('Next'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Next'));
 
       // Wait for board completion and API response
       await tester.pump(const Duration(milliseconds: 350));
@@ -1006,7 +998,7 @@ void main() {
       // Back navigation on results screen does NOT show abandon dialog
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(find.text('Exit Match Game?'), findsNothing);
+      expect(find.text('Quit Match It?'), findsNothing);
 
       await tester.pumpWidget(const SizedBox.shrink());
       container.dispose();

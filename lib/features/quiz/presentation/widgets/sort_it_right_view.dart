@@ -14,6 +14,9 @@ import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_choice_card.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/game_header.dart';
+import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../character3d/presentation/character_glow.dart';
+import '../../../character3d/presentation/equipped_cosmetics.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../domain/entities/sort_it_out_models.dart';
@@ -84,6 +87,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
   _SortPhase _phase = _SortPhase.intro;
   Offset _exitStart = Offset.zero;
   Offset _exitTarget = Offset.zero;
+  final Character3dController _character = Character3dController();
   Size _stageSize = Size.zero;
   double _cardHeight = 144;
   bool _isDragging = false;
@@ -173,10 +177,6 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
     }
     return widget.fallDuration;
   }
-
-  int get _correctCount => _history.indexed
-      .where((move) => _correctSideAt(move.$1) == move.$2)
-      .length;
 
   @override
   void initState() {
@@ -323,6 +323,9 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
       _history.add(side);
       _phase = _SortPhase.feedback;
     });
+    if (side != null && side == _correctSideAt(_history.length - 1)) {
+      _character.hop();
+    }
     _feedbackTimer = Timer(sortFeedbackDuration, () {
       if (!mounted) return;
       if (_complete) {
@@ -385,6 +388,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _feedbackTimer?.cancel();
+    _character.dispose();
     _fallController.dispose();
     _exitController.dispose();
     _dragX.dispose();
@@ -736,6 +740,30 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
           child: Stack(
             clipBehavior: Clip.none,
             children: [
+              // First in the stack, so the falling card passes in front of it.
+              if (constraints.maxHeight >= 150)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: math.min(190.0, constraints.maxHeight * 0.8),
+                  child: Center(
+                    child: CharacterGlow(
+                      child: Character3dView(
+                        width: 150,
+                        height: math.min(190.0, constraints.maxHeight * 0.8),
+                        state: Character3dState.idle,
+                        controller: _character,
+                        cosmetics: equippedCosmetics(context),
+                        initialAction: Character3dAction.think,
+                        placeholder: Character3dPoster(
+                          height: math.min(190.0, constraints.maxHeight * 0.8),
+                        ),
+                        fallback: const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                ),
               if (!resolved)
                 Positioned(
                   top: 0,
@@ -920,11 +948,6 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
             _helpVisible || _powerUpBusy ? 'Paused' : 'Swipe or tap a group',
             textAlign: TextAlign.center,
             style: context.appTextStyles.bodyMedium,
-          ),
-          Text(
-            '$_correctCount correct · ${_history.length - _correctCount} wrong',
-            textAlign: TextAlign.center,
-            style: context.appTextStyles.labelSmall,
           ),
         ],
       );

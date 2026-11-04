@@ -79,17 +79,12 @@ Future<void> _selectPair(
   await tester.pumpAndSettle();
 }
 
-Future<void> _submitForAnalysis(WidgetTester tester) async {
+/// The board's button (here the only board, so it says "Submit"): it sends the
+/// board straight away. Right and wrong are only shown in the final results.
+Future<void> _submitBoard(WidgetTester tester) async {
   await tester.ensureVisible(find.text('Submit'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Submit'));
-  await tester.pumpAndSettle();
-}
-
-Future<void> _continueFromAnalysis(WidgetTester tester) async {
-  await tester.ensureVisible(find.text('Next'));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Next'));
   await tester.pump();
 }
 
@@ -169,8 +164,7 @@ void main() {
     await _selectPair(tester, 'p1', 'p1');
     await _selectPair(tester, 'p2', 'p2');
     await _selectPair(tester, 'p3', 'p3');
-    await _submitForAnalysis(tester);
-    await _continueFromAnalysis(tester);
+    await _submitBoard(tester);
 
     expect(submitted?.matchedPairIds, {'p1': 'p1', 'p2': 'p2', 'p3': 'p3'});
   });
@@ -194,36 +188,9 @@ void main() {
     expect(submitted, isNull);
   });
 
-  testWidgets('submit validates all pairs and shows correct answers', (
+  testWidgets('submit sends the board without revealing right or wrong', (
     tester,
   ) async {
-    await _pumpMatchView(tester);
-
-    await _selectPair(tester, 'p1', 'p2');
-    await _selectPair(tester, 'p2', 'p1');
-    await _selectPair(tester, 'p3', 'p3');
-    await _submitForAnalysis(tester);
-
-    expect(find.byKey(const Key('match_analysis_summary')), findsOneWidget);
-    expect(find.text('2 answers need review'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
-    expect(find.text('33%'), findsOneWidget);
-    expect(find.byIcon(Icons.check_circle_rounded), findsWidgets);
-    expect(find.byIcon(Icons.cancel_rounded), findsWidgets);
-    expect(find.text('Correct answers'), findsNothing);
-    expect(find.text('Correct: Intangible Asset'), findsWidgets);
-
-    await tester.ensureVisible(find.text('View corrections'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('View corrections'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Your match: Current Asset'), findsOneWidget);
-    expect(find.text('Correct: Intangible Asset'), findsWidgets);
-  });
-
-  testWidgets('submitted board is locked until continuing', (tester) async {
     MatchTheFollowingAnswer? submitted;
     await _pumpMatchView(
       tester,
@@ -233,9 +200,34 @@ void main() {
     await _selectPair(tester, 'p1', 'p2');
     await _selectPair(tester, 'p2', 'p1');
     await _selectPair(tester, 'p3', 'p3');
-    await _submitForAnalysis(tester);
-    await _selectPair(tester, 'p1', 'p1');
-    await _continueFromAnalysis(tester);
+    await _submitBoard(tester);
+
+    // Sent as chosen, wrong pairs included...
+    expect(submitted?.matchedPairIds, {'p1': 'p2', 'p2': 'p1', 'p3': 'p3'});
+    // ...and nothing on screen says which were right.
+    expect(find.byKey(const Key('match_analysis_summary')), findsNothing);
+    expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+    expect(find.byIcon(Icons.cancel_rounded), findsNothing);
+    expect(find.textContaining('Correct:'), findsNothing);
+  });
+
+  testWidgets('a submitted board is locked', (tester) async {
+    MatchTheFollowingAnswer? submitted;
+    await _pumpMatchView(
+      tester,
+      onSubmit: (answer) => submitted = answer as MatchTheFollowingAnswer,
+    );
+
+    await _selectPair(tester, 'p1', 'p2');
+    await _selectPair(tester, 'p2', 'p1');
+    await _selectPair(tester, 'p3', 'p3');
+    await _submitBoard(tester);
+    // Too late: the cards ignore taps (the button spinner keeps animating, so
+    // pump a frame instead of waiting for the screen to settle).
+    await tester.tap(find.byKey(const Key('match-left-p1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('match-right-p1')));
+    await tester.pump();
 
     expect(submitted?.matchedPairIds, {'p1': 'p2', 'p2': 'p1', 'p3': 'p3'});
   });

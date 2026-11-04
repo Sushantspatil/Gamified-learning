@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skillverse_app/features/character3d/presentation/character_3d_view.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skillverse_app/app/theme/app_theme.dart';
@@ -270,9 +271,15 @@ void main() {
     );
     await start(tester);
     await tapSide(tester, 'debit');
-    expect(find.text('1 correct · 0 wrong'), findsOneWidget);
+    expect(
+      find.textContaining('correct ·'),
+      findsNothing,
+    ); // no running counter any more
     await tapSide(tester, 'credit');
-    expect(find.text('1 correct · 1 wrong'), findsOneWidget);
+    expect(
+      find.textContaining('correct ·'),
+      findsNothing,
+    ); // no running counter any more
     await tapSide(tester, 'credit');
     await tapSide(tester, 'debit');
     await tapSide(tester, 'credit');
@@ -334,7 +341,42 @@ void main() {
     expect(tester.getTopLeft(card).dy, bottom);
     expect(find.text('Missed'), findsNothing);
     await tapSide(tester, 'debit');
-    expect(find.text('1 correct · 0 wrong'), findsOneWidget);
+    expect(
+      find.textContaining('correct ·'),
+      findsNothing,
+    ); // no running counter any more
+  });
+
+  testWidgets('the character stands in the stage, behind the falling card', (
+    tester,
+  ) async {
+    await pumpSort(tester);
+    await start(tester);
+    final character = find.byType(Character3dView);
+    expect(character, findsOneWidget);
+    final stage = tester.getRect(find.byKey(const Key('sort-playfield')));
+    final box = tester.getRect(character);
+    expect(box.bottom, closeTo(stage.bottom, 1)); // at the bottom of the stage
+    expect(box.top, greaterThanOrEqualTo(stage.top));
+    // Painted before (so under) the card: it is the first child of the stage's
+    // stack, and the falling card comes after it. (The nearest Stack above the
+    // character is the glow's own; the stage's is the next one up.)
+    final stageStack = tester.widget<Stack>(
+      find.ancestor(of: character, matching: find.byType(Stack)).at(1),
+    );
+    final children = stageStack.children;
+    expect(children.first, isA<Positioned>());
+    expect(
+      find.descendant(
+        of: find.byWidget(children.first),
+        matching: find.byType(Character3dView),
+      ),
+      findsOneWidget,
+    );
+    expect(children.length, greaterThan(1)); // the card is further up the stack
+    // the running counter is gone; the hint line stays
+    expect(find.textContaining('correct ·'), findsNothing);
+    expect(find.text('Swipe or tap a group'), findsOneWidget);
   });
 
   testWidgets('a last-moment tap stops timeout and cannot double-score', (
@@ -354,7 +396,10 @@ void main() {
     expect(find.text('Missed'), findsNothing);
     await nextItem(tester);
     expect(find.text('2 / 5'), findsOneWidget);
-    expect(find.text('1 correct · 0 wrong'), findsOneWidget);
+    expect(
+      find.textContaining('correct ·'),
+      findsNothing,
+    ); // no running counter any more
   });
 
   testWidgets(
@@ -399,7 +444,10 @@ void main() {
       expect(container.read(walletControllerProvider).requireValue.coins, 65);
       await continueSorting(tester);
       await tapSide(tester, 'debit');
-      expect(find.text('1 correct · 0 wrong'), findsOneWidget);
+      expect(
+        find.textContaining('correct ·'),
+        findsNothing,
+      ); // no running counter any more
     },
   );
 
@@ -415,17 +463,26 @@ void main() {
       await nextItem(tester);
       await buy(tester, 'undo');
       expect(find.text('Land A/C'), findsOneWidget);
-      expect(find.text('1 correct · 0 wrong'), findsOneWidget);
+      expect(
+        find.textContaining('correct ·'),
+        findsNothing,
+      ); // no running counter any more
       expect(
         tester.getTopLeft(card).dy,
         closeTo(tester.getTopLeft(stage).dy, 1),
       );
       await buy(tester, 'undo');
       expect(find.text('Cash A/C'), findsOneWidget);
-      expect(find.text('0 correct · 0 wrong'), findsOneWidget);
+      expect(
+        find.textContaining('correct ·'),
+        findsNothing,
+      ); // no running counter any more
       expect(container.read(walletControllerProvider).requireValue.coins, 80);
       await tapSide(tester, 'debit');
-      expect(find.text('1 correct · 0 wrong'), findsOneWidget);
+      expect(
+        find.textContaining('correct ·'),
+        findsNothing,
+      ); // no running counter any more
     },
   );
 

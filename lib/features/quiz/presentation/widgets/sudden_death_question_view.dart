@@ -15,6 +15,9 @@ import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/game_header.dart';
+import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../character3d/presentation/character_glow.dart';
+import '../../../character3d/presentation/equipped_cosmetics.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
@@ -132,6 +135,7 @@ class _SuddenDeathQuestionViewState
   SuddenDeathFeedbackState _previewFeedback = SuddenDeathFeedbackState.none;
   _SuddenDeathPowerUpEffect _powerUpEffect = _SuddenDeathPowerUpEffect.none;
   bool _showTimeBoost = false;
+  final Character3dController _character = Character3dController();
   bool _hasSubmitted = false;
   bool _extraTimeUsed = false;
   bool _skipUsed = false;
@@ -224,6 +228,10 @@ class _SuddenDeathQuestionViewState
     if (widget.serverAnswerResult != null &&
         !identical(widget.serverAnswerResult, oldWidget.serverAnswerResult)) {
       _feedbackController.forward(from: 0);
+      final answer = widget.serverAnswerResult!;
+      if (answer.isCorrect && !answer.isTimeout && !answer.isSkipped) {
+        _character.hop();
+      }
     }
     if (oldWidget.question.id == widget.question.id &&
         !oldWidget.externalAddTimeUsed &&
@@ -241,6 +249,7 @@ class _SuddenDeathQuestionViewState
   void dispose() {
     _timer?.cancel();
     _powerUpEffectTimer?.cancel();
+    _character.dispose();
     _entryController.dispose();
     _feedbackController.dispose();
     _powerUpController.dispose();
@@ -392,6 +401,7 @@ class _SuddenDeathQuestionViewState
           : SuddenDeathFeedbackState.eliminated;
     });
     _timer?.cancel();
+    if (isCorrect) _character.hop();
     await _playFeedbackAndExit();
     if (!mounted) return;
     widget.onSubmit?.call(
@@ -520,101 +530,159 @@ class _SuddenDeathQuestionViewState
           return Column(
             children: [
               Expanded(
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    isCompact ? AppSpacing.sm : AppSpacing.md,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      GameHeader(
-                        title: 'Sudden Death',
-                        coins: widget.coins,
-                        currentIndex: widget.currentIndex,
-                        totalQuestions: widget.totalQuestions,
-                        progress: widget.totalQuestions == 0
-                            ? 0.0
-                            : (widget.currentIndex + 1) / widget.totalQuestions,
-                        semanticLabel: 'Sudden Death progress',
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final bottomPad = isCompact ? AppSpacing.sm : AppSpacing.md;
+                    // Time is nearly up (and the question is still open).
+                    final hurry =
+                        _remainingTime > Duration.zero &&
+                        _remainingTime <= const Duration(seconds: 5) &&
+                        !_hasSubmitted;
+                    return SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        bottomPad,
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      _RuleLine(isPreviewMode: widget.isPreviewMode),
-                      SizedBox(
-                        height: isCompact ? AppSpacing.sm : AppSpacing.ms,
-                      ),
-                      _SuddenDeathStatusRow(
-                        currentStreak: widget.currentStreak,
-                        bestStreak: widget.bestStreak,
-                        remainingTime: _remainingTime,
-                        timeLimit: SuddenDeathConfig.questionTimeLimit,
-                        showTimeBoost: _showTimeBoost,
-                      ),
-                      SizedBox(
-                        height: isCompact ? AppSpacing.sm : AppSpacing.ms,
-                      ),
-                      FadeTransition(
-                        opacity: _entryController.drive(
-                          CurveTween(curve: AppMotion.easeOut),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: box.maxHeight - AppSpacing.md - bottomPad,
                         ),
-                        child: SlideTransition(
-                          position:
-                              Tween<Offset>(
-                                begin: const Offset(0, -0.035),
-                                end: Offset.zero,
-                              ).animate(
-                                CurvedAnimation(
-                                  parent: _entryController,
-                                  curve: AppMotion.easeOut,
-                                  reverseCurve: AppMotion.easeIn,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                GameHeader(
+                                  title: 'Sudden Death',
+                                  coins: widget.coins,
+                                  currentIndex: widget.currentIndex,
+                                  totalQuestions: widget.totalQuestions,
+                                  progress: widget.totalQuestions == 0
+                                      ? 0.0
+                                      : (widget.currentIndex + 1) /
+                                            widget.totalQuestions,
+                                  semanticLabel: 'Sudden Death progress',
+                                ),
+                                const SizedBox(height: AppSpacing.xs),
+                                _RuleLine(isPreviewMode: widget.isPreviewMode),
+                                SizedBox(
+                                  height: isCompact
+                                      ? AppSpacing.sm
+                                      : AppSpacing.ms,
+                                ),
+                                _SuddenDeathStatusRow(
+                                  currentStreak: widget.currentStreak,
+                                  bestStreak: widget.bestStreak,
+                                  remainingTime: _remainingTime,
+                                  timeLimit:
+                                      SuddenDeathConfig.questionTimeLimit,
+                                  showTimeBoost: _showTimeBoost,
+                                ),
+                                SizedBox(
+                                  height: isCompact
+                                      ? AppSpacing.sm
+                                      : AppSpacing.ms,
+                                ),
+                                FadeTransition(
+                                  opacity: _entryController.drive(
+                                    CurveTween(curve: AppMotion.easeOut),
+                                  ),
+                                  child: SlideTransition(
+                                    position:
+                                        Tween<Offset>(
+                                          begin: const Offset(0, -0.035),
+                                          end: Offset.zero,
+                                        ).animate(
+                                          CurvedAnimation(
+                                            parent: _entryController,
+                                            curve: AppMotion.easeOut,
+                                            reverseCurve: AppMotion.easeIn,
+                                          ),
+                                        ),
+                                    child: AnimatedSwitcher(
+                                      key: const Key(
+                                        'sudden-question-transition',
+                                      ),
+                                      duration: AppMotion.duration(
+                                        context,
+                                        const Duration(milliseconds: 380),
+                                      ),
+                                      reverseDuration: AppMotion.duration(
+                                        context,
+                                        const Duration(milliseconds: 280),
+                                      ),
+                                      layoutBuilder:
+                                          (currentChild, previousChildren) {
+                                            return Stack(
+                                              alignment: Alignment.topCenter,
+                                              children: [
+                                                ...previousChildren,
+                                                ?currentChild,
+                                              ],
+                                            );
+                                          },
+                                      transitionBuilder: (child, animation) =>
+                                          _buildQuestionTransition(
+                                            child: child,
+                                            animation: animation,
+                                            isIncoming:
+                                                child.key ==
+                                                ValueKey(widget.question.id),
+                                            reduceMotion: reduceMotion,
+                                          ),
+                                      child: _QuestionPanel(
+                                        key: ValueKey(widget.question.id),
+                                        question: widget.question,
+                                        selectedOptionId: selectedOptionId,
+                                        feedback: feedback,
+                                        feedbackAnimation: _feedbackController,
+                                        serverAnswerResult:
+                                            widget.serverAnswerResult,
+                                        onSelected: isInteractionLocked
+                                            ? null
+                                            : _handleOptionTap,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // The character stands at the bottom, above the power-ups. It
+                            // hops after a correct answer and runs on the spot when time
+                            // is nearly up.
+                            if (!isCompact)
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: AppSpacing.sm,
+                                ),
+                                child: Center(
+                                  child: CharacterGlow(
+                                    child: Character3dView(
+                                      width: 130,
+                                      height: 150,
+                                      state: hurry
+                                          ? Character3dState.run
+                                          : Character3dState.idle,
+                                      controller: _character,
+                                      cosmetics: equippedCosmetics(context),
+                                      initialAction: Character3dAction.think,
+                                      placeholder: const Character3dPoster(
+                                        height: 150,
+                                      ),
+                                      fallback: const SizedBox.shrink(),
+                                    ),
+                                  ),
                                 ),
                               ),
-                          child: AnimatedSwitcher(
-                            key: const Key('sudden-question-transition'),
-                            duration: AppMotion.duration(
-                              context,
-                              const Duration(milliseconds: 380),
-                            ),
-                            reverseDuration: AppMotion.duration(
-                              context,
-                              const Duration(milliseconds: 280),
-                            ),
-                            layoutBuilder: (currentChild, previousChildren) {
-                              return Stack(
-                                alignment: Alignment.topCenter,
-                                children: [...previousChildren, ?currentChild],
-                              );
-                            },
-                            transitionBuilder: (child, animation) =>
-                                _buildQuestionTransition(
-                                  child: child,
-                                  animation: animation,
-                                  isIncoming:
-                                      child.key == ValueKey(widget.question.id),
-                                  reduceMotion: reduceMotion,
-                                ),
-                            child: _QuestionPanel(
-                              key: ValueKey(widget.question.id),
-                              question: widget.question,
-                              selectedOptionId: selectedOptionId,
-                              feedback: feedback,
-                              feedbackAnimation: _feedbackController,
-                              serverAnswerResult: widget.serverAnswerResult,
-                              onSelected: isInteractionLocked
-                                  ? null
-                                  : _handleOptionTap,
-                            ),
-                          ),
+                          ],
                         ),
                       ),
-                      SizedBox(
-                        height: isCompact ? AppSpacing.sm : AppSpacing.ms,
-                      ),
-                      if (!isCompact) const _MascotCallout(),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
               Padding(
@@ -1545,142 +1613,6 @@ class _PowerUpUseFeedback extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _MascotCallout extends StatelessWidget {
-  const _MascotCallout();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return Row(
-      children: [
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: 12,
-            ),
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.12),
-              borderRadius: AppDimensions.radiusCard,
-              border: Border.all(color: colors.primary.withValues(alpha: 0.28)),
-            ),
-            child: Text(
-              "Don't lose the streak!",
-              style: context.appTextStyles.labelLarge.copyWith(
-                color: colors.textPrimary,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        SizedBox(
-          width: 80,
-          height: 82,
-          child: FittedBox(
-            fit: BoxFit.contain,
-            child: SizedBox(
-              width: 104,
-              height: 108,
-              child: CustomPaint(painter: _MascotPainter(colors)),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MascotPainter extends CustomPainter {
-  final AppThemeColors colors;
-
-  const _MascotPainter(this.colors);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.42, size.height * 0.64);
-    final firePaint = Paint()
-      ..shader =
-          RadialGradient(
-            colors: [
-              AppColors.streakFire.withValues(alpha: 0.36),
-              colors.violet.withValues(alpha: 0.16),
-              Colors.transparent,
-            ],
-          ).createShader(
-            Rect.fromCircle(center: center, radius: size.width * 0.58),
-          );
-    canvas.drawCircle(center, size.width * 0.48, firePaint);
-
-    final bodyPaint = Paint()..color = colors.primary.withValues(alpha: 0.86);
-    final facePaint = Paint()..color = colors.surface;
-    final eyePaint = Paint()..color = colors.textPrimary;
-    final goldPaint = Paint()..color = AppColors.coinGold;
-    final signPaint = Paint()..color = colors.violet.withValues(alpha: 0.9);
-
-    final platformRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        size.width * 0.18,
-        size.height * 0.78,
-        size.width * 0.62,
-        12,
-      ),
-      const Radius.circular(8),
-    );
-    canvas.drawRRect(platformRect, Paint()..color = colors.primaryDark);
-
-    canvas.drawCircle(center, size.width * 0.23, bodyPaint);
-    canvas.drawCircle(
-      Offset(center.dx, center.dy - 3),
-      size.width * 0.2,
-      facePaint,
-    );
-
-    canvas.drawCircle(
-      Offset(center.dx - size.width * 0.07, center.dy - size.height * 0.03),
-      5,
-      eyePaint,
-    );
-    canvas.drawCircle(
-      Offset(center.dx + size.width * 0.07, center.dy - size.height * 0.03),
-      5,
-      eyePaint,
-    );
-    canvas.drawCircle(Offset(center.dx, center.dy + 7), 3, eyePaint);
-
-    final crown = Path()
-      ..moveTo(center.dx - 18, center.dy - 23)
-      ..lineTo(center.dx - 12, center.dy - 40)
-      ..lineTo(center.dx - 2, center.dy - 25)
-      ..lineTo(center.dx + 8, center.dy - 42)
-      ..lineTo(center.dx + 17, center.dy - 23)
-      ..close();
-    canvas.drawPath(crown, goldPaint);
-
-    final polePaint = Paint()
-      ..color = colors.textPrimary.withValues(alpha: 0.72)
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-    final poleStart = Offset(center.dx + size.width * 0.2, center.dy + 22);
-    final poleEnd = Offset(center.dx + size.width * 0.34, center.dy - 42);
-    canvas.drawLine(poleStart, poleEnd, polePaint);
-
-    final signPath = Path()
-      ..moveTo(poleEnd.dx - 4, poleEnd.dy - 4)
-      ..lineTo(poleEnd.dx + 48, poleEnd.dy + 4)
-      ..lineTo(poleEnd.dx + 42, poleEnd.dy + 34)
-      ..lineTo(poleEnd.dx - 10, poleEnd.dy + 26)
-      ..close();
-    canvas.drawPath(signPath, signPaint);
-  }
-
-  @override
-  bool shouldRepaint(_MascotPainter oldDelegate) {
-    return oldDelegate.colors != colors;
   }
 }
 
