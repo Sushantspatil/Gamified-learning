@@ -539,11 +539,15 @@ function wavePose(ph, sign) {
   if (sign === -1) {
     const e = envelope(ph, 0.2, 0.22); // how far up the arm is, 0..1
     const swing = smoothstep(0.55, 1, e); // the rocking only once it is up
-    const up = [0.19 + 0.04 * sn(ph, 3) * swing, 0.845 - 0.01 * Math.abs(sn(ph, 3)) * swing, 0.085];
+    // Out from the head (so it never touches the cap) and a little lower: the
+    // forearm rocks about 25 degrees each way and the hand follows.
+    const up = [0.245 + 0.05 * sn(ph, 3) * swing, 0.805 - 0.012 * Math.abs(sn(ph, 3)) * swing, 0.1];
     const goal = {
       wrist: bezier3(REST_WRIST, WAVE_VIA, up, e),
       pole: lerp3([0.4, -0.6, -0.6], [0.35, -1, 0.05], e),
-      handDir: lerp3(REST_HAND_DIR, [0.75 * sn(ph, 3, -0.2) * swing, 1, 0.15], e),
+      // The hand tips only a little, so the open palm stays in view (tipped
+      // far it folds into a fist-like shape).
+      handDir: lerp3(REST_HAND_DIR, [0.42 * sn(ph, 3, -0.2) * swing, 1, 0.15], e),
       twist: WAVE_TWIST * smoothstep(0.1, 0.8, e),
     };
     const ik = armIK(sign, goal);
