@@ -453,8 +453,14 @@ function armTargets(arms) {
  * @param over  per-bone target functions: centre bones fn(ph), side bones
  *              fn(ph, sign) with sign +1 left / -1 right; each returns an
  *              [x, y, z] Euler triple or a Quaternion. `lift(ph)` raises the hips (metres).
+ * @param direct bones (names without Left/Right) whose `over` function already
+ *              returns the final rotation, so the action does not blend them.
  */
-function action(name, duration, { loop = false, inT = 0.15, outT = 0.2, over = {}, lift } = {}) {
+function action(
+  name,
+  duration,
+  { loop = false, inT = 0.15, outT = 0.2, over = {}, lift, direct = [] } = {},
+) {
   const e = (ph) => (loop ? 1 : envelope(ph, inT, outT));
   const tracks = [];
   const identity = new THREE.Quaternion();
@@ -470,9 +476,16 @@ function action(name, duration, { loop = false, inT = 0.15, outT = 0.2, over = {
     for (const base of SIDE_BONES) {
       const rest = toQ(REST[base]?.(sign) ?? [0, 0, 0]);
       const target = over[base];
+      // A bone listed in `direct` is given its final rotation at every moment
+      // (the action blends it from the relaxed pose itself); the others are
+      // blended from the relaxed pose by the action's in/out envelope.
       tracks.push(
         rotation(`${side}${base}`, duration, (ph) =>
-          target ? rest.clone().slerp(toQ(target(ph, sign)), e(ph)) : rest.clone(),
+          !target
+            ? rest.clone()
+            : direct.includes(base)
+              ? toQ(target(ph, sign)).clone()
+              : rest.clone().slerp(toQ(target(ph, sign)), e(ph)),
         ),
       );
     }
@@ -499,30 +512,64 @@ const idle = action('Idle', 3.2, {
   lift: (ph) => -0.004 * (1 - Math.cos(ph * TAU)),
 });
 
-// Waves the right hand beside the head: arm up, palm to the viewer, the hand
-// swinging side to side from the wrist three times (the forearm sways a little).
-// A friendly "hi": the elbow stays low and close to the body, the forearm
-// points up, and the open hand is beside the head, palm to the viewer, rocking
-// from side to side. (Held out wide with the elbow high it reads as "go".)
-const waveArms = armTargets((ph, sign) =>
-  sign === -1
-    ? {
-        wrist: [0.19 + 0.032 * sn(ph, 4), 0.845 - 0.01 * Math.abs(sn(ph, 4)), 0.085],
-        pole: [0.35, -1, 0.05],
-        handDir: [0.6 * sn(ph, 4, 0.25), 1, 0.15],
-        twist: WAVE_TWIST,
-      }
-    : null,
-);
-const wave = action('Wave', 2.4, {
+// A friendly "hi". The right hand travels up in front of the body (elbow
+// bending as it comes) to beside the head, palm to the viewer, then rocks from
+// side to side about three times. The same path is retraced going down. The
+// hand trails the forearm and flicks further over at each end of a swing
+// (overlapping action). Held out wide with a high elbow it reads as "go", and
+// letting each bone turn by the shortest route sends the arm out to the side
+// on the way up, so the hand's path is stated explicitly and solved with IK.
+const REST_WRIST = [0.285, 0.495, 0.055]; // the relaxed hand (left-arm space)
+const REST_HAND_DIR = [0.05, -0.09, 0.045];
+const WAVE_VIA = [0.15, 0.62, 0.17]; // in front of the chest, on the way up
+const lerp3 = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+const bezier3 = (a, b, c, t) =>
+  a.map((v, i) => (1 - t) * (1 - t) * v + 2 * (1 - t) * t * b[i] + t * t * c[i]);
+
+const wavePoses = new Map();
+function wavePose(ph, sign) {
+  const key = `${ph}|${sign}`;
+  if (wavePoses.has(key)) return wavePoses.get(key);
+  const restPose = {
+    Arm: toQ(REST.Arm(sign)),
+    ForeArm: toQ(REST.ForeArm(sign)),
+    Hand: toQ(REST.Hand(sign)),
+  };
+  let pose = restPose;
+  if (sign === -1) {
+    const e = envelope(ph, 0.2, 0.22); // how far up the arm is, 0..1
+    const swing = smoothstep(0.55, 1, e); // the rocking only once it is up
+    const up = [0.19 + 0.04 * sn(ph, 3) * swing, 0.845 - 0.01 * Math.abs(sn(ph, 3)) * swing, 0.085];
+    const goal = {
+      wrist: bezier3(REST_WRIST, WAVE_VIA, up, e),
+      pole: lerp3([0.4, -0.6, -0.6], [0.35, -1, 0.05], e),
+      handDir: lerp3(REST_HAND_DIR, [0.75 * sn(ph, 3, -0.2) * swing, 1, 0.15], e),
+      twist: WAVE_TWIST * smoothstep(0.1, 0.8, e),
+    };
+    const ik = armIK(sign, goal);
+    // Join the relaxed pose smoothly at the very start and end.
+    const w = smoothstep(0, 0.18, e);
+    pose = {
+      Arm: restPose.Arm.clone().slerp(ik.Arm, w),
+      ForeArm: restPose.ForeArm.clone().slerp(ik.ForeArm, w),
+      Hand: restPose.Hand.clone().slerp(ik.Hand, w),
+    };
+  }
+  wavePoses.set(key, pose);
+  return pose;
+}
+const wave = action('Wave', 2.8, {
   inT: 0.2,
   outT: 0.22,
+  direct: ['Arm', 'ForeArm', 'Hand'],
   over: {
     Spine: () => [0, 0, 0.03],
     // The head tips towards the waving hand and bobs with each wave.
-    Head: (ph) => [-0.02 + 0.015 * sn(ph, 4, 0.25), 0.1, 0.07 + 0.025 * sn(ph, 4)],
+    Head: (ph) => [-0.02 + 0.015 * sn(ph, 3, 0.25), 0.1, 0.07 + 0.025 * sn(ph, 3)],
     Shoulder: (ph, sign) => (sign === -1 ? [0, 0, -0.1] : [0, 0, 0]),
-    ...waveArms,
+    Arm: (ph, sign) => wavePose(ph, sign).Arm,
+    ForeArm: (ph, sign) => wavePose(ph, sign).ForeArm,
+    Hand: (ph, sign) => wavePose(ph, sign).Hand,
   },
 });
 
