@@ -233,7 +233,7 @@ class _SuddenDeathQuestionViewState
       _feedbackController.forward(from: 0);
       final answer = widget.serverAnswerResult!;
       if (answer.isCorrect && !answer.isTimeout && !answer.isSkipped) {
-        _character.hop();
+        _character.twirl();
       }
     }
     if (oldWidget.question.id == widget.question.id &&
@@ -404,7 +404,7 @@ class _SuddenDeathQuestionViewState
           : SuddenDeathFeedbackState.eliminated;
     });
     _timer?.cancel();
-    if (isCorrect) _character.hop();
+    if (isCorrect) _character.twirl();
     await _playFeedbackAndExit();
     if (!mounted) return;
     widget.onSubmit?.call(
@@ -702,9 +702,8 @@ class _SuddenDeathQuestionViewState
                                       controller: _character,
                                       cosmetics: equippedCosmetics(context),
                                       initialAction: Character3dAction.think,
-                                      placeholder: Character3dPoster(
-                                        height: characterHeight,
-                                      ),
+                                      placeholder: const SizedBox.shrink(),
+                                      arrive: true,
                                       fallback: const SizedBox.shrink(),
                                     ),
                                   ),

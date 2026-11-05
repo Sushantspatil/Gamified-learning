@@ -120,6 +120,9 @@ class Character3dController {
   /// A jump on the spot.
   void hop() => _view?._command('CharacterEmbed.hop()');
 
+  /// One graceful spin on the spot (the happy reaction used while playing).
+  void twirl() => _view?._command('CharacterEmbed.twirl()');
+
   /// Runs off the right edge.
   void exit({Duration duration = const Duration(milliseconds: 750)}) =>
       _view?._command('CharacterEmbed.exit(${duration.inMilliseconds})');
@@ -168,6 +171,10 @@ class Character3dView extends StatefulWidget {
   /// `SizedBox.shrink()` to show nothing until the character appears.
   final Widget? placeholder;
 
+  /// When true the character does not pop in: it fades in softly the moment
+  /// it is ready (pair it with an empty [placeholder]).
+  final bool arrive;
+
   /// Optional remote control (gestures, walk-across, status).
   final Character3dController? controller;
 
@@ -189,6 +196,7 @@ class Character3dView extends StatefulWidget {
     required this.width,
     required this.fallback,
     this.placeholder,
+    this.arrive = false,
     this.state = Character3dState.walk,
     this.framing = Character3dFraming.full,
     this.controller,
@@ -500,6 +508,20 @@ class _Character3dViewState extends State<Character3dView>
     super.dispose();
   }
 
+  /// Fades the live view in once it is ready (see [Character3dView.arrive]).
+  Widget _arriving(Widget child) {
+    if (!widget.arrive) return child;
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    final duration = reduce ? Duration.zero : const Duration(milliseconds: 450);
+    return AnimatedOpacity(
+      key: const Key('character_arrive'),
+      opacity: _ready ? 1 : 0,
+      duration: duration,
+      curve: Curves.easeOut,
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = _controller;
@@ -515,9 +537,11 @@ class _Character3dViewState extends State<Character3dView>
           // The WebView stays painted from the start (even while the page
           // loads): a hidden platform view may not render at all.
           if (controller != null && !_failed)
-            ExcludeSemantics(
-              child: IgnorePointer(
-                child: WebViewWidget(controller: controller),
+            _arriving(
+              ExcludeSemantics(
+                child: IgnorePointer(
+                  child: WebViewWidget(controller: controller),
+                ),
               ),
             ),
           // Fades out and is dropped once the character is visible, so a

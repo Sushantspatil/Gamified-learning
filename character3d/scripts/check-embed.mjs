@@ -76,6 +76,14 @@ try {
   await sleep(400);
   check((await page.evaluate('CharacterEmbed.currentState()')) === 'idle', 'and the next question brings it back to idle');
 
+  // a twirl turns on the spot without kicking the legs, and ends where it began
+  await page.evaluate('CharacterEmbed.twirl()');
+  await sleep(350);
+  check((await page.evaluate('CharacterEmbed.currentState()')) === 'idle', 'a twirl keeps the standing pose (no running legs)');
+  await page.screenshot({ path: join(shots, 'embed-twirl.png') });
+  await sleep(1100);
+  check((await page.evaluate('CharacterEmbed.currentState()')) === 'idle', 'and the character is still standing after it');
+
   // actions and cosmetics
   await page.evaluate("CharacterEmbed.setState('idle'); CharacterEmbed.setCosmetics({ avatar: 'champion', frame: 'gold' }); document.body.style.background = '#1b2140'");
   await sleep(400);

@@ -324,7 +324,7 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
       _phase = _SortPhase.feedback;
     });
     if (side != null && side == _correctSideAt(_history.length - 1)) {
-      _character.hop();
+      _character.twirl();
     }
     _feedbackTimer = Timer(sortFeedbackDuration, () {
       if (!mounted) return;
@@ -756,9 +756,8 @@ class _SortItRightViewState extends ConsumerState<SortItRightView>
                         controller: _character,
                         cosmetics: equippedCosmetics(context),
                         initialAction: Character3dAction.think,
-                        placeholder: Character3dPoster(
-                          height: math.min(240.0, constraints.maxHeight * 0.85),
-                        ),
+                        placeholder: const SizedBox.shrink(),
+                        arrive: true,
                         fallback: const SizedBox.shrink(),
                       ),
                     ),

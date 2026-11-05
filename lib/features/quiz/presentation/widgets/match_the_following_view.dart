@@ -306,7 +306,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
         _selectedRightPairId = null;
       });
       _connectorController.forward(from: 0);
-      _character.hop();
+      _character.twirl();
       return;
     }
 
@@ -345,7 +345,7 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
         _selectedRightPairId = null;
       });
       _connectorController.forward(from: 0);
-      _character.hop();
+      _character.twirl();
       return;
     }
 
@@ -654,9 +654,8 @@ class _MatchTheFollowingViewState extends ConsumerState<MatchTheFollowingView>
                               controller: _character,
                               cosmetics: equippedCosmetics(context),
                               initialAction: Character3dAction.think,
-                              placeholder: Character3dPoster(
-                                height: characterHeight,
-                              ),
+                              placeholder: const SizedBox.shrink(),
+                              arrive: true,
                               fallback: const SizedBox.shrink(),
                             ),
                           ),

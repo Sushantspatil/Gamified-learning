@@ -359,7 +359,7 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
                                       .read(gameAudioServiceProvider)
                                       .play(GameSound.answerSelect);
                                   if (_selectedOptionId != indexed.$2.id) {
-                                    _character3d.hop();
+                                    _character3d.twirl();
                                   }
                                   setState(
                                     () => _selectedOptionId = indexed.$2.id,

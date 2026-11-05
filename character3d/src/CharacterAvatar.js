@@ -99,6 +99,7 @@ export class CharacterAvatar extends Emitter {
   #framing = 'full';
   #path = null; // scripted walk along x, see travel()
   #hop = null; // scripted jump, see hop()
+  #twirl = null; // scripted spin on the spot, see twirl()
   #settleYaw = null; // where to turn to after a scripted walk
   #modelHeight = 1.75;
   #resizeObserver = null;
@@ -421,6 +422,17 @@ export class CharacterAvatar extends Emitter {
         : null;
     this.#hop = { t: 0, duration, height, restore };
     if (restore) this.#loco.setState(LocomotionState.RUN);
+  }
+
+  /**
+   * A graceful spin on the spot: one full turn with a tiny rise onto the toes
+   * and a little sparkle. The pose stays as it is (no running legs), so it
+   * reads as a happy twirl rather than a jump.
+   */
+  twirl({ duration = 0.8 } = {}) {
+    this.#assertAlive();
+    if (!this.#loco || this.#twirl) return;
+    this.#twirl = { t: 0, duration, sparked: false };
   }
 
   /** Stops rendering (e.g. the page is hidden). The pose is kept; `resume()` continues. */
@@ -814,6 +826,26 @@ export class CharacterAvatar extends Emitter {
         );
       } else {
         lift = 4 * hop.height * u * (1 - u);
+      }
+    }
+    if (this.#twirl) {
+      const tw = this.#twirl;
+      tw.t += dt;
+      const u = Math.min(1, tw.t / tw.duration);
+      // Ease in and out so the turn starts and stops softly.
+      const eased = u * u * (3 - 2 * u);
+      this.#root.rotation.y = this.#yaw + eased * Math.PI * 2;
+      lift += 0.07 * Math.sin(Math.PI * u);
+      if (!tw.sparked) {
+        tw.sparked = true;
+        this.#sparkles.burst(
+          { x: this.#root.position.x, y: 0.9, z: this.#root.position.z },
+          { n: 12, speed: 1.1, upward: 0.5, spread: 0.45 },
+        );
+      }
+      if (u >= 1) {
+        this.#twirl = null;
+        this.#root.rotation.y = this.#yaw;
       }
     }
     this.#root.position.y = lift;

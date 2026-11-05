@@ -16,6 +16,7 @@
 //   show()                                   reveal the canvas (replies 'ready')
 //   enter(ms, thenThink)  walk in from the left edge to the centre ('strip' framing)
 //   hop()      jump on the spot
+//   twirl()    one graceful spin on the spot
 //   exit(ms)   run off the right edge (the next enter() waits for it)
 // and hears back through the `CharacterBridge` JavaScript channel:
 //   'loaded'  the model is loaded; configure it, then call show()
@@ -116,6 +117,9 @@ window.CharacterEmbed = {
   },
   hop() {
     avatar?.hop();
+  },
+  twirl() {
+    avatar?.twirl();
   },
   /** The loop playing now ("idle" | "walk" | "run"), for tests. */
   currentState() {
