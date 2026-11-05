@@ -495,13 +495,14 @@ function action(
 }
 
 /**
- * Palm to the viewer when the right hand is raised (radians; tuned by eye by
- * rendering the whole wave at the card's size). The first value (1.2) showed
- * the BACK of the glove; half a turn the other way showed the palm but it
- * still turned edge-on during the swing; this value keeps the open palm
- * facing the viewer through the whole wave.
+ * Turns the waving hand about its own axis so the PALM faces the viewer
+ * (radians; tuned by rendering the whole wave at the card's size).
+ * Which side is which: the glove's BACK has an oval window and round knuckle
+ * holes with skin showing through; the PALM is the smooth dark leather side.
+ * The thumb of the raised right hand points towards the head when the palm
+ * faces the viewer. An earlier value showed the holes (the back of the hand).
  */
-const WAVE_TWIST = 1.2 - Math.PI - 1.4;
+const WAVE_TWIST = 1.2 - 1.4;
 
 const idle = action('Idle', 3.2, {
   loop: true,
