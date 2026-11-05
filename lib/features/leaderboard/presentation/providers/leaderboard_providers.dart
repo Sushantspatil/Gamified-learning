@@ -88,8 +88,8 @@ class LeaderboardFilterController extends Notifier<LeaderboardFilter> {
 
 final leaderboardFilterProvider =
     NotifierProvider<LeaderboardFilterController, LeaderboardFilter>(
-  LeaderboardFilterController.new,
-);
+      LeaderboardFilterController.new,
+    );
 
 class LeaderboardState extends Equatable {
   final List<LeaderboardEntry> entries;
@@ -187,8 +187,9 @@ class FilteredLeaderboardNotifier extends AsyncNotifier<LeaderboardState> {
       );
 
       final existingIds = current.entries.map((e) => e.userId).toSet();
-      final newItems =
-          nextPage.items.where((e) => !existingIds.contains(e.userId)).toList();
+      final newItems = nextPage.items
+          .where((e) => !existingIds.contains(e.userId))
+          .toList();
 
       state = AsyncData(
         current.copyWith(
@@ -214,11 +215,12 @@ class FilteredLeaderboardNotifier extends AsyncNotifier<LeaderboardState> {
 
 final filteredLeaderboardProvider =
     AsyncNotifierProvider<FilteredLeaderboardNotifier, LeaderboardState>(
-  FilteredLeaderboardNotifier.new,
-);
+      FilteredLeaderboardNotifier.new,
+    );
 
-final globalLeaderboardProvider =
-    FutureProvider<List<LeaderboardEntry>>((ref) async {
+final globalLeaderboardProvider = FutureProvider<List<LeaderboardEntry>>((
+  ref,
+) async {
   final repository = ref.watch(leaderboardRepositoryProvider);
   final page = await repository.getLeaderboardPage(
     filter: const LeaderboardFilter(),

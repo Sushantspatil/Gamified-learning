@@ -52,6 +52,10 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
   QuestionType? _selectedMode;
   bool _isStartingGame = false;
 
+  /// The player's current subject is filled in once, the first time it is
+  /// known, unless they chose something themselves.
+  bool _defaultsApplied = false;
+
   @override
   void initState() {
     super.initState();
@@ -62,12 +66,12 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
   }
 
   void _selectSubject(String? subjectId) {
+    _defaultsApplied = true;
     if (subjectId == _selectedSubjectId) return;
     setState(() {
       _selectedSubjectId = subjectId;
       _selectedChapterId = null;
       _selectedTopicId = null;
-      _selectedMode = null;
     });
   }
 
@@ -76,7 +80,6 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
     setState(() {
       _selectedChapterId = chapterId;
       _selectedTopicId = null;
-      _selectedMode = null;
     });
   }
 
@@ -84,8 +87,41 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
     if (topicId == _selectedTopicId) return;
     setState(() {
       _selectedTopicId = topicId;
-      _selectedMode = null;
     });
+  }
+
+  /// A subject with a single chapter, or a chapter with a single topic, has
+  /// nothing to choose between, so it is picked for the player.
+  void _autoPickChapter(List<Chapter> chapters) {
+    if (_selectedChapterId != null || chapters.length != 1) return;
+    final only = chapters.first.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _selectedChapterId == null) _selectChapter(only);
+    });
+  }
+
+  void _autoPickTopic(AsyncValue<List<Topic>>? topicsAsync) {
+    final topics = topicsAsync?.valueOrNull;
+    if (topics == null || _selectedTopicId != null || topics.length != 1) {
+      return;
+    }
+    final only = topics.first.id;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _selectedTopicId == null) _selectTopic(only);
+    });
+  }
+
+  /// What the Play button should say it will do.
+  String get _startLabel {
+    if (_isStartingGame) return 'Starting game...';
+    final mode = _selectedMode;
+    return mode == null ? 'Choose a game' : 'Play ${_modeShortName(mode)}';
+  }
+
+  /// Why Play is off, when it is a matter of picking a topic.
+  String? get _startHint {
+    if (_isStartingGame || _selectedTopicId != null) return null;
+    return 'Pick a subject, chapter and topic to practise.';
   }
 
   Future<void> _onStartGame() async {
@@ -257,6 +293,9 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
   @override
   Widget build(BuildContext context) {
     final pathsAsync = ref.watch(learningPathsProvider);
+    final currentPathId = ref
+        .watch(selectedLearningPathControllerProvider)
+        .valueOrNull;
     final selectedSubjectId = _selectedSubjectId;
     final chaptersAsync = selectedSubjectId == null
         ? null
@@ -269,19 +308,36 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
       ),
       bottomNavigationBar: SafeArea(
         minimum: AppSpacing.paddingMd,
-        child: AppButton(
-          label: _isStartingGame ? 'Starting game...' : 'Start game',
-          leadingIcon: _isStartingGame
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_startHint != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Text(
+                  _startHint!,
+                  textAlign: TextAlign.center,
+                  style: context.appTextStyles.labelSmall.copyWith(
+                    color: context.themeColors.textSecondary,
                   ),
-                )
-              : const Icon(Icons.play_arrow_rounded),
-          onPressed: _canStart ? _onStartGame : null,
+                ),
+              ),
+            AppButton(
+              key: const Key('play-start-button'),
+              label: _startLabel,
+              leadingIcon: _isStartingGame
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Icon(Icons.play_arrow_rounded),
+              onPressed: _canStart ? _onStartGame : null,
+            ),
+          ],
         ),
       ),
       body: SafeArea(
@@ -297,6 +353,17 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
               return const _MessageState(
                 message: 'No playable subjects are available yet.',
               );
+            }
+
+            if (!_defaultsApplied &&
+                currentPathId != null &&
+                _selectedSubjectId == null &&
+                visiblePaths.any((path) => path.id == currentPathId)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted && _selectedSubjectId == null) {
+                  _selectSubject(currentPathId);
+                }
+              });
             }
 
             final subject = selectedSubjectId == null
@@ -342,6 +409,8 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
                 final topicsAsync = selectedChapter == null
                     ? null
                     : ref.watch(topicsProvider(selectedChapter.id));
+                _autoPickChapter(chapters);
+                _autoPickTopic(topicsAsync);
 
                 return _SetupContent(
                   paths: visiblePaths,
@@ -416,7 +485,6 @@ class _SetupContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = subject == null ? 'Play' : 'Play ${subject!.title}';
     final visibleChapterId =
         chapters.any((chapter) => chapter.id == selectedChapterId)
         ? selectedChapterId
@@ -432,11 +500,10 @@ class _SetupContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title, style: context.appTextStyles.displayMedium),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Choose what to practice and how to play.',
-            style: context.appTextStyles.bodyMedium,
+          _GameModePicker(
+            selectedTopicId: selectedTopicId,
+            selectedMode: selectedMode,
+            onChanged: onModeChanged,
           ),
           const SizedBox(height: AppSpacing.lg),
           _SetupSection(
@@ -466,13 +533,6 @@ class _SetupContent extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          _GameModePicker(
-            selectedTopicId: selectedTopicId,
-            selectedMode: selectedMode,
-            onChanged: onModeChanged,
-          ),
-          const SizedBox(height: AppSpacing.lg),
         ],
       ),
     );
@@ -675,26 +735,35 @@ class _GameModePicker extends ConsumerWidget {
     final availability = ref.watch(
       gameModeAvailabilityProvider(selectedTopicId),
     );
+    final topicChosen = selectedTopicId != null;
 
-    return _SetupSection(
-      title: 'Choose game mode',
-      child: GridView.count(
-        crossAxisCount: 2,
-        childAspectRatio: 1.22,
-        crossAxisSpacing: AppSpacing.sm,
-        mainAxisSpacing: AppSpacing.sm,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        children: [
-          for (final mode in _practiceModes)
-            _SelectableQuizModeCard(
-              mode: mode,
-              isSelected: mode == selectedMode,
-              availability: availability[mode]!,
-              onTap: () => onChanged(mode),
-            ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Choose a game', style: context.appTextStyles.titleLarge),
+        const SizedBox(height: AppSpacing.sm),
+        GridView.count(
+          crossAxisCount: 2,
+          childAspectRatio: 1.08,
+          crossAxisSpacing: AppSpacing.ms,
+          mainAxisSpacing: AppSpacing.ms,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            for (final mode in _practiceModes)
+              _SelectableQuizModeCard(
+                mode: mode,
+                isSelected: mode == selectedMode,
+                // A game can be picked before the topic. Once there is a topic,
+                // a game that is not available for it says so.
+                unavailableReason: topicChosen && !availability[mode]!.isEnabled
+                    ? availability[mode]!.reason
+                    : null,
+                onTap: () => onChanged(mode),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -702,13 +771,13 @@ class _GameModePicker extends ConsumerWidget {
 class _SelectableQuizModeCard extends StatelessWidget {
   final QuestionType mode;
   final bool isSelected;
-  final GameModeAvailability availability;
+  final String? unavailableReason;
   final VoidCallback onTap;
 
   const _SelectableQuizModeCard({
     required this.mode,
     required this.isSelected,
-    required this.availability,
+    required this.unavailableReason,
     required this.onTap,
   });
 
@@ -716,7 +785,7 @@ class _SelectableQuizModeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.themeColors;
     final accent = _modeColor(colors, mode);
-    final enabled = availability.isEnabled;
+    final enabled = unavailableReason == null;
 
     return AppPressable(
       key: Key('play-mode-${mode.routeValue}'),
@@ -727,30 +796,50 @@ class _SelectableQuizModeCard extends StatelessWidget {
         opacity: enabled ? 1 : 0.58,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: isSelected
-                ? accent.withValues(alpha: 0.14)
-                : colors.cardBackground,
+            gradient: isSelected
+                ? LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      accent.withValues(alpha: 0.26),
+                      accent.withValues(alpha: 0.08),
+                    ],
+                  )
+                : null,
+            color: isSelected ? null : colors.cardBackground,
             borderRadius: AppDimensions.radiusCard,
             border: Border.all(
-              color: isSelected
-                  ? accent
-                  : enabled
-                  ? colors.border
-                  : colors.borderStrong,
+              color: isSelected ? accent : colors.border,
               width: isSelected ? 2 : 1,
             ),
+            boxShadow: [
+              if (isSelected)
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.28),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+            ],
           ),
           child: Padding(
-            padding: AppSpacing.paddingMs,
+            padding: AppSpacing.paddingMd,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(_modeIcon(mode), color: accent, size: 22),
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(_modeIcon(mode), color: accent, size: 26),
+                    ),
                     const Spacer(),
                     if (isSelected)
-                      Icon(Icons.check_circle, color: accent, size: 18),
+                      Icon(Icons.check_circle, color: accent, size: 22),
                   ],
                 ),
                 const Spacer(),
@@ -758,14 +847,16 @@ class _SelectableQuizModeCard extends StatelessWidget {
                   _modeShortName(mode),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: context.appTextStyles.labelLarge.copyWith(
+                  style: context.appTextStyles.titleMedium.copyWith(
+                    fontWeight: FontWeight.w700,
                     color: colors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  availability.reason ?? _modeDescription(mode),
+                  unavailableReason ?? _modeDescription(mode),
                   maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
                   softWrap: true,
                   style: context.appTextStyles.labelSmall.copyWith(
                     color: colors.textSecondary,

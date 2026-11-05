@@ -75,8 +75,9 @@ class LeaderboardRemoteDatasource implements LeaderboardDatasource {
     } else if (response is List) {
       final items = response
           .whereType<Map>()
-          .map((m) =>
-              LeaderboardEntryModel.fromJson(Map<String, dynamic>.from(m)))
+          .map(
+            (m) => LeaderboardEntryModel.fromJson(Map<String, dynamic>.from(m)),
+          )
           .toList();
       return LeaderboardResponseModel(
         items: items,

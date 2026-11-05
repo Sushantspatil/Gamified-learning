@@ -359,60 +359,75 @@ void main() {
   });
 
   group('BackendChapterDatasource & LearningPathDatasource Catalog Tests', () {
-    test('BackendLearningPathDatasource returns all expected learning paths', () async {
-      const ds = BackendLearningPathDatasource();
-      final paths = await ds.getLearningPaths();
-      final pathIds = paths.map((p) => p.id).toSet();
+    test(
+      'BackendLearningPathDatasource returns all expected learning paths',
+      () async {
+        const ds = BackendLearningPathDatasource();
+        final paths = await ds.getLearningPaths();
+        final pathIds = paths.map((p) => p.id).toSet();
 
-      expect(pathIds, contains('accounting'));
-      expect(pathIds, contains('maths'));
-      expect(pathIds, contains('mental-maths'));
-    });
+        expect(pathIds, contains('accounting'));
+        expect(pathIds, contains('maths'));
+        expect(pathIds, contains('mental-maths'));
+      },
+    );
 
-    test('BackendChapterDatasource returns chapters and topics for all supported paths', () async {
-      const ds = BackendChapterDatasource();
+    test(
+      'BackendChapterDatasource returns chapters and topics for all supported paths',
+      () async {
+        const ds = BackendChapterDatasource();
 
-      // Accounting
-      final accountingChapters = await ds.getChapters('accounting');
-      expect(accountingChapters, isNotEmpty);
-      expect(accountingChapters.first.id, 'accounting-basics');
-      final accountingTopics = await ds.getTopics(accountingChapters.first.id);
-      expect(accountingTopics, isNotEmpty);
-      expect(accountingTopics.first.id, 'accounting');
+        // Accounting
+        final accountingChapters = await ds.getChapters('accounting');
+        expect(accountingChapters, isNotEmpty);
+        expect(accountingChapters.first.id, 'accounting-basics');
+        final accountingTopics = await ds.getTopics(
+          accountingChapters.first.id,
+        );
+        expect(accountingTopics, isNotEmpty);
+        expect(accountingTopics.first.id, 'accounting');
 
-      // Maths (and aliases)
-      for (final mathAlias in ['maths', 'math', 'maths1']) {
-        final mathChapters = await ds.getChapters(mathAlias);
-        expect(mathChapters, isNotEmpty, reason: 'Failed for alias: $mathAlias');
-        expect(mathChapters.first.id, 'maths-basics');
-        final mathTopics = await ds.getTopics(mathChapters.first.id);
-        expect(mathTopics, isNotEmpty);
-        expect(mathTopics.first.id, 'maths');
-      }
+        // Maths (and aliases)
+        for (final mathAlias in ['maths', 'math', 'maths1']) {
+          final mathChapters = await ds.getChapters(mathAlias);
+          expect(
+            mathChapters,
+            isNotEmpty,
+            reason: 'Failed for alias: $mathAlias',
+          );
+          expect(mathChapters.first.id, 'maths-basics');
+          final mathTopics = await ds.getTopics(mathChapters.first.id);
+          expect(mathTopics, isNotEmpty);
+          expect(mathTopics.first.id, 'maths');
+        }
 
-      // Mental Maths
-      final mentalChapters = await ds.getChapters('mental-maths');
-      expect(mentalChapters, isNotEmpty);
-      expect(mentalChapters.first.id, 'mental-maths-levels');
-      final mentalTopics = await ds.getTopics(mentalChapters.first.id);
-      expect(mentalTopics.length, 3);
-      expect(
-        mentalTopics.map((t) => t.id),
-        containsAll([
-          'mental-maths-easy',
-          'mental-maths-medium',
-          'mental-maths-hard',
-        ]),
-      );
-    });
+        // Mental Maths
+        final mentalChapters = await ds.getChapters('mental-maths');
+        expect(mentalChapters, isNotEmpty);
+        expect(mentalChapters.first.id, 'mental-maths-levels');
+        final mentalTopics = await ds.getTopics(mentalChapters.first.id);
+        expect(mentalTopics.length, 3);
+        expect(
+          mentalTopics.map((t) => t.id),
+          containsAll([
+            'mental-maths-easy',
+            'mental-maths-medium',
+            'mental-maths-hard',
+          ]),
+        );
+      },
+    );
 
-    test('BackendChapterDatasource falls back to mock chapters for other paths', () async {
-      const ds = BackendChapterDatasource();
-      final webChapters = await ds.getChapters('web-dev');
-      expect(webChapters, isNotEmpty);
-      final topics = await ds.getTopics(webChapters.first.id);
-      expect(topics, isNotEmpty);
-    });
+    test(
+      'BackendChapterDatasource falls back to mock chapters for other paths',
+      () async {
+        const ds = BackendChapterDatasource();
+        final webChapters = await ds.getChapters('web-dev');
+        expect(webChapters, isNotEmpty);
+        final topics = await ds.getTopics(webChapters.first.id);
+        expect(topics, isNotEmpty);
+      },
+    );
   });
 
   group('Play Setup Screen — UI & Interaction Tests', () {
@@ -455,7 +470,7 @@ void main() {
       );
     }
 
-    testWidgets('Mode cards are disabled before selecting topic', (
+    testWidgets('A game can be picked before the topic, but Play waits', (
       tester,
     ) async {
       setWindowSize(tester);
@@ -474,12 +489,68 @@ void main() {
       await tester.pumpWidget(buildPlayScreen(container: container));
       await tester.pumpAndSettle();
 
-      expect(find.text('Choose game mode'), findsOneWidget);
-      expect(find.text('Select a topic first'), findsNWidgets(4));
+      // The heading, and the button (which still says to choose a game).
+      expect(find.text('Choose a game'), findsNWidgets(2));
+      // The games are always tappable: no "select a topic first" on them.
+      expect(find.text('Select a topic first'), findsNothing);
+      expect(
+        find.text('Pick a subject, chapter and topic to practise.'),
+        findsOneWidget,
+      );
 
-      final startBtn = tester.widget<AppButton>(find.byType(AppButton));
+      var startBtn = tester.widget<AppButton>(find.byType(AppButton));
+      expect(startBtn.onPressed, isNull);
+
+      await tester.tap(find.byKey(const Key('play-mode-matching')));
+      await tester.pumpAndSettle();
+      // The button now says what it will play, but still needs a topic.
+      expect(find.text('Play Match'), findsOneWidget);
+      expect(find.text('Choose a game'), findsOneWidget); // just the heading
+      startBtn = tester.widget<AppButton>(find.byType(AppButton));
       expect(startBtn.onPressed, isNull);
     });
+
+    testWidgets(
+      'Your current subject is filled in, and a lone chapter and topic are picked: one tap on a game is enough',
+      (tester) async {
+        setWindowSize(tester);
+        final fakeStorage = _FakeLocalStorage();
+        await fakeStorage.setString(
+          StorageKeys.selectedLearningPathId,
+          'accounting',
+        );
+        final container = ProviderContainer(
+          overrides: [
+            localStorageServiceProvider.overrideWithValue(fakeStorage),
+            learningPathDatasourceProvider.overrideWithValue(
+              _TestLearningPathDatasource(),
+            ),
+            chapterDatasourceProvider.overrideWithValue(
+              _TestChapterDatasource(),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(buildPlayScreen(container: container));
+        await tester.pumpAndSettle();
+
+        // No dropdown was touched, yet subject, chapter and topic are set.
+        expect(find.text('Accounting & Finance'), findsOneWidget);
+        expect(find.text('Basic Accounting'), findsOneWidget);
+        expect(find.text('General Ledger'), findsOneWidget);
+        expect(
+          find.text('Pick a subject, chapter and topic to practise.'),
+          findsNothing,
+        );
+
+        await tester.tap(find.byKey(const Key('play-mode-sortItOut')));
+        await tester.pumpAndSettle();
+        expect(find.text('Play Sort It Out'), findsOneWidget);
+        final startBtn = tester.widget<AppButton>(find.byType(AppButton));
+        expect(startBtn.onPressed, isNotNull);
+      },
+    );
 
     testWidgets(
       'Accounting topic enables all 4 game modes and allows mode selection',
@@ -537,59 +608,62 @@ void main() {
       },
     );
 
-    testWidgets('Backend chapters and topics are selectable for Mathematics and Mental Maths in Play mode', (tester) async {
-      setWindowSize(tester);
-      final fakeStorage = _FakeLocalStorage();
-      final container = ProviderContainer(
-        overrides: [
-          localStorageServiceProvider.overrideWithValue(fakeStorage),
-        ],
-      );
-      addTearDown(container.dispose);
+    testWidgets(
+      'Backend chapters and topics are selectable for Mathematics and Mental Maths in Play mode',
+      (tester) async {
+        setWindowSize(tester);
+        final fakeStorage = _FakeLocalStorage();
+        final container = ProviderContainer(
+          overrides: [
+            localStorageServiceProvider.overrideWithValue(fakeStorage),
+          ],
+        );
+        addTearDown(container.dispose);
 
-      await tester.pumpWidget(buildPlayScreen(container: container));
-      await tester.pumpAndSettle();
+        await tester.pumpWidget(buildPlayScreen(container: container));
+        await tester.pumpAndSettle();
 
-      // 1. Select Subject: Mathematics
-      await tester.tap(find.byKey(const Key('play-subject-dropdown')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Mathematics').last);
-      await tester.pumpAndSettle();
+        // 1. Select Subject: Mathematics
+        await tester.tap(find.byKey(const Key('play-subject-dropdown')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Mathematics').last);
+        await tester.pumpAndSettle();
 
-      // 2. Select Chapter: Mathematics
-      await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Mathematics').last);
-      await tester.pumpAndSettle();
+        // 2. Select Chapter: Mathematics
+        await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Mathematics').last);
+        await tester.pumpAndSettle();
 
-      // 3. Select Topic: Mathematics Quiz
-      await tester.tap(find.byKey(const Key('play-topic-dropdown')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Mathematics Quiz').last);
-      await tester.pumpAndSettle();
+        // 3. Select Topic: Mathematics Quiz
+        await tester.tap(find.byKey(const Key('play-topic-dropdown')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Mathematics Quiz').last);
+        await tester.pumpAndSettle();
 
-      expect(find.text('Select a topic first'), findsNothing);
+        expect(find.text('Select a topic first'), findsNothing);
 
-      // Now switch to Mental Maths
-      await tester.tap(find.byKey(const Key('play-subject-dropdown')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Mental Maths').last);
-      await tester.pumpAndSettle();
+        // Now switch to Mental Maths
+        await tester.tap(find.byKey(const Key('play-subject-dropdown')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Mental Maths').last);
+        await tester.pumpAndSettle();
 
-      // Chapter: Mental Maths
-      await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Mental Maths').last);
-      await tester.pumpAndSettle();
+        // Chapter: Mental Maths
+        await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Mental Maths').last);
+        await tester.pumpAndSettle();
 
-      // Topic: Easy
-      await tester.tap(find.byKey(const Key('play-topic-dropdown')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Easy: Addition & Subtraction').last);
-      await tester.pumpAndSettle();
+        // Topic: Easy
+        await tester.tap(find.byKey(const Key('play-topic-dropdown')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Easy: Addition & Subtraction').last);
+        await tester.pumpAndSettle();
 
-      expect(find.text('Select a topic first'), findsNothing);
-    });
+        expect(find.text('Select a topic first'), findsNothing);
+      },
+    );
 
     testWidgets(
       'Backend chapters and topics are selectable for Mathematics and Mental Maths in Play mode',
@@ -761,7 +835,7 @@ void main() {
         await tester.tap(find.byKey(const Key('play-mode-matching')));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Start game'));
+        await tester.tap(find.byKey(const Key('play-start-button')));
         await tester.pumpAndSettle();
 
         expect(capturedBody['topic'], 'accounts');
@@ -772,7 +846,7 @@ void main() {
           find.text('Match is not available for this topic yet.'),
           findsOneWidget,
         );
-        expect(find.text('Choose game mode'), findsOneWidget);
+        expect(find.text('Choose a game'), findsOneWidget);
         expect(find.byKey(const Key('play-mode-matching')), findsOneWidget);
       },
     );
@@ -861,7 +935,7 @@ void main() {
         await tester.tap(find.byKey(const Key('play-mode-sortItOut')));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Start game'));
+        await tester.tap(find.byKey(const Key('play-start-button')));
         await tester.pump(const Duration(milliseconds: 10));
 
         expect(find.text('Starting game...'), findsOneWidget);
@@ -955,7 +1029,7 @@ void main() {
         await tester.tap(find.byKey(const Key('play-mode-mcq')));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Start game'));
+        await tester.tap(find.byKey(const Key('play-start-button')));
         await tester.pumpAndSettle();
 
         expect(capturedBody['topic'], 'accounts');
@@ -1050,7 +1124,7 @@ void main() {
         await tester.tap(find.byKey(const Key('play-mode-suddenDeath')));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Start game'));
+        await tester.tap(find.byKey(const Key('play-start-button')));
         await tester.pumpAndSettle();
 
         expect(capturedBody['topic'], 'accounts');
@@ -1142,7 +1216,7 @@ void main() {
         await tester.tap(find.byKey(const Key('play-mode-sortItOut')));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Start game'));
+        await tester.tap(find.byKey(const Key('play-start-button')));
         await tester.pumpAndSettle();
 
         expect(capturedBody['topic'], 'accounts');
@@ -1227,7 +1301,7 @@ void main() {
         await tester.tap(find.byKey(const Key('play-mode-matching')));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Start game'));
+        await tester.tap(find.byKey(const Key('play-start-button')));
         await tester.pumpAndSettle();
 
         expect(capturedBody['topic'], 'accounts');

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_theme_colors.dart';
@@ -15,6 +16,8 @@ class AnimatedLoginField extends StatefulWidget {
   final String? Function(String?)? validator;
   final VoidCallback? onFieldSubmitted;
   final FocusNode? focusNode;
+  final List<TextInputFormatter>? inputFormatters;
+  final TextCapitalization textCapitalization;
 
   const AnimatedLoginField({
     super.key,
@@ -28,6 +31,8 @@ class AnimatedLoginField extends StatefulWidget {
     this.validator,
     this.onFieldSubmitted,
     this.focusNode,
+    this.inputFormatters,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -123,6 +128,8 @@ class _AnimatedLoginFieldState extends State<AnimatedLoginField> {
         keyboardType: widget.keyboardType,
         textInputAction: widget.textInputAction,
         autofillHints: widget.autofillHints,
+        inputFormatters: widget.inputFormatters,
+        textCapitalization: widget.textCapitalization,
         validator: widget.validator,
         onFieldSubmitted: (_) => widget.onFieldSubmitted?.call(),
         style: TextStyle(

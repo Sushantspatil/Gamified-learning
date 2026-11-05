@@ -251,6 +251,8 @@ void _moreTests() {
         ),
       );
       expect(seen, Character3dCosmetics.none);
+      // Let the account lookup the rewards system starts finish.
+      await tester.pump(const Duration(milliseconds: 10));
     });
 
     testWidgets('prewarm is harmless where WebView is unsupported', (

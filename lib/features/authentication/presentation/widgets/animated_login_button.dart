@@ -14,12 +14,20 @@ class AnimatedLoginButton extends ConsumerStatefulWidget {
   final Animation<double> ambientAnimation;
   final bool reduceMotion;
 
+  /// What it says when idle and while working, and the icon after the label.
+  final String label;
+  final String loadingLabel;
+  final IconData icon;
+
   const AnimatedLoginButton({
     super.key,
     required this.onPressed,
     this.isLoading = false,
     required this.ambientAnimation,
     this.reduceMotion = false,
+    this.label = 'Log In',
+    this.loadingLabel = 'Logging in...',
+    this.icon = Icons.arrow_forward_rounded,
   });
 
   @override
@@ -116,11 +124,11 @@ class _AnimatedLoginButtonState extends ConsumerState<AnimatedLoginButton> {
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: widget.isLoading
-                        ? const Row(
-                            key: ValueKey('loading'),
+                        ? Row(
+                            key: const ValueKey('loading'),
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              SizedBox(
+                              const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
@@ -128,37 +136,44 @@ class _AnimatedLoginButtonState extends ConsumerState<AnimatedLoginButton> {
                                   color: Colors.white,
                                 ),
                               ),
-                              SizedBox(width: 12),
-                              Text(
-                                'Logging in...',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.3,
+                              const SizedBox(width: 12),
+                              // A long label shrinks instead of overflowing.
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    widget.loadingLabel,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
                           )
-                        : const Row(
-                            key: ValueKey('idle'),
+                        : Row(
+                            key: const ValueKey('idle'),
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                'Log In',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16.5,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.4,
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    widget.label,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16.5,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
                                 ),
                               ),
-                              SizedBox(width: 8),
-                              Icon(
-                                Icons.arrow_forward_rounded,
-                                color: Colors.white,
-                                size: 19,
-                              ),
+                              const SizedBox(width: 8),
+                              Icon(widget.icon, color: Colors.white, size: 19),
                             ],
                           ),
                   ),

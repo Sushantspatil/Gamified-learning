@@ -21,12 +21,16 @@ class SkillverseLoginHero extends StatefulWidget {
   final bool isKeyboardVisible;
   final bool reduceMotion;
 
+  /// A fixed height instead of the login screen's own sizing.
+  final double? height;
+
   const SkillverseLoginHero({
     super.key,
     required this.ambientAnimation,
     this.passwordFocusNode,
     this.isKeyboardVisible = false,
     this.reduceMotion = false,
+    this.height,
   });
 
   static const String assetOpen = 'assets/images/auth/character_open.png';
@@ -76,11 +80,13 @@ class _SkillverseLoginHeroState extends State<SkillverseLoginHero> {
     final screenHeight = MediaQuery.sizeOf(context).height;
 
     // Responsive hero height: shrinks when keyboard opens, keeping the face in view
-    final double targetHeight = widget.isKeyboardVisible
-        ? (screenHeight * 0.16).clamp(115.0, 145.0)
-        : (screenHeight < 700
-            ? 180.0
-            : (screenHeight * 0.28).clamp(195.0, 260.0));
+    final double targetHeight =
+        widget.height ??
+        (widget.isKeyboardVisible
+            ? (screenHeight * 0.16).clamp(115.0, 145.0)
+            : (screenHeight < 700
+                  ? 180.0
+                  : (screenHeight * 0.28).clamp(195.0, 260.0)));
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 260),
@@ -104,7 +110,8 @@ class _SkillverseLoginHeroState extends State<SkillverseLoginHero> {
           // 3. Soft character glow opacity: 0.10 to 0.20
           final glowOpacity = widget.reduceMotion
               ? 0.14
-              : 0.10 + 0.10 * ((math.sin(t * 2 * math.pi - math.pi / 2) + 1) / 2);
+              : 0.10 +
+                    0.10 * ((math.sin(t * 2 * math.pi - math.pi / 2) + 1) / 2);
 
           // 4. Natural blink logic:
           // If password is focused, eyes are ALWAYS closed.
@@ -132,9 +139,15 @@ class _SkillverseLoginHeroState extends State<SkillverseLoginHero> {
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            AppColors.gemCyan.withValues(alpha: glowOpacity * 0.8),
-                            AppColors.violet.withValues(alpha: glowOpacity * 0.9),
-                            AppColors.primary.withValues(alpha: glowOpacity * 0.4),
+                            AppColors.gemCyan.withValues(
+                              alpha: glowOpacity * 0.8,
+                            ),
+                            AppColors.violet.withValues(
+                              alpha: glowOpacity * 0.9,
+                            ),
+                            AppColors.primary.withValues(
+                              alpha: glowOpacity * 0.4,
+                            ),
                             Colors.transparent,
                           ],
                           stops: const [0.0, 0.35, 0.65, 1.0],
@@ -152,8 +165,10 @@ class _SkillverseLoginHeroState extends State<SkillverseLoginHero> {
                       return FadeTransition(
                         opacity: animation,
                         child: ScaleTransition(
-                          scale: Tween<double>(begin: 0.985, end: 1.0)
-                              .animate(animation),
+                          scale: Tween<double>(
+                            begin: 0.985,
+                            end: 1.0,
+                          ).animate(animation),
                           child: child,
                         ),
                       );

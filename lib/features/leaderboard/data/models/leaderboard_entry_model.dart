@@ -23,8 +23,8 @@ class LeaderboardEntryModel extends LeaderboardEntry {
     return LeaderboardEntryModel(
       rank: parseNum(json['rank'], 0),
       userId: (json['user_id'] ?? json['userId'] ?? '').toString(),
-      displayName:
-          (json['display_name'] ?? json['displayName'] ?? 'Player').toString(),
+      displayName: (json['display_name'] ?? json['displayName'] ?? 'Player')
+          .toString(),
       avatarId: (json['avatar_id'] ?? json['avatarId'] ?? 'user').toString(),
       avatarUrl: json['avatar_url'] as String? ?? json['avatarUrl'] as String?,
       score: parseNum(json['score'] ?? json['xp'], 0),

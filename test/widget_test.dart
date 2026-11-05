@@ -26,19 +26,23 @@ import 'package:skillverse_app/features/profile/presentation/providers/profile_p
 import 'package:skillverse_app/features/streaks/data/datasources/mock/streak_mock_datasource.dart';
 import 'package:skillverse_app/features/streaks/presentation/providers/streak_providers.dart';
 import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock_datasource.dart';
+import 'package:skillverse_app/features/wallet/data/models/wallet_balance_model.dart';
 import 'package:skillverse_app/features/wallet/presentation/providers/wallet_providers.dart';
 
 Finder _buyButtonFor(String itemTitle) =>
     find.widgetWithText(FilledButton, 'Buy').first;
 
-Future<void> _pumpApp(WidgetTester tester) async {
-  await _pumpAppWithInitialValues(tester, {});
+/// [walletCoins] is what the player's account holds: the shop, chests and
+/// spin wheel all show and spend the account's coins.
+Future<void> _pumpApp(WidgetTester tester, {int walletCoins = 0}) async {
+  await _pumpAppWithInitialValues(tester, {}, walletCoins: walletCoins);
 }
 
 Future<void> _pumpAppWithInitialValues(
   WidgetTester tester,
-  Map<String, Object> values,
-) async {
+  Map<String, Object> values, {
+  int walletCoins = 0,
+}) async {
   SharedPreferences.setMockInitialValues(values);
   final storageService = await LocalStorageService.create();
 
@@ -55,7 +59,11 @@ Future<void> _pumpAppWithInitialValues(
         quizDatasourceProvider.overrideWithValue(QuizMockDatasource()),
         profileDatasourceProvider.overrideWithValue(ProfileMockDatasource()),
         streakDatasourceProvider.overrideWithValue(StreakMockDatasource()),
-        walletDatasourceProvider.overrideWithValue(WalletMockDatasource()),
+        walletDatasourceProvider.overrideWithValue(
+          WalletMockDatasource(
+            initialBalance: WalletBalanceModel(coins: walletCoins, gems: 0),
+          ),
+        ),
       ],
       child: const SkillverseApp(),
     ),
@@ -146,7 +154,7 @@ Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
   await tester.pumpAndSettle();
   await tester.tap(modeCard.first);
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Start game'));
+  await tester.tap(find.byKey(const Key('play-start-button')));
   await _pumpUntilFound(tester, find.text(modeLabel), maxPumps: 20);
 }
 
@@ -371,7 +379,7 @@ void main() {
   testWidgets('shop purchase flow: cancel keeps coins, confirm deducts them', (
     tester,
   ) async {
-    await _pumpApp(tester);
+    await _pumpApp(tester, walletCoins: 100);
     await _signUp(tester);
     await _completeOnboarding(tester);
 
@@ -610,11 +618,11 @@ void main() {
     await tester.tap(find.text('Web Development').last);
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Start game'));
+    await tester.ensureVisible(find.byKey(const Key('play-start-button')));
     await tester.pumpAndSettle();
     final startButton = tester.widget<TextButton>(
       find.ancestor(
-        of: find.text('Start game'),
+        of: find.byKey(const Key('play-start-button')),
         matching: find.byType(TextButton),
       ),
     );
@@ -638,7 +646,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('play-mode-matching')).first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Start game'));
+    await tester.tap(find.byKey(const Key('play-start-button')));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('match_it_view')), findsOneWidget);
@@ -680,7 +688,7 @@ void main() {
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Start game'), findsOneWidget);
+    expect(find.byKey(const Key('play-start-button')), findsOneWidget);
   });
 
   testWidgets('Sort It Out completes, reviews answers and Play again resets', (

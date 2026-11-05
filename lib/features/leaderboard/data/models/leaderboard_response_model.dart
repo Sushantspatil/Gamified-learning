@@ -12,12 +12,11 @@ class LeaderboardResponseModel extends LeaderboardPage {
   });
 
   factory LeaderboardResponseModel.fromJson(Map<String, dynamic> json) {
-    final Map<String, dynamic> map =
-        (json['data'] is Map<String, dynamic>)
-            ? json['data'] as Map<String, dynamic>
-            : (json['data'] is Map
-                ? Map<String, dynamic>.from(json['data'] as Map)
-                : json);
+    final Map<String, dynamic> map = (json['data'] is Map<String, dynamic>)
+        ? json['data'] as Map<String, dynamic>
+        : (json['data'] is Map
+              ? Map<String, dynamic>.from(json['data'] as Map)
+              : json);
 
     final rawItems = map['items'] ?? json['items'];
     final items = <LeaderboardEntryModel>[];
@@ -50,14 +49,21 @@ class LeaderboardResponseModel extends LeaderboardPage {
 
     final page = parseNum(map['page'] ?? json['page'], 1);
     final pageSize = parseNum(
-      map['page_size'] ?? map['pageSize'] ?? json['page_size'] ?? json['pageSize'],
+      map['page_size'] ??
+          map['pageSize'] ??
+          json['page_size'] ??
+          json['pageSize'],
       50,
     );
     final totalCount = parseNum(
-      map['total_count'] ?? map['totalCount'] ?? json['total_count'] ?? json['totalCount'],
+      map['total_count'] ??
+          map['totalCount'] ??
+          json['total_count'] ??
+          json['totalCount'],
       items.length,
     );
-    final hasMore = (map['has_more'] is bool
+    final hasMore =
+        (map['has_more'] is bool
             ? map['has_more'] as bool
             : (map['hasMore'] is bool ? map['hasMore'] as bool : null)) ??
         (json['has_more'] is bool
@@ -83,17 +89,19 @@ class LeaderboardResponseModel extends LeaderboardPage {
   Map<String, dynamic> toJson() {
     return {
       'items': items
-          .map((e) => (e is LeaderboardEntryModel)
-              ? e.toJson()
-              : {
-                  'rank': e.rank,
-                  'user_id': e.userId,
-                  'display_name': e.displayName,
-                  'avatar_id': e.avatarId,
-                  'avatar_url': e.avatarUrl,
-                  'score': e.score,
-                  'is_current_user': e.isCurrentUser,
-                })
+          .map(
+            (e) => (e is LeaderboardEntryModel)
+                ? e.toJson()
+                : {
+                    'rank': e.rank,
+                    'user_id': e.userId,
+                    'display_name': e.displayName,
+                    'avatar_id': e.avatarId,
+                    'avatar_url': e.avatarUrl,
+                    'score': e.score,
+                    'is_current_user': e.isCurrentUser,
+                  },
+          )
           .toList(),
       'page': page,
       'page_size': pageSize,

@@ -115,15 +115,17 @@ Future<Widget> _buildTestApp({
     overrides: [
       localStorageServiceProvider.overrideWithValue(storageService),
       leaderboardRepositoryProvider.overrideWithValue(repo),
-      learningPathsProvider.overrideWith((ref) async => const [
-            LearningPath(
-              id: 'accounting',
-              title: 'Accounting',
-              description: 'Basics of Accounting',
-              difficulty: LearningPathDifficulty.beginner,
-              topicCount: 1,
-            ),
-          ]),
+      learningPathsProvider.overrideWith(
+        (ref) async => const [
+          LearningPath(
+            id: 'accounting',
+            title: 'Accounting',
+            description: 'Basics of Accounting',
+            difficulty: LearningPathDifficulty.beginner,
+            topicCount: 1,
+          ),
+        ],
+      ),
     ],
     child: MaterialApp(
       theme: AppTheme.darkTheme,
@@ -138,8 +140,9 @@ void main() {
   });
 
   group('LeaderboardScreen Widget Tests', () {
-    testWidgets('renders loading state initially while request is in flight',
-        (tester) async {
+    testWidgets('renders loading state initially while request is in flight', (
+      tester,
+    ) async {
       final repo = _MockLeaderboardRepo();
       repo.pendingCompleter = Completer<LeaderboardPage>();
 
@@ -150,8 +153,9 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('renders error message and working Retry action on failure',
-        (tester) async {
+    testWidgets('renders error message and working Retry action on failure', (
+      tester,
+    ) async {
       final repo = _MockLeaderboardRepo();
       repo.shouldFail = true;
 
@@ -171,75 +175,113 @@ void main() {
       expect(find.text('1,250 points'), findsOneWidget);
     });
 
-    testWidgets('renders real entries, scores in points, and highlights current user',
-        (tester) async {
+    testWidgets(
+      'renders real entries, scores in points, and highlights current user',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        final repo = _MockLeaderboardRepo();
+
+        final app = await _buildTestApp(repo: repo);
+        await tester.pumpWidget(app);
+        await tester.pumpAndSettle();
+
+        // Top Score Hero Card
+        expect(find.text('Weekly arena'), findsOneWidget);
+        expect(find.text('Top score: 1,250 points'), findsOneWidget);
+        expect(find.text('Your rank: #2'), findsOneWidget);
+
+        // Entries
+        expect(find.text('#1'), findsOneWidget);
+        expect(find.text('Alex Top'), findsOneWidget);
+        expect(find.text('1,250 points'), findsOneWidget);
+
+        // Current user highlight
+        expect(find.text('#2'), findsOneWidget);
+        expect(find.text('Current Player (You)'), findsOneWidget);
+        expect(find.text('800 points'), findsOneWidget);
+
+        // Zero-score user visibility
+        expect(find.text('#42'), findsOneWidget);
+        expect(find.text('Zero Score Player'), findsOneWidget);
+        expect(find.text('0 points'), findsOneWidget);
+
+        // The top three stand on a podium, and where you are is always shown
+        // with how far you are from the place above.
+        expect(find.byKey(const Key('leaderboard_podium')), findsOneWidget);
+        expect(find.byKey(const Key('your_position_bar')), findsOneWidget);
+        expect(find.text("You're 2nd"), findsOneWidget);
+        expect(find.text('450 pts to reach 1st'), findsOneWidget);
+      },
+    );
+
+    testWidgets('mode and subject filters live behind the Filters button', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 1800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
 
-      final repo = _MockLeaderboardRepo();
-
-      final app = await _buildTestApp(repo: repo);
-      await tester.pumpWidget(app);
-      await tester.pumpAndSettle();
-
-      // Top Score Hero Card
-      expect(find.text('Weekly arena'), findsOneWidget);
-      expect(find.text('Top score: 1,250 points'), findsOneWidget);
-      expect(find.text('Your rank: #2'), findsOneWidget);
-
-      // Entries
-      expect(find.text('#1'), findsOneWidget);
-      expect(find.text('Alex Top'), findsOneWidget);
-      expect(find.text('1,250 points'), findsOneWidget);
-
-      // Current user highlight
-      expect(find.text('#2'), findsOneWidget);
-      expect(find.text('Current Player (You)'), findsOneWidget);
-      expect(find.text('800 points'), findsOneWidget);
-
-      // Zero-score user visibility
-      expect(find.text('#42'), findsOneWidget);
-      expect(find.text('Zero Score Player'), findsOneWidget);
-      expect(find.text('0 points'), findsOneWidget);
-    });
-
-    testWidgets('renders long player name and (You) cleanly on narrow mobile screen without overflow',
-        (tester) async {
-      tester.view.physicalSize = const Size(360, 1600);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final repo = _MockLeaderboardRepo();
-      repo.customPages[1] = const LeaderboardResponseModel(
-        items: [
-          LeaderboardEntryModel(
-            rank: 1,
-            userId: 'usr_1',
-            displayName: 'Pro Quiz Champion',
-            avatarId: 'user',
-            score: 0,
-            isCurrentUser: true,
-          ),
-        ],
-        page: 1,
-        pageSize: 50,
-        totalCount: 1,
-        hasMore: false,
-        currentUserRank: 1,
+      await tester.pumpWidget(
+        await _buildTestApp(repo: _MockLeaderboardRepo()),
       );
-
-      final app = await _buildTestApp(repo: repo);
-      await tester.pumpWidget(app);
       await tester.pumpAndSettle();
 
-      expect(find.text('Pro Quiz Champion (You)'), findsOneWidget);
-      expect(find.text('0 points'), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      // Closed: only the period choices show, not the game chips.
+      expect(find.text('Weekly'), findsOneWidget);
+      expect(find.text('MCQ Quiz'), findsNothing);
+
+      await tester.tap(find.text('Filters'));
+      await tester.pumpAndSettle();
+      expect(find.text('Show scores for'), findsOneWidget);
+      expect(find.text('MCQ Quiz'), findsOneWidget);
+
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+      expect(find.text('MCQ Quiz'), findsNothing);
     });
 
-    testWidgets('renders empty state when server returns zero entries',
-        (tester) async {
+    testWidgets(
+      'renders long player name and (You) cleanly on narrow mobile screen without overflow',
+      (tester) async {
+        tester.view.physicalSize = const Size(360, 1600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+
+        final repo = _MockLeaderboardRepo();
+        repo.customPages[1] = const LeaderboardResponseModel(
+          items: [
+            LeaderboardEntryModel(
+              rank: 1,
+              userId: 'usr_1',
+              displayName: 'Pro Quiz Champion',
+              avatarId: 'user',
+              score: 0,
+              isCurrentUser: true,
+            ),
+          ],
+          page: 1,
+          pageSize: 50,
+          totalCount: 1,
+          hasMore: false,
+          currentUserRank: 1,
+        );
+
+        final app = await _buildTestApp(repo: repo);
+        await tester.pumpWidget(app);
+        await tester.pumpAndSettle();
+
+        expect(find.text('Pro Quiz Champion (You)'), findsOneWidget);
+        expect(find.text('0 points'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('renders empty state when server returns zero entries', (
+      tester,
+    ) async {
       final repo = _MockLeaderboardRepo();
       repo.customPages[1] = const LeaderboardResponseModel(
         items: [],
@@ -253,13 +295,17 @@ void main() {
       await tester.pumpWidget(app);
       await tester.pumpAndSettle();
 
-      expect(find.text('No global ranking data available yet.'), findsOneWidget);
+      expect(
+        find.text('No global ranking data available yet.'),
+        findsOneWidget,
+      );
       // Filter card is still visible so user can change filters
       expect(find.text('Filters'), findsOneWidget);
     });
 
-    testWidgets('Friends and School tabs remain honestly unavailable',
-        (tester) async {
+    testWidgets('Friends and School tabs remain honestly unavailable', (
+      tester,
+    ) async {
       final repo = _MockLeaderboardRepo();
 
       final app = await _buildTestApp(repo: repo);
@@ -277,95 +323,99 @@ void main() {
       expect(find.text('School leaderboard is coming soon.'), findsOneWidget);
     });
 
-    testWidgets('changing filter chips updates the hero card and triggers new request',
-        (tester) async {
-      final repo = _MockLeaderboardRepo();
+    testWidgets(
+      'changing filter chips updates the hero card and triggers new request',
+      (tester) async {
+        final repo = _MockLeaderboardRepo();
 
-      final app = await _buildTestApp(repo: repo);
-      await tester.pumpWidget(app);
-      await tester.pumpAndSettle();
+        final app = await _buildTestApp(repo: repo);
+        await tester.pumpWidget(app);
+        await tester.pumpAndSettle();
 
-      expect(find.text('Weekly arena'), findsOneWidget);
+        expect(find.text('Weekly arena'), findsOneWidget);
 
-      // Tap Daily chip
-      await tester.tap(find.text('Daily'));
-      await tester.pumpAndSettle();
+        // Tap Daily chip
+        await tester.tap(find.text('Daily'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Daily arena'), findsOneWidget);
-      expect(repo.lastFilter?.timeRange, LeaderboardTimeRange.daily);
+        expect(find.text('Daily arena'), findsOneWidget);
+        expect(repo.lastFilter?.timeRange, LeaderboardTimeRange.daily);
 
-      // Tap Monthly chip
-      await tester.tap(find.text('Monthly'));
-      await tester.pumpAndSettle();
+        // Tap Monthly chip
+        await tester.tap(find.text('Monthly'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Monthly arena'), findsOneWidget);
-      expect(repo.lastFilter?.timeRange, LeaderboardTimeRange.monthly);
+        expect(find.text('Monthly arena'), findsOneWidget);
+        expect(repo.lastFilter?.timeRange, LeaderboardTimeRange.monthly);
 
-      // Tap All Time chip
-      await tester.tap(find.text('All Time'));
-      await tester.pumpAndSettle();
+        // Tap All Time chip
+        await tester.tap(find.text('All Time'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('All Time arena'), findsOneWidget);
-      expect(repo.lastFilter?.timeRange, LeaderboardTimeRange.allTime);
-    });
+        expect(find.text('All Time arena'), findsOneWidget);
+        expect(repo.lastFilter?.timeRange, LeaderboardTimeRange.allTime);
+      },
+    );
 
-    testWidgets('pagination loads additional users via Load more button without resetting ranks',
-        (tester) async {
-      tester.view.physicalSize = const Size(800, 1800);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+    testWidgets(
+      'pagination loads additional users via Load more button without resetting ranks',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1800);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
 
-      final repo = _MockLeaderboardRepo();
-      repo.customPages[1] = const LeaderboardResponseModel(
-        items: [
-          LeaderboardEntryModel(
-            rank: 1,
-            userId: 'u-1',
-            displayName: 'Rank One',
-            avatarId: 'robot',
-            score: 500,
-            isCurrentUser: false,
-          ),
-        ],
-        page: 1,
-        pageSize: 1,
-        totalCount: 2,
-        hasMore: true,
-      );
-      repo.customPages[2] = const LeaderboardResponseModel(
-        items: [
-          LeaderboardEntryModel(
-            rank: 2,
-            userId: 'u-2',
-            displayName: 'Rank Two',
-            avatarId: 'owl',
-            score: 400,
-            isCurrentUser: false,
-          ),
-        ],
-        page: 2,
-        pageSize: 1,
-        totalCount: 2,
-        hasMore: false,
-      );
+        final repo = _MockLeaderboardRepo();
+        repo.customPages[1] = const LeaderboardResponseModel(
+          items: [
+            LeaderboardEntryModel(
+              rank: 1,
+              userId: 'u-1',
+              displayName: 'Rank One',
+              avatarId: 'robot',
+              score: 500,
+              isCurrentUser: false,
+            ),
+          ],
+          page: 1,
+          pageSize: 1,
+          totalCount: 2,
+          hasMore: true,
+        );
+        repo.customPages[2] = const LeaderboardResponseModel(
+          items: [
+            LeaderboardEntryModel(
+              rank: 2,
+              userId: 'u-2',
+              displayName: 'Rank Two',
+              avatarId: 'owl',
+              score: 400,
+              isCurrentUser: false,
+            ),
+          ],
+          page: 2,
+          pageSize: 1,
+          totalCount: 2,
+          hasMore: false,
+        );
 
-      final app = await _buildTestApp(repo: repo);
-      await tester.pumpWidget(app);
-      await tester.pumpAndSettle();
+        final app = await _buildTestApp(repo: repo);
+        await tester.pumpWidget(app);
+        await tester.pumpAndSettle();
 
-      expect(find.text('Rank One'), findsOneWidget);
-      expect(find.text('Rank Two'), findsNothing);
-      expect(find.text('Load more'), findsOneWidget);
+        expect(find.text('Rank One'), findsOneWidget);
+        expect(find.text('Rank Two'), findsNothing);
+        expect(find.text('Load more'), findsOneWidget);
 
-      // Tap Load more
-      await tester.tap(find.text('Load more'));
-      await tester.pumpAndSettle();
+        // Tap Load more
+        await tester.tap(find.text('Load more'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Rank One'), findsOneWidget);
-      expect(find.text('Rank Two'), findsOneWidget);
-      expect(find.text('#1'), findsOneWidget);
-      expect(find.text('#2'), findsOneWidget);
-      expect(find.text('Load more'), findsNothing);
-    });
+        expect(find.text('Rank One'), findsOneWidget);
+        expect(find.text('Rank Two'), findsOneWidget);
+        expect(find.text('#1'), findsOneWidget);
+        expect(find.text('#2'), findsOneWidget);
+        expect(find.text('Load more'), findsNothing);
+      },
+    );
   });
 }

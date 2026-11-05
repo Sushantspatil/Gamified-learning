@@ -30,82 +30,95 @@ class LeaderboardTile extends StatelessWidget {
       _ => colors.textSecondary,
     };
 
-    final hasNetworkAvatar = entry.avatarUrl != null &&
+    final hasNetworkAvatar =
+        entry.avatarUrl != null &&
         (entry.avatarUrl!.startsWith('http://') ||
             entry.avatarUrl!.startsWith('https://'));
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: AppSpacing.paddingMd,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            entry.isCurrentUser
-                ? colors.primary.withValues(alpha: 0.14)
-                : colors.cardBackground,
-            isPodium
-                ? rankColor.withValues(alpha: 0.12)
-                : colors.surfaceElevated.withValues(alpha: 0.70),
-          ],
+    // A player who has not scored yet stays in the list (so ranks add up) but
+    // is shown quietly.
+    final hasScore = entry.score > 0;
+
+    return Opacity(
+      opacity: hasScore || entry.isCurrentUser ? 1 : 0.62,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+        padding: AppSpacing.paddingMd,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              entry.isCurrentUser
+                  ? colors.primary.withValues(alpha: 0.14)
+                  : colors.cardBackground,
+              isPodium
+                  ? rankColor.withValues(alpha: 0.12)
+                  : colors.surfaceElevated.withValues(alpha: 0.70),
+            ],
+          ),
+          borderRadius: AppDimensions.radiusMd,
+          border: Border.all(
+            color: entry.isCurrentUser
+                ? colors.primary
+                : isPodium
+                ? rankColor.withValues(alpha: 0.40)
+                : colors.border,
+            width: entry.isCurrentUser ? 2 : 1,
+          ),
         ),
-        borderRadius: AppDimensions.radiusMd,
-        border: Border.all(
-          color: entry.isCurrentUser
-              ? colors.primary
-              : isPodium
-                  ? rankColor.withValues(alpha: 0.40)
-                  : colors.border,
-          width: entry.isCurrentUser ? 2 : 1,
-        ),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 34,
-            child: Text(
-              '#${entry.rank}',
-              style: context.appTextStyles.labelLarge.copyWith(
-                color: rankColor,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 34,
+              child: Text(
+                '#${entry.rank}',
+                style: context.appTextStyles.labelLarge.copyWith(
+                  color: rankColor,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: colors.surfaceElevated,
-            backgroundImage:
-                hasNetworkAvatar ? NetworkImage(entry.avatarUrl!) : null,
-            child: hasNetworkAvatar
-                ? null
-                : Icon(
-                    AvatarCatalog.iconFor(
-                      entry.avatarId.isNotEmpty ? entry.avatarId : 'user',
+            const SizedBox(width: AppSpacing.sm),
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: colors.surfaceElevated,
+              backgroundImage: hasNetworkAvatar
+                  ? NetworkImage(entry.avatarUrl!)
+                  : null,
+              child: hasNetworkAvatar
+                  ? null
+                  : Icon(
+                      AvatarCatalog.iconFor(
+                        entry.avatarId.isNotEmpty ? entry.avatarId : 'user',
+                      ),
+                      size: 18,
+                      color: colors.primary,
                     ),
-                    size: 18,
-                    color: colors.primary,
-                  ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              entry.isCurrentUser
-                  ? '${entry.displayName} (You)'
-                  : entry.displayName,
-              style: context.appTextStyles.bodyLarge,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Icon(Icons.emoji_events_rounded, color: AppColors.accentGold, size: 16),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            '${formatPoints(entry.score)} points',
-            style: context.appTextStyles.labelLarge,
-          ),
-        ],
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                entry.isCurrentUser
+                    ? '${entry.displayName} (You)'
+                    : entry.displayName,
+                style: context.appTextStyles.bodyLarge,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Icon(
+              Icons.emoji_events_rounded,
+              color: AppColors.accentGold,
+              size: 16,
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              '${formatPoints(entry.score)} points',
+              style: context.appTextStyles.labelLarge,
+            ),
+          ],
+        ),
       ),
     );
   }
