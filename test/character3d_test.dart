@@ -24,6 +24,16 @@ Future<void> _show(WidgetTester tester, Widget child) async {
     ),
   );
   await tester.pump();
+  await _afterStart(tester);
+}
+
+/// The 3D page is started a few frames after a view appears (see
+/// character3d_start_test.dart); with no WebView in tests that ends in the
+/// fallback, so wait for it.
+Future<void> _afterStart(WidgetTester tester) async {
+  for (var i = 0; i < 40; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
 }
 
 void main() {

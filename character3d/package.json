@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test",
-    "rig": "node scripts/rig/rig-model.mjs",
+    "rig": "node scripts/rig/rig-model.mjs && node scripts/rig/rig-model.mjs public/models/meshy-model.glb public/models/character-lite.glb 1024",
     "build:embed": "node scripts/build-embed.mjs && node scripts/make-poster.mjs",
     "make:model": "node scripts/make-test-model.mjs",
     "check:render": "node scripts/render-check.mjs"

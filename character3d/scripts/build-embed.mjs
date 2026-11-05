@@ -1,13 +1,20 @@
 // Builds the single-file page the Flutter app shows in a WebView:
 //   <repo>/assets/character3d/character.html  (script + character.glb as base64)
 //   npm run build:embed [model.glb]
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const model = resolve(root, process.argv[2] ?? 'public/models/character.glb');
+// The app shows the character small, so it uses the lighter copy (1024 px
+// texture): the page loads and decodes noticeably faster on a phone. `npm run rig`
+// makes both files.
+const lite = resolve(root, 'public/models/character-lite.glb');
+const model = resolve(
+  root,
+  process.argv[2] ?? (existsSync(lite) ? lite : 'public/models/character.glb'),
+);
 const out = resolve(root, '../assets/character3d/character.html');
 
 await build({ root, configFile: join(root, 'vite.embed.config.js'), logLevel: 'error' });

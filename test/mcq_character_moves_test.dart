@@ -60,6 +60,11 @@ void main() {
         ),
       );
 
+      // The 3D page starts a few frames after the view appears; wait for it.
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
       final xs = <int>{};
       for (var i = 0; i < 40; i++) {
         await tester.pump(const Duration(milliseconds: 250));

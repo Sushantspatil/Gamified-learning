@@ -204,6 +204,14 @@ class Character3dView extends StatefulWidget {
   static void prewarm() {
     if (_prewarmed || !_supported) return;
     _prewarmed = true;
+    // Decode the still picture now, so it is on screen the instant a card opens.
+    try {
+      const AssetImage(posterAsset)
+          .resolve(ImageConfiguration.empty)
+          .addListener(ImageStreamListener((_, _) {}, onError: (_, _) {}));
+    } catch (_) {
+      // best effort
+    }
     try {
       WebViewController().setJavaScriptMode(JavaScriptMode.disabled);
     } catch (_) {
@@ -238,12 +246,62 @@ class _Character3dViewState extends State<Character3dView>
   /// Commands sent before the character was on screen, by kind.
   final Map<String, String> _held = {};
 
+  bool _started = false;
+  bool _scheduled = false;
+  Animation<double>? _routeAnimation;
+  Timer? _startFallback;
+  Timer? _startBeat;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     widget.controller?._view = this;
-    _start();
+    if (!Character3dView._supported) {
+      _failed = true;
+      _setStatus(Character3dStatus.unavailable);
+    }
+  }
+
+  /// Creating a WebView is heavy (the system builds a whole browser view), and
+  /// doing it while the screen slides in makes that slide stutter. So wait until
+  /// the transition has finished, plus a beat for the first frames to settle.
+  /// The still poster is on screen meanwhile, so nothing looks missing.
+  void _scheduleStart() {
+    if (_started || _failed || _scheduled) return;
+    _scheduled = true;
+    // Read the route's animation one frame later: while the page is first being
+    // built it still reports "completed" even though the slide has not begun.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _started || _failed) return;
+      final animation = ModalRoute.of(context)?.animation;
+      if (animation == null || animation.status == AnimationStatus.completed) {
+        _startSoon();
+        return;
+      }
+      _routeAnimation = animation..addStatusListener(_onRouteStatus);
+      // Never wait forever (e.g. a route that never reports completion).
+      _startFallback = Timer(const Duration(milliseconds: 1500), _startSoon);
+    });
+  }
+
+  /// Start after the next frame plus a beat, so the frames that follow a screen
+  /// change are not the ones that pay for building a browser view.
+  void _startSoon() {
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    _routeAnimation = null;
+    _startFallback?.cancel();
+    WidgetsBinding.instance.endOfFrame.then((_) {
+      if (!mounted || _started) return;
+      _startBeat?.cancel();
+      _startBeat = Timer(const Duration(milliseconds: 120), () {
+        if (mounted && !_started) _start();
+      });
+    });
+  }
+
+  void _onRouteStatus(AnimationStatus status) {
+    if (status == AnimationStatus.completed) _startSoon();
   }
 
   void _setStatus(Character3dStatus status) {
@@ -260,11 +318,8 @@ class _Character3dViewState extends State<Character3dView>
   }
 
   void _start() {
-    if (!Character3dView._supported) {
-      _failed = true;
-      _setStatus(Character3dStatus.unavailable);
-      return;
-    }
+    if (_started || _failed) return;
+    _started = true;
     try {
       final controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
@@ -285,12 +340,17 @@ class _Character3dViewState extends State<Character3dView>
           ),
         )
         ..loadFlutterAsset(Character3dView.assetPath);
-      _controller = controller;
+      // The WebView is created after the first frames now, so the tree has to
+      // be told to show it.
+      setState(() => _controller = controller);
       _timeout = Timer(widget.loadTimeout, () => _fail('timed out'));
     } catch (error) {
       // No WebView implementation on this platform (e.g. in widget tests).
-      _failed = true;
-      _controller = null;
+      if (!mounted) return;
+      setState(() {
+        _failed = true;
+        _controller = null;
+      });
       _setStatus(Character3dStatus.unavailable);
     }
   }
@@ -397,6 +457,7 @@ class _Character3dViewState extends State<Character3dView>
       _applyPaused();
     }
     if (_ready || _loaded) _pushStyle(); // the theme was switched
+    _scheduleStart();
   }
 
   @override
@@ -430,6 +491,9 @@ class _Character3dViewState extends State<Character3dView>
 
   @override
   void dispose() {
+    _routeAnimation?.removeStatusListener(_onRouteStatus);
+    _startFallback?.cancel();
+    _startBeat?.cancel();
     if (widget.controller?._view == this) widget.controller?._view = null;
     WidgetsBinding.instance.removeObserver(this);
     _timeout?.cancel();

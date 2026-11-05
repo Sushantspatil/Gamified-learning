@@ -142,6 +142,7 @@ export class Sparkles {
   dispose() {
     this.scene.remove(this.#points);
     this.#geometry.dispose();
+    this.#material.map?.dispose(); // the shared star picture: re-uploaded if used again
     this.#material.dispose();
   }
 }

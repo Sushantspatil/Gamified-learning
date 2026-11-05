@@ -667,6 +667,10 @@ export class CharacterAvatar extends Emitter {
     this.#loco = new LocomotionController(this.#mixer, gltf.animations, o);
     this.#loco.on('change', (change) => this.emit('statechange', change));
 
+    // Draw one invisible sparkle now, so its shader is compiled while the page is
+    // still hidden (otherwise the first jump or cheer would hitch to compile it).
+    this.#sparkles.burst({ x: 0, y: -5, z: 0 }, { n: 1, speed: 0, upward: 0, spread: 0 });
+
     this.#blob.scale.setScalar(o.targetHeight * 0.55);
     this.#loco.setState(LocomotionState.IDLE, { immediate: true });
     this.frameCharacter();
