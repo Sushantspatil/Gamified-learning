@@ -495,11 +495,13 @@ function action(
 }
 
 /**
- * Palm to the viewer when the right hand is raised (radians; tuned by eye).
- * The earlier value (1.2) showed the BACK of the glove to the viewer; turning
- * the hand half a turn the other way shows the palm, as a "hi" should.
+ * Palm to the viewer when the right hand is raised (radians; tuned by eye by
+ * rendering the whole wave at the card's size). The first value (1.2) showed
+ * the BACK of the glove; half a turn the other way showed the palm but it
+ * still turned edge-on during the swing; this value keeps the open palm
+ * facing the viewer through the whole wave.
  */
-const WAVE_TWIST = 1.2 - Math.PI;
+const WAVE_TWIST = 1.2 - Math.PI - 1.4;
 
 const idle = action('Idle', 3.2, {
   loop: true,
