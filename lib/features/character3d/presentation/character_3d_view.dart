@@ -13,9 +13,6 @@ enum Character3dState { idle, walk, run }
 /// How much of the character is in view.
 enum Character3dFraming {
   full,
-
-  /// From the hips up, with room for a raised arm (the dashboard card).
-  upper,
   bust,
   face,
 

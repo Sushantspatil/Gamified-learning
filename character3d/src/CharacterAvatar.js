@@ -63,8 +63,6 @@ const DEFAULT_OPTIONS = {
 const FRAMINGS = {
   full: { focus: 0.54, half: 0.68 },
   bust: { focus: 0.8, half: 0.24 },
-  // Hips to above the head, with room for a raised arm: the dashboard card.
-  upper: { focus: 0.64, half: 0.47 },
   face: { focus: 0.92, half: 0.12 },
   // A wide, short banner seen front-on; the character travels along it, so the
   // camera stays fixed on the centre line instead of following.
@@ -458,7 +456,7 @@ export class CharacterAvatar extends Emitter {
    */
   frameCharacter(framing = 'full') {
     const preset = FRAMINGS[framing];
-    if (!preset) throw new Error(`Unknown framing "${framing}". Use full, upper, bust, face or strip.`);
+    if (!preset) throw new Error(`Unknown framing "${framing}". Use full, bust, face or strip.`);
     this.#framing = framing;
     const h = this.#modelHeight;
     const anchor = preset.fixed ? new THREE.Vector3() : this.#root.position;
