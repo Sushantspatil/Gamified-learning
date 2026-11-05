@@ -33,7 +33,14 @@ class AppProgressBar extends StatelessWidget {
         borderRadius: AppDimensions.radiusCircular,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: trackColor ?? colors.surfaceElevated,
+            // Tinted with the bar's own colour: the plain card colour is white
+            // in the light theme, which made an empty bar invisible.
+            color:
+                trackColor ??
+                Color.alphaBlend(
+                  accent.withValues(alpha: 0.16),
+                  colors.surfaceElevated,
+                ),
             borderRadius: AppDimensions.radiusCircular,
           ),
           child: SizedBox(

@@ -10,6 +10,7 @@ class UserProfileModel extends UserProfile {
     super.tutorialCompleted,
     required super.xp,
     required super.level,
+    super.nextLevelXp,
   });
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) =>
@@ -35,6 +36,7 @@ class UserProfileModel extends UserProfile {
         tutorialCompleted: json['tutorialCompleted'] as bool? ?? false,
         xp: json['xp'] as int? ?? json['experience'] as int? ?? 0,
         level: json['level'] as int? ?? 1,
+        nextLevelXp: json['nextLevelExp'] as int? ?? 0,
       );
 
   factory UserProfileModel.fromEntity(UserProfile profile) => UserProfileModel(
@@ -46,6 +48,7 @@ class UserProfileModel extends UserProfile {
     tutorialCompleted: profile.tutorialCompleted,
     xp: profile.xp,
     level: profile.level,
+    nextLevelXp: profile.nextLevelXp,
   );
 
   Map<String, dynamic> toJson() => {
@@ -57,5 +60,6 @@ class UserProfileModel extends UserProfile {
     'tutorialCompleted': tutorialCompleted,
     'xp': xp,
     'level': level,
+    'nextLevelExp': nextLevelXp,
   };
 }

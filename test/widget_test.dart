@@ -378,6 +378,10 @@ void main() {
     await tester.tap(find.byTooltip('Shop'));
     await tester.pumpAndSettle();
 
+    // The items are in a grid under the character preview, so scroll to it.
+    await tester.ensureVisible(_buyButtonFor('Scholar'));
+    await tester.pumpAndSettle();
+
     // Cancelling a purchase leaves the balance and the item untouched.
     await tester.tap(_buyButtonFor('Scholar'));
     await tester.pumpAndSettle();
@@ -764,9 +768,9 @@ void main() {
       expect(find.text('ada@example.com'), findsOneWidget);
       expect(find.text('Class 12th - Maharashtra State Board'), findsOneWidget);
       expect(find.text('Web Development'), findsWidgets);
-      expect(find.text('0 Coins'), findsOneWidget);
+      expect(find.text('Coins'), findsOneWidget);
 
-      await tester.tap(find.text('Edit Profile'));
+      await tester.tap(find.byTooltip('Edit Profile'));
       await tester.pumpAndSettle();
 
       expect(
@@ -800,6 +804,9 @@ void main() {
     await tester.ensureVisible(find.text('Logout'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Logout'));
+    await tester.pumpAndSettle();
+    // Logging out asks first.
+    await tester.tap(find.byKey(const Key('confirm_logout')));
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome back'), findsOneWidget);

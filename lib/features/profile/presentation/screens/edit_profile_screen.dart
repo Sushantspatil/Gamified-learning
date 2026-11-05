@@ -122,6 +122,21 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         title: const Text('Edit Profile'),
         actions: const [ThemeModeMenu()],
       ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.sm,
+            AppSpacing.md,
+            AppSpacing.md,
+          ),
+          child: AppButton(
+            label: 'Save',
+            isLoading: isSaving,
+            onPressed: _save,
+          ),
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: AppSpacing.paddingMd,
@@ -130,6 +145,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                _EditPreview(
+                  nameController: _nameController,
+                  avatarId: _selectedAvatarId ?? 'default',
+                  classLevel: _selectedClassLevel,
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 AppTextField(
                   controller: _nameController,
                   label: 'Display name',
@@ -191,28 +212,118 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                       borderRadius: BorderRadius.circular(
                         AppDimensions.borderRadiusCircular,
                       ),
-                      child: CircleAvatar(
-                        radius: 28,
-                        backgroundColor: isSelected
-                            ? colors.primary
-                            : colors.surfaceElevated,
-                        child: Icon(
-                          entry.value,
-                          color: isSelected
-                              ? colors.primaryForeground
-                              : colors.textSecondary,
-                        ),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor: isSelected
+                                ? colors.primary
+                                : colors.surfaceElevated,
+                            child: Icon(
+                              entry.value,
+                              size: 28,
+                              color: isSelected
+                                  ? colors.primaryForeground
+                                  : colors.textSecondary,
+                            ),
+                          ),
+                          if (isSelected)
+                            Positioned(
+                              right: -2,
+                              bottom: -2,
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: colors.success,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: colors.surface,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.check_rounded,
+                                  size: 12,
+                                  color: colors.primaryForeground,
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-                AppButton(label: 'Save', isLoading: isSaving, onPressed: _save),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// How the profile will look as you edit it: the chosen avatar, the name as
+/// you type it, and the class.
+class _EditPreview extends StatelessWidget {
+  final TextEditingController nameController;
+  final String avatarId;
+  final String? classLevel;
+
+  const _EditPreview({
+    required this.nameController,
+    required this.avatarId,
+    required this.classLevel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    final styles = context.appTextStyles;
+
+    return Column(
+      children: [
+        Container(
+          width: 96,
+          height: 96,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: colors.surfaceElevated,
+            border: Border.all(color: colors.primary, width: 4),
+            boxShadow: [
+              BoxShadow(
+                color: colors.primary.withValues(alpha: 0.3),
+                blurRadius: 22,
+              ),
+            ],
+          ),
+          child: Icon(
+            AvatarCatalog.iconFor(avatarId),
+            size: 46,
+            color: colors.primary,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: nameController,
+          builder: (context, value, _) {
+            final name = value.text.trim();
+            return Text(
+              name.isEmpty ? 'Your name' : name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: styles.titleLarge.copyWith(
+                color: name.isEmpty ? colors.textMuted : null,
+              ),
+            );
+          },
+        ),
+        if (classLevel != null)
+          Text(
+            'Class $classLevel',
+            style: styles.bodyMedium.copyWith(color: colors.textSecondary),
+          ),
+      ],
     );
   }
 }

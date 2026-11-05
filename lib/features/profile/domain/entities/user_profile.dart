@@ -13,6 +13,10 @@ class UserProfile extends Equatable {
   final int xp;
   final int level;
 
+  /// The XP at which the next level starts, as the server reports it; 0 when
+  /// unknown.
+  final int nextLevelXp;
+
   const UserProfile({
     required this.avatarId,
     this.classLevel,
@@ -22,6 +26,7 @@ class UserProfile extends Equatable {
     this.tutorialCompleted = false,
     required this.xp,
     required this.level,
+    this.nextLevelXp = 0,
   });
 
   static const defaultProfile = UserProfile(
@@ -39,6 +44,7 @@ class UserProfile extends Equatable {
     bool? tutorialCompleted,
     int? xp,
     int? level,
+    int? nextLevelXp,
   }) {
     return UserProfile(
       avatarId: avatarId ?? this.avatarId,
@@ -50,6 +56,7 @@ class UserProfile extends Equatable {
       tutorialCompleted: tutorialCompleted ?? this.tutorialCompleted,
       xp: xp ?? this.xp,
       level: level ?? this.level,
+      nextLevelXp: nextLevelXp ?? this.nextLevelXp,
     );
   }
 
@@ -63,5 +70,6 @@ class UserProfile extends Equatable {
     tutorialCompleted,
     xp,
     level,
+    nextLevelXp,
   ];
 }

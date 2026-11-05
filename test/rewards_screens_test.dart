@@ -349,10 +349,8 @@ void main() {
 
       await tester.tap(buyIn('Scholar'));
       await tester.pumpAndSettle();
-      expect(
-        find.text('Do you want to purchase Scholar for 100 Coins?'),
-        findsOneWidget,
-      );
+      expect(find.text('Buy Scholar?'), findsOneWidget);
+      expect(find.text('After buying'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(_coins(tester), '100');
@@ -375,23 +373,57 @@ void main() {
       expect(container.read(rewardsProvider).equippedAvatar, 'avatar-scholar');
     });
 
-    testWidgets('not enough coins shows a message and changes nothing', (
+    testWidgets('what you cannot afford says how many coins are missing', (
       tester,
     ) async {
       final container = _launch();
       await _show(tester, container, const ShopScreen());
 
-      await tester.tap(buyIn('Genius'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Confirm Purchase'));
-      await tester.pumpAndSettle();
-
-      expect(
-        find.text('Not enough coins. Earn more coins to purchase this item.'),
-        findsOneWidget,
+      // 250 coins with 100 in the purse: the button says so and is off.
+      expect(buyIn('Genius'), findsNothing);
+      expect(find.text('Need 150 more'), findsOneWidget);
+      final button = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Need 150 more'),
+          matching: find.byType(FilledButton),
+        ),
       );
+      expect(button.onPressed, isNull);
       expect(_coins(tester), '100');
       expect(container.read(rewardsProvider).ownedAvatars, isEmpty);
+    });
+
+    testWidgets('fits a small phone with large text, on every tab', (
+      tester,
+    ) async {
+      tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+      await _show(
+        tester,
+        _launch(),
+        const ShopScreen(),
+        size: const Size(720, 1280),
+      );
+      for (final tab in ['Avatars', 'Profile Frames', 'Power-ups']) {
+        await tester.tap(find.text(tab));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull, reason: tab);
+      }
+    });
+
+    testWidgets('tapping an item puts it on the character to try on', (
+      tester,
+    ) async {
+      final container = _launch();
+      await _show(tester, container, const ShopScreen());
+
+      expect(find.text('Your look'), findsOneWidget);
+      await tester.tap(find.text('Explorer'));
+      await tester.pumpAndSettle();
+      expect(find.text('Previewing: Explorer'), findsOneWidget);
+      // Trying it on costs nothing and equips nothing.
+      expect(_coins(tester), '100');
+      expect(container.read(rewardsProvider).equippedAvatar, isNull);
     });
 
     testWidgets('frames and power-ups tabs; tokens stack; retry is locked', (
@@ -410,14 +442,14 @@ void main() {
       await tester.tap(find.text('Power-ups'));
       await tester.pumpAndSettle();
       expect(find.text('Hint Token'), findsOneWidget);
-      expect(find.text('You have: 0'), findsNWidgets(2));
+      expect(find.text('×0'), findsNWidgets(2));
       expect(find.text('Coming soon'), findsOneWidget);
 
       await tester.tap(buyIn('Hint Token'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Confirm Purchase'));
       await tester.pumpAndSettle();
-      expect(find.text('You have: 1'), findsOneWidget);
+      expect(find.text('×1'), findsOneWidget);
       expect(_coins(tester), '50');
       // Consumable: can be bought again.
       expect(buyIn('Hint Token'), findsOneWidget);
