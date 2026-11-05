@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_card.dart';
+import '../../../../shared/widgets/app_pressable.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
 import '../../../character3d/presentation/character_glow.dart';
 
@@ -25,6 +27,9 @@ class MascotCard extends StatefulWidget {
   /// What the player has equipped.
   final Character3dCosmetics cosmetics;
 
+  /// The main call to action under the greeting; hidden when null.
+  final VoidCallback? onPlay;
+
   const MascotCard({
     super.key,
     required this.displayName,
@@ -32,6 +37,7 @@ class MascotCard extends StatefulWidget {
     this.chestReady = false,
     this.canSpin = false,
     this.cosmetics = Character3dCosmetics.none,
+    this.onPlay,
   });
 
   /// The line shown under the greeting, by what matters most right now.
@@ -51,8 +57,8 @@ class MascotCard extends StatefulWidget {
 }
 
 class _MascotCardState extends State<MascotCard> {
-  static const double _characterWidth = 120;
-  static const double _characterHeight = 150;
+  static const double _characterWidth = 132;
+  static const double _characterHeight = 170;
 
   final Character3dController _character = Character3dController();
   int _taps = 0;
@@ -95,12 +101,14 @@ class _MascotCardState extends State<MascotCard> {
         vertical: AppSpacing.sm,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           GestureDetector(
             key: const Key('mascot_tap'),
             behavior: HitTestBehavior.opaque,
             onTap: _react,
             child: CharacterGlow(
+              strength: 1.35,
               child: Character3dView(
                 width: _characterWidth,
                 height: _characterHeight,
@@ -143,10 +151,63 @@ class _MascotCardState extends State<MascotCard> {
                     ),
                   ),
                 ),
+                if (widget.onPlay != null) ...[
+                  const SizedBox(height: AppSpacing.ms),
+                  _PlayButton(onTap: widget.onPlay!),
+                ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The card's main button: start playing.
+class _PlayButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _PlayButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: AppPressable(
+        key: const Key('mascot_play'),
+        onTap: onTap,
+        borderRadius: AppDimensions.radiusCircular,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [colors.primary, colors.violet]),
+            borderRadius: AppDimensions.radiusCircular,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.play_arrow_rounded,
+                  color: colors.primaryForeground,
+                  size: 20,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  'Play',
+                  style: context.appTextStyles.labelLarge.copyWith(
+                    color: colors.primaryForeground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

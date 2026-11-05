@@ -22,12 +22,16 @@ class AppBadge extends StatelessWidget {
   final AppSubjectAccent? subjectAccent;
   final Color? accentColor;
 
+  /// Keeps the label on one line (ending in an ellipsis if it is too long).
+  final int? maxLines;
+
   const AppBadge({
     super.key,
     required this.label,
     this.variant = AppBadgeVariant.neutral,
     this.subjectAccent,
     this.accentColor,
+    this.maxLines,
   });
 
   @override
@@ -50,6 +54,8 @@ class AppBadge extends StatelessWidget {
         ),
         child: Text(
           label,
+          maxLines: maxLines,
+          overflow: maxLines == null ? null : TextOverflow.ellipsis,
           style: AppTypography.badge.copyWith(
             color: variant == AppBadgeVariant.neutral
                 ? colors.textSecondary

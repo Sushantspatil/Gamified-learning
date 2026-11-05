@@ -17,7 +17,6 @@ import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../../shared/widgets/game_scaffold.dart';
-import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../chapters/domain/entities/topic.dart';
 import '../../../chapters/presentation/providers/chapter_providers.dart';
@@ -55,56 +54,61 @@ class DashboardScreen extends ConsumerWidget {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.screenPadding,
-            AppSpacing.md,
-            AppSpacing.screenPadding,
-            96,
-          ),
+          // No side padding here: each block pads itself, so the subjects row
+          // can run to the screen edges.
+          padding: const EdgeInsets.only(top: AppSpacing.md, bottom: 96),
           children: [
-            _ProfileHeader(
-              displayName: user?.displayName ?? 'Learner',
-              avatarId: profile?.avatarId ?? 'default',
-              classLevel: profile?.classLevel,
-              board: profile?.board,
-              level: profile?.level ?? 1,
-              streak: streakAsync.valueOrNull?.currentStreak ?? 0,
-              gems: wallet?.gems ?? 0,
-              onTap: () => context.go(RouteNames.profile),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            MascotCard(
-              displayName: user?.displayName ?? 'Learner',
-              streak: streakAsync.valueOrNull?.currentStreak ?? 0,
-              chestReady: rewards.anyChestReady,
-              canSpin: rewards.canSpinOn(
-                dateKey(ref.read(rewardsClockProvider)()),
-              ),
-              cosmetics: Character3dCosmetics.fromShopIds(
-                avatarId: rewards.equippedAvatar,
-                frameId: rewards.equippedFrame,
+            _ScreenPadding(
+              child: _ProfileHeader(
+                displayName: user?.displayName ?? 'Learner',
+                avatarId: profile?.avatarId ?? 'default',
+                classLevel: profile?.classLevel,
+                board: profile?.board,
+                level: profile?.level ?? 1,
+                streak: streakAsync.valueOrNull?.currentStreak ?? 0,
+                coins: wallet?.coins ?? 0,
+                gems: wallet?.gems ?? 0,
+                onTap: () => context.go(RouteNames.profile),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            _SelectedPathDashboardSections(
-              selectedPathId: selectedPathId,
-              pathsAsync: pathsAsync,
+            _ScreenPadding(
+              child: MascotCard(
+                displayName: user?.displayName ?? 'Learner',
+                streak: streakAsync.valueOrNull?.currentStreak ?? 0,
+                chestReady: rewards.anyChestReady,
+                canSpin: rewards.canSpinOn(
+                  dateKey(ref.read(rewardsClockProvider)()),
+                ),
+                cosmetics: Character3dCosmetics.fromShopIds(
+                  avatarId: rewards.equippedAvatar,
+                  frameId: rewards.equippedFrame,
+                ),
+                onPlay: () => context.go(RouteNames.practice),
+              ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            _StreakSection(streakAsync: streakAsync),
+            _ScreenPadding(
+              child: _SelectedPathDashboardSections(
+                selectedPathId: selectedPathId,
+                pathsAsync: pathsAsync,
+              ),
+            ),
             const SizedBox(height: AppSpacing.lg),
-            const _DailyGoalSection(),
+            _ScreenPadding(
+              child: _QuickPracticeSection(selectedPathId: selectedPathId),
+            ),
             const SizedBox(height: AppSpacing.lg),
+            const _ScreenPadding(child: _RewardsSection()),
+            const SizedBox(height: AppSpacing.lg),
+            _ScreenPadding(child: _StreakSection(streakAsync: streakAsync)),
+            const SizedBox(height: AppSpacing.lg),
+            // Left out when there are no goals; it carries its own gap.
+            const _ScreenPadding(child: _DailyGoalSection()),
             _SubjectsSection(
               pathsAsync: pathsAsync,
               selectedPathId: selectedPathId,
             ),
-            const SizedBox(height: AppSpacing.lg),
-            _QuickPracticeSection(selectedPathId: selectedPathId),
-            const SizedBox(height: AppSpacing.lg),
-            const _DailyRewardCard(),
-            const SizedBox(height: AppSpacing.md),
-            const _RewardShortcuts(),
           ],
         ),
       ),
@@ -132,8 +136,8 @@ class _SelectedPathDashboardSections extends ConsumerWidget {
       data: (paths) {
         final path = _selectedPath(paths, selectedPathId);
         if (path == null || selectedPathId == null) {
-          return const _DashboardMessageCard(
-            message: 'No learning path selected.',
+          return _ChoosePathCard(
+            onTap: () => context.go(RouteNames.learningPath),
           );
         }
 
@@ -222,6 +226,7 @@ class _ProfileHeader extends StatelessWidget {
   final String? board;
   final int level;
   final int streak;
+  final int coins;
   final int gems;
   final VoidCallback onTap;
 
@@ -232,6 +237,7 @@ class _ProfileHeader extends StatelessWidget {
     this.board,
     required this.level,
     required this.streak,
+    required this.coins,
     required this.gems,
     required this.onTap,
   });
@@ -241,68 +247,57 @@ class _ProfileHeader extends StatelessWidget {
     final colors = context.themeColors;
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: AppPressable(
-                key: const Key('compact_profile_header'),
-                onTap: onTap,
-                borderRadius: AppDimensions.radiusMd,
-                child: Row(
+        AppPressable(
+          key: const Key('compact_profile_header'),
+          onTap: onTap,
+          borderRadius: AppDimensions.radiusMd,
+          child: Row(
+            children: [
+              _LevelAvatar(avatarId: avatarId, level: level),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    AppAvatar(
-                      fallbackIcon: AvatarCatalog.iconFor(avatarId),
-                      size: AppDimensions.avatarSizeMd,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            displayName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: context.appTextStyles.titleLarge,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs),
+                        Icon(
+                          Icons.waving_hand_outlined,
+                          color: colors.warning,
+                          size: 18,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  displayName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: context.appTextStyles.titleLarge,
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.xs),
-                              Icon(
-                                Icons.waving_hand_outlined,
-                                color: colors.warning,
-                                size: 18,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: AppSpacing.xs),
-                          AppBadge(
-                            label: _subtitle,
-                            variant: AppBadgeVariant.primary,
-                          ),
-                        ],
-                      ),
+                    const SizedBox(height: AppSpacing.xs),
+                    AppBadge(
+                      label: _subtitle,
+                      variant: AppBadgeVariant.primary,
+                      maxLines: 1,
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            const ThemeModeMenu(),
-          ],
+            ],
+          ),
         ),
-        const SizedBox(height: AppSpacing.sm),
-        Align(
-          alignment: Alignment.centerRight,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _MetricPill(
+        const SizedBox(height: AppSpacing.ms),
+        Row(
+          children: [
+            Expanded(
+              child: _MetricPill(
                 icon: Icons.local_fire_department,
                 iconColor: AppColors.streakFire,
                 value: streak,
@@ -310,8 +305,21 @@ class _ProfileHeader extends StatelessWidget {
                 tooltip: 'Leaderboard',
                 onTap: () => context.go(RouteNames.leaderboard),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              _MetricPill(
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _MetricPill(
+                icon: Icons.monetization_on_rounded,
+                iconColor: AppColors.coinGold,
+                value: coins,
+                semanticLabel: 'Coins',
+                tooltip: 'Wallet',
+                onTap: () => context.push(RouteNames.wallet),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: _MetricPill(
                 icon: Icons.diamond,
                 iconColor: AppColors.gemCyan,
                 value: gems,
@@ -319,17 +327,65 @@ class _ProfileHeader extends StatelessWidget {
                 tooltip: 'Shop',
                 onTap: () => context.push(RouteNames.shop),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ],
     );
   }
 
+  /// Class and board only: the level sits on the avatar.
   String get _subtitle {
     final details = [if (classLevel != null) 'Class $classLevel', ?board];
     if (details.isEmpty) return 'Level $level learner';
-    return '${details.join(' - ')} - Level $level';
+    return details.join(' - ');
+  }
+}
+
+/// The player's avatar with their level as a small tag on its corner.
+class _LevelAvatar extends StatelessWidget {
+  final String avatarId;
+  final int level;
+
+  const _LevelAvatar({required this.avatarId, required this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        AppAvatar(
+          fallbackIcon: AvatarCatalog.iconFor(avatarId),
+          size: AppDimensions.avatarSizeMd,
+        ),
+        Positioned(
+          right: -8,
+          bottom: -4,
+          child: Semantics(
+            label: 'Level',
+            value: '$level',
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: colors.primary,
+                borderRadius: AppDimensions.radiusCircular,
+                border: Border.all(color: colors.surface, width: 2),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                child: Text(
+                  'Lv $level',
+                  style: AppTypography.badge.copyWith(
+                    color: colors.primaryForeground,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -366,16 +422,21 @@ class _MetricPill extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
+            vertical: AppSpacing.xs + 2,
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, color: iconColor, size: 17),
+              Icon(icon, color: iconColor, size: 18),
               const SizedBox(width: AppSpacing.xs),
-              AnimatedCountText(
-                value: value,
-                style: context.appTextStyles.labelLarge,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: AnimatedCountText(
+                    value: value,
+                    style: context.appTextStyles.labelLarge,
+                  ),
+                ),
               ),
             ],
           ),
@@ -555,25 +616,7 @@ class _StreakSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeader(
-          title: 'Your streak',
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.local_fire_department,
-                color: AppColors.streakFire,
-                size: 16,
-              ),
-              Text(
-                '$count day${count == 1 ? '' : 's'}',
-                style: context.appTextStyles.labelSmall.copyWith(
-                  color: context.themeColors.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
+        const _SectionHeader(title: 'Your streak'),
         const SizedBox(height: AppSpacing.sm),
         AppCard(
           padding: const EdgeInsets.symmetric(
@@ -591,7 +634,9 @@ class _StreakSection extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.md),
               Text(
-                'Longest streak: $count day${count == 1 ? '' : 's'}',
+                count > 0
+                    ? 'Play today to keep your streak alive'
+                    : 'Play today to start your streak',
                 textAlign: TextAlign.center,
                 style: context.appTextStyles.bodyMedium.copyWith(
                   color: context.themeColors.textSecondary,
@@ -663,12 +708,17 @@ class _DailyGoalSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final missionsAsync = ref.watch(dailyMissionsControllerProvider);
 
+    // With no goals there is nothing to show, so the section is left out
+    // (an empty card with a dead button looks broken).
     return missionsAsync.when(
-      loading: () => const _DashboardLoadingCard(label: 'Loading daily goals'),
-      error: (error, stackTrace) => const _DashboardMessageCard(
-        message: 'Could not load today\'s goals.',
+      loading: () => const _SectionGap(
+        child: _DashboardLoadingCard(label: 'Loading daily goals'),
+      ),
+      error: (error, stackTrace) => const _SectionGap(
+        child: _DashboardMessageCard(message: 'Could not load today\'s goals.'),
       ),
       data: (missions) {
+        if (missions.isEmpty) return const SizedBox.shrink();
         final completed = missions
             .where((mission) => mission.isCompleted)
             .length;
@@ -679,68 +729,71 @@ class _DailyGoalSection extends ConsumerWidget {
           (sum, mission) => sum + mission.coinReward,
         );
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _SectionHeader(
-              title: 'Today\'s goal',
-              trailing: Text(
-                '$completed of $total',
-                style: context.appTextStyles.labelSmall.copyWith(
-                  color: context.themeColors.textPrimary,
+        return _SectionGap(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _SectionHeader(
+                title: 'Today\'s goal',
+                trailing: Text(
+                  '$completed of $total',
+                  style: context.appTextStyles.labelSmall.copyWith(
+                    color: context.themeColors.textPrimary,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            AppProgressBar(
-              value: progress,
-              height: 4,
-              semanticLabel: 'Today\'s goal progress',
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            AppCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  if (missions.isEmpty)
+              const SizedBox(height: AppSpacing.sm),
+              AppCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
                     Padding(
-                      padding: AppSpacing.paddingMd,
-                      child: Text(
-                        'No goals available today.',
-                        style: context.appTextStyles.bodyMedium,
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                        0,
                       ),
-                    )
-                  else
+                      child: AppProgressBar(
+                        value: progress,
+                        height: 6,
+                        semanticLabel: 'Today\'s goal progress',
+                      ),
+                    ),
                     for (final mission in missions)
                       _DailyMissionRow(mission: mission),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.ms,
-                    ),
-                    decoration: BoxDecoration(
-                      color: context.themeColors.primary.withValues(
-                        alpha: 0.08,
+                    const SizedBox(height: AppSpacing.md),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.ms,
                       ),
-                      borderRadius: const BorderRadius.vertical(
-                        bottom: Radius.circular(AppDimensions.borderRadiusCard),
+                      decoration: BoxDecoration(
+                        color: context.themeColors.primary.withValues(
+                          alpha: 0.08,
+                        ),
+                        borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(
+                            AppDimensions.borderRadiusCard,
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        totalReward == 0
+                            ? 'Complete all goals'
+                            : 'Complete all goals +$totalReward coins',
+                        textAlign: TextAlign.center,
+                        style: context.appTextStyles.labelLarge.copyWith(
+                          color: context.themeColors.primary,
+                        ),
                       ),
                     ),
-                    child: Text(
-                      totalReward == 0
-                          ? 'Complete all goals'
-                          : 'Complete all goals +$totalReward coins',
-                      textAlign: TextAlign.center,
-                      style: context.appTextStyles.labelLarge.copyWith(
-                        color: context.themeColors.primary,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );
@@ -821,30 +874,43 @@ class _SubjectsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.4);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _SectionHeader(
-          title: 'Your subjects',
-          trailing: TextButton(
-            onPressed: () => context.go(RouteNames.learningPath),
-            child: const Text('See all'),
+        _ScreenPadding(
+          child: _SectionHeader(
+            title: 'Your subjects',
+            trailing: TextButton(
+              onPressed: () => context.go(RouteNames.learningPath),
+              child: const Text('See all'),
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         pathsAsync.when(
-          loading: () => const _DashboardLoadingCard(label: 'Loading subjects'),
-          error: (error, stackTrace) =>
-              const _DashboardMessageCard(message: 'Could not load subjects.'),
+          loading: () => const _ScreenPadding(
+            child: _DashboardLoadingCard(label: 'Loading subjects'),
+          ),
+          error: (error, stackTrace) => const _ScreenPadding(
+            child: _DashboardMessageCard(message: 'Could not load subjects.'),
+          ),
           data: (paths) {
             if (paths.isEmpty) {
-              return const _DashboardMessageCard(message: 'No subjects yet.');
+              return const _ScreenPadding(
+                child: _DashboardMessageCard(message: 'No subjects yet.'),
+              );
             }
 
+            // The row runs to both screen edges, so a card cut off at the
+            // edge clearly says "scroll for more"; the first card still lines
+            // up with the rest of the screen.
             return SizedBox(
-              height: 158,
+              height: 176 * scale,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
+                padding: AppSpacing.horizontalScreen,
                 itemCount: paths.length,
                 separatorBuilder: (context, index) =>
                     const SizedBox(width: AppSpacing.md),
@@ -896,13 +962,22 @@ class _SubjectProgressCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      path.title,
-                      maxLines: 2,
-                      softWrap: true,
-                      style: context.appTextStyles.titleMedium,
+                    // Room for two lines whatever the title, so every card
+                    // lines up the same way.
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: _titleBlockHeight(context),
+                      ),
+                      child: Text(
+                        path.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
+                        style: context.appTextStyles.titleMedium,
+                      ),
                     ),
                   ),
                   Icon(
@@ -912,9 +987,9 @@ class _SubjectProgressCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: AppSpacing.sm),
               Text(
-                '${path.topicCount} topics',
+                '${path.topicCount} ${path.topicCount == 1 ? 'topic' : 'topics'}',
                 style: context.appTextStyles.bodyMedium,
               ),
               const SizedBox(height: AppSpacing.ms),
@@ -950,6 +1025,12 @@ class _SubjectProgressCard extends StatelessWidget {
     );
   }
 
+  double _titleBlockHeight(BuildContext context) {
+    final style = context.appTextStyles.titleMedium;
+    final lineHeight = (style.fontSize ?? 18) * (style.height ?? 1.3);
+    return MediaQuery.textScalerOf(context).scale(lineHeight) * 2;
+  }
+
   String _difficultyLabel(LearningPathDifficulty difficulty) {
     return switch (difficulty) {
       LearningPathDifficulty.beginner => 'Beginner',
@@ -967,14 +1048,9 @@ class _QuickPracticeSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('Quick practice', style: context.appTextStyles.titleLarge),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Strengthen today\'s concepts',
-          style: context.appTextStyles.bodyMedium,
-        ),
+        const _SectionHeader(title: 'Quick practice'),
         const SizedBox(height: AppSpacing.sm),
         _QuickPracticeCards(selectedPathId: selectedPathId),
       ],
@@ -990,12 +1066,15 @@ class _QuickPracticeCards extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (selectedPathId == null) {
-      return const _DisabledQuickPracticeCards();
+      // Nothing chosen yet: the cards lead to choosing a subject instead of
+      // sitting there looking switched off.
+      void pick() => context.go(RouteNames.learningPath);
+      return _QuickPracticeRow(onQuiz: pick, onSuddenDeath: pick);
     }
 
     final chaptersAsync = ref.watch(chaptersProvider(selectedPathId!));
     return chaptersAsync.when(
-      loading: () => const _DisabledQuickPracticeCards(),
+      loading: () => const _QuickPracticeRow(),
       error: (error, stackTrace) => const _DashboardMessageCard(
         message: 'Quick practice is unavailable.',
       ),
@@ -1009,7 +1088,7 @@ class _QuickPracticeCards extends ConsumerWidget {
 
         final topicsAsync = ref.watch(topicsProvider(chapter.id));
         return topicsAsync.when(
-          loading: () => const _DisabledQuickPracticeCards(),
+          loading: () => const _QuickPracticeRow(),
           error: (error, stackTrace) => const _DashboardMessageCard(
             message: 'Quick practice is unavailable.',
           ),
@@ -1017,36 +1096,21 @@ class _QuickPracticeCards extends ConsumerWidget {
             final topic =
                 _firstIncompleteTopic(topics) ??
                 (topics.isEmpty ? null : topics.first);
-            return Row(
-              children: [
-                Expanded(
-                  child: _QuickPracticeCard(
-                    icon: Icons.quiz_outlined,
-                    title: '10 question\nquiz',
-                    onTap: topic == null
-                        ? null
-                        : () => context.push(
-                            RouteNames.subjectPlayPath(selectedPathId!),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.ms),
-                Expanded(
-                  child: _QuickPracticeCard(
-                    icon: Icons.bolt,
-                    title: 'Sudden\ndeath',
-                    onTap: topic == null
-                        ? null
-                        : () => context.push(
-                            RouteNames.suddenDeathPath(
-                              topic.id,
-                              subjectId: selectedPathId,
-                              chapterId: chapter.id,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+            return _QuickPracticeRow(
+              onQuiz: topic == null
+                  ? null
+                  : () => context.push(
+                      RouteNames.subjectPlayPath(selectedPathId!),
+                    ),
+              onSuddenDeath: topic == null
+                  ? null
+                  : () => context.push(
+                      RouteNames.suddenDeathPath(
+                        topic.id,
+                        subjectId: selectedPathId,
+                        chapterId: chapter.id,
+                      ),
+                    ),
             );
           },
         );
@@ -1055,29 +1119,40 @@ class _QuickPracticeCards extends ConsumerWidget {
   }
 }
 
-class _DisabledQuickPracticeCards extends StatelessWidget {
-  const _DisabledQuickPracticeCards();
+class _QuickPracticeRow extends StatelessWidget {
+  final VoidCallback? onQuiz;
+  final VoidCallback? onSuddenDeath;
+
+  const _QuickPracticeRow({this.onQuiz, this.onSuddenDeath});
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
-      children: [
-        Expanded(
-          child: _QuickPracticeCard(
-            icon: Icons.quiz_outlined,
-            title: '10 question\nquiz',
-            onTap: null,
+    final colors = context.themeColors;
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: _QuickPracticeCard(
+              icon: Icons.quiz_rounded,
+              title: 'Quick quiz',
+              subtitle: '10 questions',
+              accent: colors.primary,
+              onTap: onQuiz,
+            ),
           ),
-        ),
-        SizedBox(width: AppSpacing.ms),
-        Expanded(
-          child: _QuickPracticeCard(
-            icon: Icons.bolt,
-            title: 'Sudden\ndeath',
-            onTap: null,
+          const SizedBox(width: AppSpacing.ms),
+          Expanded(
+            child: _QuickPracticeCard(
+              icon: Icons.bolt_rounded,
+              title: 'Sudden death',
+              subtitle: 'Beat the clock',
+              accent: AppColors.streakFire,
+              onTap: onSuddenDeath,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1085,11 +1160,15 @@ class _DisabledQuickPracticeCards extends StatelessWidget {
 class _QuickPracticeCard extends StatelessWidget {
   final IconData icon;
   final String title;
+  final String subtitle;
+  final Color accent;
   final VoidCallback? onTap;
 
   const _QuickPracticeCard({
     required this.icon,
     required this.title,
+    required this.subtitle,
+    required this.accent,
     required this.onTap,
   });
 
@@ -1102,36 +1181,69 @@ class _QuickPracticeCard extends StatelessWidget {
       onTap: onTap,
       borderRadius: AppDimensions.radiusCard,
       child: AppCard(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.lg,
-        ),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Opacity(
           opacity: enabled ? 1 : 0.62,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: 0.10),
+                  color: accent.withValues(alpha: 0.16),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: colors.primary, size: 22),
+                child: Icon(icon, color: accent, size: 24),
               ),
-              const SizedBox(height: AppSpacing.ms),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: context.appTextStyles.labelLarge.copyWith(
-                  color: colors.textPrimary,
+              const SizedBox(width: AppSpacing.ms),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.appTextStyles.labelLarge.copyWith(
+                        color: colors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.appTextStyles.labelSmall.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Daily reward and the shortcuts to the spin wheel, chests and shop, under
+/// one heading.
+class _RewardsSection extends StatelessWidget {
+  const _RewardsSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeader(title: 'Rewards'),
+        SizedBox(height: AppSpacing.sm),
+        _DailyRewardCard(),
+        _RewardShortcuts(),
+      ],
     );
   }
 }
@@ -1144,70 +1256,69 @@ class _DailyRewardCard extends ConsumerWidget {
     final rewardAsync = ref.watch(dailyRewardControllerProvider);
     final colors = context.themeColors;
 
-    return rewardAsync.when(
-      loading: () => const _DashboardLoadingCard(label: 'Loading daily reward'),
-      error: (error, stackTrace) =>
-          const _DashboardMessageCard(message: 'Could not load daily reward.'),
-      data: (reward) {
-        if (reward == null) {
-          return const _DashboardMessageCard(
-            message: 'No daily reward available.',
-          );
-        }
+    // No reward today (or it is still loading): nothing to show.
+    final reward = rewardAsync.valueOrNull;
+    if (reward == null) return const SizedBox.shrink();
 
-        return AppPressable(
-          onTap: reward.claimedToday
-              ? null
-              : () {
-                  ref.read(dailyRewardControllerProvider.notifier).claim();
-                  HapticFeedback.mediumImpact();
-                },
-          borderRadius: AppDimensions.radiusCard,
-          child: AppCard(
-            padding: AppSpacing.paddingMd,
-            variant: AppCardVariant.tinted,
-            tintColor: colors.warning,
-            child: Row(
-              children: [
-                Icon(
-                  reward.claimedToday
-                      ? Icons.check_circle
-                      : Icons.card_giftcard,
-                  color: reward.claimedToday ? colors.success : colors.warning,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: AppPressable(
+        onTap: reward.claimedToday
+            ? null
+            : () {
+                ref.read(dailyRewardControllerProvider.notifier).claim();
+                HapticFeedback.mediumImpact();
+              },
+        borderRadius: AppDimensions.radiusCard,
+        child: AppCard(
+          padding: AppSpacing.paddingMd,
+          variant: AppCardVariant.tinted,
+          tintColor: colors.warning,
+          child: Row(
+            children: [
+              Icon(
+                reward.claimedToday ? Icons.check_circle : Icons.card_giftcard,
+                color: reward.claimedToday ? colors.success : colors.warning,
+              ),
+              const SizedBox(width: AppSpacing.ms),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      reward.claimedToday ? 'Claimed' : '+${reward.coins}',
+                      style: context.appTextStyles.labelLarge,
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      'Daily reward',
+                      style: context.appTextStyles.labelSmall,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.ms),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        reward.claimedToday ? 'Claimed' : '+${reward.coins}',
-                        style: context.appTextStyles.labelLarge,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Daily reward',
-                        style: context.appTextStyles.labelSmall,
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.chevron_right, color: colors.textSecondary),
-              ],
-            ),
+              ),
+              Icon(Icons.chevron_right, color: colors.textSecondary),
+            ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
 
-/// Entry points to the demo rewards screens (spin wheel, chests, shop).
-class _RewardShortcuts extends StatelessWidget {
+/// Entry points to the spin wheel, chests and shop. A small dot marks what is
+/// waiting (today's free spin, a chest ready to open).
+class _RewardShortcuts extends ConsumerWidget {
   const _RewardShortcuts();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rewards = ref.watch(rewardsProvider);
+    final canSpin = rewards.canSpinOn(
+      dateKey(ref.read(rewardsClockProvider)()),
+    );
+    final colors = context.themeColors;
+
     return Row(
       children: [
         Expanded(
@@ -1215,6 +1326,7 @@ class _RewardShortcuts extends StatelessWidget {
             icon: Icons.casino_rounded,
             label: 'Spin',
             color: AppColors.streakFire,
+            showDot: canSpin,
             onTap: () => context.push(RouteNames.spinWheel),
           ),
         ),
@@ -1223,7 +1335,8 @@ class _RewardShortcuts extends StatelessWidget {
           child: _RewardShortcut(
             icon: Icons.inventory_2_rounded,
             label: 'Chests',
-            color: AppColors.accentGold,
+            color: colors.warning,
+            showDot: rewards.anyChestReady,
             onTap: () => context.push(RouteNames.chest),
           ),
         ),
@@ -1232,7 +1345,7 @@ class _RewardShortcuts extends StatelessWidget {
           child: _RewardShortcut(
             icon: Icons.storefront_rounded,
             label: 'Shop',
-            color: AppColors.primary,
+            color: colors.primary,
             onTap: () => context.push(RouteNames.shop),
           ),
         ),
@@ -1245,6 +1358,7 @@ class _RewardShortcut extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final bool showDot;
   final VoidCallback onTap;
 
   const _RewardShortcut({
@@ -1252,21 +1366,51 @@ class _RewardShortcut extends StatelessWidget {
     required this.label,
     required this.color,
     required this.onTap,
+    this.showDot = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.themeColors;
     return AppPressable(
       onTap: onTap,
       borderRadius: AppDimensions.radiusCard,
       child: AppCard(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.ms),
-        variant: AppCardVariant.tinted,
-        tintColor: color,
+        padding: const EdgeInsets.symmetric(
+          vertical: AppSpacing.ms,
+          horizontal: AppSpacing.sm,
+        ),
         child: Column(
           children: [
-            Icon(icon, color: color),
-            const SizedBox(height: AppSpacing.xs),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.16),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: 22),
+                ),
+                if (showDot)
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: 11,
+                      height: 11,
+                      decoration: BoxDecoration(
+                        color: colors.error,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: colors.surface, width: 2),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs + 2),
             Text(label, style: context.appTextStyles.labelLarge),
           ],
         ),
@@ -1275,19 +1419,103 @@ class _RewardShortcut extends StatelessWidget {
   }
 }
 
+/// The side gutter of the screen. The page list itself has none, so a row can
+/// run to the screen edge.
+class _ScreenPadding extends StatelessWidget {
+  final Widget child;
+
+  const _ScreenPadding({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(padding: AppSpacing.horizontalScreen, child: child);
+  }
+}
+
+/// Space below a section that may be left out: it goes with the section, so
+/// nothing is left over when the section is hidden.
+class _SectionGap extends StatelessWidget {
+  final Widget child;
+
+  const _SectionGap({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+      child: child,
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   final String title;
-  final Widget trailing;
+  final Widget? trailing;
 
-  const _SectionHeader({required this.title, required this.trailing});
+  const _SectionHeader({required this.title, this.trailing});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Text(title, style: context.appTextStyles.titleLarge)),
-        trailing,
+        Expanded(
+          child: Text(
+            title,
+            style: context.appTextStyles.titleMedium.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        ?trailing,
       ],
+    );
+  }
+}
+
+/// Shown when no learning path has been chosen yet: one clear next step
+/// instead of an empty message.
+class _ChoosePathCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _ChoosePathCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    return AppPressable(
+      key: const Key('choose_path_card'),
+      onTap: onTap,
+      borderRadius: AppDimensions.radiusCard,
+      child: AppCard(
+        padding: AppSpacing.paddingMd,
+        variant: AppCardVariant.tinted,
+        tintColor: colors.primary,
+        child: Row(
+          children: [
+            Icon(Icons.explore_rounded, color: colors.primary, size: 30),
+            const SizedBox(width: AppSpacing.ms),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pick your first subject',
+                    style: context.appTextStyles.labelLarge,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Choose a learning path to unlock goals and practice.',
+                    style: context.appTextStyles.labelSmall.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, color: colors.textSecondary),
+          ],
+        ),
+      ),
     );
   }
 }

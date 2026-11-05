@@ -126,14 +126,6 @@ Future<void> _completeOnboarding(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// The dashboard's ListView doesn't eagerly build off-screen children, so
-/// the streak/missions/reward row at the bottom isn't in the widget tree
-/// until scrolled into view.
-Future<void> _scrollDashboardToBottom(WidgetTester tester) async {
-  await tester.dragFrom(const Offset(200, 500), const Offset(0, -900));
-  await tester.pumpAndSettle();
-}
-
 Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
   await tester.tap(find.byTooltip('Play'));
   await tester.pumpAndSettle();
@@ -269,10 +261,7 @@ void main() {
 
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('CONTINUE LEARNING'), findsOneWidget);
-    expect(
-      find.text('Class 12th - Maharashtra State Board - Level 1'),
-      findsOneWidget,
-    );
+    expect(find.text('Class 12th - Maharashtra State Board'), findsOneWidget);
     expect(find.text('Web Development'), findsOneWidget);
     expect(find.textContaining('HTML Foundations'), findsOneWidget);
   });
@@ -528,17 +517,23 @@ void main() {
       await _signUp(tester);
       await _completeOnboarding(tester);
 
-      expect(find.text('1 day'), findsOneWidget);
-      expect(find.text('0 of 1'), findsOneWidget);
-
-      await _scrollDashboardToBottom(tester);
-
-      expect(find.text('+10'), findsOneWidget);
-
+      // The list builds lazily: scroll each block into view in turn.
+      final page = find.byType(Scrollable).first;
+      await tester.scrollUntilVisible(find.text('+10'), 200, scrollable: page);
       await tester.tap(find.text('+10'));
       await tester.pumpAndSettle();
-
       expect(find.text('Claimed'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Your streak'),
+        200,
+        scrollable: page,
+      );
+      await tester.scrollUntilVisible(
+        find.text('0 of 1'),
+        200,
+        scrollable: page,
+      );
 
       await tester.tap(find.byTooltip('Profile'));
       await tester.pumpAndSettle();
