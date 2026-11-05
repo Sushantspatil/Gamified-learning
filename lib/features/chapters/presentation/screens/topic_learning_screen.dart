@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_spacing.dart';
+import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
@@ -10,6 +11,8 @@ import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../domain/entities/topic.dart';
 import '../providers/chapter_providers.dart';
 
+/// The notes for one topic. No study content is connected yet, so for now the
+/// screen says so plainly instead of showing placeholder paragraphs.
 class TopicLearningScreen extends ConsumerWidget {
   final String chapterId;
   final String topicId;
@@ -22,12 +25,12 @@ class TopicLearningScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final chapterAsync = ref.watch(chapterByIdProvider(chapterId));
+    final chapter = ref.watch(chapterByIdProvider(chapterId)).valueOrNull;
     final topicsAsync = ref.watch(topicsProvider(chapterId));
 
     return GameScaffold(
       appBar: AppBar(
-        title: const Text('Learning material'),
+        title: const Text('Notes'),
         actions: const [ThemeModeMenu()],
       ),
       body: SafeArea(
@@ -47,59 +50,54 @@ class TopicLearningScreen extends ConsumerWidget {
               padding: AppSpacing.paddingMd,
               children: [
                 Text(topic.title, style: context.appTextStyles.displayMedium),
-                const SizedBox(height: AppSpacing.xs),
-                chapterAsync.when(
-                  loading: () => Text(
-                    'Loading chapter context...',
-                    style: context.appTextStyles.bodyMedium,
+                if (chapter != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    chapter.title,
+                    style: context.appTextStyles.bodyMedium.copyWith(
+                      color: context.themeColors.textSecondary,
+                    ),
                   ),
-                  error: (error, stackTrace) => Text(
-                    'Chapter context unavailable.',
-                    style: context.appTextStyles.bodyMedium,
-                  ),
-                  data: (chapter) => Text(
-                    chapter?.title ?? 'Chapter unavailable',
-                    style: context.appTextStyles.bodyMedium,
-                  ),
-                ),
+                ],
                 const SizedBox(height: AppSpacing.lg),
-                AppCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Study content',
-                        style: context.appTextStyles.titleMedium,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Review the core ideas for ${topic.title}. Full notes and PDF content are not connected in the current mock data yet.',
-                        style: context.appTextStyles.bodyMedium,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        'Examples',
-                        style: context.appTextStyles.titleMedium,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Practice examples will appear here when study-material data is available.',
-                        style: context.appTextStyles.bodyMedium,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text('Summary', style: context.appTextStyles.titleMedium),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Use this section to revise the concept before moving into Play mode from the subject screen.',
-                        style: context.appTextStyles.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
+                const _NotesComingSoon(),
               ],
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _NotesComingSoon extends StatelessWidget {
+  const _NotesComingSoon();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    return AppCard(
+      key: const Key('notes_coming_soon'),
+      padding: AppSpacing.paddingLg,
+      child: Column(
+        children: [
+          Icon(Icons.menu_book_outlined, size: 40, color: colors.primary),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Notes are coming soon',
+            textAlign: TextAlign.center,
+            style: context.appTextStyles.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'We are still preparing the study notes for this topic. '
+            'Please check back later.',
+            textAlign: TextAlign.center,
+            style: context.appTextStyles.bodyMedium.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
+        ],
       ),
     );
   }

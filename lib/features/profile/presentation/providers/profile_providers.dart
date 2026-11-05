@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/network_providers.dart';
@@ -22,11 +24,33 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
 });
 
 class ProfileController extends AsyncNotifier<UserProfile?> {
+  Timer? _retryTimer;
+  int _failedLoads = 0;
+
   @override
   Future<UserProfile?> build() async {
+    ref.onDispose(() => _retryTimer?.cancel());
     final user = ref.watch(authControllerProvider).valueOrNull;
     if (user == null) return null;
-    return ref.watch(profileRepositoryProvider).getProfile(user.id);
+    try {
+      final profile = await ref
+          .watch(profileRepositoryProvider)
+          .getProfile(user.id);
+      _failedLoads = 0;
+      return profile;
+    } catch (_) {
+      // Try again shortly (a few times, a little slower each time) instead of
+      // leaving the app without a profile until it is restarted.
+      if (_failedLoads < 5) {
+        _failedLoads++;
+        _retryTimer?.cancel();
+        _retryTimer = Timer(
+          Duration(seconds: 2 * _failedLoads),
+          ref.invalidateSelf,
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<void> updateAvatar(String avatarId) async {

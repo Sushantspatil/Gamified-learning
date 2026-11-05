@@ -10,79 +10,17 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_pressable.dart';
-import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../chapters/domain/entities/chapter.dart';
+import '../../../chapters/domain/entities/topic.dart';
 import '../../../chapters/presentation/providers/chapter_providers.dart';
 import '../../domain/entities/learning_path.dart';
 import '../providers/learning_path_providers.dart';
 
-class SubjectDetailScreen extends ConsumerWidget {
-  final String subjectId;
-
-  const SubjectDetailScreen({super.key, required this.subjectId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final pathsAsync = ref.watch(learningPathsProvider);
-
-    return GameScaffold(
-      appBar: AppBar(
-        title: const Text('Subject'),
-        actions: const [ThemeModeMenu()],
-      ),
-      body: SafeArea(
-        child: pathsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => _ErrorState(
-            message: 'Could not load this subject.',
-            onRetry: () => ref.invalidate(learningPathsProvider),
-          ),
-          data: (paths) {
-            final subject = _findSubject(paths, subjectId);
-            if (subject == null) {
-              return const _MessageState(message: 'Subject not found.');
-            }
-
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.screenPadding,
-                AppSpacing.md,
-                AppSpacing.screenPadding,
-                96,
-              ),
-              children: [
-                _SubjectHeader(subject: subject),
-                const SizedBox(height: AppSpacing.lg),
-                _ModeChoiceCard(
-                  key: const Key('subject-learn-card'),
-                  icon: Icons.menu_book_outlined,
-                  title: 'Learn',
-                  description: 'Study concepts and learning material',
-                  accent: context.themeColors.primary,
-                  onTap: () =>
-                      context.push(RouteNames.subjectLearnPath(subject.id)),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _ModeChoiceCard(
-                  key: const Key('subject-play-card'),
-                  icon: Icons.sports_esports_outlined,
-                  title: 'Play',
-                  description: 'Practice concepts through game modes',
-                  accent: context.themeColors.secondary,
-                  onTap: () =>
-                      context.push(RouteNames.subjectPlayPath(subject.id)),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
+/// One screen for a subject: its topics, grouped under their chapter. A subject
+/// with a single chapter named like itself shows just the topics. Tapping a
+/// topic opens its notes.
 class SubjectLearnChaptersScreen extends ConsumerWidget {
   final String subjectId;
 
@@ -92,10 +30,17 @@ class SubjectLearnChaptersScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pathsAsync = ref.watch(learningPathsProvider);
     final chaptersAsync = ref.watch(chaptersProvider(subjectId));
+    final subject = pathsAsync.valueOrNull == null
+        ? null
+        : _findSubject(pathsAsync.valueOrNull!, subjectId);
 
     return GameScaffold(
       appBar: AppBar(
-        title: const Text('Learn'),
+        title: Text(
+          subject?.title ?? 'Subject',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: const [ThemeModeMenu()],
       ),
       body: SafeArea(
@@ -114,47 +59,36 @@ class SubjectLearnChaptersScreen extends ConsumerWidget {
             return chaptersAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, stackTrace) => _ErrorState(
-                message: 'Could not load chapters.',
+                message: 'Could not load the topics.',
                 onRetry: () => ref.invalidate(chaptersProvider(subjectId)),
               ),
               data: (chapters) {
                 if (chapters.isEmpty) {
                   return const _MessageState(
-                    message: 'No learning material available yet.',
+                    message: 'No notes available yet.',
                   );
                 }
 
-                return ListView(
+                // A lone chapter that just repeats the subject's name adds
+                // nothing, so its heading is left out.
+                final showHeadings =
+                    chapters.length > 1 ||
+                    !_sameTitle(chapters.first.title, subject.title);
+
+                return ListView.separated(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.screenPadding,
-                    AppSpacing.md,
+                    AppSpacing.sm,
                     AppSpacing.screenPadding,
                     96,
                   ),
-                  children: [
-                    Text(
-                      'Learn ${subject.title}',
-                      style: context.appTextStyles.displayMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Study chapters, concepts, and explanations.',
-                      style: context.appTextStyles.bodyMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    _ContinueLearningCard(subject: subject, chapters: chapters),
-                    const SizedBox(height: AppSpacing.lg),
-                    Text('Chapters', style: context.appTextStyles.titleLarge),
-                    const SizedBox(height: AppSpacing.sm),
-                    for (var index = 0; index < chapters.length; index++) ...[
-                      _LearnChapterCard(
-                        chapter: chapters[index],
-                        number: index + 1,
-                      ),
-                      if (index != chapters.length - 1)
-                        const SizedBox(height: AppSpacing.sm),
-                    ],
-                  ],
+                  itemCount: chapters.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: AppSpacing.lg),
+                  itemBuilder: (context, index) => _ChapterSection(
+                    chapter: chapters[index],
+                    showHeading: showHeadings,
+                  ),
                 );
               },
             );
@@ -165,103 +99,73 @@ class SubjectLearnChaptersScreen extends ConsumerWidget {
   }
 }
 
-class _SubjectHeader extends StatelessWidget {
-  final LearningPath subject;
+class _ChapterSection extends ConsumerWidget {
+  final Chapter chapter;
+  final bool showHeading;
 
-  const _SubjectHeader({required this.subject});
+  const _ChapterSection({required this.chapter, required this.showHeading});
 
   @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-    final progress = subject.topicCount == 0 ? 0.0 : 0.62;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final topicsAsync = ref.watch(topicsProvider(chapter.id));
 
-    return AppCard(
-      variant: AppCardVariant.tinted,
-      tintColor: colors.primary,
-      borderRadius: AppDimensions.radiusLg,
-      padding: AppSpacing.paddingLg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: 0.14),
-                  borderRadius: AppDimensions.radiusMd,
-                ),
-                child: Icon(
-                  Icons.school_outlined,
-                  color: colors.primary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      subject.title,
-                      maxLines: 2,
-                      softWrap: true,
-                      style: context.appTextStyles.displayMedium,
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      _difficultyLabel(subject.difficulty),
-                      style: context.appTextStyles.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showHeading) ...[
+          Text(
+            chapter.title,
+            style: context.appTextStyles.titleMedium.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Overall progress',
-                  style: context.appTextStyles.labelLarge,
-                ),
-              ),
-              Text(
-                '${(progress * 100).round()}%',
-                style: context.appTextStyles.labelLarge.copyWith(
-                  color: colors.primary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          AppProgressBar(
-            value: progress,
-            height: 7,
-            semanticLabel: '${subject.title} overall progress',
-          ),
+          const SizedBox(height: AppSpacing.sm),
         ],
-      ),
+        topicsAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(AppSpacing.md),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, stackTrace) => _ErrorState(
+            message: 'Could not load the topics.',
+            onRetry: () => ref.invalidate(topicsProvider(chapter.id)),
+          ),
+          data: (topics) {
+            if (topics.isEmpty) {
+              return Text(
+                'No topics yet.',
+                style: context.appTextStyles.bodyMedium,
+              );
+            }
+            return Column(
+              children: [
+                for (var index = 0; index < topics.length; index++) ...[
+                  _TopicRow(
+                    chapterId: chapter.id,
+                    topic: topics[index],
+                    number: index + 1,
+                  ),
+                  if (index != topics.length - 1)
+                    const SizedBox(height: AppSpacing.sm),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 }
 
-class _ModeChoiceCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-  final Color accent;
-  final VoidCallback onTap;
+class _TopicRow extends StatelessWidget {
+  final String chapterId;
+  final Topic topic;
+  final int number;
 
-  const _ModeChoiceCard({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.description,
-    required this.accent,
-    required this.onTap,
+  const _TopicRow({
+    required this.chapterId,
+    required this.topic,
+    required this.number,
   });
 
   @override
@@ -269,157 +173,36 @@ class _ModeChoiceCard extends StatelessWidget {
     final colors = context.themeColors;
 
     return AppPressable(
-      onTap: onTap,
-      borderRadius: AppDimensions.radiusCard,
-      child: AppCard(
-        variant: AppCardVariant.tinted,
-        tintColor: accent,
-        padding: AppSpacing.paddingMd,
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.14),
-                borderRadius: AppDimensions.radiusMd,
-              ),
-              child: Icon(icon, color: accent, size: 26),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: context.appTextStyles.titleLarge),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(description, style: context.appTextStyles.bodyMedium),
-                ],
-              ),
-            ),
-            Icon(Icons.arrow_forward_rounded, color: colors.textSecondary),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ContinueLearningCard extends ConsumerWidget {
-  final LearningPath subject;
-  final List<Chapter> chapters;
-
-  const _ContinueLearningCard({required this.subject, required this.chapters});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final chapter = chapters.first;
-    final topicsAsync = ref.watch(topicsProvider(chapter.id));
-
-    return topicsAsync.when(
-      loading: () =>
-          const AppCard(child: Center(child: CircularProgressIndicator())),
-      error: (error, stackTrace) => AppCard(
-        child: Text(
-          'Continue learning is unavailable.',
-          style: context.appTextStyles.bodyMedium,
-        ),
-      ),
-      data: (topics) {
-        final topic = topics.isEmpty ? null : topics.first;
-        if (topic == null) {
-          return AppCard(
-            child: Text(
-              'No learning material available yet.',
-              style: context.appTextStyles.bodyMedium,
-            ),
-          );
-        }
-
-        return AppPressable(
-          onTap: () => context.push(RouteNames.topicPath(chapter.id, topic.id)),
-          borderRadius: AppDimensions.radiusCard,
-          child: AppCard(
-            variant: AppCardVariant.tinted,
-            tintColor: context.themeColors.primary,
-            padding: AppSpacing.paddingMd,
-            child: Row(
-              children: [
-                const Icon(Icons.bookmark_added_outlined),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Continue learning',
-                        style: context.appTextStyles.titleMedium,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        '${chapter.title} - ${topic.title}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: context.appTextStyles.bodyMedium,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                const Icon(Icons.arrow_forward_rounded),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _LearnChapterCard extends StatelessWidget {
-  final Chapter chapter;
-  final int number;
-
-  const _LearnChapterCard({required this.chapter, required this.number});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-
-    return AppPressable(
-      onTap: () => context.push(RouteNames.chapterPath(chapter.id)),
+      onTap: () => context.push(RouteNames.topicPath(chapterId, topic.id)),
       borderRadius: AppDimensions.radiusCard,
       child: AppCard(
         padding: AppSpacing.paddingMd,
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: colors.primary.withValues(alpha: 0.10),
+                color: topic.isCompleted
+                    ? colors.success.withValues(alpha: 0.12)
+                    : colors.primary.withValues(alpha: 0.10),
                 borderRadius: AppDimensions.radiusMd,
               ),
-              child: Text(
-                number.toString().padLeft(2, '0'),
-                style: context.appTextStyles.labelLarge.copyWith(
-                  color: colors.primary,
-                ),
-              ),
+              child: topic.isCompleted
+                  ? Icon(Icons.check_rounded, color: colors.success, size: 20)
+                  : Text(
+                      number.toString().padLeft(2, '0'),
+                      style: context.appTextStyles.labelLarge.copyWith(
+                        color: colors.primary,
+                      ),
+                    ),
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(chapter.title, style: context.appTextStyles.titleMedium),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    '${chapter.topicCount} topics',
-                    style: context.appTextStyles.bodyMedium,
-                  ),
-                ],
+              child: Text(
+                topic.title,
+                style: context.appTextStyles.titleMedium,
               ),
             ),
             Icon(Icons.chevron_right, color: colors.textSecondary),
@@ -481,10 +264,5 @@ LearningPath? _findSubject(List<LearningPath> paths, String subjectId) {
   return null;
 }
 
-String _difficultyLabel(LearningPathDifficulty difficulty) {
-  return switch (difficulty) {
-    LearningPathDifficulty.beginner => 'Class 11',
-    LearningPathDifficulty.intermediate => 'Class 12',
-    LearningPathDifficulty.advanced => 'Advanced',
-  };
-}
+bool _sameTitle(String a, String b) =>
+    a.trim().toLowerCase() == b.trim().toLowerCase();

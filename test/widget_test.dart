@@ -551,10 +551,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Web Development'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('HTML Foundations'));
-    await tester.pumpAndSettle();
 
-    expect(find.text('Topics'), findsWidgets);
+    // One screen: the chapter and its topics, no extra Learn/Topics steps.
+    expect(find.text('HTML Foundations'), findsOneWidget);
     expect(find.text('Tags & Elements'), findsOneWidget);
   });
 
@@ -568,11 +567,7 @@ void main() {
     await tester.tap(find.text('Web Development'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Learn Web Development'), findsOneWidget);
-    expect(
-      find.text('Study chapters, concepts, and explanations.'),
-      findsOneWidget,
-    );
+    expect(find.text('Tags & Elements'), findsOneWidget);
     expect(find.byKey(const Key('subject-play-card')), findsNothing);
     expect(find.byKey(const Key('game_power_up_bar')), findsNothing);
   });
@@ -588,14 +583,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Web Development'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('HTML Foundations'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Tags & Elements'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Learning material'), findsOneWidget);
-    expect(find.text('Study content'), findsOneWidget);
-    expect(find.text('Examples'), findsOneWidget);
+    expect(find.text('Notes'), findsOneWidget);
+    expect(find.byKey(const Key('notes_coming_soon')), findsOneWidget);
     expect(find.byKey(const Key('game_power_up_bar')), findsNothing);
     expect(find.text('Practice This Topic'), findsNothing);
   });

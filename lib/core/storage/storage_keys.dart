@@ -10,4 +10,8 @@ class StorageKeys {
   static const String musicEnabled = 'settings_music_enabled';
 
   static String profileForUser(String userId) => 'profile_$userId';
+
+  /// The last profile the server sent, kept so a failed request at launch
+  /// does not look like "no profile".
+  static String profileCacheForUser(String userId) => 'profile_cache_$userId';
 }

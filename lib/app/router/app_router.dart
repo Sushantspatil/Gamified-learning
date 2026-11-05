@@ -7,7 +7,6 @@ import '../../features/authentication/presentation/screens/login_screen.dart';
 import '../../features/authentication/presentation/screens/signup_screen.dart';
 import '../../features/splash/presentation/screens/splash_screen.dart';
 import '../../features/chapters/presentation/screens/chapter_list_screen.dart';
-import '../../features/chapters/presentation/screens/chapter_summary_screen.dart';
 import '../../features/chapters/presentation/screens/topic_learning_screen.dart';
 import '../../features/chests/presentation/screens/chest_screen.dart';
 import '../../features/cosmetics/presentation/screens/cosmetics_screen.dart';
@@ -126,11 +125,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) => RouteNames.playSetupPath(
           subjectId: state.pathParameters['subjectId']!,
         ),
-      ),
-      GoRoute(
-        path: RouteNames.chapterPattern,
-        builder: (context, state) =>
-            ChapterSummaryScreen(chapterId: state.pathParameters['chapterId']!),
       ),
       GoRoute(
         path: RouteNames.topicPattern,

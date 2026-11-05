@@ -52,6 +52,16 @@ class RouteGuards {
     }
 
     final profile = profileState.valueOrNull;
+
+    // The profile could not be loaded and nothing is saved for it yet. That is
+    // a network problem, not a new player: do not send an existing player
+    // back through setup. The profile is retried in the background and the
+    // normal rules apply as soon as it arrives.
+    if (profileState.hasError && profile == null) {
+      final gate = isAuthRoute || isSplash || isOnboarding || isTutorial;
+      return gate ? RouteNames.dashboard : null;
+    }
+
     final hasCompletedProfile = profile?.profileSetupCompleted ?? false;
     final hasCompletedTutorial = profile?.tutorialCompleted ?? false;
 

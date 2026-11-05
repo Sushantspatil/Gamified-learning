@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../../../../core/errors/app_exception.dart';
 import '../../../../../core/network/api_client.dart';
 import '../../../../../core/network/api_endpoints.dart';
 import '../../../../../core/network/dtos/profile_dtos.dart';
@@ -20,8 +21,20 @@ class ProfileRemoteDatasource implements ProfileDatasource {
 
   @override
   Future<UserProfileModel> getProfile(String userId) async {
-    final data = await _apiClient.get(ApiEndpoints.profile);
-    return _parseProfile(userId, data);
+    try {
+      final data = await _apiClient.get(ApiEndpoints.profile);
+      final profile = _parseProfile(userId, data);
+      await _cacheProfile(userId, profile);
+      return profile;
+    } on AuthException {
+      rethrow;
+    } catch (_) {
+      // A slow or failed request must not make a set-up account look new:
+      // fall back to the last profile the server sent.
+      final cached = _cachedProfile(userId);
+      if (cached != null) return cached;
+      rethrow;
+    }
   }
 
   @override
@@ -93,21 +106,67 @@ class ProfileRemoteDatasource implements ProfileDatasource {
   UserProfileModel _parseProfile(String userId, dynamic data) {
     if (data is Map<String, dynamic>) {
       final dto = ProfileResponseDto.fromJson(data);
-      return UserProfileModel.fromJson({
+      final merged = <String, dynamic>{
         ...dto.toJson(),
         ..._localProfileFields(userId),
-      });
+      };
+      // The server only has a class and board once setup was finished, so
+      // that is proof enough even when this phone lost its own saved flag.
+      final hasDetails =
+          (dto.classLevel ?? '').isNotEmpty && (dto.board ?? '').isNotEmpty;
+      if (hasDetails) merged['profileSetupCompleted'] = true;
+      return UserProfileModel.fromJson(merged);
     }
     throw const FormatException('Invalid profile response from backend.');
   }
 
-  Map<String, dynamic> _localProfileFields(String userId) {
-    final encoded = _storage.getString(StorageKeys.profileForUser(userId));
-    if (encoded == null || encoded.isEmpty) return const {};
+  /// The ids this profile may be stored under: the one the session reports
+  /// now, and the one saved at login. The two can differ, which used to make
+  /// the saved "setup done" flag impossible to find again.
+  List<String> _storageIds(String userId) {
+    final loginId = _storage.getString(StorageKeys.currentUserId);
+    return [if (loginId != null && loginId.isNotEmpty) loginId, userId];
+  }
 
-    final decoded = jsonDecode(encoded);
-    if (decoded is Map<String, dynamic>) return decoded;
+  Map<String, dynamic> _readJson(String key) {
+    final encoded = _storage.getString(key);
+    if (encoded == null || encoded.isEmpty) return const {};
+    try {
+      final decoded = jsonDecode(encoded);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } catch (_) {
+      // A damaged entry counts as missing.
+    }
     return const {};
+  }
+
+  Map<String, dynamic> _localProfileFields(String userId) {
+    final merged = <String, dynamic>{};
+    // The current session's id is read last, so it wins.
+    for (final id in _storageIds(userId)) {
+      merged.addAll(_readJson(StorageKeys.profileForUser(id)));
+    }
+    return merged;
+  }
+
+  Future<void> _cacheProfile(String userId, UserProfileModel profile) async {
+    final encoded = jsonEncode(profile.toJson());
+    for (final id in _storageIds(userId).toSet()) {
+      await _storage.setString(StorageKeys.profileCacheForUser(id), encoded);
+    }
+  }
+
+  UserProfileModel? _cachedProfile(String userId) {
+    for (final id in _storageIds(userId).reversed) {
+      final cached = _readJson(StorageKeys.profileCacheForUser(id));
+      if (cached.isEmpty) continue;
+      // Flags saved on this phone since (setup, tutorial) still apply.
+      return UserProfileModel.fromJson({
+        ...cached,
+        ..._localProfileFields(userId),
+      });
+    }
+    return null;
   }
 
   Future<void> _saveLocalProfileFields({
@@ -132,9 +191,9 @@ class ProfileRemoteDatasource implements ProfileDatasource {
       updated['tutorialCompleted'] = tutorialCompleted;
     }
 
-    await _storage.setString(
-      StorageKeys.profileForUser(userId),
-      jsonEncode(updated),
-    );
+    final encoded = jsonEncode(updated);
+    for (final id in _storageIds(userId).toSet()) {
+      await _storage.setString(StorageKeys.profileForUser(id), encoded);
+    }
   }
 }
