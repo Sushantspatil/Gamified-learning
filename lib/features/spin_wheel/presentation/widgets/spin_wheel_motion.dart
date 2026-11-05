@@ -86,3 +86,26 @@ String nextSpinLabel(Duration remaining) {
   if (m == 0) return 'Next spin in ${h}h';
   return 'Next spin in ${h}h ${m}m';
 }
+
+/// Turns a looping 0..1 animation into seconds that keep adding up, and lets
+/// the speed change from moment to moment (faster while the wheel spins)
+/// without the picture ever jumping, which a plain "value times speed" would.
+class SpinClock {
+  /// How long one loop of the ambient animation lasts.
+  static const double ambientSeconds = 30;
+
+  double? _last;
+  double _seconds = 0;
+
+  /// [phase] is the loop's current 0..1 value; [speed] 1 is normal.
+  double advance(double phase, double periodSeconds, double speed) {
+    final last = _last;
+    _last = phase;
+    if (last == null) return _seconds;
+    var d = phase - last;
+    if (d < -0.5) d += 1; // the loop wrapped round
+    if (d < 0) d = 0;
+    _seconds += d * periodSeconds * speed;
+    return _seconds;
+  }
+}

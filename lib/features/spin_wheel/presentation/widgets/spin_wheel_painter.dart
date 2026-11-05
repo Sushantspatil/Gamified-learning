@@ -645,36 +645,70 @@ class WheelSpeedBlurPainter extends CustomPainter {
       oldDelegate.segmentCount != segmentCount;
 }
 
-/// Fiery glow and soft light rays behind the wheel. It paints well outside
-/// its own box (the wheel is the focal point), so the caller must not clip it.
+/// Glow and soft light rays behind the wheel. The rays turn slowly, the glow
+/// breathes, and both get livelier with [energy] (a spin in progress). In
+/// [light] mode the light is warm white and gold on a bright background
+/// instead of fire on a dark one.
+///
+/// It paints well outside its own box (the wheel is the focal point), so the
+/// caller must not clip it. Keep one instance alive: it remembers how far the
+/// rays have turned.
 class WheelBackdropPainter extends CustomPainter {
-  const WheelBackdropPainter();
+  final Animation<double>? phase;
+  final Animation<double>? energy;
+  final bool light;
+
+  final SpinClock _clock = SpinClock();
+
+  WheelBackdropPainter({this.phase, this.energy, this.light = false})
+    : super(repaint: Listenable.merge([phase, energy]));
+
+  static Color _scale(Color c, double k) =>
+      c.withValues(alpha: (c.a * k).clamp(0.0, 1.0));
 
   @override
   void paint(Canvas canvas, Size size) {
     final c = size.center(Offset.zero);
     final r = math.min(size.width, size.height) / 2;
+    final e = energy?.value ?? 0;
+    final p = phase?.value ?? 0;
+    final seconds = phase == null
+        ? 0.0
+        : _clock.advance(p, SpinClock.ambientSeconds, 1 + 3 * e);
+    // Breathing: a gentle swell every ten seconds, stronger while spinning.
+    final pulse = 0.92 + 0.08 * math.sin(_tau * p * 3) + 0.2 * e;
 
-    // Wide orange-red glow.
+    // Wide glow.
     final glow = Rect.fromCircle(center: c, radius: r * 2.1);
+    final glowColors = light
+        ? const [Color(0xCCFFF6D0), Color(0x66FFC25A), Color(0x00FF9A1F)]
+        : const [Color(0xCCFF8A1F), Color(0x66E8420F), Color(0x00B01010)];
     canvas.drawCircle(
       c,
       r * 2.1,
       Paint()
-        ..shader = const RadialGradient(
-          colors: [Color(0xCCFF8A1F), Color(0x66E8420F), Color(0x00B01010)],
-          stops: [0.45, 0.72, 1.0],
+        ..shader = RadialGradient(
+          colors: [for (final g in glowColors) _scale(g, pulse)],
+          stops: const [0.45, 0.72, 1.0],
         ).createShader(glow),
     );
 
-    // Radial rays: narrow wedges fading outwards.
+    // Radial rays: narrow wedges fading outwards, slowly turning.
     const rays = 18;
     final rayRect = Rect.fromCircle(center: c, radius: r * 2.4);
+    final rayColor = light ? const Color(0x66FFFFFF) : const Color(0x38FFC070);
     final rayPaint = Paint()
-      ..shader = const RadialGradient(
-        colors: [Color(0x38FFC070), Color(0x00FFC070)],
-        stops: [0.4, 1.0],
+      ..shader = RadialGradient(
+        colors: [
+          _scale(rayColor, 0.9 + 0.6 * e),
+          rayColor.withValues(alpha: 0),
+        ],
+        stops: const [0.4, 1.0],
       ).createShader(rayRect);
+    canvas.save();
+    canvas.translate(c.dx, c.dy);
+    canvas.rotate(seconds * _tau / 90);
+    canvas.translate(-c.dx, -c.dy);
     for (var i = 0; i < rays; i++) {
       final a = i * _tau / rays;
       const half = 0.07;
@@ -693,20 +727,27 @@ class WheelBackdropPainter extends CustomPainter {
         rayPaint,
       );
     }
+    canvas.restore();
 
-    // Golden halo hugging the rim so the wheel stands out.
+    // Halo hugging the rim so the wheel stands out.
     final halo = Rect.fromCircle(center: c, radius: r * 1.3);
+    final haloColors = light
+        ? const [Color(0x00FFFFFF), Color(0xCCFFF3C8), Color(0x00FFD27A)]
+        : const [Color(0x00FFC21A), Color(0xCCFFB84A), Color(0x00FF9A1F)];
     canvas.drawCircle(
       c,
       r * 1.3,
       Paint()
-        ..shader = const RadialGradient(
-          colors: [Color(0x00FFC21A), Color(0xCCFFB84A), Color(0x00FF9A1F)],
-          stops: [0.74, 0.84, 1.0],
+        ..shader = RadialGradient(
+          colors: [for (final h in haloColors) _scale(h, pulse)],
+          stops: const [0.74, 0.84, 1.0],
         ).createShader(halo),
     );
   }
 
   @override
-  bool shouldRepaint(covariant WheelBackdropPainter oldDelegate) => false;
+  bool shouldRepaint(covariant WheelBackdropPainter oldDelegate) =>
+      oldDelegate.phase != phase ||
+      oldDelegate.energy != energy ||
+      oldDelegate.light != light;
 }

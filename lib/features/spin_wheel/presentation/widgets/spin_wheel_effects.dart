@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import 'spin_wheel_motion.dart';
+
 /// The winning prize flashing when the wheel stops: the segment under the
 /// pointer pulses white and gold for a moment. Static position (the wheel is
 /// at rest by then), driven by [progress] from 0 to 1.
@@ -152,4 +154,88 @@ class CoinBurstPainter extends CustomPainter {
       oldDelegate.progress != progress ||
       oldDelegate.from != from ||
       oldDelegate.to != to;
+}
+
+/// Little lights drifting slowly up the whole screen, twinkling as they go.
+/// They speed up with [energy] (a spin in progress). Gold and white on the
+/// dark background, amber and white on the light one. Keep one instance alive:
+/// it remembers how far time has run.
+class SparkleFieldPainter extends CustomPainter {
+  static const int count = 34;
+
+  final Animation<double> phase;
+  final Animation<double> energy;
+  final bool light;
+
+  final SpinClock _clock = SpinClock();
+
+  SparkleFieldPainter({
+    required this.phase,
+    required this.energy,
+    required this.light,
+  }) : super(repaint: Listenable.merge([phase, energy]));
+
+  /// A repeatable "random" number from 0 to 1 for particle [i].
+  static double _h(int i, double salt) {
+    final x = math.sin(i * 12.9898 + salt * 78.233) * 43758.5453;
+    return x - x.floorToDouble();
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final e = energy.value;
+    final t = _clock.advance(
+      phase.value,
+      SpinClock.ambientSeconds,
+      1 + 1.8 * e,
+    );
+
+    for (var i = 0; i < count; i++) {
+      final speed = 0.012 + 0.03 * _h(i, 1); // screens per second
+      final progress = (_h(i, 2) + t * speed) % 1.0;
+      final x = size.width * _h(i, 3) + math.sin(t * 0.7 + i) * 10;
+      final y = size.height * (1 - progress);
+      final radius = 1.3 + 2.2 * _h(i, 4);
+      final twinkle = 0.5 + 0.5 * math.sin(t * (1.2 + _h(i, 5)) + i * 1.7);
+      // Fade in at the bottom and out at the top.
+      final fade = math.sin(math.pi * progress);
+      final alpha = ((0.15 + 0.7 * twinkle * fade) * (0.7 + 0.3 * e)).clamp(
+        0.0,
+        1.0,
+      );
+
+      final white = _h(i, 6) > 0.5;
+      final base = light
+          ? (white ? const Color(0xFFFFFFFF) : const Color(0xFFE88A14))
+          : (white ? const Color(0xFFFFF3D0) : const Color(0xFFFFC94A));
+      final p = Offset(x, y);
+      canvas.drawCircle(
+        p,
+        radius * 3,
+        Paint()..color = base.withValues(alpha: alpha * 0.22),
+      );
+      canvas.drawCircle(
+        p,
+        radius,
+        Paint()..color = base.withValues(alpha: alpha),
+      );
+      if (radius > 2.6) {
+        // The bigger ones get a little four-point glint.
+        final glint = Paint()
+          ..color = base.withValues(alpha: alpha * 0.8)
+          ..strokeWidth = 1.2
+          ..strokeCap = StrokeCap.round;
+        final len = radius * 2.6 * (0.6 + 0.4 * twinkle);
+        canvas.drawLine(p - Offset(len, 0), p + Offset(len, 0), glint);
+        canvas.drawLine(p - Offset(0, len), p + Offset(0, len), glint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant SparkleFieldPainter oldDelegate) =>
+      oldDelegate.phase != phase ||
+      oldDelegate.energy != energy ||
+      oldDelegate.light != light;
 }

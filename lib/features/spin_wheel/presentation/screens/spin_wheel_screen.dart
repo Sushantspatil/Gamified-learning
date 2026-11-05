@@ -20,11 +20,37 @@ import '../widgets/spin_wheel_effects.dart';
 import '../widgets/spin_wheel_motion.dart';
 import '../widgets/spin_wheel_painter.dart';
 
-/// Deep red casino backdrop, as in the reference design. It is part of the
-/// wheel's look, so it is the same in light and dark themes.
-const Color _screenDark = Color(0xFF2A0306);
 const Color _gold = Color(0xFFFFB900);
 const Color _onGold = Color(0xFF5A0A00);
+
+/// The colours around the wheel: a night-time casino red in dark mode and a
+/// bright, sunny gold in light mode. The wheel itself looks the same in both.
+class _Look {
+  final bool light;
+
+  const _Look(this.light);
+
+  /// Centre, middle and edge of the background.
+  List<Color> get gradient => light
+      ? const [Color(0xFFFFF4D2), Color(0xFFFFC46B), Color(0xFFF28A3A)]
+      : const [Color(0xFF9B1A10), Color(0xFF5A0A0C), Color(0xFF2A0306)];
+
+  Color get edge => gradient.last;
+
+  /// What the centre brightens towards while the wheel spins.
+  Color get surge => light ? const Color(0xFFFFFFFF) : const Color(0xFFD2481A);
+
+  Color get title => light ? const Color(0xFF5A1A00) : Colors.white;
+  Color get caption => light ? const Color(0xFF6B2A00) : Colors.white70;
+
+  Color get buttonBg => light ? const Color(0xFFB90000) : _gold;
+  Color get buttonFg => light ? Colors.white : _onGold;
+  Color get buttonOffBg =>
+      light ? const Color(0xFFE2B785) : const Color(0xFF6B4A12);
+  Color get buttonOffFg =>
+      light ? const Color(0xFF8A5A2A) : const Color(0xFFD9B766);
+  Color get buttonGlow => light ? const Color(0xFFB90000) : _gold;
+}
 
 class SpinWheelScreen extends ConsumerStatefulWidget {
   const SpinWheelScreen({super.key});
@@ -54,6 +80,22 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
     duration: const Duration(milliseconds: 1800),
   );
   final Character3dController _character = Character3dController();
+
+  /// Loops (a bounded number of times) to move the background: turning rays,
+  /// a breathing glow and drifting sparkles.
+  late final AnimationController _ambient = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 30),
+  );
+
+  /// 0 when idle, 1 while the wheel spins: the background gets livelier.
+  late final AnimationController _energy = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 700),
+  );
+
+  SparkleFieldPainter? _sparkles;
+  bool? _sparklesLight;
 
   /// Built once: a new theme on every refresh would keep restarting the
   /// character glow's animation.
@@ -104,8 +146,22 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
     _controller.dispose();
     _idle.dispose();
     _win.dispose();
+    _ambient.dispose();
+    _energy.dispose();
     _character.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduceMotion(context)) {
+      _ambient.stop();
+      _ambient.value = 0.3;
+    } else if (!_ambient.isAnimating && _ambient.value < 1) {
+      // Bounded (two minutes), so an unattended screen goes quiet.
+      _ambient.repeat(count: 4);
+    }
   }
 
   DateTime get _now => ref.read(rewardsClockProvider)();
@@ -161,6 +217,7 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
     setState(() {});
     // The character waits with its hand on its chin.
     _character.play(Character3dAction.think);
+    _energy.animateTo(1);
 
     await _controller.forward(from: 0);
     if (!mounted) return; // prize is saved as pending and paid on next open
@@ -201,6 +258,7 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
     final coins = ref.read(rewardsProvider.notifier).completeSpin();
     if (!mounted) return;
     setState(() => _spinning = false);
+    _energy.animateTo(0, duration: const Duration(milliseconds: 1200));
     if (coins == null) return;
     await showRewardDialog(
       context,
@@ -226,15 +284,28 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
         ? 'Spin Now'
         : nextSpinLabel(tomorrow.difference(now));
 
+    final light = Theme.of(context).brightness == Brightness.light;
+    final look = _Look(light);
+    if (_sparkles == null || _sparklesLight != light) {
+      _sparkles = SparkleFieldPainter(
+        phase: _ambient,
+        energy: _energy,
+        light: light,
+      );
+      _sparklesLight = light;
+    }
+
     return Scaffold(
-      backgroundColor: _screenDark,
+      backgroundColor: look.edge,
+      // The moving background runs under the (transparent) app bar.
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: _screenDark,
-        foregroundColor: Colors.white,
-        // The app bar theme sets its own (dark) title and icon colours in the
-        // light theme; this screen is dark red in both, so say so explicitly.
-        titleTextStyle: styles.titleLarge.copyWith(color: Colors.white),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: Colors.transparent,
+        foregroundColor: look.title,
+        // The app bar theme sets its own title and icon colours; this screen
+        // has its own backdrop, so say so explicitly.
+        titleTextStyle: styles.titleLarge.copyWith(color: look.title),
+        iconTheme: IconThemeData(color: look.title),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: const Text('Spin the Wheel'),
@@ -248,68 +319,70 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
         key: _bodyKey,
         children: [
           Positioned.fill(
-            child: DecoratedBox(
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment(0, -0.35),
-                  radius: 1.1,
-                  colors: [Color(0xFF9B1A10), Color(0xFF5A0A0C), _screenDark],
-                  stops: [0.0, 0.55, 1.0],
-                ),
-              ),
-              child: SafeArea(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 520),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final characterHeight = _characterHeight(constraints);
-                        return ListView(
-                          padding: AppSpacing.paddingMd,
-                          children: [
-                            // The wheel comes first: its glow and rays spill
-                            // past its box, and everything after it is
-                            // painted on top of them.
-                            KeyedSubtree(
-                              key: _stageKey,
-                              child: _WheelStage(
-                                rotation: _rotation,
-                                spinning: _spinning,
-                                winIndex: _winIndex,
-                                winProgress: _win,
-                                restAngle: _angle,
-                              ),
+            child: _LivingBackground(
+              ambient: _ambient,
+              energy: _energy,
+              look: look,
+              sparkles: _sparkles!,
+            ),
+          ),
+          Positioned.fill(
+            child: SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final characterHeight = _characterHeight(constraints);
+                      return ListView(
+                        padding: AppSpacing.paddingMd,
+                        children: [
+                          // The wheel comes first: its glow and rays spill
+                          // past its box, and everything after it is
+                          // painted on top of them.
+                          KeyedSubtree(
+                            key: _stageKey,
+                            child: _WheelStage(
+                              rotation: _rotation,
+                              spinning: _spinning,
+                              winIndex: _winIndex,
+                              winProgress: _win,
+                              restAngle: _angle,
+                              ambient: _ambient,
+                              energy: _energy,
+                              light: light,
                             ),
-                            const SizedBox(height: AppSpacing.lg),
-                            _SpinButton(
-                              label: label,
-                              icon: !canSpin && !_spinning
-                                  ? Icons.schedule_rounded
-                                  : Icons.casino_rounded,
-                              pulse: available,
-                              onPressed: available ? _spin : null,
+                          ),
+                          const SizedBox(height: AppSpacing.lg),
+                          _SpinButton(
+                            label: label,
+                            icon: !canSpin && !_spinning
+                                ? Icons.schedule_rounded
+                                : Icons.casino_rounded,
+                            pulse: available,
+                            look: look,
+                            onPressed: available ? _spin : null,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            !canSpin && !_spinning
+                                ? "You've already spun today."
+                                : 'Spin once a day to win coins.',
+                            key: !canSpin && !_spinning
+                                ? const Key('already_spun')
+                                : null,
+                            textAlign: TextAlign.center,
+                            style: styles.bodyLarge.copyWith(
+                              color: look.caption,
                             ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              !canSpin && !_spinning
-                                  ? "You've already spun today."
-                                  : 'Spin once a day to win coins.',
-                              key: !canSpin && !_spinning
-                                  ? const Key('already_spun')
-                                  : null,
-                              textAlign: TextAlign.center,
-                              style: styles.bodyLarge.copyWith(
-                                color: Colors.white70,
-                              ),
-                            ),
-                            if (characterHeight != null) ...[
-                              const SizedBox(height: AppSpacing.md),
-                              _characterSlot(characterHeight),
-                            ],
+                          ),
+                          if (characterHeight != null) ...[
+                            const SizedBox(height: AppSpacing.md),
+                            _characterSlot(characterHeight),
                           ],
-                        );
-                      },
-                    ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
@@ -392,12 +465,14 @@ class _SpinButton extends StatefulWidget {
   final String label;
   final IconData icon;
   final bool pulse;
+  final _Look look;
   final VoidCallback? onPressed;
 
   const _SpinButton({
     required this.label,
     required this.icon,
     required this.pulse,
+    required this.look,
     required this.onPressed,
   });
 
@@ -454,7 +529,7 @@ class _SpinButtonState extends State<_SpinButton>
               boxShadow: [
                 if (_pulse.value > 0)
                   BoxShadow(
-                    color: _gold.withValues(alpha: 0.45 * t),
+                    color: widget.look.buttonGlow.withValues(alpha: 0.45 * t),
                     blurRadius: 22 * t,
                     spreadRadius: 1.5 * t,
                   ),
@@ -471,10 +546,10 @@ class _SpinButtonState extends State<_SpinButton>
           icon: Icon(widget.icon),
           label: Text(widget.label),
           style: FilledButton.styleFrom(
-            backgroundColor: _gold,
-            foregroundColor: _onGold,
-            disabledBackgroundColor: const Color(0xFF6B4A12),
-            disabledForegroundColor: const Color(0xFFD9B766),
+            backgroundColor: widget.look.buttonBg,
+            foregroundColor: widget.look.buttonFg,
+            disabledBackgroundColor: widget.look.buttonOffBg,
+            disabledForegroundColor: widget.look.buttonOffFg,
             textStyle: context.appTextStyles.button.copyWith(
               fontWeight: FontWeight.w900,
             ),
@@ -502,12 +577,20 @@ class _WheelStage extends StatefulWidget {
   final Animation<double> winProgress;
   final double restAngle;
 
+  /// The moving background behind the wheel, and which look it has.
+  final Animation<double> ambient;
+  final Animation<double> energy;
+  final bool light;
+
   const _WheelStage({
     required this.rotation,
     required this.spinning,
     required this.winIndex,
     required this.winProgress,
     required this.restAngle,
+    required this.ambient,
+    required this.energy,
+    required this.light,
   });
 
   @override
@@ -517,6 +600,14 @@ class _WheelStage extends StatefulWidget {
 class _WheelStageState extends State<_WheelStage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _twinkle;
+
+  /// One instance for its whole life: it remembers how far the rays have
+  /// turned, so rebuilding the screen never makes them jump.
+  late WheelBackdropPainter _backdrop = WheelBackdropPainter(
+    phase: widget.ambient,
+    energy: widget.energy,
+    light: widget.light,
+  );
 
   WheelBulbMode get _mode => widget.winIndex != null
       ? WheelBulbMode.flash
@@ -542,6 +633,13 @@ class _WheelStageState extends State<_WheelStage>
   @override
   void didUpdateWidget(covariant _WheelStage oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.light != widget.light) {
+      _backdrop = WheelBackdropPainter(
+        phase: widget.ambient,
+        energy: widget.energy,
+        light: widget.light,
+      );
+    }
     final oldMode = oldWidget.winIndex != null
         ? WheelBulbMode.flash
         : oldWidget.spinning
@@ -600,9 +698,7 @@ class _WheelStageState extends State<_WheelStage>
                 clipBehavior: Clip.none,
                 children: [
                   layer(
-                    const RepaintBoundary(
-                      child: CustomPaint(painter: WheelBackdropPainter()),
-                    ),
+                    RepaintBoundary(child: CustomPaint(painter: _backdrop)),
                   ),
                   layer(
                     RepaintBoundary(
@@ -680,6 +776,56 @@ class _WheelStageState extends State<_WheelStage>
           ),
         );
       },
+    );
+  }
+}
+
+/// The screen's backdrop: a gradient that sways and brightens while the wheel
+/// spins, with sparkles drifting up through it.
+class _LivingBackground extends StatelessWidget {
+  final Animation<double> ambient;
+  final Animation<double> energy;
+  final _Look look;
+  final CustomPainter sparkles;
+
+  const _LivingBackground({
+    required this.ambient,
+    required this.energy,
+    required this.look,
+    required this.sparkles,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const tau = 2 * math.pi;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        AnimatedBuilder(
+          animation: Listenable.merge([ambient, energy]),
+          builder: (context, _) {
+            final p = ambient.value;
+            final e = energy.value;
+            final g = look.gradient;
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(
+                    0.06 * math.sin(tau * p),
+                    -0.35 + 0.04 * math.cos(tau * p),
+                  ),
+                  radius: 1.1 + 0.04 * math.sin(2 * tau * p) + 0.08 * e,
+                  colors: [Color.lerp(g[0], look.surge, e * 0.5)!, g[1], g[2]],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
+              ),
+            );
+          },
+        ),
+        IgnorePointer(
+          child: RepaintBoundary(child: CustomPaint(painter: sparkles)),
+        ),
+      ],
     );
   }
 }
