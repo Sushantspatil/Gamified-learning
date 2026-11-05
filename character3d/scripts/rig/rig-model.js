@@ -481,8 +481,12 @@ function action(name, duration, { loop = false, inT = 0.15, outT = 0.2, over = {
   return new THREE.AnimationClip(name, duration, tracks);
 }
 
-/** Palm to the viewer when the right hand is raised (radians; tuned by eye). */
-const WAVE_TWIST = 1.2;
+/**
+ * Palm to the viewer when the right hand is raised (radians; tuned by eye).
+ * The earlier value (1.2) showed the BACK of the glove to the viewer; turning
+ * the hand half a turn the other way shows the palm, as a "hi" should.
+ */
+const WAVE_TWIST = 1.2 - Math.PI;
 
 const idle = action('Idle', 3.2, {
   loop: true,

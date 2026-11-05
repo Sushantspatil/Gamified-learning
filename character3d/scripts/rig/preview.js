@@ -34,6 +34,24 @@ const cams = ['side', 'front'].map((v) => {
   c.lookAt(v === 'side' ? 0 : cx, cy, 0);
   return c;
 });
+// ?view=3q: one row seen from a three-quarter angle, as in the app's cards.
+if (params.get('view') === '3q') {
+  const w = canvas.width / cols, h = canvas.height;
+  const cam = new THREE.OrthographicCamera(-half * (w / h), half * (w / h), half, -half, 0.1, 50);
+  const a = (Number(params.get('angle') ?? 36) * Math.PI) / 180;
+  cam.position.set(Math.sin(a) * 5 + cx, cy, Math.cos(a) * 5);
+  cam.lookAt(cx, cy, 0);
+  for (let i = 0; i < cols; i++) {
+    mixer.setTime((i / cols) * clip.duration);
+    model.updateMatrixWorld(true);
+    renderer.setViewport(i * w, 0, w, h);
+    renderer.setScissor(i * w, 0, w, h);
+    renderer.render(scene, cam);
+  }
+  window.__info = { clip: clip.name, duration: clip.duration };
+  window.__done = true;
+  throw new Error('done');
+}
 for (let i = 0; i < cols; i++) {
   mixer.setTime((i / cols) * clip.duration);
   model.updateMatrixWorld(true);
