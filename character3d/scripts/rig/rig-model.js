@@ -501,22 +501,25 @@ const idle = action('Idle', 3.2, {
 
 // Waves the right hand beside the head: arm up, palm to the viewer, the hand
 // swinging side to side from the wrist three times (the forearm sways a little).
+// The hand sits clear of the head and rocks from the elbow along a small arc,
+// four times, so the wave reads even when the character is small on screen.
 const waveArms = armTargets((ph, sign) =>
   sign === -1
     ? {
-        wrist: [0.215 + 0.022 * sn(ph, 3), 0.8 + 0.008 * sn(ph, 6), 0.05],
+        wrist: [0.235 + 0.042 * sn(ph, 4), 0.835 - 0.014 * Math.abs(sn(ph, 4)), 0.065],
         pole: [0.9, -0.5, -0.3],
-        handDir: [0.55 * sn(ph, 3, 0.25) + 0.1, 1, 0.12],
+        handDir: [0.85 * sn(ph, 4, 0.25) + 0.1, 1, 0.12],
         twist: WAVE_TWIST,
       }
     : null,
 );
-const wave = action('Wave', 2.2, {
+const wave = action('Wave', 2.4, {
   inT: 0.2,
   outT: 0.22,
   over: {
     Spine: () => [0, 0, 0.03],
-    Head: () => [-0.02, 0.1, 0.06],
+    // The head tips towards the waving hand and bobs with each wave.
+    Head: (ph) => [-0.02 + 0.015 * sn(ph, 4, 0.25), 0.1, 0.07 + 0.025 * sn(ph, 4)],
     Shoulder: (ph, sign) => (sign === -1 ? [0, 0, -0.1] : [0, 0, 0]),
     ...waveArms,
   },

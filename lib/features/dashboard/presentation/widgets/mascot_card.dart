@@ -113,6 +113,7 @@ class _MascotCardState extends State<MascotCard> {
                 width: _characterWidth,
                 height: _characterHeight,
                 state: Character3dState.idle,
+                framing: Character3dFraming.upper,
                 controller: _character,
                 cosmetics: widget.cosmetics,
                 ambient: true,
