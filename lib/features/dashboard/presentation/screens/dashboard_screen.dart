@@ -24,6 +24,7 @@ import '../../../daily_missions/domain/entities/daily_mission.dart';
 import '../../../daily_missions/presentation/providers/daily_mission_providers.dart';
 import '../../../daily_rewards/presentation/providers/daily_reward_providers.dart';
 import '../../../learning_paths/domain/entities/learning_path.dart';
+import '../../../questions/domain/entities/question.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../profile/presentation/avatar_catalog.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
@@ -1102,13 +1103,14 @@ class _QuickPracticeCards extends ConsumerWidget {
                   : () => context.push(
                       RouteNames.subjectPlayPath(selectedPathId!),
                     ),
+              // Like the quiz card, it opens the Play screen (with Sudden Death
+              // already chosen) instead of jumping straight into a game.
               onSuddenDeath: topic == null
                   ? null
                   : () => context.push(
-                      RouteNames.suddenDeathPath(
-                        topic.id,
+                      RouteNames.playSetupPath(
                         subjectId: selectedPathId,
-                        chapterId: chapter.id,
+                        quizType: QuestionType.suddenDeath,
                       ),
                     ),
             );

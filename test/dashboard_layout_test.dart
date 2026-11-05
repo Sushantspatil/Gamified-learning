@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skillverse_app/app/theme/app_theme.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
+import 'package:skillverse_app/core/storage/storage_keys.dart';
 import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
 import 'package:skillverse_app/features/chapters/data/datasources/mock/chapter_mock_datasource.dart';
@@ -36,6 +37,11 @@ Future<void> _show(
     routes: [
       GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
       GoRoute(path: '/wallet', builder: (_, _) => const Scaffold()),
+      GoRoute(
+        path: '/practice',
+        builder: (_, state) =>
+            Scaffold(body: Text('PLAY ${state.uri}', key: const Key('play'))),
+      ),
     ],
   );
   await tester.pumpWidget(
@@ -109,4 +115,27 @@ void main() {
     expect(box.right, 360);
     expect(tester.takeException(), isNull);
   });
+  for (final sudden in [false, true]) {
+    testWidgets(
+      '${sudden ? 'Sudden death' : 'Quick quiz'} opens the Play screen',
+      (tester) async {
+        await _show(
+          tester,
+          prefs: {StorageKeys.selectedLearningPathId: 'accounting'},
+        );
+        await tester.dragUntilVisible(
+          find.text(sudden ? 'Sudden death' : 'Quick quiz'),
+          find.byType(ListView).first,
+          const Offset(0, -200),
+        );
+        await tester.tap(find.text(sudden ? 'Sudden death' : 'Quick quiz'));
+        for (var i = 0; i < 20; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        final shown = tester.widget<Text>(find.byKey(const Key('play'))).data!;
+        expect(shown, contains('subjectId=accounting'));
+        expect(shown.contains('quizType=suddenDeath'), sudden);
+      },
+    );
+  }
 }

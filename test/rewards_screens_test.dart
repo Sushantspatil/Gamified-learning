@@ -102,10 +102,9 @@ void main() {
       await tester.tap(find.text('OK'));
       await tester.pumpAndSettle();
       expect(_coins(tester), '130');
-      expect(
-        find.text("You've already spun today. Come back tomorrow!"),
-        findsOneWidget,
-      );
+      expect(find.text("You've already spun today."), findsOneWidget);
+      // The button tells you when the next spin is, instead of just "no".
+      expect(find.textContaining('Next spin in'), findsOneWidget);
       expect(
         tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNull,

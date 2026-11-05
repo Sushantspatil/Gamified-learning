@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../../rewards/domain/rewards_models.dart';
+import 'spin_wheel_motion.dart';
 
 const double _tau = 2 * math.pi;
 
@@ -49,6 +50,10 @@ const Color _labelOnRed = Color(0xFFFFC21A);
 /// Radius of the segmented face as a fraction of the whole wheel radius; the
 /// rest is the metallic ring with the bulbs.
 const double _faceRadius = 0.80;
+
+/// Where the pegs sit, as a fraction of the wheel radius (just inside the
+/// rim, level with the tip of the pointer).
+const double pegCenterRadius = 0.757;
 
 /// The spinning part: ten alternating red/gold segments with radial labels.
 /// It never repaints while spinning (the screen rotates it with a Transform
@@ -100,8 +105,42 @@ class SpinWheelPainter extends CustomPainter {
       canvas.drawLine(c, c + Offset(math.cos(a), math.sin(a)) * face, line);
     }
 
+    // Bevel: a thin highlight right beside every divider, so the segments
+    // look raised rather than flat.
+    final bevel = Paint()
+      ..color = const Color(0x45FFF1B0)
+      ..strokeWidth = math.max(1.0, r * 0.006)
+      ..strokeCap = StrokeCap.butt;
+    for (var i = 0; i < segments.length; i++) {
+      final a = i * sweep - math.pi / 2 + 0.014;
+      final dir = Offset(math.cos(a), math.sin(a));
+      canvas.drawLine(c + dir * (r * 0.2), c + dir * face, bevel);
+    }
+
     for (var i = 0; i < segments.length; i++) {
       _label(canvas, c, r, i * sweep + sweep / 2 - math.pi / 2, segments[i]);
+    }
+
+    // Gold pegs between the prizes, where the pointer flapper catches.
+    final pegRadius = r * 0.021;
+    for (var i = 0; i < segments.length; i++) {
+      final a = i * sweep - math.pi / 2;
+      final p = c + Offset(math.cos(a), math.sin(a)) * (r * pegCenterRadius);
+      canvas.drawCircle(
+        p + Offset(r * 0.004, r * 0.009),
+        pegRadius * 1.1,
+        Paint()..color = const Color(0x77000000),
+      );
+      canvas.drawCircle(
+        p,
+        pegRadius,
+        Paint()
+          ..shader = const RadialGradient(
+            center: Alignment(-0.35, -0.4),
+            colors: [Color(0xFFFFF3B0), Color(0xFFE0A21A), Color(0xFF7A4600)],
+            stops: [0.0, 0.55, 1.0],
+          ).createShader(Rect.fromCircle(center: p, radius: pegRadius)),
+      );
     }
   }
 
@@ -303,6 +342,10 @@ class WheelRingPainter extends CustomPainter {
   bool shouldRepaint(covariant WheelRingPainter oldDelegate) => false;
 }
 
+/// How the bulbs behave: trading brightness in pairs while waiting, running
+/// round the ring while spinning, all flashing together on a win.
+enum WheelBulbMode { twinkle, chase, flash }
+
 /// The LED bulbs around the ring. Even and odd bulbs trade brightness as
 /// [phase] (0..1) moves, so the wheel looks alive.
 class WheelBulbsPainter extends CustomPainter {
@@ -310,9 +353,13 @@ class WheelBulbsPainter extends CustomPainter {
 
   final Animation<double>? phase;
   final double staticPhase;
+  final WheelBulbMode mode;
 
-  WheelBulbsPainter({this.phase, this.staticPhase = 0.5})
-    : super(repaint: phase);
+  WheelBulbsPainter({
+    this.phase,
+    this.staticPhase = 0.5,
+    this.mode = WheelBulbMode.twinkle,
+  }) : super(repaint: phase);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -326,7 +373,15 @@ class WheelBulbsPainter extends CustomPainter {
       // Offset by half a step so no bulb hides under the pointer.
       final a = (i + 0.5) * _tau / bulbCount - math.pi / 2;
       final p = c + Offset(math.cos(a), math.sin(a)) * ringRadius;
-      final lit = 0.5 + 0.5 * (i.isEven ? t : 1 - t);
+      final lit = switch (mode) {
+        WheelBulbMode.twinkle => 0.5 + 0.5 * (i.isEven ? t : 1 - t),
+        // Five bright patches running round the ring.
+        WheelBulbMode.chase =>
+          math
+              .pow(0.5 + 0.5 * math.cos(_tau * (i * 5 / bulbCount - t)), 2)
+              .toDouble(),
+        WheelBulbMode.flash => 0.3 + 0.7 * t,
+      };
 
       // Shadow, then the recessed socket.
       canvas.drawCircle(
@@ -381,12 +436,27 @@ class WheelBulbsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant WheelBulbsPainter oldDelegate) =>
-      oldDelegate.phase != phase || oldDelegate.staticPhase != staticPhase;
+      oldDelegate.phase != phase ||
+      oldDelegate.staticPhase != staticPhase ||
+      oldDelegate.mode != mode;
 }
 
-/// The fixed golden pointer at 12 o'clock, tip pointing down into the face.
+/// The golden pointer at the top, tip pointing down into the face. It hangs
+/// from a pivot and is flicked aside by every peg that passes under it, then
+/// springs back (see [wheelPointerDeflection]). When the wheel is too fast for
+/// individual flicks to be seen, it is held part-way over instead of strobing.
 class WheelPointerPainter extends CustomPainter {
-  const WheelPointerPainter();
+  /// The wheel rotation; null draws a pointer at rest.
+  final Animation<double>? rotation;
+  final int segmentCount;
+
+  /// The widest swing, in radians.
+  static const double maxSwing = 0.5;
+
+  double? _lastAngle;
+
+  WheelPointerPainter({this.rotation, this.segmentCount = 10})
+    : super(repaint: rotation);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -400,6 +470,25 @@ class WheelPointerPainter extends CustomPainter {
       ..lineTo(c.dx + halfWidth, top)
       ..lineTo(c.dx, tip)
       ..close();
+
+    var swing = 0.0;
+    final angle = rotation?.value;
+    if (angle != null) {
+      final sweep = _tau / segmentCount;
+      final perFrame = _lastAngle == null
+          ? 0.0
+          : (angle - _lastAngle!).abs() / sweep; // segments moved this frame
+      _lastAngle = angle;
+      final fast = ((perFrame - 0.12) / 0.25).clamp(0.0, 1.0);
+      final wave = wheelPointerDeflection(angle, segmentCount);
+      swing = (wave + (-0.55 - wave) * fast) * maxSwing;
+    }
+
+    final pivot = Offset(c.dx, top + r * 0.03);
+    canvas.save();
+    canvas.translate(pivot.dx, pivot.dy);
+    canvas.rotate(swing);
+    canvas.translate(-pivot.dx, -pivot.dy);
 
     canvas.drawPath(
       path.shift(Offset(0, r * 0.012)),
@@ -425,10 +514,135 @@ class WheelPointerPainter extends CustomPainter {
         ..strokeWidth = math.max(1.0, r * 0.011)
         ..color = const Color(0xFF5A2E00),
     );
+    canvas.restore();
+
+    // The pivot rivet stays put.
+    canvas.drawCircle(
+      pivot,
+      r * 0.026,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(-0.3, -0.4),
+          colors: [Color(0xFFFFF3B0), Color(0xFFB87400)],
+        ).createShader(Rect.fromCircle(center: pivot, radius: r * 0.026)),
+    );
   }
 
   @override
-  bool shouldRepaint(covariant WheelPointerPainter oldDelegate) => false;
+  bool shouldRepaint(covariant WheelPointerPainter oldDelegate) =>
+      oldDelegate.rotation != rotation ||
+      oldDelegate.segmentCount != segmentCount;
+}
+
+/// A glassy sheen over the face: a soft light from the top left and a faint
+/// specular streak. Static, so it is painted once and cached.
+class WheelGlossPainter extends CustomPainter {
+  const WheelGlossPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.center(Offset.zero);
+    final r = math.min(size.width, size.height) / 2;
+    final face = Rect.fromCircle(center: c, radius: r * _faceRadius);
+
+    canvas.save();
+    canvas.clipPath(Path()..addOval(face));
+    canvas.drawRect(
+      face,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment(-0.7, -1),
+          end: Alignment(0.3, 0.2),
+          colors: [Color(0x38FFFFFF), Color(0x00FFFFFF)],
+        ).createShader(face),
+    );
+    // Inner shadow hugging the rim, as if the face sat below the bezel.
+    canvas.drawCircle(
+      c,
+      r * _faceRadius,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = r * 0.07
+        ..color = const Color(0x33000000)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.04),
+    );
+    canvas.restore();
+
+    canvas.save();
+    canvas.translate(c.dx - r * 0.3, c.dy - r * 0.42);
+    canvas.rotate(-0.6);
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset.zero, width: r * 0.55, height: r * 0.1),
+      Paint()
+        ..color = const Color(0x24FFFFFF)
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.03),
+    );
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant WheelGlossPainter oldDelegate) => false;
+}
+
+/// Streaks over the face while it turns fast, so a spinning wheel looks
+/// blurred rather than like a still picture being rotated. Invisible when the
+/// wheel is slow or stopped.
+class WheelSpeedBlurPainter extends CustomPainter {
+  final Animation<double> rotation;
+  final int segmentCount;
+
+  double? _lastAngle;
+
+  WheelSpeedBlurPainter({required this.rotation, required this.segmentCount})
+    : super(repaint: rotation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final angle = rotation.value;
+    final sweep = _tau / segmentCount;
+    final perFrame = _lastAngle == null
+        ? 0.0
+        : (angle - _lastAngle!).abs() / sweep;
+    _lastAngle = angle;
+    final strength = ((perFrame - 0.08) / 0.5).clamp(0.0, 1.0);
+    if (strength <= 0) return;
+
+    final c = size.center(Offset.zero);
+    final r = math.min(size.width, size.height) / 2;
+    final face = Rect.fromCircle(center: c, radius: r * _faceRadius);
+    final colour = Color.fromRGBO(255, 244, 214, 0.42 * strength);
+    const clear = Color(0x00FFF4D6);
+
+    // One soft band per prize, turning with the wheel.
+    final colors = <Color>[];
+    final stops = <double>[];
+    for (var i = 0; i < segmentCount; i++) {
+      colors
+        ..add(clear)
+        ..add(colour);
+      stops
+        ..add(i / segmentCount)
+        ..add((i + 0.5) / segmentCount);
+    }
+    colors.add(clear);
+    stops.add(1.0);
+
+    canvas.drawCircle(
+      c,
+      r * _faceRadius,
+      Paint()
+        ..shader = SweepGradient(
+          colors: colors,
+          stops: stops,
+          transform: GradientRotation(angle - math.pi / 2),
+        ).createShader(face),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant WheelSpeedBlurPainter oldDelegate) =>
+      oldDelegate.rotation != rotation ||
+      oldDelegate.segmentCount != segmentCount;
 }
 
 /// Fiery glow and soft light rays behind the wheel. It paints well outside
