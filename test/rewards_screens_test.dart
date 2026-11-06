@@ -99,8 +99,28 @@ void main() {
       expect(find.text('Congratulations!'), findsOneWidget);
       expect(find.text('You won 30 Coins.'), findsOneWidget);
 
+      // The popup has its own character, so the one on the screen steps aside
+      // while it is open and comes back after.
+      expect(find.byKey(const Key('wheel_win_dialog')), findsOneWidget);
+      expect(
+        tester
+            .widget<AnimatedOpacity>(
+              find.byKey(const Key('spin_character_slot')),
+            )
+            .opacity,
+        0,
+      );
+
       await tester.tap(find.text('OK'));
       await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<AnimatedOpacity>(
+              find.byKey(const Key('spin_character_slot')),
+            )
+            .opacity,
+        1,
+      );
       expect(_coins(tester), '130');
       expect(find.text("You've already spun today."), findsOneWidget);
       // The button tells you when the next spin is, instead of just "no".

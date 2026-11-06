@@ -19,6 +19,7 @@ import '../../../rewards/presentation/widgets/coin_balance_chip.dart';
 import '../widgets/spin_wheel_effects.dart';
 import '../widgets/spin_wheel_motion.dart';
 import '../widgets/spin_wheel_painter.dart';
+import '../widgets/wheel_win_dialog.dart';
 
 const Color _gold = Color(0xFFFFB900);
 const Color _onGold = Color(0xFF5A0A00);
@@ -111,6 +112,10 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
   late double _angle = wheelRestAngle(0, RewardsCatalog.wheel.length);
   late Animation<double> _rotation = AlwaysStoppedAnimation<double>(_angle);
   bool _spinning = false;
+
+  /// True while the "You won" popup is open: the character on this screen
+  /// steps aside, because the popup has its own.
+  bool _winDialogOpen = false;
 
   /// The prize that just won, while it flashes and the coins fly.
   int? _winIndex;
@@ -260,12 +265,14 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
     setState(() => _spinning = false);
     _energy.animateTo(0, duration: const Duration(milliseconds: 1200));
     if (coins == null) return;
-    await showRewardDialog(
+    setState(() => _winDialogOpen = true);
+    await showWheelWinDialog(
       context,
-      title: 'Congratulations!',
-      message: 'You won $coins Coins.',
-      mascot: true,
+      coins: coins,
+      light: Theme.of(context).brightness == Brightness.light,
+      cosmetics: equippedCosmetics(context),
     );
+    if (mounted) setState(() => _winDialogOpen = false);
   }
 
   @override
@@ -430,27 +437,32 @@ class _SpinWheelScreenState extends ConsumerState<SpinWheelScreen>
   }
 
   Widget _characterSlot(double height) {
-    return SizedBox(
-      height: height,
-      child: Center(
-        // The screen is dark red in both themes, so light the character as
-        // for a dark card.
-        child: Theme(
-          data: _darkTheme,
-          child: CharacterGlow(
-            color: _gold,
-            child: Character3dView(
-              key: const Key('spin_character'),
-              width: height * 0.85,
-              height: height,
-              state: Character3dState.idle,
-              controller: _character,
-              cosmetics: equippedCosmetics(context),
-              ambient: true,
-              initialAction: Character3dAction.wave,
-              placeholder: const SizedBox.shrink(),
-              arrive: true,
-              fallback: const SizedBox.shrink(),
+    return AnimatedOpacity(
+      key: const Key('spin_character_slot'),
+      opacity: _winDialogOpen ? 0 : 1,
+      duration: const Duration(milliseconds: 180),
+      child: SizedBox(
+        height: height,
+        child: Center(
+          // The screen is dark red in both themes, so light the character as
+          // for a dark card.
+          child: Theme(
+            data: _darkTheme,
+            child: CharacterGlow(
+              color: _gold,
+              child: Character3dView(
+                key: const Key('spin_character'),
+                width: height * 0.85,
+                height: height,
+                state: Character3dState.idle,
+                controller: _character,
+                cosmetics: equippedCosmetics(context),
+                ambient: true,
+                initialAction: Character3dAction.wave,
+                placeholder: const SizedBox.shrink(),
+                arrive: true,
+                fallback: const SizedBox.shrink(),
+              ),
             ),
           ),
         ),
