@@ -12,6 +12,7 @@ import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import '../../../daily_missions/presentation/providers/daily_mission_providers.dart';
 import '../../data/datasources/remote/sudden_death_remote_datasource.dart';
 import '../../data/datasources/remote/sudden_death_socket_client.dart';
 import '../../data/datasources/remote/sudden_death_rest_client.dart';
@@ -532,6 +533,7 @@ class SuddenDeathController
           );
           ref.invalidate(profileControllerProvider);
           ref.invalidate(walletControllerProvider);
+          ref.invalidate(dailyMissionsControllerProvider);
           _answerRequestTimer?.cancel();
           _answerRequestTimer = null;
           _addTimeRequestTimer?.cancel();

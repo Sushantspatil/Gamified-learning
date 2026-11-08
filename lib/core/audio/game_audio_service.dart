@@ -22,8 +22,8 @@ class GameAudioService with WidgetsBindingObserver {
   GameAudioService({
     required AudioBackend backend,
     LocalStorageService? storage,
-  })  : _backend = backend,
-        _storage = storage {
+  }) : _backend = backend,
+       _storage = storage {
     _loadSettings();
     WidgetsBinding.instance.addObserver(this);
   }
@@ -81,10 +81,7 @@ class GameAudioService with WidgetsBindingObserver {
   /// Plays appropriate completion sound adhering to priority rules:
   /// Level Up / Perfect Score > Standard Completion.
   /// Never simultaneously blasts multiple completion sounds.
-  void playQuizCompletion({
-    required bool isPerfect,
-    required bool leveledUp,
-  }) {
+  void playQuizCompletion({required bool isPerfect, required bool leveledUp}) {
     if (leveledUp) {
       play(GameSound.levelUp);
     } else if (isPerfect) {

@@ -16,21 +16,24 @@ class Environment {
 
   static const Environment dev = Environment(
     type: EnvironmentType.dev,
-    apiBaseUrl: 'https://quiz-api-50046981183.development.catalystappsail.in/api/v1',
+    apiBaseUrl:
+        'https://quiz-api-50046981183.development.catalystappsail.in/api/v1',
     appTitle: 'SkillVerse (Dev)',
     enableAnalytics: false,
   );
 
   static const Environment staging = Environment(
     type: EnvironmentType.staging,
-    apiBaseUrl: 'https://quiz-api-50046981183.development.catalystappsail.in/api/v1',
+    apiBaseUrl:
+        'https://quiz-api-50046981183.development.catalystappsail.in/api/v1',
     appTitle: 'SkillVerse (Staging)',
     enableAnalytics: true,
   );
 
   static const Environment prod = Environment(
     type: EnvironmentType.prod,
-    apiBaseUrl: 'https://quiz-api-50046981183.development.catalystappsail.in/api/v1',
+    apiBaseUrl:
+        'https://quiz-api-50046981183.development.catalystappsail.in/api/v1',
     appTitle: 'SkillVerse',
     enableAnalytics: true,
   );

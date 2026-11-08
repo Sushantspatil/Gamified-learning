@@ -64,7 +64,9 @@ class SplashLoadingBar extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.all(innerPadding),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular((height - innerPadding * 2) / 2),
+              borderRadius: BorderRadius.circular(
+                (height - innerPadding * 2) / 2,
+              ),
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final fillWidth = constraints.maxWidth * clampedProgress;
@@ -84,7 +86,7 @@ class SplashLoadingBar extends StatelessWidget {
                               colors: [
                                 AppColors.gemCyan, // #21E6FF
                                 AppColors.primary, // #6D5DFE
-                                AppColors.violet,  // #B052FF
+                                AppColors.violet, // #B052FF
                                 Color(0xFFE548FF), // pink highlight
                               ],
                             ),
@@ -102,7 +104,9 @@ class SplashLoadingBar extends StatelessWidget {
                       // Traveling shimmer highlight over the filled portion
                       if (clampedProgress > 0.06)
                         Positioned(
-                          left: ((shimmerProgress % 1.0) * fillWidth * 1.25) - 35.0,
+                          left:
+                              ((shimmerProgress % 1.0) * fillWidth * 1.25) -
+                              35.0,
                           top: 0,
                           bottom: 0,
                           width: (fillWidth * 0.35).clamp(24.0, 50.0),
@@ -124,7 +128,10 @@ class SplashLoadingBar extends StatelessWidget {
                       // Subtle soft glow at leading edge (no hard white slider thumb)
                       if (clampedProgress > 0.02)
                         Positioned(
-                          left: (fillWidth - 8.0).clamp(0.0, constraints.maxWidth - 16.0),
+                          left: (fillWidth - 8.0).clamp(
+                            0.0,
+                            constraints.maxWidth - 16.0,
+                          ),
                           top: 0,
                           bottom: 0,
                           width: 16.0,
@@ -135,7 +142,9 @@ class SplashLoadingBar extends StatelessWidget {
                                 gradient: RadialGradient(
                                   colors: [
                                     Colors.white.withValues(alpha: 0.70),
-                                    const Color(0xFF21E6FF).withValues(alpha: 0.40),
+                                    const Color(
+                                      0xFF21E6FF,
+                                    ).withValues(alpha: 0.40),
                                     Colors.transparent,
                                   ],
                                   stops: const [0.0, 0.45, 1.0],

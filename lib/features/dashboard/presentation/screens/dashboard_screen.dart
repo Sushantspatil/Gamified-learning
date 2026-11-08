@@ -29,6 +29,7 @@ import '../../../learning_paths/presentation/providers/learning_path_providers.d
 import '../../../profile/presentation/avatar_catalog.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../streaks/domain/entities/streak.dart';
+import '../../../streaks/presentation/widgets/streak_rewards_strip.dart';
 import '../../../streaks/presentation/widgets/streak_week_row.dart';
 import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
@@ -638,6 +639,7 @@ class _StreakSection extends StatelessWidget {
                   color: context.themeColors.textSecondary,
                 ),
               ),
+              const StreakRewardsStrip(),
             ],
           ),
         ),
@@ -669,10 +671,17 @@ class _DailyGoalSection extends ConsumerWidget {
             .length;
         final total = missions.length;
         final progress = total == 0 ? 0.0 : completed / total;
-        final totalReward = missions.fold<int>(
-          0,
-          (sum, mission) => sum + mission.coinReward,
-        );
+        final readyToCollect = missions
+            .where((mission) => mission.canClaim)
+            .length;
+        final allCollected = missions.every((mission) => mission.claimed);
+        final footerText = readyToCollect > 0
+            ? (readyToCollect == 1
+                  ? '1 reward ready to collect'
+                  : '$readyToCollect rewards ready to collect')
+            : allCollected
+            ? 'All rewards collected. New goals tomorrow!'
+            : 'Finish goals to earn coins and gems';
 
         return _SectionGap(
           child: Column(
@@ -725,9 +734,7 @@ class _DailyGoalSection extends ConsumerWidget {
                         ),
                       ),
                       child: Text(
-                        totalReward == 0
-                            ? 'Complete all goals'
-                            : 'Complete all goals +$totalReward coins',
+                        footerText,
                         textAlign: TextAlign.center,
                         style: context.appTextStyles.labelLarge.copyWith(
                           color: context.themeColors.primary,
@@ -745,13 +752,37 @@ class _DailyGoalSection extends ConsumerWidget {
   }
 }
 
-class _DailyMissionRow extends StatelessWidget {
+class _DailyMissionRow extends ConsumerStatefulWidget {
   final DailyMission mission;
 
   const _DailyMissionRow({required this.mission});
 
   @override
+  ConsumerState<_DailyMissionRow> createState() => _DailyMissionRowState();
+}
+
+class _DailyMissionRowState extends ConsumerState<_DailyMissionRow> {
+  bool _collecting = false;
+
+  Future<void> _collect() async {
+    if (_collecting) return;
+    final mission = widget.mission;
+    setState(() => _collecting = true);
+    final problem = await ref
+        .read(dailyMissionsControllerProvider.notifier)
+        .claim(mission.id);
+    if (!mounted) return;
+    setState(() => _collecting = false);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(problem ?? '${mission.rewardLabel} collected!')),
+      );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final mission = widget.mission;
     final colors = context.themeColors;
     final isCompleted = mission.isCompleted;
 
@@ -784,24 +815,71 @@ class _DailyMissionRow extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.ms),
           Expanded(
-            child: Text(
-              mission.title,
-              softWrap: true,
-              style: context.appTextStyles.bodyLarge.copyWith(
-                decoration: isCompleted ? TextDecoration.lineThrough : null,
-                decorationColor: colors.textSecondary,
-                color: isCompleted ? colors.textSecondary : colors.textPrimary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mission.title,
+                  softWrap: true,
+                  style: context.appTextStyles.bodyLarge.copyWith(
+                    decoration: isCompleted ? TextDecoration.lineThrough : null,
+                    decorationColor: colors.textSecondary,
+                    color: isCompleted
+                        ? colors.textSecondary
+                        : colors.textPrimary,
+                  ),
+                ),
+                if (!isCompleted)
+                  Text(
+                    '${mission.progressCount} of ${mission.targetCount}',
+                    style: context.appTextStyles.labelSmall.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+              ],
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
-          Text(
-            '+${mission.coinReward} coins',
-            style: context.appTextStyles.labelSmall.copyWith(
-              color: colors.primary,
-              fontWeight: FontWeight.w800,
+          if (mission.canClaim)
+            AppPressable(
+              key: Key('collect_goal_${mission.id}'),
+              onTap: _collecting ? null : _collect,
+              borderRadius: AppDimensions.radiusCircular,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  borderRadius: AppDimensions.radiusCircular,
+                ),
+                child: _collecting
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : Text(
+                        'Collect ${mission.rewardLabel}',
+                        style: context.appTextStyles.labelSmall.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+              ),
+            )
+          else
+            Text(
+              mission.claimed ? 'Collected' : mission.rewardLabel,
+              style: context.appTextStyles.labelSmall.copyWith(
+                color: mission.claimed ? colors.success : colors.primary,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
         ],
       ),
     );

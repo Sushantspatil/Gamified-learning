@@ -33,13 +33,13 @@ class SoundSettingsController extends StateNotifier<SoundSettingsState> {
   SoundSettingsController({
     LocalStorageService? storage,
     required GameAudioService audioService,
-  })  : _audioService = audioService,
-        super(
-          SoundSettingsState(
-            sfxEnabled: storage?.getBool(StorageKeys.sfxEnabled) ?? true,
-            musicEnabled: storage?.getBool(StorageKeys.musicEnabled) ?? true,
-          ),
-        );
+  }) : _audioService = audioService,
+       super(
+         SoundSettingsState(
+           sfxEnabled: storage?.getBool(StorageKeys.sfxEnabled) ?? true,
+           musicEnabled: storage?.getBool(StorageKeys.musicEnabled) ?? true,
+         ),
+       );
 
   Future<void> toggleSfx(bool enabled) async {
     state = state.copyWith(sfxEnabled: enabled);
@@ -55,15 +55,15 @@ class SoundSettingsController extends StateNotifier<SoundSettingsState> {
 /// Provider for sound settings reactive state.
 final soundSettingsControllerProvider =
     StateNotifierProvider<SoundSettingsController, SoundSettingsState>((ref) {
-  LocalStorageService? storage;
-  try {
-    storage = ref.watch(localStorageServiceProvider);
-  } catch (_) {
-    storage = null;
-  }
-  final audioService = ref.watch(gameAudioServiceProvider);
-  return SoundSettingsController(
-    storage: storage,
-    audioService: audioService,
-  );
-});
+      LocalStorageService? storage;
+      try {
+        storage = ref.watch(localStorageServiceProvider);
+      } catch (_) {
+        storage = null;
+      }
+      final audioService = ref.watch(gameAudioServiceProvider);
+      return SoundSettingsController(
+        storage: storage,
+        audioService: audioService,
+      );
+    });

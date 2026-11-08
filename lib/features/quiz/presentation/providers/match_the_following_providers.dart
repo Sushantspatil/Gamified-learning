@@ -10,6 +10,7 @@ import '../../../../core/audio/game_sound.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import '../../../daily_missions/presentation/providers/daily_mission_providers.dart';
 import '../../data/datasources/remote/quiz_remote_datasource.dart';
 import '../../domain/entities/match_the_following_models.dart';
 import 'quiz_providers.dart';
@@ -443,6 +444,7 @@ class MatchTheFollowingController
       // Reconcile wallet state if available
       try {
         ref.invalidate(walletControllerProvider);
+        ref.invalidate(dailyMissionsControllerProvider);
       } catch (_) {}
 
       state = AsyncValue.data(

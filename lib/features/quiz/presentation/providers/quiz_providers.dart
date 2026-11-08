@@ -7,6 +7,7 @@ import '../../../questions/domain/entities/answer_evaluation.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import '../../../daily_missions/presentation/providers/daily_mission_providers.dart';
 import '../../../../core/errors/app_exception.dart';
 import '../../../../core/network/network_providers.dart';
 import '../../data/datasources/quiz_datasource.dart';
@@ -216,6 +217,7 @@ class QuizController
       if (ref.read(quizDatasourceProvider) is QuizRemoteDatasource) {
         ref.invalidate(profileControllerProvider);
         ref.invalidate(walletControllerProvider);
+        ref.invalidate(dailyMissionsControllerProvider);
       }
 
       state = AsyncValue.data(

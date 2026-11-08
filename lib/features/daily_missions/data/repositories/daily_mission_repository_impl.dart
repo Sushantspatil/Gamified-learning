@@ -14,4 +14,8 @@ class DailyMissionRepositoryImpl implements DailyMissionRepository {
   @override
   Future<DailyMission> recordQuizCompleted(String userId) =>
       _datasource.recordQuizCompleted(userId);
+
+  @override
+  Future<void> claimMission(String userId, String missionId) =>
+      _datasource.claimMission(userId, missionId);
 }

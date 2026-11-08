@@ -11,6 +11,7 @@ import '../../../questions/domain/entities/question.dart';
 import '../../../questions/presentation/providers/question_providers.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import '../../../daily_missions/presentation/providers/daily_mission_providers.dart';
 import '../../data/datasources/remote/quiz_remote_datasource.dart';
 import '../../domain/entities/sort_it_out_models.dart';
 import 'quiz_providers.dart';
@@ -451,6 +452,7 @@ class SortItOutController
 
         ref.invalidate(profileControllerProvider);
         ref.invalidate(walletControllerProvider);
+        ref.invalidate(dailyMissionsControllerProvider);
       } else {
         // Deterministic mock scoring mirroring authoritative backend rules
         var basePts = 0;

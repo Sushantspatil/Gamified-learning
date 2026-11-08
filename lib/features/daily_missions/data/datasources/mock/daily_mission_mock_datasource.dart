@@ -48,4 +48,10 @@ class DailyMissionMockDatasource implements DailyMissionDatasource {
     }
     return _missionFor(userId);
   }
+
+  @override
+  Future<void> claimMission(String userId, String missionId) async {
+    // Nothing to collect: the mock pays nothing.
+    await Future.delayed(const Duration(milliseconds: 200));
+  }
 }

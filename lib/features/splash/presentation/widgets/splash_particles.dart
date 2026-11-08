@@ -177,8 +177,7 @@ class SplashParticlesPainter extends CustomPainter {
     canvas.drawCircle(center, radius * 1.8, glowPaint);
 
     // Core body
-    final corePaint = Paint()
-      ..color = color.withValues(alpha: alpha * 0.90);
+    final corePaint = Paint()..color = color.withValues(alpha: alpha * 0.90);
     canvas.drawCircle(center, radius, corePaint);
 
     // Pinpoint center
@@ -228,18 +227,13 @@ class SplashParticlesPainter extends CustomPainter {
 class SplashParticlesOverlay extends StatelessWidget {
   final double animationProgress;
 
-  const SplashParticlesOverlay({
-    super.key,
-    required this.animationProgress,
-  });
+  const SplashParticlesOverlay({super.key, required this.animationProgress});
 
   @override
   Widget build(BuildContext context) {
     return RepaintBoundary(
       child: CustomPaint(
-        painter: SplashParticlesPainter(
-          animationProgress: animationProgress,
-        ),
+        painter: SplashParticlesPainter(animationProgress: animationProgress),
         size: Size.infinite,
       ),
     );

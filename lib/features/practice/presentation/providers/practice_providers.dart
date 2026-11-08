@@ -56,30 +56,30 @@ const practicePlayableModes = [
 /// can asynchronously query that endpoint while keeping the UI and game screens unchanged.
 final gameModeAvailabilityProvider =
     Provider.family<Map<QuestionType, GameModeAvailability>, String?>((
-  ref,
-  topicId,
-) {
-  if (topicId == null || topicId.trim().isEmpty) {
-    return {
-      for (final mode in practicePlayableModes)
-        mode: GameModeAvailability(
-          mode: mode,
-          isEnabled: false,
-          reason: 'Select a topic first',
-        ),
-    };
-  }
+      ref,
+      topicId,
+    ) {
+      if (topicId == null || topicId.trim().isEmpty) {
+        return {
+          for (final mode in practicePlayableModes)
+            mode: GameModeAvailability(
+              mode: mode,
+              isEnabled: false,
+              reason: 'Select a topic first',
+            ),
+        };
+      }
 
-  // Backend subjects seeded for all 4 game modes (MCQ, Sudden Death, Sort It Out,
-  // Match the Following): Accounts and Mental Maths.
-  final isSupported = isBackendPlayableTopic(topicId);
+      // Backend subjects seeded for all 4 game modes (MCQ, Sudden Death, Sort It Out,
+      // Match the Following): Accounts and Mental Maths.
+      final isSupported = isBackendPlayableTopic(topicId);
 
-  return {
-    for (final mode in practicePlayableModes)
-      mode: GameModeAvailability(
-        mode: mode,
-        isEnabled: isSupported,
-        reason: isSupported ? null : 'Not available for this topic yet',
-      ),
-  };
-});
+      return {
+        for (final mode in practicePlayableModes)
+          mode: GameModeAvailability(
+            mode: mode,
+            isEnabled: isSupported,
+            reason: isSupported ? null : 'Not available for this topic yet',
+          ),
+      };
+    });

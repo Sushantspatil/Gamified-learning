@@ -153,8 +153,10 @@ class _SplashScreenState extends State<SplashScreen>
               : _fadeAnimation,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final double barWidth =
-                  (constraints.maxWidth * 0.74).clamp(240.0, 340.0);
+              final double barWidth = (constraints.maxWidth * 0.74).clamp(
+                240.0,
+                340.0,
+              );
               const double barHeight = 20.0;
 
               return Stack(
@@ -171,9 +173,12 @@ class _SplashScreenState extends State<SplashScreen>
                           final scale = reduceMotion
                               ? 1.0
                               : 1.0 +
-                                  0.015 *
-                                      ((math.sin(t * 2 * math.pi - math.pi / 2) + 1) /
-                                          2);
+                                    0.015 *
+                                        ((math.sin(
+                                                  t * 2 * math.pi - math.pi / 2,
+                                                ) +
+                                                1) /
+                                            2);
 
                           return Transform.scale(
                             scale: scale,
@@ -204,8 +209,9 @@ class _SplashScreenState extends State<SplashScreen>
                               builder: (context, _) {
                                 final t = _ambientLoopController.value;
                                 final pulseFactor =
-                                    ((math.sin(t * 4 * math.pi - math.pi / 2) + 1) /
-                                        2);
+                                    ((math.sin(t * 4 * math.pi - math.pi / 2) +
+                                        1) /
+                                    2);
                                 final opacity = 0.10 + 0.15 * pulseFactor;
                                 final scale = 0.96 + 0.08 * pulseFactor;
 
@@ -218,12 +224,15 @@ class _SplashScreenState extends State<SplashScreen>
                                       shape: BoxShape.circle,
                                       gradient: RadialGradient(
                                         colors: [
-                                          AppColors.gemCyan
-                                              .withValues(alpha: opacity),
-                                          AppColors.violet
-                                              .withValues(alpha: opacity * 0.6),
-                                          AppColors.coinGold
-                                              .withValues(alpha: opacity * 0.25),
+                                          AppColors.gemCyan.withValues(
+                                            alpha: opacity,
+                                          ),
+                                          AppColors.violet.withValues(
+                                            alpha: opacity * 0.6,
+                                          ),
+                                          AppColors.coinGold.withValues(
+                                            alpha: opacity * 0.25,
+                                          ),
                                           Colors.transparent,
                                         ],
                                         stops: const [0.0, 0.40, 0.65, 1.0],
@@ -280,7 +289,8 @@ class _SplashScreenState extends State<SplashScreen>
                                     : _progressAnimation.value;
                                 final shimmer = reduceMotion
                                     ? 0.0
-                                    : (_ambientLoopController.value * 2.5) % 1.0;
+                                    : (_ambientLoopController.value * 2.5) %
+                                          1.0;
 
                                 return SplashLoadingBar(
                                   progress: progress,

@@ -101,7 +101,8 @@ class SessionCreatedResponseDto {
     return SessionCreatedResponseDto(
       session: json['session'] as String? ?? '',
       topic: json['topic'] as String? ?? '',
-      totalQuestions: json['total_questions'] as int? ??
+      totalQuestions:
+          json['total_questions'] as int? ??
           (qList.isNotEmpty ? qList.length : bList.length),
       timeLimitSec: json['time_limit_sec'] as int? ?? 15,
       questions: qList,
@@ -567,10 +568,7 @@ class MatchPairItemDto {
   final String id;
   final String text;
 
-  const MatchPairItemDto({
-    required this.id,
-    required this.text,
-  });
+  const MatchPairItemDto({required this.id, required this.text});
 
   factory MatchPairItemDto.fromJson(Map<String, dynamic> json) =>
       MatchPairItemDto(
@@ -578,10 +576,7 @@ class MatchPairItemDto {
         text: json['text'] as String? ?? '',
       );
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'text': text,
-      };
+  Map<String, dynamic> toJson() => {'id': id, 'text': text};
 }
 
 class MatchBoardDto {
@@ -647,15 +642,15 @@ class MatchBoardDto {
   }
 
   Map<String, dynamic> toJson() => {
-        'question_code': questionCode,
-        'prompt': prompt,
-        'time_limit_sec': timeLimitSec,
-        'left_items': leftItems.map((i) => i.toJson()).toList(),
-        'right_items': rightItems.map((i) => i.toJson()).toList(),
-        'solution_map': solutionMap,
-        if (hint != null) 'hint': hint,
-        if (explanation != null) 'explanation': explanation,
-      };
+    'question_code': questionCode,
+    'prompt': prompt,
+    'time_limit_sec': timeLimitSec,
+    'left_items': leftItems.map((i) => i.toJson()).toList(),
+    'right_items': rightItems.map((i) => i.toJson()).toList(),
+    'solution_map': solutionMap,
+    if (hint != null) 'hint': hint,
+    if (explanation != null) 'explanation': explanation,
+  };
 }
 
 class MatchBoardAnswerSubmissionDto {
@@ -674,12 +669,12 @@ class MatchBoardAnswerSubmissionDto {
   });
 
   Map<String, dynamic> toJson() => {
-        'question_code': questionCode,
-        'matches': matches,
-        'mistakes': mistakes,
-        'time_taken_ms': timeTakenMs,
-        if (isTimeout) 'is_timeout': true,
-      };
+    'question_code': questionCode,
+    'matches': matches,
+    'mistakes': mistakes,
+    'time_taken_ms': timeTakenMs,
+    if (isTimeout) 'is_timeout': true,
+  };
 
   factory MatchBoardAnswerSubmissionDto.fromJson(Map<String, dynamic> json) {
     final matchesMap = <String, String>{};
@@ -707,9 +702,9 @@ class CompleteMatchTheFollowingRequestDto {
   });
 
   Map<String, dynamic> toJson() => {
-        'session': session,
-        'boards': boards.map((b) => b.toJson()).toList(),
-      };
+    'session': session,
+    'boards': boards.map((b) => b.toJson()).toList(),
+  };
 }
 
 class MatchBoardReviewDto {
@@ -764,21 +759,21 @@ class MatchBoardReviewDto {
       );
 
   Map<String, dynamic> toJson() => {
-        'question_code': questionCode,
-        'prompt': prompt,
-        'pairs_matched': pairsMatched,
-        'total_pairs': totalPairs,
-        'mistakes': mistakes,
-        'time_taken_ms': timeTakenMs,
-        'is_flawless': isFlawless,
-        'is_timeout': isTimeout,
-        'base_points': basePoints,
-        'flawless_bonus': flawlessBonus,
-        'speed_bonus': speedBonus,
-        'mistake_penalty': mistakePenalty,
-        'total_board_score': totalBoardScore,
-        if (explanation != null) 'explanation': explanation,
-      };
+    'question_code': questionCode,
+    'prompt': prompt,
+    'pairs_matched': pairsMatched,
+    'total_pairs': totalPairs,
+    'mistakes': mistakes,
+    'time_taken_ms': timeTakenMs,
+    'is_flawless': isFlawless,
+    'is_timeout': isTimeout,
+    'base_points': basePoints,
+    'flawless_bonus': flawlessBonus,
+    'speed_bonus': speedBonus,
+    'mistake_penalty': mistakePenalty,
+    'total_board_score': totalBoardScore,
+    if (explanation != null) 'explanation': explanation,
+  };
 }
 
 class CompleteMatchTheFollowingResponseDto {
@@ -823,7 +818,8 @@ class CompleteMatchTheFollowingResponseDto {
   });
 
   factory CompleteMatchTheFollowingResponseDto.fromJson(
-      Map<String, dynamic> json) {
+    Map<String, dynamic> json,
+  ) {
     Map<String, int> parseBreakdown(Object? val) {
       if (val is! Map) return const {};
       final map = <String, int>{};
@@ -874,5 +870,3 @@ class CompleteMatchTheFollowingResponseDto {
     );
   }
 }
-
-

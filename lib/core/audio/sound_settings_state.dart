@@ -8,15 +8,9 @@ class SoundSettingsState extends Equatable {
   /// Whether background music should be played in future phases. Defaults to true.
   final bool musicEnabled;
 
-  const SoundSettingsState({
-    this.sfxEnabled = true,
-    this.musicEnabled = true,
-  });
+  const SoundSettingsState({this.sfxEnabled = true, this.musicEnabled = true});
 
-  SoundSettingsState copyWith({
-    bool? sfxEnabled,
-    bool? musicEnabled,
-  }) {
+  SoundSettingsState copyWith({bool? sfxEnabled, bool? musicEnabled}) {
     return SoundSettingsState(
       sfxEnabled: sfxEnabled ?? this.sfxEnabled,
       musicEnabled: musicEnabled ?? this.musicEnabled,

@@ -55,6 +55,14 @@ class ApiEndpoints {
   static const String spinWheelStatus = '/spin-wheel/status';
   static const String spinWheelSpin = '/spin-wheel/spin';
 
+  // Daily goals
+  static const String dailyGoals = '/daily-goals';
+  static const String dailyGoalsClaim = '/daily-goals/claim';
+
+  // Streak rewards
+  static const String streak = '/streak';
+  static const String streakClaim = '/streak/claim';
+
   // Leaderboard
   static const String leaderboard = '/leaderboard';
 }
