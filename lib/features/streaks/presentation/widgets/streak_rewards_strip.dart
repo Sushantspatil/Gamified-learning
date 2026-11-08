@@ -21,6 +21,22 @@ class StreakRewardsStrip extends ConsumerStatefulWidget {
 
 class _StreakRewardsStripState extends ConsumerState<StreakRewardsStrip> {
   bool _collecting = false;
+  bool _buying = false;
+
+  Future<void> _buyFreeze() async {
+    if (_buying) return;
+    setState(() => _buying = true);
+    final problem = await ref
+        .read(streakRewardsControllerProvider.notifier)
+        .buyFreeze();
+    if (!mounted) return;
+    setState(() => _buying = false);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(problem ?? 'Streak freeze added!')),
+      );
+  }
 
   Future<void> _collect(StreakMilestone milestone) async {
     if (_collecting) return;
@@ -146,8 +162,104 @@ class _StreakRewardsStripState extends ConsumerState<StreakRewardsStrip> {
           color: colors.primary.withValues(alpha: 0.08),
           borderRadius: AppDimensions.radiusMd,
         ),
-        child: content,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            content,
+            if (rewards.freezesEnabled) ...[
+              const SizedBox(height: AppSpacing.md),
+              _FreezeRow(rewards: rewards, buying: _buying, onBuy: _buyFreeze),
+            ],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// "Streak freezes: 1 of 2" with a button to buy one with gems.
+class _FreezeRow extends StatelessWidget {
+  final StreakRewards rewards;
+  final bool buying;
+  final VoidCallback onBuy;
+
+  const _FreezeRow({
+    required this.rewards,
+    required this.buying,
+    required this.onBuy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.shield_outlined, color: colors.primary, size: 20),
+                const SizedBox(width: AppSpacing.sm),
+                Flexible(
+                  child: Text(
+                    'Streak freezes: ${rewards.freezes} of ${rewards.maxFreezes}',
+                    key: const Key('streak_freezes_label'),
+                    style: context.appTextStyles.bodyMedium.copyWith(
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (rewards.canBuyFreeze)
+              AppPressable(
+                key: const Key('buy_streak_freeze'),
+                onTap: buying ? null : onBuy,
+                borderRadius: AppDimensions.radiusCircular,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: colors.primary),
+                    borderRadius: AppDimensions.radiusCircular,
+                  ),
+                  child: buying
+                      ? SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: colors.primary,
+                          ),
+                        )
+                      : Text(
+                          'Get one: ${rewards.freezePriceGems} gems',
+                          style: context.appTextStyles.labelSmall.copyWith(
+                            color: colors.primary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'A freeze protects your streak if you miss a day.',
+          style: context.appTextStyles.labelSmall.copyWith(
+            color: colors.textSecondary,
+          ),
+        ),
+      ],
     );
   }
 }

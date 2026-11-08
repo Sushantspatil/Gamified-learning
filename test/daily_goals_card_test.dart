@@ -35,6 +35,8 @@ class _NoStreakRewards implements StreakRewardsRemoteDatasource {
   Future<StreakRewards?> fetch() async => null;
   @override
   Future<void> claim(int days) async {}
+  @override
+  Future<void> buyFreeze() async {}
 }
 
 /// A signed-in player (goals are only loaded for someone who is signed in).

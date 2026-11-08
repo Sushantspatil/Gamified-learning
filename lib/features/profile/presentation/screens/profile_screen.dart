@@ -21,6 +21,7 @@ import '../../../cosmetics/presentation/cosmetic_color_catalog.dart';
 import '../../../cosmetics/presentation/providers/cosmetics_providers.dart';
 import '../../../learning_paths/domain/entities/learning_path.dart';
 import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
+import '../../../reminders/presentation/reminder_settings_row.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../streaks/presentation/widgets/streak_week_row.dart';
@@ -419,6 +420,7 @@ class _SettingsCard extends ConsumerWidget {
               ),
             ],
           ),
+          const ReminderSettingsRow(),
         ],
       ),
     );

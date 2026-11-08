@@ -69,6 +69,10 @@ class _FakeStreakRewards implements StreakRewardsRemoteDatasource {
     final current = rewards!;
     rewards = StreakRewards(
       currentStreak: current.currentStreak,
+      freezesEnabled: current.freezesEnabled,
+      freezes: current.freezes,
+      maxFreezes: current.maxFreezes,
+      freezePriceGems: current.freezePriceGems,
       milestones: [
         for (final m in current.milestones)
           if (m.days == days)
@@ -84,7 +88,36 @@ class _FakeStreakRewards implements StreakRewardsRemoteDatasource {
       ],
     );
   }
+
+  int buys = 0;
+  Object? buyError;
+
+  @override
+  Future<void> buyFreeze() async {
+    buys++;
+    final error = buyError;
+    if (error != null) throw error;
+    final current = rewards!;
+    rewards = StreakRewards(
+      currentStreak: current.currentStreak,
+      milestones: current.milestones,
+      freezesEnabled: current.freezesEnabled,
+      freezes: current.freezes + 1,
+      maxFreezes: current.maxFreezes,
+      freezePriceGems: current.freezePriceGems,
+    );
+  }
 }
+
+StreakRewards _withFreezes({int freezes = 0, int max = 2, int price = 10}) =>
+    StreakRewards(
+      currentStreak: 5,
+      milestones: [_m(7, 50)],
+      freezesEnabled: true,
+      freezes: freezes,
+      maxFreezes: max,
+      freezePriceGems: price,
+    );
 
 StreakMilestone _m(
   int days,
@@ -197,6 +230,119 @@ void main() {
       expect(r.claimable?.days, 3);
       expect(StreakRewardsRemoteDatasource.parse('nope'), isNull);
       expect(StreakRewardsRemoteDatasource.parse({'current': 1}), isNull);
+    });
+  });
+
+  group('freezes', () {
+    test('are read when the server offers them', () {
+      final r = StreakRewardsRemoteDatasource.parse({
+        'current': 5,
+        'milestones': <Object>[],
+        'freezes_enabled': true,
+        'freezes': 1,
+        'max_freezes': 2,
+        'freeze_price_gems': 10,
+      });
+      expect(r!.freezesEnabled, isTrue);
+      expect(r.freezes, 1);
+      expect(r.maxFreezes, 2);
+      expect(r.freezePriceGems, 10);
+      expect(r.canBuyFreeze, isTrue);
+    });
+
+    test('are off when the server cannot sell them or sends nonsense', () {
+      for (final extra in <Map<String, Object>>[
+        {}, // an older server
+        {'freezes_enabled': false, 'freezes': 0},
+        {
+          'freezes_enabled': true,
+          'freezes': 'x',
+          'max_freezes': 2,
+          'freeze_price_gems': 10,
+        },
+        {
+          'freezes_enabled': true,
+          'freezes': 0,
+          'max_freezes': 0,
+          'freeze_price_gems': 10,
+        },
+        {
+          'freezes_enabled': true,
+          'freezes': 0,
+          'max_freezes': 2,
+          'freeze_price_gems': 0,
+        },
+      ]) {
+        final r = StreakRewardsRemoteDatasource.parse({
+          'current': 5,
+          'milestones': <Object>[],
+          ...extra,
+        });
+        expect(r!.freezesEnabled, isFalse, reason: '$extra');
+        expect(r.canBuyFreeze, isFalse, reason: '$extra');
+      }
+    });
+
+    test('cannot buy at the maximum', () {
+      expect(_withFreezes(freezes: 2).canBuyFreeze, isFalse);
+      expect(_withFreezes(freezes: 1).canBuyFreeze, isTrue);
+    });
+
+    testWidgets('no freeze row when the server cannot sell freezes', (
+      tester,
+    ) async {
+      await _show(
+        tester,
+        _FakeStreakRewards(
+          StreakRewards(currentStreak: 5, milestones: [_m(7, 50)]),
+        ),
+      );
+      await _scrollToStreak(tester);
+      expect(find.byKey(const Key('streak_freezes_label')), findsNothing);
+      expect(find.byKey(const Key('buy_streak_freeze')), findsNothing);
+    });
+
+    testWidgets('shows the count and buys one', (tester) async {
+      final fake = _FakeStreakRewards(_withFreezes(freezes: 0));
+      await _show(tester, fake);
+      await _scrollToStreak(tester);
+
+      expect(find.text('Streak freezes: 0 of 2'), findsOneWidget);
+      expect(find.text('Get one: 10 gems'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('buy_streak_freeze')));
+      await _settle(tester);
+
+      expect(fake.buys, 1);
+      expect(find.text('Streak freezes: 1 of 2'), findsOneWidget);
+      expect(find.text('Streak freeze added!'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('at the maximum there is no buy button', (tester) async {
+      await _show(tester, _FakeStreakRewards(_withFreezes(freezes: 2)));
+      await _scrollToStreak(tester);
+      expect(find.text('Streak freezes: 2 of 2'), findsOneWidget);
+      expect(find.byKey(const Key('buy_streak_freeze')), findsNothing);
+    });
+
+    testWidgets('not enough gems shows the server message', (tester) async {
+      final fake = _FakeStreakRewards(_withFreezes())
+        ..buyError = const ValidationException(
+          'not enough gems: a streak freeze costs 10',
+        );
+      await _show(tester, fake);
+      await _scrollToStreak(tester);
+
+      await tester.tap(find.byKey(const Key('buy_streak_freeze')));
+      await _settle(tester);
+
+      expect(
+        find.text('not enough gems: a streak freeze costs 10'),
+        findsOneWidget,
+      );
+      expect(find.text('Streak freezes: 0 of 2'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 

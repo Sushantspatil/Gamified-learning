@@ -25,6 +25,11 @@ class StreakRewardsRemoteDatasource {
     await _apiClient.post(ApiEndpoints.streakClaim, body: {'days': days});
   }
 
+  /// Buys one streak freeze with gems (`POST /streak/freeze`).
+  Future<void> buyFreeze() async {
+    await _apiClient.post(ApiEndpoints.streakFreeze);
+  }
+
   /// Reads the response. A row missing what the card needs is skipped, so one
   /// bad row cannot hide the others.
   static StreakRewards? parse(Object? data) {
@@ -49,9 +54,25 @@ class StreakRewardsRemoteDatasource {
         ),
       );
     }
+    final maxFreezes = data['max_freezes'];
+    final price = data['freeze_price_gems'];
+    final freezes = data['freezes'];
+    // Freezes are shown only when the server says it can sell them and sends
+    // sensible numbers.
+    final freezesEnabled =
+        data['freezes_enabled'] == true &&
+        freezes is num &&
+        maxFreezes is num &&
+        maxFreezes > 0 &&
+        price is num &&
+        price > 0;
     return StreakRewards(
       currentStreak: current.toInt(),
       milestones: milestones,
+      freezesEnabled: freezesEnabled,
+      freezes: freezesEnabled ? freezes.toInt() : 0,
+      maxFreezes: freezesEnabled ? maxFreezes.toInt() : 0,
+      freezePriceGems: freezesEnabled ? price.toInt() : 0,
     );
   }
 }

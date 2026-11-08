@@ -35,6 +35,7 @@ import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../../../core/utils/date_key.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../reminders/presentation/reminder_host.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../widgets/mascot_card.dart';
 
@@ -53,66 +54,68 @@ class DashboardScreen extends ConsumerWidget {
     final pathsAsync = ref.watch(learningPathsProvider);
     final rewards = ref.watch(rewardsProvider);
 
-    return GameScaffold(
-      body: SafeArea(
-        bottom: false,
-        child: ListView(
-          // No side padding here: each block pads itself, so the subjects row
-          // can run to the screen edges.
-          padding: const EdgeInsets.only(top: AppSpacing.md, bottom: 96),
-          children: [
-            _ScreenPadding(
-              child: _ProfileHeader(
-                displayName: user?.displayName ?? 'Learner',
-                avatarId: profile?.avatarId ?? 'default',
-                classLevel: profile?.classLevel,
-                board: profile?.board,
-                level: profile?.level ?? 1,
-                streak: streakAsync.valueOrNull?.currentStreak ?? 0,
-                coins: wallet?.coins ?? 0,
-                gems: wallet?.gems ?? 0,
-                onTap: () => context.go(RouteNames.profile),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            _ScreenPadding(
-              child: MascotCard(
-                displayName: user?.displayName ?? 'Learner',
-                streak: streakAsync.valueOrNull?.currentStreak ?? 0,
-                chestReady: rewards.anyChestReady,
-                canSpin: rewards.canSpinOn(
-                  dateKey(ref.read(rewardsClockProvider)()),
+    return ReminderHost(
+      child: GameScaffold(
+        body: SafeArea(
+          bottom: false,
+          child: ListView(
+            // No side padding here: each block pads itself, so the subjects row
+            // can run to the screen edges.
+            padding: const EdgeInsets.only(top: AppSpacing.md, bottom: 96),
+            children: [
+              _ScreenPadding(
+                child: _ProfileHeader(
+                  displayName: user?.displayName ?? 'Learner',
+                  avatarId: profile?.avatarId ?? 'default',
+                  classLevel: profile?.classLevel,
+                  board: profile?.board,
+                  level: profile?.level ?? 1,
+                  streak: streakAsync.valueOrNull?.currentStreak ?? 0,
+                  coins: wallet?.coins ?? 0,
+                  gems: wallet?.gems ?? 0,
+                  onTap: () => context.go(RouteNames.profile),
                 ),
-                cosmetics: Character3dCosmetics.fromShopIds(
-                  avatarId: rewards.equippedAvatar,
-                  frameId: rewards.equippedFrame,
-                ),
-                onPlay: () => context.go(RouteNames.practice),
               ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _ScreenPadding(
-              child: _SelectedPathDashboardSections(
-                selectedPathId: selectedPathId,
+              const SizedBox(height: AppSpacing.md),
+              _ScreenPadding(
+                child: MascotCard(
+                  displayName: user?.displayName ?? 'Learner',
+                  streak: streakAsync.valueOrNull?.currentStreak ?? 0,
+                  chestReady: rewards.anyChestReady,
+                  canSpin: rewards.canSpinOn(
+                    dateKey(ref.read(rewardsClockProvider)()),
+                  ),
+                  cosmetics: Character3dCosmetics.fromShopIds(
+                    avatarId: rewards.equippedAvatar,
+                    frameId: rewards.equippedFrame,
+                  ),
+                  onPlay: () => context.go(RouteNames.practice),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _ScreenPadding(
+                child: _SelectedPathDashboardSections(
+                  selectedPathId: selectedPathId,
+                  pathsAsync: pathsAsync,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              _ScreenPadding(
+                child: _QuickPracticeSection(selectedPathId: selectedPathId),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              const _ScreenPadding(child: _RewardsSection()),
+              const SizedBox(height: AppSpacing.lg),
+              _ScreenPadding(child: _StreakSection(streakAsync: streakAsync)),
+              const SizedBox(height: AppSpacing.lg),
+              // Left out when there are no goals; it carries its own gap.
+              const _ScreenPadding(child: _DailyGoalSection()),
+              _SubjectsSection(
                 pathsAsync: pathsAsync,
+                selectedPathId: selectedPathId,
               ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            _ScreenPadding(
-              child: _QuickPracticeSection(selectedPathId: selectedPathId),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            const _ScreenPadding(child: _RewardsSection()),
-            const SizedBox(height: AppSpacing.lg),
-            _ScreenPadding(child: _StreakSection(streakAsync: streakAsync)),
-            const SizedBox(height: AppSpacing.lg),
-            // Left out when there are no goals; it carries its own gap.
-            const _ScreenPadding(child: _DailyGoalSection()),
-            _SubjectsSection(
-              pathsAsync: pathsAsync,
-              selectedPathId: selectedPathId,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

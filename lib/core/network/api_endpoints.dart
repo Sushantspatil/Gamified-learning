@@ -62,6 +62,7 @@ class ApiEndpoints {
   // Streak rewards
   static const String streak = '/streak';
   static const String streakClaim = '/streak/claim';
+  static const String streakFreeze = '/streak/freeze';
 
   // Leaderboard
   static const String leaderboard = '/leaderboard';

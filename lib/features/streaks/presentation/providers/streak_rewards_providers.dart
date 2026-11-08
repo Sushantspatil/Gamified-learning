@@ -28,14 +28,29 @@ class StreakRewardsController extends AsyncNotifier<StreakRewards?> {
   /// Collects a milestone's reward. Returns null on success, or a short message
   /// to show the player. Either way the rewards and the balance are re-read, so
   /// "already claimed" simply shows as claimed.
-  Future<String?> claim(int days) async {
+  Future<String?> claim(int days) => _payAndRefresh(
+    () => ref.read(streakRewardsDatasourceProvider).claim(days),
+    'Could not collect the reward. Please try again.',
+  );
+
+  /// Buys a streak freeze with gems. Returns null on success, or a short message
+  /// to show the player (for example "not enough gems").
+  Future<String?> buyFreeze() => _payAndRefresh(
+    () => ref.read(streakRewardsDatasourceProvider).buyFreeze(),
+    'Could not buy a streak freeze. Please try again.',
+  );
+
+  Future<String?> _payAndRefresh(
+    Future<void> Function() action,
+    String failureMessage,
+  ) async {
     String? problem;
     try {
-      await ref.read(streakRewardsDatasourceProvider).claim(days);
+      await action();
     } on ValidationException catch (e) {
       problem = e.message;
     } on AppException {
-      problem = 'Could not collect the reward. Please try again.';
+      problem = failureMessage;
     }
 
     try {

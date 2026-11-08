@@ -30,7 +30,24 @@ class StreakRewards extends Equatable {
   final int currentStreak;
   final List<StreakMilestone> milestones;
 
-  const StreakRewards({required this.currentStreak, required this.milestones});
+  /// Streak freezes: protect a missed day, bought with gems. When
+  /// [freezesEnabled] is false the server cannot sell them yet, so the app
+  /// shows nothing about them.
+  final bool freezesEnabled;
+  final int freezes;
+  final int maxFreezes;
+  final int freezePriceGems;
+
+  const StreakRewards({
+    required this.currentStreak,
+    required this.milestones,
+    this.freezesEnabled = false,
+    this.freezes = 0,
+    this.maxFreezes = 0,
+    this.freezePriceGems = 0,
+  });
+
+  bool get canBuyFreeze => freezesEnabled && freezes < maxFreezes;
 
   /// The first reward that is ready to collect, if any.
   StreakMilestone? get claimable {
@@ -49,5 +66,12 @@ class StreakRewards extends Equatable {
   }
 
   @override
-  List<Object?> get props => [currentStreak, milestones];
+  List<Object?> get props => [
+    currentStreak,
+    milestones,
+    freezesEnabled,
+    freezes,
+    maxFreezes,
+    freezePriceGems,
+  ];
 }
