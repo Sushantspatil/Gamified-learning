@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../character3d/presentation/result_mascot.dart';
+import '../../../habit/presentation/next_step_widgets.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
@@ -177,6 +178,8 @@ class _SortItOutResultViewState extends State<SortItOutResultView> {
                   gems: result.gemsAwarded,
                   leveledUp: result.didLevelUp,
                 ),
+                // What this game did for today's goals and streak, and what is next.
+                const NextStepPanel(),
                 const SizedBox(height: AppSpacing.lg),
 
                 // 6. Authoritative Score Breakdown Section

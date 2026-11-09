@@ -35,6 +35,7 @@ import '../../../streaks/presentation/providers/streak_providers.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../../../core/utils/date_key.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
+import '../../../habit/presentation/next_step_widgets.dart';
 import '../../../reminders/presentation/reminder_host.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../widgets/mascot_card.dart';
@@ -92,6 +93,9 @@ class DashboardScreen extends ConsumerWidget {
                   onPlay: () => context.go(RouteNames.practice),
                 ),
               ),
+              // The one thing to do next (collect a reward, or the goal closest
+              // to done). Left out, with its gap, until the server sends goals.
+              const _ScreenPadding(child: NextStepCard()),
               const SizedBox(height: AppSpacing.lg),
               _ScreenPadding(
                 child: _SelectedPathDashboardSections(

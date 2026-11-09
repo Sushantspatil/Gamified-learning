@@ -386,8 +386,9 @@ void main() {
     await _show(tester, fake);
     await _scrollToStreak(tester);
 
-    expect(find.text('7-day streak reward'), findsOneWidget);
-    expect(find.text('Collect +50 coins'), findsOneWidget);
+    // The home screen's next-step card offers the same reward, so it shows twice.
+    expect(find.text('7-day streak reward'), findsWidgets);
+    expect(find.text('Collect +50 coins'), findsWidgets);
 
     await tester.tap(find.byKey(const Key('collect_streak_7')));
     await _settle(tester);

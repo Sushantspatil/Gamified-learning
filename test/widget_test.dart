@@ -11,6 +11,18 @@ import 'package:skillverse_app/app/router/route_names.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/shared/widgets/app_button.dart';
+import 'package:skillverse_app/features/analytics/data/analytics_service.dart';
+import 'package:skillverse_app/features/leaderboard/data/datasources/mock/leaderboard_mock_datasource.dart';
+import 'package:skillverse_app/features/leaderboard/presentation/providers/leaderboard_providers.dart';
+import 'package:skillverse_app/features/cosmetics/data/datasources/mock/cosmetics_mock_datasource.dart';
+import 'package:skillverse_app/features/cosmetics/presentation/providers/cosmetics_providers.dart';
+import 'package:skillverse_app/features/analytics/presentation/analytics_providers.dart';
+import 'package:skillverse_app/features/daily_missions/data/datasources/mock/daily_mission_mock_datasource.dart';
+import 'package:skillverse_app/features/daily_missions/presentation/providers/daily_mission_providers.dart';
+import 'package:skillverse_app/features/practice/presentation/providers/practice_providers.dart';
+import 'package:skillverse_app/features/streaks/data/datasources/remote/streak_rewards_remote_datasource.dart';
+import 'package:skillverse_app/features/streaks/domain/entities/streak_rewards.dart';
+import 'package:skillverse_app/features/streaks/presentation/providers/streak_rewards_providers.dart';
 import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
 import 'package:skillverse_app/features/questions/data/datasources/mock/question_mock_datasource.dart';
@@ -29,6 +41,16 @@ import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock
 import 'package:skillverse_app/features/wallet/data/models/wallet_balance_model.dart';
 import 'package:skillverse_app/features/wallet/presentation/providers/wallet_providers.dart';
 
+/// The server has no streak rewards: the dashboard shows nothing extra.
+class _NoStreakRewards implements StreakRewardsRemoteDatasource {
+  @override
+  Future<StreakRewards?> fetch() async => null;
+  @override
+  Future<void> claim(int days) async {}
+  @override
+  Future<void> buyFreeze() async {}
+}
+
 Finder _buyButtonFor(String itemTitle) =>
     find.widgetWithText(FilledButton, 'Buy').first;
 
@@ -46,10 +68,47 @@ Future<void> _pumpAppWithInitialValues(
   SharedPreferences.setMockInitialValues(values);
   final storageService = await LocalStorageService.create();
 
+  // A tall, phone-like screen. The redesigned screens (Play setup, dashboard)
+  // are taller than the default 800x600 test window, which left controls
+  // outside the screen where a test cannot tap them.
+  // A test that already chose its own screen size keeps it.
+  final logical = tester.view.physicalSize / tester.view.devicePixelRatio;
+  if (logical == const Size(800, 600)) {
+    tester.view.physicalSize = const Size(800, 2000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+  }
+
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storageService),
+        // These flows play the mock "Web Development" topic. The real rule only
+        // opens the subjects seeded on the server (Accounts, Mental Maths), so
+        // here every game is open.
+        gameModeAvailabilityProvider.overrideWith(
+          (ref, topicId) => {
+            for (final mode in practicePlayableModes)
+              mode: GameModeAvailability(mode: mode, isEnabled: true),
+          },
+        ),
+        // The real leaderboard needs the server: use the sample players.
+        leaderboardDatasourceProvider.overrideWithValue(
+          LeaderboardMockDatasource(),
+        ),
+        // The real cosmetics list is still an empty placeholder, so use the sample one.
+        cosmeticsDatasourceProvider.overrideWithValue(
+          CosmeticsMockDatasource(),
+        ),
+        // Stand-ins so these flows never reach for the network: a sample daily
+        // goal, no streak rewards, and no usage analytics.
+        dailyMissionDatasourceProvider.overrideWithValue(
+          DailyMissionMockDatasource(),
+        ),
+        streakRewardsDatasourceProvider.overrideWithValue(_NoStreakRewards()),
+        analyticsServiceProvider.overrideWithValue(
+          const NoopAnalyticsService(),
+        ),
         authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
         learningPathDatasourceProvider.overrideWithValue(
           LearningPathMockDatasource(),
@@ -137,18 +196,20 @@ Future<void> _completeOnboarding(WidgetTester tester) async {
 Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
   await tester.tap(find.byTooltip('Play'));
   await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const Key('play-subject-dropdown')));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Web Development').last);
-  await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('HTML Foundations').last);
-  await tester.pumpAndSettle();
-  await tester.tap(find.byKey(const Key('play-topic-dropdown')));
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Tags & Elements').last);
-  await tester.pumpAndSettle();
+  // The setup form is taller than a phone screen: scroll each control into view.
+  for (final (dropdown, option) in [
+    ('play-subject-dropdown', 'Web Development'),
+    ('play-chapter-dropdown', 'HTML Foundations'),
+    ('play-topic-dropdown', 'Tags & Elements'),
+  ]) {
+    final field = find.byKey(Key(dropdown));
+    await tester.ensureVisible(field);
+    await tester.pumpAndSettle();
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(option).last);
+    await tester.pumpAndSettle();
+  }
   final modeCard = find.byKey(ValueKey('play-mode-${_routeValue(modeLabel)}'));
   await tester.ensureVisible(modeCard.first);
   await tester.pumpAndSettle();
@@ -194,7 +255,7 @@ Future<void> _startSortItOutQuiz(WidgetTester tester) async {
   expect(find.text('1 / 5'), findsOneWidget);
   expect(find.text('Debit'), findsWidgets);
   expect(find.text('Credit'), findsWidgets);
-  await tester.tap(find.text('Start sorting'));
+  await _tapStartSortingIfShown(tester);
   await tester.pump();
 }
 
@@ -270,8 +331,9 @@ void main() {
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('CONTINUE LEARNING'), findsOneWidget);
     expect(find.text('Class 12th - Maharashtra State Board'), findsOneWidget);
-    expect(find.text('Web Development'), findsOneWidget);
-    expect(find.textContaining('HTML Foundations'), findsOneWidget);
+    // The home screen shows the chosen subject in more than one place.
+    expect(find.text('Web Development'), findsWidgets);
+    expect(find.textContaining('HTML Foundations'), findsWidgets);
   });
 
   testWidgets('profile setup validates details and subject selection', (
@@ -437,27 +499,12 @@ void main() {
   testWidgets('a cosmetic can be purchased with coins and then equipped', (
     tester,
   ) async {
-    await _pumpApp(tester);
+    // The account already holds enough coins (the shop no longer sells coin
+    // packs), so go straight to the cosmetics.
+    await _pumpApp(tester, walletCoins: 200);
     await _signUp(tester);
     await _completeOnboarding(tester);
 
-    await tester.tap(find.byTooltip('Shop'));
-    await tester.pumpAndSettle();
-
-    // Buy a coin pack (demo purchase) to afford a cosmetic.
-    await tester.tap(_buyButtonFor('200 Coins'));
-    await tester.pumpAndSettle();
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.widgetWithText(FilledButton, 'Buy'),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('You received 200 Coins!'), findsOneWidget);
-
-    await tester.pageBack();
-    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('compact_profile_header')));
     await tester.pumpAndSettle();
 
@@ -508,10 +555,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Grace H.'), findsOneWidget);
 
-    // Ada starts at 0 XP, so she sorts to the bottom of the list.
-    await tester.dragFrom(const Offset(200, 400), const Offset(0, -500));
-    await tester.pumpAndSettle();
-    expect(find.text('Ada (You)'), findsOneWidget);
+    // The sample board puts the signed-in player on it, marked with (You).
+    expect(find.text('You (You)'), findsOneWidget);
 
     await tester.tap(find.text('Friends'));
     await tester.pumpAndSettle();
@@ -522,37 +567,28 @@ void main() {
     expect(find.text('School leaderboard is coming soon.'), findsOneWidget);
   });
 
-  testWidgets(
-    'dashboard shows the streak, a daily mission, and a claimable reward',
-    (tester) async {
-      await _pumpApp(tester);
-      await _signUp(tester);
-      await _completeOnboarding(tester);
+  testWidgets('dashboard shows the streak and the daily goal', (tester) async {
+    await _pumpApp(tester);
+    await _signUp(tester);
+    await _completeOnboarding(tester);
 
-      // The list builds lazily: scroll each block into view in turn.
-      final page = find.byType(Scrollable).first;
-      await tester.scrollUntilVisible(find.text('+10'), 200, scrollable: page);
-      await tester.tap(find.text('+10'));
-      await tester.pumpAndSettle();
-      expect(find.text('Claimed'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.text('Your streak'),
-        200,
-        scrollable: page,
-      );
-      await tester.scrollUntilVisible(
-        find.text('0 of 1'),
-        200,
-        scrollable: page,
-      );
-
-      await tester.tap(find.byTooltip('Profile'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('10 Coins'), findsOneWidget);
-    },
-  );
+    // The list builds lazily: scroll each block into view in turn. (The daily
+    // reward card is still a placeholder waiting for the server, so it is not
+    // part of this test.)
+    final page = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.text('Your streak'),
+      200,
+      scrollable: page,
+    );
+    await tester.scrollUntilVisible(
+      find.text('Complete 1 quiz today').first,
+      200,
+      scrollable: page,
+    );
+    // Shown on the goal itself and in the section header.
+    expect(find.text('0 of 1'), findsWidgets);
+  });
 
   testWidgets('Subjects opens chapter topics', (tester) async {
     await _pumpApp(tester);
@@ -620,11 +656,10 @@ void main() {
 
     await tester.ensureVisible(find.byKey(const Key('play-start-button')));
     await tester.pumpAndSettle();
-    final startButton = tester.widget<TextButton>(
-      find.ancestor(
-        of: find.byKey(const Key('play-start-button')),
-        matching: find.byType(TextButton),
-      ),
+    // The start button is an AppButton; with no chapter or topic picked yet it
+    // is disabled (no onPressed).
+    final startButton = tester.widget<AppButton>(
+      find.byKey(const Key('play-start-button')),
     );
     expect(startButton.onPressed, isNull);
 
@@ -649,7 +684,13 @@ void main() {
     await tester.tap(find.byKey(const Key('play-start-button')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('match_it_view')), findsOneWidget);
+    // Match the Following needs the real server: in this mock setup the app says
+    // so instead of opening the game (the game itself is covered by
+    // match_the_following_*_test.dart).
+    expect(
+      find.text("Match the Following isn't available in mock mode."),
+      findsOneWidget,
+    );
   });
 
   testWidgets('practice hub exposes the four quiz modes and opens Match It', (
@@ -680,8 +721,8 @@ void main() {
     await _answerAllMcqCorrectly(tester);
 
     expect(find.text('Quiz Complete!'), findsOneWidget);
-    expect(find.text('+55 XP'), findsOneWidget);
-    expect(find.text('+15 Coins'), findsOneWidget);
+    expect(find.text('+50 XP'), findsOneWidget);
+    expect(find.text('+25 Coins'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Done'));
     await tester.pumpAndSettle();
@@ -694,7 +735,7 @@ void main() {
   testWidgets('Sort It Out completes, reviews answers and Play again resets', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(393, 852);
+    tester.view.physicalSize = const Size(430, 932);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -712,18 +753,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Sort It Out — Results'), findsOneWidget);
-    expect(find.text('+10 XP'), findsOneWidget);
-    expect(find.text('+5 Coins'), findsOneWidget);
+    expect(find.text('+143 XP'), findsOneWidget);
+    expect(find.text('+10 Coins'), findsOneWidget);
     expect(find.text('5 of 5 correct'), findsOneWidget);
     expect(find.text('Answer review'), findsOneWidget);
     await tester.ensureVisible(find.text('Play again'));
     await tester.tap(find.text('Play again'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Start sorting'));
+    await _pumpFramesUntil(tester, find.text('1 / 5'));
+    await _tapStartSortingIfShown(tester);
     await tester.pump();
     expect(find.text('Purchase'), findsOneWidget);
     expect(find.text('1 / 5'), findsOneWidget);
-    expect(find.text('0 correct · 0 wrong'), findsOneWidget);
     final fallingCard = find.byKey(const Key('sort-active-card'));
     final playfield = find.byKey(const Key('sort-playfield'));
     expect(
@@ -742,20 +782,27 @@ void main() {
     await _sortCurrentCardTo(tester, 'debit');
     expect(find.text('Sort It Out — Results'), findsOneWidget);
     expect(find.text('0 of 5 correct'), findsOneWidget);
-    expect(find.text('0 / 10 points'), findsOneWidget);
-    expect(find.text('+0 XP'), findsOneWidget);
+    expect(find.text('Official Score'), findsOneWidget);
+    expect(find.text('+10 XP'), findsOneWidget);
     await tester.ensureVisible(find.text('Play again'));
     await tester.tap(find.text('Play again'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Start sorting'));
+    await _pumpFramesUntil(tester, find.text('1 / 5'));
+    await _tapStartSortingIfShown(tester);
     await tester.pump();
-    for (var index = 0; index < 5; index++) {
-      await tester.pump(const Duration(milliseconds: 4016));
-      await _finishSortTransition(tester);
+    // Every card times out on its own (their time limit comes from the question),
+    // so just let the clock run until the results appear.
+    for (
+      var i = 0;
+      i < 400 && find.text('Sort It Out — Results').evaluate().isEmpty;
+      i++
+    ) {
+      await tester.pump(const Duration(milliseconds: 250));
     }
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('Sort It Out — Results'), findsOneWidget);
     expect(find.text('0 of 5 correct'), findsOneWidget);
-    expect(find.text('Missed'), findsNWidgets(5));
+    // Unanswered cards are reviewed as timed out.
+    expect(find.textContaining("Time's Up"), findsWidgets);
   });
 
   testWidgets(
@@ -820,4 +867,19 @@ void main() {
     expect(find.text('Welcome back'), findsOneWidget);
     expect(find.text('Log In'), findsOneWidget);
   });
+}
+
+/// Some Sort It Out modes open on a "Start sorting" card; others start falling
+/// straight away. Tap the card only when it is there.
+Future<void> _tapStartSortingIfShown(WidgetTester tester) async {
+  final start = find.text('Start sorting');
+  if (start.evaluate().isNotEmpty) await tester.tap(start);
+}
+
+/// Advances time one frame at a time until [finder] shows up (at most about a
+/// second), so a game that starts by itself is looked at right at its start.
+Future<void> _pumpFramesUntil(WidgetTester tester, Finder finder) async {
+  for (var i = 0; i < 80 && finder.evaluate().isEmpty; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
 }

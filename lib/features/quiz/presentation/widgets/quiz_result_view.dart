@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../character3d/presentation/result_mascot.dart';
+import '../../../habit/presentation/next_step_widgets.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
@@ -136,6 +137,8 @@ class QuizResultView extends StatelessWidget {
                     earnedXp: xp,
                   ),
                 ],
+                // What this game did for today's goals and streak, and what is next.
+                const NextStepPanel(),
                 _RewardBreakdowns(result: result),
                 const SizedBox(height: AppSpacing.sm),
                 TextButton.icon(
