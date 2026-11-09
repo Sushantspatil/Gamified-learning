@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../analytics/data/analytics_service.dart';
+import '../../analytics/presentation/analytics_host.dart';
+import '../../analytics/presentation/analytics_providers.dart';
 import '../../authentication/presentation/providers/auth_providers.dart';
 import '../../streaks/domain/entities/streak.dart';
 import '../../streaks/presentation/providers/streak_providers.dart';
@@ -58,6 +61,9 @@ class _ReminderHostState extends ConsumerState<ReminderHost>
     if (settings.enabled || settings.prompted) return;
 
     _askedThisSession = true;
+    ref
+        .read(analyticsServiceProvider)
+        .track(AnalyticsEvents.reminderPromptShown);
     final turnOn = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -106,6 +112,8 @@ class _ReminderHostState extends ConsumerState<ReminderHost>
     ref.listen<AsyncValue<Streak>>(streakControllerProvider, (_, next) {
       _maybeAsk(next.valueOrNull);
     });
-    return widget.child;
+    // The same home screen also reports app opens and sends queued usage events
+    // when the app goes to the background.
+    return AnalyticsHost(child: widget.child);
   }
 }

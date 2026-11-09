@@ -64,6 +64,9 @@ class ApiEndpoints {
   static const String streakClaim = '/streak/claim';
   static const String streakFreeze = '/streak/freeze';
 
+  // Usage analytics
+  static const String analyticsEvents = '/analytics/events';
+
   // Leaderboard
   static const String leaderboard = '/leaderboard';
 }

@@ -6,6 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skillverse_app/app/theme/app_theme.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
+import 'package:skillverse_app/features/analytics/data/analytics_service.dart';
+import 'package:skillverse_app/features/analytics/presentation/analytics_host.dart';
+import 'package:skillverse_app/features/analytics/presentation/analytics_providers.dart';
 import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/data/models/user_model.dart';
 import 'package:skillverse_app/features/authentication/domain/entities/app_user.dart';
@@ -115,6 +118,7 @@ Future<void> _showDashboard(
   required LocalStorageService storage,
   int streak = 3,
   bool signedIn = true,
+  AnalyticsService? analytics,
 }) async {
   tester.view.physicalSize = const Size(720, 2400);
   tester.view.devicePixelRatio = 2;
@@ -142,6 +146,10 @@ Future<void> _showDashboard(
         streakRewardsDatasourceProvider.overrideWithValue(_NoStreakRewards()),
         reminderSchedulerProvider.overrideWithValue(scheduler),
         reminderClockProvider.overrideWithValue(() => _fixedNow),
+        // Never the network: either what the test is watching, or nothing.
+        analyticsServiceProvider.overrideWithValue(
+          analytics ?? const NoopAnalyticsService(),
+        ),
       ],
       child: MaterialApp.router(
         theme: AppTheme.lightTheme,
@@ -154,7 +162,110 @@ Future<void> _showDashboard(
   }
 }
 
+/// Records what the app reports to analytics.
+class _Recorder implements AnalyticsService {
+  final names = <String>[];
+  final props = <Map<String, Object>?>[];
+
+  @override
+  void track(String name, [Map<String, Object>? p]) {
+    names.add(name);
+    props.add(p);
+  }
+
+  @override
+  Future<void> flush() async {}
+}
+
 void main() {
+  setUp(AnalyticsHost.resetForTest);
+
+  group('what is reported', () {
+    testWidgets('opening the home screen reports one launch', (tester) async {
+      final recorder = _Recorder();
+      await _showDashboard(
+        tester,
+        scheduler: _FakeScheduler(supported: false),
+        storage: await _storage({'settings_reminders_prompted': true}),
+        analytics: recorder,
+      );
+      expect(recorder.names, [AnalyticsEvents.appOpen]);
+      expect(recorder.props.single, {'source': 'launch'});
+    });
+
+    testWidgets('the question, then Turn on, reports both', (tester) async {
+      final recorder = _Recorder();
+      await _showDashboard(
+        tester,
+        scheduler: _FakeScheduler(),
+        storage: await _storage(),
+        analytics: recorder,
+      );
+      await tester.tap(find.byKey(const Key('reminder_prompt_turn_on')));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(recorder.names, [
+        AnalyticsEvents.appOpen,
+        AnalyticsEvents.reminderPromptShown,
+        AnalyticsEvents.reminderEnabled,
+      ]);
+    });
+
+    testWidgets('Not now is reported as declined', (tester) async {
+      final recorder = _Recorder();
+      await _showDashboard(
+        tester,
+        scheduler: _FakeScheduler(),
+        storage: await _storage(),
+        analytics: recorder,
+      );
+      await tester.tap(find.byKey(const Key('reminder_prompt_not_now')));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(recorder.names, [
+        AnalyticsEvents.appOpen,
+        AnalyticsEvents.reminderPromptShown,
+        AnalyticsEvents.reminderDeclined,
+      ]);
+    });
+
+    testWidgets('a phone that refuses is reported as blocked', (tester) async {
+      final recorder = _Recorder();
+      await _showDashboard(
+        tester,
+        scheduler: _FakeScheduler(grants: false),
+        storage: await _storage(),
+        analytics: recorder,
+      );
+      await tester.tap(find.byKey(const Key('reminder_prompt_turn_on')));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(recorder.names.last, AnalyticsEvents.reminderBlocked);
+      expect(recorder.names, isNot(contains(AnalyticsEvents.reminderEnabled)));
+    });
+
+    testWidgets('only event names the backend accepts are ever used', (
+      tester,
+    ) async {
+      const sent = [
+        AnalyticsEvents.appOpen,
+        AnalyticsEvents.reminderPromptShown,
+        AnalyticsEvents.reminderEnabled,
+        AnalyticsEvents.reminderDeclined,
+        AnalyticsEvents.reminderBlocked,
+        AnalyticsEvents.gameQuit,
+      ];
+      // The same six as the Go backend's AnalyticsEventNames.
+      expect(sent.toSet().length, 6);
+      for (final name in sent) {
+        expect(RegExp(r'^[a-z][a-z_]*$').hasMatch(name), isTrue, reason: name);
+      }
+    });
+  });
+
   group('asking once', () {
     testWidgets('on a streak of two or more, the player is asked', (
       tester,

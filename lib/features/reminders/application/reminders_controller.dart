@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/core_providers.dart';
 import '../../../core/storage/local_storage_service.dart';
+import '../../analytics/data/analytics_service.dart';
+import '../../analytics/presentation/analytics_providers.dart';
 import '../../authentication/presentation/providers/auth_providers.dart';
 import '../../streaks/presentation/providers/streak_providers.dart';
 import '../data/reminder_scheduler.dart';
@@ -67,6 +69,13 @@ class ReminderSettingsController extends Notifier<ReminderSettings> {
         .read(reminderSchedulerProvider)
         .requestPermission();
     _save(ReminderSettings(enabled: granted, prompted: true));
+    ref
+        .read(analyticsServiceProvider)
+        .track(
+          granted
+              ? AnalyticsEvents.reminderEnabled
+              : AnalyticsEvents.reminderBlocked,
+        );
     return granted;
   }
 
@@ -76,8 +85,10 @@ class ReminderSettingsController extends Notifier<ReminderSettings> {
   }
 
   /// "Not now": remember the question was asked.
-  void declinePrompt() =>
-      _save(ReminderSettings(enabled: state.enabled, prompted: true));
+  void declinePrompt() {
+    _save(ReminderSettings(enabled: state.enabled, prompted: true));
+    ref.read(analyticsServiceProvider).track(AnalyticsEvents.reminderDeclined);
+  }
 }
 
 final reminderSettingsProvider =
