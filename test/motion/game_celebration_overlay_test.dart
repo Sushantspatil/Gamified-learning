@@ -79,7 +79,7 @@ void main() {
           find.byType(GameCelebrationOverlay),
         );
         expect(overlay.type, CelebrationType.standard);
-        expect(find.text('Quiz Complete!'), findsOneWidget);
+        expect(find.byKey(const Key('result_headline')), findsOneWidget);
       },
     );
 
@@ -127,7 +127,7 @@ void main() {
           find.byType(GameCelebrationOverlay),
         );
         expect(overlay.type, CelebrationType.standard);
-        expect(find.text('Sort It Out - Results'), findsOneWidget);
+        expect(find.byKey(const Key('result_headline')), findsOneWidget);
       },
     );
 
@@ -179,7 +179,7 @@ void main() {
           find.byType(GameCelebrationOverlay),
         );
         expect(overlay.type, CelebrationType.subdued);
-        expect(find.text('Sudden Death - Quiz Ended'), findsOneWidget);
+        expect(find.byKey(const Key('result_headline')), findsOneWidget);
       },
     );
 
@@ -299,7 +299,7 @@ void main() {
           findsNothing,
         );
         expect(find.byKey(const Key('celebration-glow-canvas')), findsNothing);
-        expect(find.text('Quiz Complete!'), findsOneWidget);
+        expect(find.byKey(const Key('result_headline')), findsOneWidget);
         expect(find.text('Done'), findsOneWidget);
       },
     );
@@ -327,7 +327,7 @@ void main() {
           find.byKey(const Key('celebration-glow-canvas')),
           findsOneWidget,
         );
-        expect(find.text('Quiz Complete!'), findsOneWidget);
+        expect(find.byKey(const Key('result_headline')), findsOneWidget);
       },
     );
 

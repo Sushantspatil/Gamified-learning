@@ -1,20 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../character3d/presentation/result_mascot.dart';
-import '../../../habit/presentation/next_step_widgets.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
-import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_card.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../domain/entities/quiz_result.dart';
+import '../../domain/result_outcome.dart';
 import 'quiz_celebration_overlay.dart';
+import 'result/answer_review_sheet.dart';
+import 'result/answer_strip.dart';
+import 'result/personal_best_badge.dart';
+import '../../../authentication/presentation/providers/auth_providers.dart';
+import '../../domain/result_answers.dart';
+import '../../domain/result_flow.dart';
+import 'result/result_action_bar.dart';
+import 'result/result_progress.dart';
+import 'result/result_share.dart';
+import 'result/result_summary.dart';
 
-class QuizResultView extends StatelessWidget {
+class QuizResultView extends StatefulWidget {
   final QuizResult result;
   final int? rewardXp;
   final int? rewardCoins;
@@ -33,220 +42,300 @@ class QuizResultView extends StatelessWidget {
   });
 
   @override
+  State<QuizResultView> createState() => _QuizResultViewState();
+}
+
+class _QuizResultViewState extends State<QuizResultView> {
+  /// The result is one or two screens: the summary, then (only when something
+  /// changed) the player's progress.
+  bool _showProgress = false;
+
+  QuizResult get _result => widget.result;
+
+  /// A short, safe identifier for storing this mode's best score.
+  String get _modeKey =>
+      _result.endedEarly ? 'sudden_death' : _result.quizType.name;
+
+  String get _shareModeName => _result.endedEarly
+      ? 'Sudden Death'
+      : _result.quizType == QuestionType.sortItRight
+      ? 'Sort It Out'
+      : 'the MCQ Quiz';
+
+  @override
   Widget build(BuildContext context) {
-    final score = result.score;
     final colors = context.themeColors;
-    final accent = result.endedEarly ? colors.error : colors.warning;
-    final xp = rewardXp ?? result.xpAwarded;
-    final coins = rewardCoins ?? result.coinsAwarded;
+    final score = _result.score;
+    final xp = widget.rewardXp ?? _result.xpAwarded;
+    final coins = widget.rewardCoins ?? _result.coinsAwarded;
 
     final bool isUnsuccessful =
-        result.endedEarly ||
-        (result.completedSuccessfully == false) ||
-        (result.score.totalCount > 0 && result.score.correctCount == 0);
+        _result.endedEarly ||
+        (_result.completedSuccessfully == false) ||
+        (score.totalCount > 0 && score.correctCount == 0);
     final bool isPerfect =
         !isUnsuccessful &&
-        result.score.percentage >= 1.0 &&
-        result.score.correctCount == result.score.totalCount &&
-        result.score.totalCount > 0;
+        score.percentage >= 1.0 &&
+        score.correctCount == score.totalCount &&
+        score.totalCount > 0;
     final celebrationType = isUnsuccessful
         ? CelebrationType.subdued
         : (isPerfect ? CelebrationType.perfect : CelebrationType.standard);
 
-    return GameCelebrationOverlay(
-      key: ValueKey('celebration-${result.sessionId}'),
-      type: celebrationType,
-      child: Center(
-        child: SingleChildScrollView(
-          padding: AppSpacing.paddingMd,
-          child: AppCard(
-            variant: AppCardVariant.tinted,
-            tintColor: accent,
-            padding: AppSpacing.paddingLg,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ResultMascot(
-                  unsuccessful: isUnsuccessful,
-                  accuracy: result.accuracy.clamp(0.0, 1.0).toDouble(),
-                  trophy: Container(
-                    width: 86,
-                    height: 86,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: result.endedEarly
-                            ? [colors.error, colors.violet]
-                            : [colors.warning, AppColors.accentGold],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: accent.withValues(alpha: 0.22),
-                          blurRadius: 24,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      result.endedEarly ? Icons.whatshot : Icons.emoji_events,
-                      color: colors.textInverse,
-                      size: 44,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  result.endedEarly
-                      ? 'Sudden Death - Quiz Ended'
-                      : result.quizType == QuestionType.sortItRight
-                      ? 'Sort It Out - Results'
-                      : 'Quiz Complete!',
-                  style: context.appTextStyles.displayMedium,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                _ScorePanel(result: result),
-                const SizedBox(height: AppSpacing.md),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: [
-                    _MetricPill(
-                      icon: Icons.check_circle_outline,
-                      label: '${score.correctCount} correct',
-                      color: colors.success,
-                    ),
-                    _MetricPill(
-                      icon: Icons.cancel_outlined,
-                      label: '${result.wrongCount} wrong',
-                      color: colors.error,
-                    ),
-                    _MetricPill(
-                      icon: Icons.track_changes_rounded,
-                      label: '${(result.accuracy * 100).round()}% accuracy',
-                      color: colors.primary,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.md),
-                _RewardTotals(xp: xp, coins: coins, leveledUp: leveledUp),
-                if (result.levelProgress != null) ...[
-                  const SizedBox(height: AppSpacing.md),
-                  _XpProgressPanel(
-                    progress: result.levelProgress!,
-                    earnedXp: xp,
-                  ),
-                ],
-                // What this game did for today's goals and streak, and what is next.
-                const NextStepPanel(),
-                _RewardBreakdowns(result: result),
-                const SizedBox(height: AppSpacing.sm),
-                TextButton.icon(
-                  onPressed: () => _showScoringSheet(context, result.quizType),
-                  icon: const Icon(Icons.info_outline, size: 18),
-                  label: const Text('How scoring works'),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                if (result.quizType == QuestionType.sortItRight) ...[
-                  for (final record in result.records)
-                    if (record.question is SortItRightQuestion &&
-                        record.answer is SortAnswer)
-                      _SortAnswerReview(
-                        question: record.question as SortItRightQuestion,
-                        answer: record.answer as SortAnswer,
-                      ),
-                  if (onPlayAgain != null) ...[
-                    const SizedBox(height: AppSpacing.md),
-                    AppButton(label: 'Play again', onPressed: onPlayAgain),
-                    const SizedBox(height: AppSpacing.sm),
-                  ],
-                ],
-                AppButton(label: 'Done', onPressed: onDone),
-              ],
+    final outcome = outcomeFor(
+      endedEarly: _result.endedEarly,
+      correct: score.correctCount,
+      total: score.totalCount,
+    );
+    // The colour of the mood: calm blue after a poor game, fiery for Sudden
+    // Death, gold for a brilliant game, the brand colour otherwise.
+    final accent = outcome.subdued
+        ? const Color(0xFF6C86FF)
+        : _result.endedEarly
+        ? AppColors.streakFire
+        : _result.accuracy >= 0.9
+        ? colors.warning
+        : colors.primary;
+
+    final reviewItems = reviewItemsFor(_result);
+    Widget summaryFor(String? playerName) => ResultSummary(
+      outcome: outcome,
+      accent: accent,
+      playerName: playerName,
+      eyebrow: _result.endedEarly ? 'RUN OVER' : 'ROUND COMPLETE',
+      points: score.earnedPoints,
+      maxPoints: score.maxPoints,
+      coins: coins,
+      tiles: [
+        ResultTileData.number(
+          label: 'XP',
+          icon: Icons.bolt_rounded,
+          color: AppColors.xpPurple,
+          number: xp,
+          prefix: '+',
+        ),
+        if (_result.endedEarly)
+          ResultTileData.number(
+            label: 'CORRECT',
+            icon: Icons.check_circle_rounded,
+            color: colors.success,
+            number: score.correctCount,
+          )
+        else
+          ResultTileData.number(
+            label: 'ACCURACY',
+            icon: Icons.track_changes_rounded,
+            color: colors.success,
+            number: (_result.accuracy * 100).round(),
+            suffix: '%',
+          ),
+        ResultTileData.text(
+          label: 'TIME',
+          icon: Icons.timer_rounded,
+          color: colors.info,
+          text: formatResultTime(_result.timeTaken),
+        ),
+      ],
+      bestBadge: PersonalBestBadge(
+        modeKey: _modeKey,
+        score: score.earnedPoints,
+      ),
+      // A dot for every answer; tapping it opens the review, when there are
+      // answers to review.
+      answers: AnswerStrip(
+        flags: answerFlags(_result),
+        onTap: reviewItems.isEmpty
+            ? null
+            : () => showAnswerReview(context, reviewItems),
+      ),
+      mascot: ResultMascot(
+        mascotSize: 160,
+        unsuccessful: isUnsuccessful,
+        accuracy: _result.accuracy.clamp(0.0, 1.0).toDouble(),
+        trophy: Container(
+          width: 84,
+          height: 84,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              colors: _result.endedEarly
+                  ? [colors.error, colors.violet]
+                  : [colors.warning, AppColors.accentGold],
             ),
           ),
+          child: Icon(
+            _result.endedEarly ? Icons.whatshot : Icons.emoji_events,
+            color: colors.textInverse,
+            size: 44,
+          ),
+        ),
+      ),
+    );
+
+    final summary = _WithPlayerName(builder: summaryFor);
+
+    final message = shareMessage(
+      modeName: _shareModeName,
+      score: score.earnedPoints,
+      maxScore: score.maxPoints,
+    );
+
+    return GameCelebrationOverlay(
+      key: ValueKey('celebration-${_result.sessionId}'),
+      type: celebrationType,
+      child: ResultProgressGate(
+        leveledUp: widget.leveledUp,
+        builder: (context, hasProgress) {
+          final onSummary = !_showProgress;
+          final goToProgress = onSummary && hasProgress;
+          final canReplay = widget.onPlayAgain != null;
+
+          return Column(
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    padding: AppSpacing.paddingMd,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight - AppSpacing.md * 2,
+                      ),
+                      child: Center(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 280),
+                          transitionBuilder: (child, animation) =>
+                              FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0.06, 0),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
+                              ),
+                          child: KeyedSubtree(
+                            key: ValueKey(_showProgress),
+                            child: _showProgress
+                                ? ResultProgressScreen(
+                                    leveledUp: widget.leveledUp,
+                                    levelProgress: _result.levelProgress,
+                                    earnedXp: xp,
+                                  )
+                                : summary,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              ResultActionBar(
+                primaryLabel: goToProgress
+                    ? 'Continue'
+                    : canReplay
+                    ? 'Play again'
+                    : 'Done',
+                primaryIcon: goToProgress || !canReplay
+                    ? null
+                    : Icons.replay_rounded,
+                onPrimary: goToProgress
+                    ? () => setState(() => _showProgress = true)
+                    : (canReplay ? widget.onPlayAgain! : widget.onDone),
+                secondaryLabel: !goToProgress && canReplay ? 'Done' : null,
+                onSecondary: widget.onDone,
+                onShare: () => shareText(message),
+                onDetails: () => _showResultDetails(context, _result),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The signed-in player's first name, for "Great job, Ada!". Null when there is
+/// no signed-in player or no provider scope (some tests).
+String? _firstNameOf(String? displayName) {
+  final first = displayName?.trim().split(RegExp(r'\s+')).first;
+  if (first == null || first.isEmpty) return null;
+  return first.length > 14 ? first.substring(0, 14) : first;
+}
+
+/// Hands [builder] the player's first name, and builds again when the signed-in
+/// user finishes loading. Without a ProviderScope (some tests) there is no name.
+class _WithPlayerName extends StatelessWidget {
+  final Widget Function(String? playerName) builder;
+
+  const _WithPlayerName({required this.builder});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasScope =
+        context
+            .getElementForInheritedWidgetOfExactType<
+              UncontrolledProviderScope
+            >() !=
+        null;
+    if (!hasScope) return builder(null);
+    return Consumer(
+      builder: (context, ref, _) => builder(
+        _firstNameOf(
+          ref.watch(authControllerProvider).valueOrNull?.displayName,
         ),
       ),
     );
   }
 }
 
-class _ScorePanel extends StatelessWidget {
-  final QuizResult result;
-
-  const _ScorePanel({required this.result});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.52),
-        borderRadius: AppDimensions.radiusCard,
-        border: Border.all(color: colors.primary.withValues(alpha: 0.18)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
-        ),
+/// The reward breakdown, and for the old Sort It Out result the answer review,
+/// in a sheet that slides up from the bottom.
+void _showResultDetails(BuildContext context, QuizResult result) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.7,
+      minChildSize: 0.4,
+      maxChildSize: 0.95,
+      builder: (context, controller) => SingleChildScrollView(
+        key: const Key('result_details_sheet'),
+        controller: controller,
+        padding: AppSpacing.paddingMd,
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('Score', style: context.appTextStyles.labelLarge),
-            const SizedBox(height: AppSpacing.xs),
             Text(
-              result.score.maxPoints > 0
-                  ? '${result.score.earnedPoints} / ${result.score.maxPoints}'
-                  : '${result.score.earnedPoints}',
-              style: context.appTextStyles.displayMedium,
+              'Score details',
+              style: context.appTextStyles.titleLarge.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text('Quiz points', style: context.appTextStyles.bodySmall),
+            _RewardBreakdowns(result: result),
+            TextButton.icon(
+              onPressed: () => _showScoringSheet(context, result.quizType),
+              icon: const Icon(Icons.info_outline, size: 18),
+              label: const Text('How scoring works'),
+            ),
+            if (result.quizType == QuestionType.sortItRight) ...[
+              const SizedBox(height: AppSpacing.md),
+              for (final record in result.records)
+                if (record.question is SortItRightQuestion &&
+                    record.answer is SortAnswer)
+                  _SortAnswerReview(
+                    question: record.question as SortItRightQuestion,
+                    answer: record.answer as SortAnswer,
+                  ),
+            ],
+            const SizedBox(height: AppSpacing.lg),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _RewardTotals extends StatelessWidget {
-  final int xp;
-  final int coins;
-  final bool leveledUp;
-
-  const _RewardTotals({
-    required this.xp,
-    required this.coins,
-    required this.leveledUp,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: AppSpacing.md,
-      runSpacing: AppSpacing.sm,
-      children: [
-        _RewardChip(
-          icon: Icons.bolt,
-          color: AppColors.xpPurple,
-          label: '+$xp XP',
-        ),
-        _RewardChip(
-          icon: Icons.monetization_on,
-          color: AppColors.coinGold,
-          label: '+$coins Coins',
-        ),
-        if (leveledUp)
-          _RewardChip(
-            icon: Icons.upgrade_rounded,
-            color: colors.primary,
-            label: 'Level up',
-          ),
-      ],
-    );
-  }
+    ),
+  );
 }
 
 class _RewardBreakdowns extends StatelessWidget {
@@ -320,73 +409,6 @@ class _RewardBreakdowns extends StatelessWidget {
   }
 }
 
-class _XpProgressPanel extends StatelessWidget {
-  final QuizLevelProgress progress;
-  final int earnedXp;
-
-  const _XpProgressPanel({required this.progress, required this.earnedXp});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.themeColors;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.xpPurple.withValues(alpha: 0.08),
-        borderRadius: AppDimensions.radiusMd,
-        border: Border.all(color: AppColors.xpPurple.withValues(alpha: 0.18)),
-      ),
-      child: Padding(
-        padding: AppSpacing.paddingMd,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Level ${progress.currentLevel}',
-                    style: context.appTextStyles.titleMedium,
-                  ),
-                ),
-                Text(
-                  '+$earnedXp XP',
-                  style: context.appTextStyles.labelLarge.copyWith(
-                    color: AppColors.xpPurple,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              '${progress.experience} / ${progress.nextLevelExperience} XP',
-              style: context.appTextStyles.bodySmall,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: progress.progress),
-              duration: const Duration(milliseconds: 450),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, _) {
-                return ClipRRect(
-                  borderRadius: BorderRadius.circular(999),
-                  child: LinearProgressIndicator(
-                    minHeight: 8,
-                    value: value,
-                    backgroundColor: colors.surfaceElevated,
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppColors.xpPurple,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _BreakdownSection extends StatelessWidget {
   final String title;
   final String unit;
@@ -443,43 +465,6 @@ class _BreakdownSection extends StatelessWidget {
                   ],
                 ),
               ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MetricPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _MetricPill({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: AppSpacing.xs),
-            Text(label, style: context.appTextStyles.labelLarge),
           ],
         ),
       ),
@@ -551,43 +536,6 @@ class _SortAnswerReview extends StatelessWidget {
                 : context.themeColors.error,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _RewardChip extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-
-  const _RewardChip({
-    required this.icon,
-    required this.color,
-    required this.label,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.24)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(width: AppSpacing.xs),
-            Text(label, style: context.appTextStyles.labelLarge),
-          ],
-        ),
       ),
     );
   }

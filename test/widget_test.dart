@@ -720,12 +720,17 @@ void main() {
     await _startMcqQuiz(tester);
     await _answerAllMcqCorrectly(tester);
 
-    expect(find.text('Quiz Complete!'), findsOneWidget);
-    expect(find.text('+50 XP'), findsOneWidget);
+    expect(find.byKey(const Key('result_headline')), findsOneWidget);
+    // The three numbers and the coins.
+    expect(find.text('+50'), findsOneWidget);
     expect(find.text('+25 Coins'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Done'));
+    // Today's goal moved, so a progress screen follows; then Play again / Done.
+    await tester.tap(find.byKey(const Key('result_primary')));
     await tester.pumpAndSettle();
+    expect(find.byKey(const Key('result_progress')), findsOneWidget);
+    expect(find.text('Play again'), findsOneWidget);
+
     await tester.tap(find.text('Done'));
     await tester.pumpAndSettle();
 

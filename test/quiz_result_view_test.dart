@@ -6,21 +6,32 @@ import 'package:skillverse_app/features/quiz/data/models/sudden_death_ws_dto.dar
 import 'package:skillverse_app/features/quiz/domain/entities/quiz_result.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/quiz_result_view.dart';
 
+/// The score is one big number with "/ 100 pts" (or "points") next to it.
+void _expectPoints(int points, String unit) {
+  final row = find.byKey(const Key('result_points'));
+  expect(
+    find.descendant(of: row, matching: find.text('$points')),
+    findsOneWidget,
+  );
+  expect(find.descendant(of: row, matching: find.text(unit)), findsOneWidget);
+}
+
 void main() {
   testWidgets('renders score and reward breakdown from backend result', (
     tester,
   ) async {
     await _pumpResult(tester, _result());
 
-    expect(find.text('Quiz Complete!'), findsOneWidget);
-    expect(find.text('50 / 100'), findsOneWidget);
-    expect(find.text('5 correct'), findsOneWidget);
-    expect(find.text('5 wrong'), findsOneWidget);
-    expect(find.text('50% accuracy'), findsOneWidget);
-    expect(find.text('+35 XP'), findsNWidgets(2));
+    expect(find.byKey(const Key('result_headline')), findsOneWidget);
+    _expectPoints(50, '/ 100 pts');
+    // The three numbers: XP, accuracy and time.
+    expect(find.text('+35'), findsOneWidget);
+    expect(find.text('50%'), findsOneWidget);
+    expect(find.text('1:00'), findsOneWidget);
     expect(find.text('+15 Coins'), findsOneWidget);
-    expect(find.text('Level 4'), findsOneWidget);
-    expect(find.text('340 / 500 XP'), findsOneWidget);
+    // The breakdown is tucked away until opened.
+    expect(find.text('Quiz completion'), findsNothing);
+    await _openDetails(tester);
     expect(find.text('Quiz completion'), findsWidgets);
     expect(find.text('+10 XP'), findsOneWidget);
     expect(find.text('+25 XP'), findsOneWidget);
@@ -32,6 +43,7 @@ void main() {
 
   testWidgets('hides zero value reward rows', (tester) async {
     await _pumpResult(tester, _result());
+    await _openDetails(tester);
 
     expect(find.text('Perfect score bonus'), findsNothing);
     expect(find.text('+0 XP'), findsNothing);
@@ -41,12 +53,11 @@ void main() {
     tester,
   ) async {
     await _pumpResult(tester, _zeroResult());
+    await _openDetails(tester);
 
-    expect(find.text('0 / 100'), findsOneWidget);
-    expect(find.text('0 correct'), findsOneWidget);
-    expect(find.text('10 wrong'), findsOneWidget);
-    expect(find.text('0% accuracy'), findsOneWidget);
-    expect(find.text('+10 XP'), findsNWidgets(2));
+    _expectPoints(0, '/ 100 pts');
+    expect(find.text('0%'), findsOneWidget);
+    expect(find.text('+10 XP'), findsOneWidget); // the breakdown row
     expect(find.text('+5 Coins'), findsOneWidget);
     expect(find.text('Quiz completion'), findsNWidgets(2));
     expect(find.text('Correct answers'), findsNothing);
@@ -55,13 +66,14 @@ void main() {
 
   testWidgets('opens scoring explanation sheet', (tester) async {
     await _pumpResult(tester, _result());
+    await _openDetails(tester);
 
     await tester.ensureVisible(find.text('How scoring works'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('How scoring works'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Quiz points'), findsNWidgets(2));
+    expect(find.text('Quiz points'), findsOneWidget);
     expect(
       find.text(
         '+10 points for every correct answer.\n'
@@ -95,8 +107,8 @@ void main() {
     tester,
   ) async {
     await _pumpResult(tester, _perfectResult());
+    await _openDetails(tester);
 
-    expect(find.text('+75 XP'), findsOneWidget);
     expect(find.text('+35 Coins'), findsOneWidget);
     expect(find.text('Perfect score bonus'), findsNWidgets(2));
     expect(find.text('+15 XP'), findsOneWidget);
@@ -134,10 +146,10 @@ void main() {
 
       await _pumpResult(tester, result);
 
-      expect(find.text('115'), findsOneWidget);
-      expect(find.text('115 / 100'), findsNothing);
-      expect(find.text('+90 XP'), findsWidgets);
-      expect(find.text('+44 Coins'), findsWidgets);
+      _expectPoints(115, 'points');
+      expect(find.textContaining('/ 100'), findsNothing);
+      expect(find.text('+90'), findsOneWidget);
+      expect(find.text('+44 Coins'), findsOneWidget);
     },
   );
 }
@@ -266,4 +278,10 @@ QuizResult _zeroResult() {
     timeTaken: const Duration(minutes: 1),
     createdAt: DateTime(2026),
   );
+}
+
+/// Opens the "Score details" sheet from the button on the result screen.
+Future<void> _openDetails(WidgetTester tester) async {
+  await tester.tap(find.byKey(const Key('result_details_button')));
+  await tester.pumpAndSettle();
 }

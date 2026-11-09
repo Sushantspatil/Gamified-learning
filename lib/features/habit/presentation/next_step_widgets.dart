@@ -44,7 +44,10 @@ class NextStepCard extends ConsumerWidget {
 /// It quietly shows nothing where there is no provider scope (some tests render
 /// the result screens on their own) or no goals from the server.
 class NextStepPanel extends StatelessWidget {
-  const NextStepPanel({super.key});
+  /// A big, centred version with no card, for a screen of its own.
+  final bool large;
+
+  const NextStepPanel({super.key, this.large = false});
 
   @override
   Widget build(BuildContext context) {
@@ -53,12 +56,14 @@ class NextStepPanel extends StatelessWidget {
     } catch (_) {
       return const SizedBox.shrink();
     }
-    return const _NextStepPanelBody();
+    return _NextStepPanelBody(large: large);
   }
 }
 
 class _NextStepPanelBody extends ConsumerWidget {
-  const _NextStepPanelBody();
+  final bool large;
+
+  const _NextStepPanelBody({required this.large});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -69,7 +74,8 @@ class _NextStepPanelBody extends ConsumerWidget {
       child: _NextStepBody(
         key: const Key('next_step_panel'),
         step: step,
-        heading: 'Up next',
+        heading: large ? null : 'Up next',
+        large: large,
       ),
     );
   }
@@ -85,12 +91,16 @@ class _NextStepBody extends ConsumerStatefulWidget {
   final String? playLabel;
   final VoidCallback? onPlay;
 
+  /// Big and centred, with no card around it.
+  final bool large;
+
   const _NextStepBody({
     super.key,
     required this.step,
     this.heading,
     this.playLabel,
     this.onPlay,
+    this.large = false,
   });
 
   @override
@@ -132,6 +142,66 @@ class _NextStepBodyState extends ConsumerState<_NextStepBody> {
     } else if (widget.playLabel != null && widget.step is ContinueGoal) {
       actionLabel = widget.playLabel;
       action = widget.onPlay;
+    }
+
+    if (widget.large) {
+      return _Reveal(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: segments.isNotEmpty
+                  ? DailyRing(
+                      key: const Key('daily_ring'),
+                      segments: segments,
+                      size: 132,
+                    )
+                  : Container(
+                      width: 96,
+                      height: 96,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: view.accent.withValues(alpha: 0.16),
+                      ),
+                      child: Icon(view.icon, color: view.accent, size: 52),
+                    ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              view.title,
+              key: const Key('next_step_title'),
+              textAlign: TextAlign.center,
+              style: styles.titleLarge.copyWith(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              view.detail,
+              key: const Key('next_step_detail'),
+              textAlign: TextAlign.center,
+              style: styles.bodyMedium.copyWith(color: colors.textSecondary),
+            ),
+            if (view.progress != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              _FillIn(
+                value: view.progress!,
+                color: view.accent,
+                label: view.detail,
+              ),
+            ],
+            if (actionLabel != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _ActionButton(
+                key: const Key('next_step_action'),
+                label: actionLabel,
+                color: view.accent,
+                busy: _collecting,
+                onTap: action,
+              ),
+            ],
+          ],
+        ),
+      );
     }
 
     return _Reveal(

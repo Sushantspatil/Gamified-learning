@@ -16,11 +16,15 @@ class ResultMascot extends StatelessWidget {
   final double accuracy;
   final Widget trophy;
 
+  /// How big the character is drawn (the results card uses the default).
+  final double mascotSize;
+
   const ResultMascot({
     super.key,
     required this.unsuccessful,
     required this.accuracy,
     required this.trophy,
+    this.mascotSize = 150,
   });
 
   static const double size = 150;
@@ -43,14 +47,14 @@ class ResultMascot extends StatelessWidget {
       color: sad ? const Color(0xFF6C86FF) : const Color(0xFFFFC83A),
       strength: sad ? 0.8 : 1,
       child: Character3dView(
-        width: size,
-        height: size,
+        width: mascotSize,
+        height: mascotSize,
         state: Character3dState.idle,
         initialAction: action,
         cosmetics: equippedCosmetics(context),
-        placeholder: const Character3dPoster(height: size),
+        placeholder: Character3dPoster(height: mascotSize),
         fallback: SizedBox(
-          height: size,
+          height: mascotSize,
           child: Center(child: trophy),
         ),
       ),
