@@ -11,7 +11,10 @@ import '../../../app/theme/app_typography.dart';
 import '../../../shared/widgets/app_card.dart';
 import '../../../shared/widgets/app_pressable.dart';
 import '../../../shared/widgets/app_progress_bar.dart';
+import '../../daily_missions/presentation/providers/daily_mission_providers.dart';
+import '../domain/daily_ring.dart';
 import '../domain/next_step.dart';
+import 'daily_ring.dart';
 import 'next_step_providers.dart';
 
 /// On the home screen: the one thing to do next, with a big button. Left out
@@ -115,6 +118,9 @@ class _NextStepBodyState extends ConsumerState<_NextStepBody> {
     final colors = context.themeColors;
     final styles = context.appTextStyles;
     final view = _viewOf(widget.step, colors);
+    final segments = ringSegments(
+      ref.watch(dailyMissionsControllerProvider).valueOrNull ?? const [],
+    );
 
     final isCollect =
         widget.step is CollectGoal || widget.step is CollectStreakReward;
@@ -145,15 +151,24 @@ class _NextStepBodyState extends ConsumerState<_NextStepBody> {
             ],
             Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: view.accent.withValues(alpha: 0.16),
+                // Today's goals as a ring when there are goals; otherwise the
+                // step's own icon (for example a streak reward with no goals).
+                if (segments.isNotEmpty)
+                  DailyRing(
+                    key: const Key('daily_ring'),
+                    segments: segments,
+                    size: 60,
+                  )
+                else
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: view.accent.withValues(alpha: 0.16),
+                    ),
+                    child: Icon(view.icon, color: view.accent, size: 24),
                   ),
-                  child: Icon(view.icon, color: view.accent, size: 24),
-                ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
@@ -239,14 +254,14 @@ _StepView _viewOf(NextStep step, AppThemeColors colors) {
         icon: Icons.local_fire_department_rounded,
         accent: colors.warning,
       );
-    case ContinueGoal(:final mission, :final goalsDone, :final goalsTotal):
+    case ContinueGoal(:final mission):
       final remaining = mission.targetCount - mission.progressCount;
       return _StepView(
         title: mission.title,
+        // (How many goals are done is shown by the ring.)
         detail:
             '${mission.progressCount} of ${mission.targetCount}'
-            ' · ${mission.rewardLabel}'
-            '${goalsTotal > 1 ? ' · $goalsDone of $goalsTotal goals done' : ''}',
+            ' · ${mission.rewardLabel}',
         icon: remaining <= 1 ? Icons.bolt_rounded : Icons.flag_rounded,
         accent: colors.primary,
         progress: mission.targetCount == 0

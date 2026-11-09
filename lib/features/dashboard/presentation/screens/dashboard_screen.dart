@@ -36,6 +36,7 @@ import '../../../wallet/presentation/providers/wallet_providers.dart';
 import '../../../../core/utils/date_key.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
 import '../../../habit/presentation/next_step_widgets.dart';
+import '../../../habit/presentation/streak_flame.dart';
 import '../../../reminders/presentation/reminder_host.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../widgets/mascot_card.dart';
@@ -635,6 +636,8 @@ class _StreakSection extends StatelessWidget {
           ),
           child: Column(
             children: [
+              StreakFlame(days: count),
+              const SizedBox(height: AppSpacing.md),
               StreakWeekRow(currentStreak: count),
               const SizedBox(height: AppSpacing.md),
               Text(
