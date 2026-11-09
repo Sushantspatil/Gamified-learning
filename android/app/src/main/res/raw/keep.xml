@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release builds shrink unused resources. Daily reminders (flutter_local_notifications)
+     look the notification icon up by name at run time, so keep it, or reminders could
+     silently fail to show in the release app. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@mipmap/ic_launcher" />
