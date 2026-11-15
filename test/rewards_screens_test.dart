@@ -211,8 +211,9 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.text('Tap to open'), findsOneWidget);
 
-      // The opening view and its reward also fit this screen.
-      await tester.tap(find.byKey(const Key('chest-golden')));
+      // On this short screen the tiles are below the fold: the hero's button is
+      // the way in. The opening view and its reward also fit this screen.
+      await tester.tap(find.byKey(const Key('chest_hero_open')));
       await tester.pump(const Duration(milliseconds: 1500));
       expect(tester.takeException(), isNull);
       await tester.pumpAndSettle();
@@ -221,6 +222,183 @@ void main() {
       expect(collect.bottom, lessThanOrEqualTo(640));
       await tester.tap(find.byKey(const Key('chest_collect')));
       await tester.pumpAndSettle();
+    });
+
+    group('hero and progress track', () {
+      testWidgets('a new player: the hero is the next chest, locked', (
+        tester,
+      ) async {
+        await _show(tester, _launch(), const ChestScreen());
+
+        expect(find.byKey(const Key('chest_hero')), findsOneWidget);
+        expect(find.byKey(const Key('chest_hero_open')), findsNothing);
+        expect(find.byIcon(Icons.lock_rounded), findsWidgets);
+        expect(find.text('Next: Golden Chest in 3 games'), findsOneWidget);
+      });
+
+      testWidgets('a ready chest: the hero offers to open it', (tester) async {
+        final container = _launch();
+        play(container, 3);
+        await _show(tester, container, const ChestScreen());
+
+        expect(find.byKey(const Key('chest_hero_open')), findsOneWidget);
+        expect(find.text('Open chest'), findsOneWidget);
+        expect(find.text('A chest is ready. Tap it to open!'), findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('chest_hero_open')));
+        await tester.pumpAndSettle();
+        expect(find.text('+40 Coins'), findsOneWidget);
+        await tester.tap(find.byKey(const Key('chest_collect')));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(rewardsProvider).chestReady(ChestTier.golden),
+          isFalse,
+        );
+        expect(_coins(tester), '140');
+      });
+
+      testWidgets('with several ready, the hero is the first one earned', (
+        tester,
+      ) async {
+        final container = _launch();
+        play(container, 10);
+        await _show(tester, container, const ChestScreen());
+
+        await tester.tap(find.byKey(const Key('chest_hero')));
+        await tester.pumpAndSettle();
+        // The Golden chest pays coins; Cyber and Galaxy would not.
+        expect(find.text('+40 Coins'), findsOneWidget);
+        await tester.tap(find.byKey(const Key('chest_collect')));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(rewardsProvider).chestReady(ChestTier.cyber),
+          isTrue,
+        );
+      });
+
+      testWidgets('tapping a locked hero offers to buy it, like its tile', (
+        tester,
+      ) async {
+        final container = _launch();
+        play(container, 2);
+        await _show(tester, container, const ChestScreen());
+
+        await tester.tap(find.byKey(const Key('chest_hero')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('chest_locked_text')), findsOneWidget);
+        expect(find.byKey(const Key('chest_force_open')), findsOneWidget);
+        await tester.tap(find.text('Keep playing'));
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('the track fills one segment per game played', (
+        tester,
+      ) async {
+        final container = _launch();
+        play(container, 2);
+        await _show(tester, container, const ChestScreen());
+
+        expect(find.byKey(const Key('chest_track')), findsOneWidget);
+        final segments = tester.widgetList<DecoratedBox>(
+          find.descendant(
+            of: find.byKey(const Key('chest_track')),
+            matching: find.byType(DecoratedBox),
+          ),
+        );
+        expect(segments, hasLength(10));
+        final filled = segments.where((b) {
+          final colour = (b.decoration as BoxDecoration).color!;
+          return colour.a > 0 &&
+              colour != const Color(0x00000000) &&
+              (b.decoration as BoxDecoration).boxShadow != null;
+        }).length;
+        expect(filled, 2); // only the lit segments glow
+        expect(find.text('2/10'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('the chest keeps floating only for a while, then rests', (
+        tester,
+      ) async {
+        await _show(tester, _launch(), const ChestScreen());
+        // pumpAndSettle in _show returned, so nothing is still animating.
+        expect(tester.hasRunningAnimations, isFalse);
+      });
+    });
+
+    group('opening view', () {
+      // The chest opens for 2.6s; the reward is shown the frame after that.
+      Future<void> openAndReveal(WidgetTester tester) async {
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 3000));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      testWidgets('the coins fly from the reward to the balance', (
+        tester,
+      ) async {
+        final container = _launch();
+        play(container, 3);
+        await _show(tester, container, const ChestScreen());
+
+        await tester.tap(find.byKey(const Key('chest_hero_open')));
+        await openAndReveal(tester);
+        expect(find.byKey(const Key('chest_reward_title')), findsOneWidget);
+        expect(find.byKey(const Key('coin_flight')), findsOneWidget);
+        // The balance in the corner of the stage is the real, live balance.
+        expect(find.byKey(const Key('live_coins')), findsOneWidget);
+
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('coin_flight')), findsNothing);
+        expect(
+          tester.widget<Text>(find.byKey(const Key('live_balance_value'))).data,
+          '140',
+        );
+        expect(find.text('+40 Coins'), findsOneWidget);
+        await tester.tap(find.byKey(const Key('chest_collect')));
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('a gem chest has no coins to fly', (tester) async {
+        final container = _launch();
+        play(container, 10);
+        await _show(tester, container, const ChestScreen());
+
+        await tester.tap(find.byKey(const Key('chest-galaxy')));
+        await openAndReveal(tester);
+        expect(find.byKey(const Key('chest_reward_title')), findsOneWidget);
+        expect(find.byKey(const Key('coin_flight')), findsNothing);
+        await tester.pumpAndSettle();
+        expect(find.text('+10 Gems'), findsOneWidget);
+        await tester.tap(find.byKey(const Key('chest_collect')));
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('collecting while the coins are in the air ends the flight', (
+        tester,
+      ) async {
+        final container = _launch();
+        play(container, 3);
+        await _show(tester, container, const ChestScreen());
+
+        await tester.tap(find.byKey(const Key('chest_hero_open')));
+        await openAndReveal(tester);
+        expect(find.byKey(const Key('coin_flight')), findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('chest_collect')));
+        // The stage fades out over a few frames; the coins go with it, well
+        // before their own 1.4 seconds would have run out.
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        expect(find.byKey(const Key('chest_stage_chest')), findsNothing);
+        expect(find.byKey(const Key('coin_flight')), findsNothing);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        // Paid exactly once.
+        expect(_coins(tester), '140');
+      });
     });
 
     testWidgets('locked chest explains and cannot be bought without coins', (

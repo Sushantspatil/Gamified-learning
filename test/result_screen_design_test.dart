@@ -139,6 +139,7 @@ Future<_Goals?> _show(
   LocalStorageService? storage,
   List<DailyMissionModel>? goals,
   bool leveledUp = false,
+  bool settle = true,
 }) async {
   tester.view.physicalSize = const Size(900, 2400);
   tester.view.devicePixelRatio = 2;
@@ -173,7 +174,11 @@ Future<_Goals?> _show(
     );
   }
   await tester.pumpWidget(root);
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
   return fake;
 }
 
@@ -216,6 +221,64 @@ void main() {
     ) async {
       await _show(tester, _game(correct: 7, points: 70), goals: const []);
       expect(find.text('Great job, Test!'), findsOneWidget);
+    });
+
+    testWidgets('the coins fly to the balance in the corner', (tester) async {
+      await _show(
+        tester,
+        _game(correct: 7, points: 70),
+        goals: const [],
+        settle: false,
+      );
+      expect(find.byKey(const Key('live_coins')), findsOneWidget);
+      expect(find.byKey(const Key('coin_flight')), findsNothing);
+
+      // After the tiles have popped in, the coins take off.
+      await tester.pump(const Duration(milliseconds: 1200));
+      expect(find.byKey(const Key('coin_flight')), findsOneWidget);
+
+      // And they have landed (and cleaned up) a little later.
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('coin_flight')), findsNothing);
+    });
+
+    testWidgets('leaving the result mid-flight takes the coins with it', (
+      tester,
+    ) async {
+      await _show(
+        tester,
+        _game(correct: 7, points: 70),
+        goals: const [],
+        settle: false,
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(find.byKey(const Key('coin_flight')), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      expect(find.byKey(const Key('coin_flight')), findsNothing);
+    });
+
+    testWidgets('no coins, no flight', (tester) async {
+      await _show(
+        tester,
+        _game(correct: 7, points: 70, coins: 0),
+        goals: const [],
+        settle: false,
+      );
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(find.byKey(const Key('coin_flight')), findsNothing);
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('without the app providers there is no balance and no flight', (
+      tester,
+    ) async {
+      await _show(tester, _game(correct: 7, points: 70), settle: false);
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(find.byKey(const Key('live_coins')), findsNothing);
+      expect(find.byKey(const Key('coin_flight')), findsNothing);
+      await tester.pumpAndSettle();
     });
 
     testWidgets('no stars and no stacked reward blocks', (tester) async {

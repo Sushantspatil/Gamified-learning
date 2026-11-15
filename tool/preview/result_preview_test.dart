@@ -398,6 +398,7 @@ Future<void> _pump(
   QuizResult result, {
   bool leveledUp = false,
   bool withProviders = true,
+  int frames = 60,
 }) => _pumpChild(
   tester,
   QuizResultView(
@@ -407,12 +408,14 @@ Future<void> _pump(
     onPlayAgain: () {},
   ),
   withProviders: withProviders,
+  frames: frames,
 );
 
 Future<void> _pumpChild(
   WidgetTester tester,
   Widget child, {
   bool withProviders = true,
+  int frames = 60,
 }) async {
   // ignore: invalid_use_of_visible_for_testing_member
   SharedPreferences.setMockInitialValues({});
@@ -445,7 +448,7 @@ Future<void> _pumpChild(
         : app,
   );
   // Let the count-ups and entrance animations finish.
-  for (var i = 0; i < 60; i++) {
+  for (var i = 0; i < frames; i++) {
     await tester.pump(const Duration(milliseconds: 50));
   }
 }
@@ -482,6 +485,15 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     await _save(tester, '2_progress');
+  });
+
+  testWidgets('coins in flight', (tester) async {
+    // The flight starts at 1.1s and lasts 1.4s; look at about 60% of it.
+    await _pump(tester, _result(), frames: 38);
+    await _save(tester, '10_coins_flying');
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
   });
 
   testWidgets('summary: a poor game', (tester) async {

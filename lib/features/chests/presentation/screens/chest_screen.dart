@@ -8,15 +8,15 @@ import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
-import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_pressable.dart';
-import '../../../../shared/widgets/app_progress_bar.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../../../rewards/domain/rewards_models.dart';
 import '../../../rewards/presentation/widgets/coin_balance_chip.dart';
 import '../chest_style.dart';
+import '../widgets/chest_hero.dart';
 import '../widgets/chest_open_stage.dart';
+import '../widgets/chest_progress_track.dart';
 
 class ChestScreen extends ConsumerStatefulWidget {
   const ChestScreen({super.key});
@@ -85,12 +85,18 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
     final colors = context.themeColors;
     final styles = context.appTextStyles;
     final state = ref.watch(rewardsProvider);
-    final progress = state.chestProgress;
     final anyReady = state.anyChestReady;
 
+    // The hero is the chest that matters now: the first one ready to open,
+    // otherwise the one that is closest to being earned.
+    final ready = [
+      for (final tier in ChestTier.values)
+        if (state.chestReady(tier)) tier,
+    ];
     final next = ChestTier.values.reduce(
       (a, b) => state.gamesUntil(b) < state.gamesUntil(a) ? b : a,
     );
+    final focus = ready.isNotEmpty ? ready.first : next;
     final nextGames = state.gamesUntil(next);
 
     return Scaffold(
@@ -109,47 +115,24 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
             child: ListView(
               padding: AppSpacing.paddingMd,
               children: [
-                AppCard(
-                  padding: AppSpacing.paddingLg,
-                  child: Column(
-                    children: [
-                      Text('Treasure Chests', style: styles.headingMedium),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        anyReady
-                            ? 'A chest is ready. Tap it to open!'
-                            : 'Next: ${ChestStyle.of(next).title} in '
-                                  '$nextGames ${nextGames == 1 ? 'game' : 'games'}',
-                        key: const Key('chest_status'),
-                        textAlign: TextAlign.center,
-                        style: styles.bodyLarge.copyWith(
-                          color: colors.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Row(
-                        children: [
-                          Expanded(child: _CycleProgress(state: state)),
-                          const SizedBox(width: AppSpacing.sm),
-                          Text(
-                            '$progress/${RewardsState.chestCycle}',
-                            key: const Key('chest_progress'),
-                            style: styles.labelLarge,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        'Finish games to earn chests',
-                        style: styles.caption.copyWith(color: colors.textMuted),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      const GemBalanceChip(),
-                    ],
-                  ),
+                ChestHero(
+                  style: ChestStyle.of(focus),
+                  ready: ready.isNotEmpty,
+                  status: anyReady
+                      ? 'A chest is ready. Tap it to open!'
+                      : 'Next: ${ChestStyle.of(next).title} in '
+                            '$nextGames ${nextGames == 1 ? 'game' : 'games'}',
+                  onTap: () => _onTap(focus),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Text('Your chests', style: styles.titleLarge),
+                _TrackCard(state: state),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Your chests',
+                  style: styles.titleLarge.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.sm),
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -192,7 +175,7 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Demo mode: progress and rewards live on this device only.',
+                  'Chest progress is saved on this device.',
                   textAlign: TextAlign.center,
                   style: styles.caption.copyWith(color: colors.textMuted),
                 ),
@@ -205,90 +188,60 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
   }
 }
 
-/// The 10-game cycle: one bar with a marker where each chest is earned.
-class _CycleProgress extends StatelessWidget {
+/// The games played towards the next chests: "3/10" and the track.
+class _TrackCard extends StatelessWidget {
   final RewardsState state;
 
-  const _CycleProgress({required this.state});
+  const _TrackCard({required this.state});
 
   @override
   Widget build(BuildContext context) {
-    final styles = context.appTextStyles;
     final colors = context.themeColors;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        const dot = 14.0;
-        double centerOf(ChestTier tier) =>
-            (width * tier.unlockAt / RewardsState.chestCycle).clamp(
-              dot / 2,
-              width - dot / 2,
-            );
-        return SizedBox(
-          height: 44,
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 8,
-                child: AppProgressBar(
-                  value: state.chestProgress / RewardsState.chestCycle,
-                  semanticLabel: 'Chest progress',
-                ),
-              ),
-              for (final tier in ChestTier.values) ...[
-                Positioned(
-                  left: centerOf(tier) - dot / 2,
-                  top: 12 - dot / 2,
-                  child: _Marker(
-                    color: ChestStyle.of(tier).primary,
-                    filled:
-                        state.chestProgress >= tier.unlockAt ||
-                        state.chestReady(tier),
-                    size: dot,
+    final styles = context.appTextStyles;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.cardBackground,
+        borderRadius: AppDimensions.radiusCard,
+        border: Border.all(color: colors.border),
+      ),
+      child: Padding(
+        padding: AppSpacing.paddingMd,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Games played',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: styles.labelLarge.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-                Positioned(
-                  left: centerOf(tier) - 14,
-                  width: 28,
-                  top: 24,
-                  child: Text(
-                    '${tier.unlockAt}',
-                    textAlign: TextAlign.center,
-                    style: styles.caption.copyWith(color: colors.textMuted),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  '${state.chestProgress}/${RewardsState.chestCycle}',
+                  key: const Key('chest_progress'),
+                  style: styles.titleMedium.copyWith(
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _Marker extends StatelessWidget {
-  final Color color;
-  final bool filled;
-  final double size;
-
-  const _Marker({
-    required this.color,
-    required this.filled,
-    required this.size,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: filled ? color : context.themeColors.surface,
-        border: Border.all(color: color, width: 2),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            ChestProgressTrack(state: state),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Finish games to earn chests',
+              textAlign: TextAlign.center,
+              style: styles.caption.copyWith(color: colors.textMuted),
+            ),
+          ],
+        ),
       ),
-      child: SizedBox(width: size, height: size),
     );
   }
 }
@@ -330,12 +283,27 @@ class _ChestTile extends StatelessWidget {
         borderRadius: AppDimensions.radiusCard,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: colors.cardBackground,
+            color: ready
+                ? Color.alphaBlend(
+                    style.primary.withValues(alpha: 0.16),
+                    colors.cardBackground,
+                  )
+                : colors.cardBackground,
             borderRadius: AppDimensions.radiusCard,
             border: Border.all(
               color: ready ? style.primary : colors.border,
-              width: ready ? 1.5 : 1,
+              width: ready ? 2 : 1,
             ),
+            // A solid edge underneath: the ready chest looks like it has
+            // thickness, and stands out from the locked ones.
+            boxShadow: ready
+                ? [
+                    BoxShadow(
+                      color: style.primary.withValues(alpha: 0.75),
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
           ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -350,17 +318,7 @@ class _ChestTile extends StatelessWidget {
                   clipBehavior: Clip.none,
                   alignment: Alignment.center,
                   children: [
-                    Opacity(
-                      opacity: ready ? 1 : 0.55,
-                      child: Image.asset(
-                        style.frameAsset(ChestFrame.closed),
-                        height: artHeight,
-                        fit: BoxFit.contain,
-                        filterQuality: FilterQuality.medium,
-                        excludeFromSemantics: true,
-                        errorBuilder: (_, _, _) => SizedBox(height: artHeight),
-                      ),
-                    ),
+                    ChestArt(style: style, height: artHeight, locked: !ready),
                     if (!ready)
                       Positioned(
                         right: 0,
@@ -410,12 +368,27 @@ class _ChestTile extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 if (ready)
-                  Text(
-                    'Tap to open',
-                    textAlign: TextAlign.center,
-                    style: styles.caption.copyWith(
-                      color: style.primary,
-                      fontWeight: FontWeight.w700,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: style.primary,
+                        borderRadius: AppDimensions.radiusCircular,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        child: Text(
+                          'Tap to open',
+                          textAlign: TextAlign.center,
+                          style: styles.caption.copyWith(
+                            color: Colors.black,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
                     ),
                   )
                 else ...[
@@ -518,12 +491,26 @@ class _LockedSheet extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              style.frameAsset(ChestFrame.closed),
-              height: 84,
-              fit: BoxFit.contain,
-              excludeFromSemantics: true,
-              errorBuilder: (_, _, _) => const SizedBox(height: 84),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    style.primary.withValues(alpha: 0.35),
+                    style.primary.withValues(alpha: 0),
+                  ],
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Image.asset(
+                  style.frameAsset(ChestFrame.closed),
+                  height: 84,
+                  fit: BoxFit.contain,
+                  excludeFromSemantics: true,
+                  errorBuilder: (_, _, _) => const SizedBox(height: 84),
+                ),
+              ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(style.title, style: styles.headingSmall),
@@ -540,6 +527,13 @@ class _LockedSheet extends StatelessWidget {
               width: double.infinity,
               child: FilledButton.icon(
                 key: const Key('chest_force_open'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: style.primary,
+                  foregroundColor: Colors.black,
+                  textStyle: styles.labelLarge.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
                 onPressed: canAfford
                     ? () => Navigator.of(context).pop(true)
                     : null,

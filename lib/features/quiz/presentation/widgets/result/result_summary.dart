@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 
 import '../../../../../app/motion/app_motion.dart';
@@ -8,7 +6,10 @@ import '../../../../../app/theme/app_spacing.dart';
 import '../../../../../app/theme/app_theme_colors.dart';
 import '../../../../../app/theme/app_typography.dart';
 import '../../../../../shared/widgets/animated_count_text.dart';
+import '../../../../../shared/widgets/coin_flight.dart';
+import '../../../../../shared/widgets/stage_backdrop.dart';
 import '../../../domain/result_outcome.dart';
+import '../../../../rewards/presentation/widgets/live_balance_chip.dart';
 
 /// One of the three numbers on the result screen, drawn as a chunky "sticker"
 /// tile: an icon, the number, and a small label.
@@ -111,109 +112,173 @@ class ResultSummary extends StatelessWidget {
     final styles = context.appTextStyles;
     final hasMax = maxPoints != null && maxPoints! > 0;
 
-    return Column(
-      key: const Key('result_summary'),
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _Stage(accent: accent, child: mascot),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          eyebrow,
-          style: styles.labelSmall.copyWith(
-            color: colors.textSecondary,
-            letterSpacing: 2.4,
-            fontWeight: FontWeight.w800,
+    return _CoinFlightHost(
+      coins: coins,
+      builder: (coinsKey, walletKey) => Column(
+        key: const Key('result_summary'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _Stage(
+            accent: accent,
+            corner: LiveBalanceChip(key: walletKey),
+            child: mascot,
           ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          headlineText,
-          key: const Key('result_headline'),
-          textAlign: TextAlign.center,
-          style: styles.displayMedium.copyWith(
-            fontSize: 34,
-            height: 1.1,
-            fontWeight: FontWeight.w900,
-            color: colors.textPrimary,
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            eyebrow,
+            style: styles.labelSmall.copyWith(
+              color: colors.textSecondary,
+              letterSpacing: 2.4,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-        if (outcome.detail != null) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(
-            outcome.detail!,
+            headlineText,
+            key: const Key('result_headline'),
             textAlign: TextAlign.center,
-            style: styles.bodyMedium.copyWith(color: colors.textSecondary),
-          ),
-        ],
-        const SizedBox(height: AppSpacing.md),
-        // The score: the biggest thing on the screen.
-        Row(
-          key: const Key('result_points'),
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
-            AnimatedCountText(
-              value: points,
-              duration: const Duration(milliseconds: 1000),
-              style: styles.display.copyWith(
-                fontSize: 76,
-                height: 1,
-                fontWeight: FontWeight.w900,
-                color: accent,
-              ),
+            style: styles.displayMedium.copyWith(
+              fontSize: 34,
+              height: 1.1,
+              fontWeight: FontWeight.w900,
+              color: colors.textPrimary,
             ),
-            const SizedBox(width: AppSpacing.sm),
+          ),
+          if (outcome.detail != null) ...[
+            const SizedBox(height: AppSpacing.xs),
             Text(
-              hasMax ? '/ $maxPoints pts' : 'points',
-              style: styles.titleMedium.copyWith(
-                color: colors.textSecondary,
-                fontWeight: FontWeight.w800,
-              ),
+              outcome.detail!,
+              textAlign: TextAlign.center,
+              style: styles.bodyMedium.copyWith(color: colors.textSecondary),
             ),
           ],
-        ),
-        if (bestBadge != null) ...[
-          const SizedBox(height: AppSpacing.sm),
-          bestBadge!,
-        ],
-        if (answers != null) ...[
           const SizedBox(height: AppSpacing.md),
-          answers!,
-        ],
-        const SizedBox(height: AppSpacing.lg),
-        Row(
-          key: const Key('result_tiles'),
-          children: [
-            for (var i = 0; i < tiles.length; i++) ...[
-              if (i > 0) const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Transform.rotate(
-                  // A hair off-level, like stickers stuck on by hand.
-                  angle: switch (i) {
-                    0 => -0.025,
-                    2 => 0.025,
-                    _ => 0.0,
-                  },
-                  child: _Tile(data: tiles[i], delayIndex: i),
+          // The score: the biggest thing on the screen.
+          Row(
+            key: const Key('result_points'),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              AnimatedCountText(
+                value: points,
+                duration: const Duration(milliseconds: 1000),
+                style: styles.display.copyWith(
+                  fontSize: 76,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  color: accent,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                hasMax ? '/ $maxPoints pts' : 'points',
+                style: styles.titleMedium.copyWith(
+                  color: colors.textSecondary,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
+          ),
+          if (bestBadge != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            bestBadge!,
           ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Wrap(
-          alignment: WrapAlignment.center,
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: [
-            _CoinsChip(coins: coins),
-            if (gems > 0) _GemsChip(gems: gems),
+          if (answers != null) ...[
+            const SizedBox(height: AppSpacing.md),
+            answers!,
           ],
-        ),
-      ],
+          const SizedBox(height: AppSpacing.lg),
+          Row(
+            key: const Key('result_tiles'),
+            children: [
+              for (var i = 0; i < tiles.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Transform.rotate(
+                    // A hair off-level, like stickers stuck on by hand.
+                    angle: switch (i) {
+                      0 => -0.025,
+                      2 => 0.025,
+                      _ => 0.0,
+                    },
+                    child: _Tile(data: tiles[i], delayIndex: i),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.sm,
+            children: [
+              KeyedSubtree(
+                key: coinsKey,
+                child: _CoinsChip(coins: coins),
+              ),
+              if (gems > 0) _GemsChip(gems: gems),
+            ],
+          ),
+        ],
+      ),
     );
   }
+}
+
+/// Owns the two ends of the coin flight: the "+N Coins" chip and the balance
+/// in the corner. Once the tiles have popped in, the coins fly from one to the
+/// other. Leaving the screen cuts the flight short.
+class _CoinFlightHost extends StatefulWidget {
+  final int coins;
+  final Widget Function(GlobalKey coinsKey, GlobalKey walletKey) builder;
+
+  const _CoinFlightHost({required this.coins, required this.builder});
+
+  @override
+  State<_CoinFlightHost> createState() => _CoinFlightHostState();
+}
+
+class _CoinFlightHostState extends State<_CoinFlightHost>
+    with SingleTickerProviderStateMixin {
+  final GlobalKey _coinsKey = GlobalKey();
+  final GlobalKey _walletKey = GlobalKey();
+
+  // The wait before the flight is an animation (not a timer), so it ends with
+  // the screen and tests can run it forward.
+  late final AnimationController _wait = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+  OverlayEntry? _flight;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.coins <= 0) return;
+    _wait.addStatusListener((status) {
+      if (status != AnimationStatus.completed || !mounted) return;
+      _flight = flyCoins(
+        context,
+        from: _coinsKey,
+        to: _walletKey,
+        count: (widget.coins ~/ 4).clamp(6, 14),
+      );
+    });
+    _wait.forward();
+  }
+
+  @override
+  void dispose() {
+    _wait.dispose();
+    final flight = _flight;
+    if (flight != null && flight.mounted) flight.remove();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_coinsKey, _walletKey);
 }
 
 /// A lit stage for the character: a soft glow, rays fanning out behind it, and
@@ -222,7 +287,10 @@ class _Stage extends StatelessWidget {
   final Color accent;
   final Widget child;
 
-  const _Stage({required this.accent, required this.child});
+  /// A small widget in the top right corner (the coin balance).
+  final Widget? corner;
+
+  const _Stage({required this.accent, required this.child, this.corner});
 
   @override
   Widget build(BuildContext context) {
@@ -233,71 +301,15 @@ class _Stage extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          Positioned.fill(child: CustomPaint(painter: _StagePainter(accent))),
+          Positioned.fill(
+            child: CustomPaint(painter: StageBackdropPainter(accent)),
+          ),
           Positioned(bottom: 6, child: child),
+          if (corner != null) Positioned(top: 0, right: 0, child: corner!),
         ],
       ),
     );
   }
-}
-
-class _StagePainter extends CustomPainter {
-  final Color accent;
-
-  _StagePainter(this.accent);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * 0.52);
-    final reach = size.width * 0.9;
-
-    // Rays: thin wedges around the centre that fade out towards the edge.
-    const rays = 16;
-    final wedge = 2 * math.pi / rays / 2;
-    final rayPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [accent.withValues(alpha: 0.30), accent.withValues(alpha: 0)],
-      ).createShader(Rect.fromCircle(center: center, radius: reach));
-    for (var i = 0; i < rays; i++) {
-      final a = i * 2 * math.pi / rays;
-      final path = Path()
-        ..moveTo(center.dx, center.dy)
-        ..lineTo(
-          center.dx + reach * math.cos(a - wedge / 2),
-          center.dy + reach * math.sin(a - wedge / 2),
-        )
-        ..lineTo(
-          center.dx + reach * math.cos(a + wedge / 2),
-          center.dy + reach * math.sin(a + wedge / 2),
-        )
-        ..close();
-      canvas.drawPath(path, rayPaint);
-    }
-
-    // The glow right behind the character.
-    final glow = Paint()
-      ..shader = RadialGradient(
-        colors: [accent.withValues(alpha: 0.5), accent.withValues(alpha: 0)],
-      ).createShader(Rect.fromCircle(center: center, radius: size.width * 0.4));
-    canvas.drawCircle(center, size.width * 0.4, glow);
-
-    // The floor under the character's feet.
-    final floor = Rect.fromCenter(
-      center: Offset(size.width / 2, size.height - 14),
-      width: size.width * 0.5,
-      height: 26,
-    );
-    canvas.drawOval(
-      floor,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [accent.withValues(alpha: 0.65), accent.withValues(alpha: 0)],
-        ).createShader(floor),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_StagePainter old) => old.accent != accent;
 }
 
 class _Tile extends StatelessWidget {
