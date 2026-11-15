@@ -12,15 +12,25 @@ class ReviewItem {
   /// The option the player chose, or null if they skipped or it is unknown.
   final String? yourAnswer;
 
-  /// The right option.
+  /// The right option. Empty when the item is not a question with one right
+  /// answer (a Match board), where [detail] says how it went instead.
   final String correctAnswer;
+
+  /// A line about how it went ("3 of 4 pairs, 2 mistakes"), for items that have
+  /// no single right answer.
+  final String? detail;
+
+  /// Why the answer is what it is, when the game explains it.
+  final String? explanation;
 
   const ReviewItem({
     required this.number,
     required this.prompt,
     required this.isCorrect,
-    required this.yourAnswer,
-    required this.correctAnswer,
+    this.yourAnswer,
+    this.correctAnswer = '',
+    this.detail,
+    this.explanation,
   });
 }
 

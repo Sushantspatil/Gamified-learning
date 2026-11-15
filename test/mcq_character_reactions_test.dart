@@ -133,9 +133,7 @@ void main() {
     final seen = <String, List<CharacterState>>{};
 
     for (final choice in ['Inventory', 'Revenue']) {
-      await tester.pumpWidget(
-        _app(_question('q-$choice', 'Pick'), <Answer>[]),
-      );
+      await tester.pumpWidget(_app(_question('q-$choice', 'Pick'), <Answer>[]));
       await tester.pump();
       final container = ProviderScope.containerOf(
         tester.element(find.byType(McqQuestionView)),
@@ -180,37 +178,31 @@ void main() {
 
   for (final size in const [Size(320, 568), Size(360, 640), Size(412, 915)]) {
     for (final dark in [false, true]) {
-      testWidgets(
-        'character fits without overflow at ${size.width.toInt()}x'
-        '${size.height.toInt()} ${dark ? 'dark' : 'light'}',
-        (tester) async {
-          tester.view.physicalSize = size;
-          tester.view.devicePixelRatio = 1;
-          addTearDown(tester.view.reset);
-          await tester.pumpWidget(
-            _app(
-              _question(
-                'q1',
-                'A very long question prompt that keeps going so the '
-                'character has to shrink and the options still have to fit '
-                'on screen without any overflow at all?',
-              ),
-              <Answer>[],
-              theme: dark ? AppTheme.darkTheme : AppTheme.lightTheme,
+      testWidgets('character fits without overflow at ${size.width.toInt()}x'
+          '${size.height.toInt()} ${dark ? 'dark' : 'light'}', (tester) async {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          _app(
+            _question(
+              'q1',
+              'A very long question prompt that keeps going so the '
+                  'character has to shrink and the options still have to fit '
+                  'on screen without any overflow at all?',
             ),
-          );
-          await tester.pump(const Duration(seconds: 2));
+            <Answer>[],
+            theme: dark ? AppTheme.darkTheme : AppTheme.lightTheme,
+          ),
+        );
+        await tester.pump(const Duration(seconds: 2));
 
-          expect(
-            find.byKey(const Key('mcq_character_section')),
-            findsOneWidget,
-          );
-          expect(tester.takeException(), isNull);
+        expect(find.byKey(const Key('mcq_character_section')), findsOneWidget);
+        expect(tester.takeException(), isNull);
 
-          await tester.pumpWidget(const SizedBox());
-          await tester.pump();
-        },
-      );
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump();
+      });
     }
   }
 

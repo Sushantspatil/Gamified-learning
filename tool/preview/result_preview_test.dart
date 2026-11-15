@@ -29,9 +29,14 @@ import 'package:skillverse_app/features/daily_missions/presentation/providers/da
 import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer_evaluation.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
+import 'package:skillverse_app/core/network/dtos/quiz_dtos.dart';
+import 'package:skillverse_app/features/quiz/domain/entities/match_the_following_models.dart';
 import 'package:skillverse_app/features/quiz/domain/entities/question_answer_record.dart';
+import 'package:skillverse_app/features/quiz/domain/entities/sort_it_out_models.dart';
 import 'package:skillverse_app/features/quiz/domain/entities/quiz_result.dart';
+import 'package:skillverse_app/features/quiz/presentation/widgets/match_the_following_result_view.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/quiz_result_view.dart';
+import 'package:skillverse_app/features/quiz/presentation/widgets/sort_it_out_result_view.dart';
 import 'package:skillverse_app/features/streaks/data/datasources/remote/streak_rewards_remote_datasource.dart';
 import 'package:skillverse_app/features/streaks/domain/entities/streak_rewards.dart';
 import 'package:skillverse_app/features/streaks/presentation/providers/streak_rewards_providers.dart';
@@ -202,12 +207,211 @@ class _NoRewards implements StreakRewardsRemoteDatasource {
   Future<void> buyFreeze() async {}
 }
 
+MatchBoardReview _board(
+  String code,
+  String prompt, {
+  required int matched,
+  required int mistakes,
+  required int ms,
+  bool timeout = false,
+  String? explanation,
+}) => MatchBoardReview(
+  questionCode: code,
+  prompt: prompt,
+  pairsMatched: matched,
+  totalPairs: 4,
+  mistakes: mistakes,
+  timeTakenMs: ms,
+  isFlawless: matched == 4 && mistakes == 0 && !timeout,
+  isTimeout: timeout,
+  basePoints: 0,
+  flawlessBonus: 0,
+  speedBonus: 0,
+  mistakePenalty: 0,
+  totalBoardScore: 0,
+  explanation: explanation,
+);
+
+MatchTheFollowingResult _match() => MatchTheFollowingResult(
+  session: 'm1',
+  totalBoards: 4,
+  clearedBoards: 3,
+  totalPairsMatched: 14,
+  totalPairsCount: 16,
+  totalMistakes: 3,
+  accuracyPercentage: 82,
+  finalScore: 118,
+  coinsAwarded: 24,
+  xpAwarded: 52,
+  gemsAwarded: 3,
+  scoreBreakdown: const {
+    'base_points': 90,
+    'flawless_bonus': 20,
+    'speed_bonus': 12,
+    'mistake_penalty': -4,
+  },
+  level: const LevelProgressDto(
+    current: 4,
+    didLevelUp: false,
+    experience: 340,
+    nextLevelExp: 500,
+  ),
+  boardsReview: [
+    _board(
+      'b1',
+      'Accounting terms and their meanings',
+      matched: 4,
+      mistakes: 0,
+      ms: 9200,
+      explanation: 'Assets = Liabilities + Equity is the base of double entry.',
+    ),
+    _board(
+      'b2',
+      'Which book records what?',
+      matched: 4,
+      mistakes: 2,
+      ms: 18400,
+      explanation: 'The cash book records only cash and bank transactions.',
+    ),
+    _board(
+      'b3',
+      'Match the account to its type',
+      matched: 4,
+      mistakes: 0,
+      ms: 7800,
+    ),
+    _board(
+      'b4',
+      'Financial statements and what they show',
+      matched: 2,
+      mistakes: 1,
+      ms: 25000,
+      timeout: true,
+    ),
+  ],
+);
+
+const _sortCards = [
+  SortItOutCard(
+    id: 'q1',
+    prompt: 'Bank loan',
+    points: 10,
+    options: [
+      QuestionOption(id: 'a', text: 'Debit'),
+      QuestionOption(id: 'b', text: 'Credit'),
+    ],
+    correctOption: 'b',
+  ),
+  SortItOutCard(
+    id: 'q2',
+    prompt: 'Office equipment',
+    points: 10,
+    options: [
+      QuestionOption(id: 'a', text: 'Debit'),
+      QuestionOption(id: 'b', text: 'Credit'),
+    ],
+    correctOption: 'a',
+  ),
+  SortItOutCard(
+    id: 'q3',
+    prompt: 'Sales revenue',
+    points: 10,
+    options: [
+      QuestionOption(id: 'a', text: 'Debit'),
+      QuestionOption(id: 'b', text: 'Credit'),
+    ],
+    correctOption: 'b',
+  ),
+];
+
+SortItOutCardReview _card(
+  String q,
+  String prompt, {
+  required String chose,
+  required String correct,
+  required bool ok,
+  bool timeout = false,
+  required int ms,
+  String? explanation,
+}) => SortItOutCardReview(
+  question: q,
+  prompt: prompt,
+  selectedOption: chose,
+  correctOption: correct,
+  isCorrect: ok,
+  isTimeout: timeout,
+  timeTakenMs: ms,
+  basePoints: 0,
+  speedBonus: 0,
+  comboBonus: 0,
+  pointsEarned: ok ? 14 : 0,
+  explanation: explanation,
+);
+
+SortItOutResult _sort() => SortItOutResult(
+  session: 's1',
+  pairType: 'debit_credit',
+  totalQuestions: 3,
+  correctCount: 1,
+  timeoutCount: 1,
+  bestStreak: 1,
+  accuracyPercentage: 33,
+  finalScore: 24,
+  coinsAwarded: 8,
+  xpAwarded: 20,
+  gemsAwarded: 0,
+  scoreBreakdown: const {'base_points': 10, 'speed_bonus': 4, 'combo_bonus': 0},
+  cardsReview: [
+    _card(
+      'q1',
+      'Bank loan',
+      chose: 'a',
+      correct: 'b',
+      ok: false,
+      ms: 3200,
+      explanation: 'A loan is owed to the bank, so it is a liability: credit.',
+    ),
+    _card(
+      'q2',
+      'Office equipment',
+      chose: 'a',
+      correct: 'a',
+      ok: true,
+      ms: 1900,
+    ),
+    _card(
+      'q3',
+      'Sales revenue',
+      chose: 'timeout',
+      correct: 'b',
+      ok: false,
+      timeout: true,
+      ms: 10000,
+    ),
+  ],
+);
+
 final _shot = GlobalKey();
 
 Future<void> _pump(
   WidgetTester tester,
   QuizResult result, {
   bool leveledUp = false,
+  bool withProviders = true,
+}) => _pumpChild(
+  tester,
+  QuizResultView(
+    result: result,
+    leveledUp: leveledUp,
+    onDone: () {},
+    onPlayAgain: () {},
+  ),
+  withProviders: withProviders,
+);
+
+Future<void> _pumpChild(
+  WidgetTester tester,
+  Widget child, {
   bool withProviders = true,
 }) async {
   // ignore: invalid_use_of_visible_for_testing_member
@@ -221,16 +425,7 @@ Future<void> _pump(
     child: MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: GameScaffold(
-        body: SafeArea(
-          child: QuizResultView(
-            result: result,
-            leveledUp: leveledUp,
-            onDone: () {},
-            onPlayAgain: () {},
-          ),
-        ),
-      ),
+      home: GameScaffold(body: SafeArea(child: child)),
     ),
   );
   await tester.pumpWidget(
@@ -319,6 +514,41 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
     }
     await _save(tester, '5_review');
+  });
+
+  testWidgets('match: summary and review', (tester) async {
+    await _pumpChild(
+      tester,
+      MatchTheFollowingResultView(
+        result: _match(),
+        onDone: () {},
+        onPlayAgain: () {},
+      ),
+    );
+    await _save(tester, '6_match_summary');
+    await tester.tap(find.byKey(const Key('answer_strip_tap')));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await _save(tester, '7_match_review');
+  });
+
+  testWidgets('sort: summary and review', (tester) async {
+    await _pumpChild(
+      tester,
+      SortItOutResultView(
+        result: _sort(),
+        cards: _sortCards,
+        onDone: () {},
+        onPlayAgain: () {},
+      ),
+    );
+    await _save(tester, '8_sort_summary');
+    await tester.tap(find.byKey(const Key('answer_strip_tap')));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    await _save(tester, '9_sort_review');
   });
 
   testWidgets('summary: Sudden Death', (tester) async {

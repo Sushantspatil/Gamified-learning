@@ -95,30 +95,31 @@ void main() {
   });
 
   group('Leaderboard Providers', () {
-    test('leaderboardDatasourceProvider resolves to LeaderboardRemoteDatasource', () async {
-      final storage = await LocalStorageService.create();
-      final container = ProviderContainer(
-        overrides: [
-          apiClientProvider.overrideWithValue(
-            ApiClient(
-              config: const ApiConfig(baseUrl: 'https://example.com/api/v1'),
-              storage: storage,
+    test(
+      'leaderboardDatasourceProvider resolves to LeaderboardRemoteDatasource',
+      () async {
+        final storage = await LocalStorageService.create();
+        final container = ProviderContainer(
+          overrides: [
+            apiClientProvider.overrideWithValue(
+              ApiClient(
+                config: const ApiConfig(baseUrl: 'https://example.com/api/v1'),
+                storage: storage,
+              ),
             ),
-          ),
-        ],
-      );
-      addTearDown(container.dispose);
+          ],
+        );
+        addTearDown(container.dispose);
 
-      final datasource = container.read(leaderboardDatasourceProvider);
-      expect(datasource, isA<LeaderboardRemoteDatasource>());
-    });
+        final datasource = container.read(leaderboardDatasourceProvider);
+        expect(datasource, isA<LeaderboardRemoteDatasource>());
+      },
+    );
 
     test('refetches and resets pagination when filter changes', () async {
       final fakeRepo = _FakeLeaderboardRepository();
       final container = ProviderContainer(
-        overrides: [
-          leaderboardRepositoryProvider.overrideWithValue(fakeRepo),
-        ],
+        overrides: [leaderboardRepositoryProvider.overrideWithValue(fakeRepo)],
       );
       addTearDown(container.dispose);
 
@@ -133,7 +134,9 @@ void main() {
           .read(leaderboardFilterProvider.notifier)
           .setQuizType(QuestionType.mcq);
 
-      final afterFilter = await container.read(filteredLeaderboardProvider.future);
+      final afterFilter = await container.read(
+        filteredLeaderboardProvider.future,
+      );
       expect(afterFilter.page, 1);
       expect(fakeRepo.callCount, 2);
       expect(fakeRepo.lastFilter?.quizType, QuestionType.mcq);
@@ -175,9 +178,7 @@ void main() {
       );
 
       final container = ProviderContainer(
-        overrides: [
-          leaderboardRepositoryProvider.overrideWithValue(fakeRepo),
-        ],
+        overrides: [leaderboardRepositoryProvider.overrideWithValue(fakeRepo)],
       );
       addTearDown(container.dispose);
 
@@ -201,9 +202,7 @@ void main() {
       fakeRepo.shouldThrow = true;
 
       final container = ProviderContainer(
-        overrides: [
-          leaderboardRepositoryProvider.overrideWithValue(fakeRepo),
-        ],
+        overrides: [leaderboardRepositoryProvider.overrideWithValue(fakeRepo)],
       );
       addTearDown(container.dispose);
 

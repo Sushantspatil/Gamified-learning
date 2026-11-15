@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../app/theme/app_colors.dart';
-import '../../../character3d/presentation/result_mascot.dart';
 import '../../../../app/theme/app_dimensions.dart';
 import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
@@ -12,18 +10,16 @@ import '../../../questions/domain/entities/question.dart';
 import '../../domain/entities/quiz_result.dart';
 import '../../domain/result_outcome.dart';
 import 'quiz_celebration_overlay.dart';
+import 'result/game_result_flow.dart';
 import 'result/answer_review_sheet.dart';
 import 'result/answer_strip.dart';
 import 'result/personal_best_badge.dart';
-import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../domain/result_answers.dart';
 import '../../domain/result_flow.dart';
-import 'result/result_action_bar.dart';
-import 'result/result_progress.dart';
 import 'result/result_share.dart';
 import 'result/result_summary.dart';
 
-class QuizResultView extends StatefulWidget {
+class QuizResultView extends StatelessWidget {
   final QuizResult result;
   final int? rewardXp;
   final int? rewardCoins;
@@ -41,37 +37,26 @@ class QuizResultView extends StatefulWidget {
     this.leveledUp = false,
   });
 
-  @override
-  State<QuizResultView> createState() => _QuizResultViewState();
-}
-
-class _QuizResultViewState extends State<QuizResultView> {
-  /// The result is one or two screens: the summary, then (only when something
-  /// changed) the player's progress.
-  bool _showProgress = false;
-
-  QuizResult get _result => widget.result;
-
   /// A short, safe identifier for storing this mode's best score.
   String get _modeKey =>
-      _result.endedEarly ? 'sudden_death' : _result.quizType.name;
+      result.endedEarly ? 'sudden_death' : result.quizType.name;
 
-  String get _shareModeName => _result.endedEarly
+  String get _shareModeName => result.endedEarly
       ? 'Sudden Death'
-      : _result.quizType == QuestionType.sortItRight
+      : result.quizType == QuestionType.sortItRight
       ? 'Sort It Out'
       : 'the MCQ Quiz';
 
   @override
   Widget build(BuildContext context) {
     final colors = context.themeColors;
-    final score = _result.score;
-    final xp = widget.rewardXp ?? _result.xpAwarded;
-    final coins = widget.rewardCoins ?? _result.coinsAwarded;
+    final score = result.score;
+    final xp = rewardXp ?? result.xpAwarded;
+    final coins = rewardCoins ?? result.coinsAwarded;
 
     final bool isUnsuccessful =
-        _result.endedEarly ||
-        (_result.completedSuccessfully == false) ||
+        result.endedEarly ||
+        (result.completedSuccessfully == false) ||
         (score.totalCount > 0 && score.correctCount == 0);
     final bool isPerfect =
         !isUnsuccessful &&
@@ -83,26 +68,23 @@ class _QuizResultViewState extends State<QuizResultView> {
         : (isPerfect ? CelebrationType.perfect : CelebrationType.standard);
 
     final outcome = outcomeFor(
-      endedEarly: _result.endedEarly,
+      endedEarly: result.endedEarly,
       correct: score.correctCount,
       total: score.totalCount,
     );
-    // The colour of the mood: calm blue after a poor game, fiery for Sudden
-    // Death, gold for a brilliant game, the brand colour otherwise.
-    final accent = outcome.subdued
-        ? const Color(0xFF6C86FF)
-        : _result.endedEarly
-        ? AppColors.streakFire
-        : _result.accuracy >= 0.9
-        ? colors.warning
-        : colors.primary;
+    final accent = resultAccent(
+      context,
+      outcome: outcome,
+      accuracy: result.accuracy,
+      fiery: result.endedEarly,
+    );
 
-    final reviewItems = reviewItemsFor(_result);
+    final reviewItems = reviewItemsFor(result);
     Widget summaryFor(String? playerName) => ResultSummary(
       outcome: outcome,
       accent: accent,
       playerName: playerName,
-      eyebrow: _result.endedEarly ? 'RUN OVER' : 'ROUND COMPLETE',
+      eyebrow: result.endedEarly ? 'RUN OVER' : 'ROUND COMPLETE',
       points: score.earnedPoints,
       maxPoints: score.maxPoints,
       coins: coins,
@@ -114,7 +96,7 @@ class _QuizResultViewState extends State<QuizResultView> {
           number: xp,
           prefix: '+',
         ),
-        if (_result.endedEarly)
+        if (result.endedEarly)
           ResultTileData.number(
             label: 'CORRECT',
             icon: Icons.check_circle_rounded,
@@ -126,14 +108,14 @@ class _QuizResultViewState extends State<QuizResultView> {
             label: 'ACCURACY',
             icon: Icons.track_changes_rounded,
             color: colors.success,
-            number: (_result.accuracy * 100).round(),
+            number: (result.accuracy * 100).round(),
             suffix: '%',
           ),
         ResultTileData.text(
           label: 'TIME',
           icon: Icons.timer_rounded,
           color: colors.info,
-          text: formatResultTime(_result.timeTaken),
+          text: formatResultTime(result.timeTaken),
         ),
       ],
       bestBadge: PersonalBestBadge(
@@ -143,148 +125,34 @@ class _QuizResultViewState extends State<QuizResultView> {
       // A dot for every answer; tapping it opens the review, when there are
       // answers to review.
       answers: AnswerStrip(
-        flags: answerFlags(_result),
+        flags: answerFlags(result),
         onTap: reviewItems.isEmpty
             ? null
             : () => showAnswerReview(context, reviewItems),
       ),
-      mascot: ResultMascot(
-        mascotSize: 160,
+      mascot: resultMascotFor(
+        context,
         unsuccessful: isUnsuccessful,
-        accuracy: _result.accuracy.clamp(0.0, 1.0).toDouble(),
-        trophy: Container(
-          width: 84,
-          height: 84,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              colors: _result.endedEarly
-                  ? [colors.error, colors.violet]
-                  : [colors.warning, AppColors.accentGold],
-            ),
-          ),
-          child: Icon(
-            _result.endedEarly ? Icons.whatshot : Icons.emoji_events,
-            color: colors.textInverse,
-            size: 44,
-          ),
-        ),
+        accuracy: result.accuracy,
+        fiery: result.endedEarly,
       ),
     );
 
-    final summary = _WithPlayerName(builder: summaryFor);
-
-    final message = shareMessage(
-      modeName: _shareModeName,
-      score: score.earnedPoints,
-      maxScore: score.maxPoints,
-    );
-
-    return GameCelebrationOverlay(
-      key: ValueKey('celebration-${_result.sessionId}'),
-      type: celebrationType,
-      child: ResultProgressGate(
-        leveledUp: widget.leveledUp,
-        builder: (context, hasProgress) {
-          final onSummary = !_showProgress;
-          final goToProgress = onSummary && hasProgress;
-          final canReplay = widget.onPlayAgain != null;
-
-          return Column(
-            children: [
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) => SingleChildScrollView(
-                    padding: AppSpacing.paddingMd,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight - AppSpacing.md * 2,
-                      ),
-                      child: Center(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 280),
-                          transitionBuilder: (child, animation) =>
-                              FadeTransition(
-                                opacity: animation,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0.06, 0),
-                                    end: Offset.zero,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                              ),
-                          child: KeyedSubtree(
-                            key: ValueKey(_showProgress),
-                            child: _showProgress
-                                ? ResultProgressScreen(
-                                    leveledUp: widget.leveledUp,
-                                    levelProgress: _result.levelProgress,
-                                    earnedXp: xp,
-                                  )
-                                : summary,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              ResultActionBar(
-                primaryLabel: goToProgress
-                    ? 'Continue'
-                    : canReplay
-                    ? 'Play again'
-                    : 'Done',
-                primaryIcon: goToProgress || !canReplay
-                    ? null
-                    : Icons.replay_rounded,
-                onPrimary: goToProgress
-                    ? () => setState(() => _showProgress = true)
-                    : (canReplay ? widget.onPlayAgain! : widget.onDone),
-                secondaryLabel: !goToProgress && canReplay ? 'Done' : null,
-                onSecondary: widget.onDone,
-                onShare: () => shareText(message),
-                onDetails: () => _showResultDetails(context, _result),
-              ),
-            ],
-          );
-        },
+    return GameResultFlow(
+      sessionKey: result.sessionId,
+      celebrationType: celebrationType,
+      summary: WithPlayerName(builder: summaryFor),
+      levelProgress: result.levelProgress,
+      earnedXp: xp,
+      leveledUp: leveledUp,
+      shareMessage: shareMessage(
+        modeName: _shareModeName,
+        score: score.earnedPoints,
+        maxScore: score.maxPoints,
       ),
-    );
-  }
-}
-
-/// The signed-in player's first name, for "Great job, Ada!". Null when there is
-/// no signed-in player or no provider scope (some tests).
-String? _firstNameOf(String? displayName) {
-  final first = displayName?.trim().split(RegExp(r'\s+')).first;
-  if (first == null || first.isEmpty) return null;
-  return first.length > 14 ? first.substring(0, 14) : first;
-}
-
-/// Hands [builder] the player's first name, and builds again when the signed-in
-/// user finishes loading. Without a ProviderScope (some tests) there is no name.
-class _WithPlayerName extends StatelessWidget {
-  final Widget Function(String? playerName) builder;
-
-  const _WithPlayerName({required this.builder});
-
-  @override
-  Widget build(BuildContext context) {
-    final hasScope =
-        context
-            .getElementForInheritedWidgetOfExactType<
-              UncontrolledProviderScope
-            >() !=
-        null;
-    if (!hasScope) return builder(null);
-    return Consumer(
-      builder: (context, ref, _) => builder(
-        _firstNameOf(
-          ref.watch(authControllerProvider).valueOrNull?.displayName,
-        ),
-      ),
+      onDone: onDone,
+      onPlayAgain: onPlayAgain,
+      onDetails: (context) => _showResultDetails(context, result),
     );
   }
 }

@@ -17,7 +17,10 @@ void main() {
     print('Using BASE_URL: ${config.baseUrl}');
     print('Using WS_URL: ${config.gameWsUrl}');
     final apiClient = ApiClient(config: config, storage: storage);
-    final authRemote = AuthRemoteDatasource(apiClient: apiClient, storage: storage);
+    final authRemote = AuthRemoteDatasource(
+      apiClient: apiClient,
+      storage: storage,
+    );
     final suddenRemote = SuddenDeathRemoteDatasource(
       apiClient: apiClient,
       storage: storage,
@@ -46,16 +49,24 @@ void main() {
     suddenRemote.events.listen((event) {
       print('WS EVENT RECEIVED: ${event.runtimeType}');
       if (event is WsQuestionEvent) {
-        print('-> Question: ${event.payload.question}, prompt: "${event.payload.prompt}", options: ${event.payload.options.map((o) => "${o.option}:${o.text}").toList()}, timeLimit: ${event.payload.timeLimitMs}, remaining: ${event.payload.remainingTimeMs}');
+        print(
+          '-> Question: ${event.payload.question}, prompt: "${event.payload.prompt}", options: ${event.payload.options.map((o) => "${o.option}:${o.text}").toList()}, timeLimit: ${event.payload.timeLimitMs}, remaining: ${event.payload.remainingTimeMs}',
+        );
         if (!completerQ1.isCompleted) completerQ1.complete(event);
       } else if (event is WsAnswerResultEvent) {
-        print('-> AnswerResult: isCorrect=${event.payload.isCorrect}, yourScore=${event.payload.yourScore}, isTimeout=${event.payload.isTimeout}');
+        print(
+          '-> AnswerResult: isCorrect=${event.payload.isCorrect}, yourScore=${event.payload.yourScore}, isTimeout=${event.payload.isTimeout}',
+        );
         if (!completerAnswer.isCompleted) completerAnswer.complete(event);
       } else if (event is WsGameOverEvent) {
-        print('-> GameOver: finalScore=${event.payload.finalScore}, endReason=${event.payload.endReason}');
+        print(
+          '-> GameOver: finalScore=${event.payload.finalScore}, endReason=${event.payload.endReason}',
+        );
         if (!completerGameOver.isCompleted) completerGameOver.complete(event);
       } else if (event is WsErrorEvent) {
-        print('-> Error: code=${event.payload.code}, msg=${event.payload.message}');
+        print(
+          '-> Error: code=${event.payload.code}, msg=${event.payload.message}',
+        );
         if (!completerError.isCompleted) completerError.complete(event);
       } else if (event is WsUnknownEvent) {
         print('-> UnknownEvent: type=${event.type}, data=${event.rawData}');
@@ -73,7 +84,9 @@ void main() {
 
     // 5. Submit answer
     final selectedOption = q1.payload.options.first.option;
-    print('Submitting answer: option=$selectedOption for question=${q1.payload.question}');
+    print(
+      'Submitting answer: option=$selectedOption for question=${q1.payload.question}',
+    );
     suddenRemote.submitAnswer(
       question: q1.payload.question,
       option: selectedOption,
@@ -82,7 +95,9 @@ void main() {
 
     // 6. Wait for answer result or error
     try {
-      final res = await completerAnswer.future.timeout(const Duration(seconds: 10));
+      final res = await completerAnswer.future.timeout(
+        const Duration(seconds: 10),
+      );
       print('Answer result received successfully!');
     } catch (e) {
       print('Answer result timed out or failed: $e');

@@ -53,9 +53,7 @@ Future<void> _pumpAppWithValues(
         learningPathDatasourceProvider.overrideWithValue(
           LearningPathMockDatasource(),
         ),
-        chapterDatasourceProvider.overrideWithValue(
-          ChapterMockDatasource(),
-        ),
+        chapterDatasourceProvider.overrideWithValue(ChapterMockDatasource()),
         questionDatasourceProvider.overrideWithValue(QuestionMockDatasource()),
         quizDatasourceProvider.overrideWithValue(QuizMockDatasource()),
         if (profileDatasource != null)
@@ -72,103 +70,106 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('SplashScreen UI & Cross-Device Widgets', () {
-    testWidgets('SplashScreen renders full screen with artwork and animated existing loading bar', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: SplashScreen(),
-        ),
-      );
+    testWidgets(
+      'SplashScreen renders full screen with artwork and animated existing loading bar',
+      (tester) async {
+        await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
 
-      // Verify splash screen widget exists
-      expect(find.byType(SplashScreen), findsOneWidget);
+        // Verify splash screen widget exists
+        expect(find.byType(SplashScreen), findsOneWidget);
 
-      // Verify artwork asset is present
-      final imageFinder = find.byType(Image);
-      expect(imageFinder, findsOneWidget);
-      final imageWidget = tester.widget<Image>(imageFinder);
-      expect(imageWidget.image, isA<AssetImage>());
-      expect(
-        (imageWidget.image as AssetImage).assetName,
-        'assets/images/splash/skillverse_splash_no_loader.png',
-      );
+        // Verify artwork asset is present
+        final imageFinder = find.byType(Image);
+        expect(imageFinder, findsOneWidget);
+        final imageWidget = tester.widget<Image>(imageFinder);
+        expect(imageWidget.image, isA<AssetImage>());
+        expect(
+          (imageWidget.image as AssetImage).assetName,
+          'assets/images/splash/skillverse_splash_no_loader.png',
+        );
 
-      // Verify animated loading indicator overlaid on existing capsule with RepaintBoundary
-      expect(find.byType(SplashLoadingBar), findsOneWidget);
+        // Verify animated loading indicator overlaid on existing capsule with RepaintBoundary
+        expect(find.byType(SplashLoadingBar), findsOneWidget);
 
-      // Verify accessibility semantics label for loading adventure is active
-      expect(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Loading your adventure'), findsOneWidget);
+        // Verify accessibility semantics label for loading adventure is active
+        expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is Semantics &&
+                w.properties.label == 'Loading your adventure',
+          ),
+          findsOneWidget,
+        );
 
-      // Verify ambient particles overlay
-      expect(find.byType(SplashParticlesOverlay), findsOneWidget);
+        // Verify ambient particles overlay
+        expect(find.byType(SplashParticlesOverlay), findsOneWidget);
 
-      // Advance animation slightly and verify stable render
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(find.byType(SplashLoadingBar), findsOneWidget);
-      expect(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Loading your adventure'), findsOneWidget);
-    });
+        // Advance animation slightly and verify stable render
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(find.byType(SplashLoadingBar), findsOneWidget);
+        expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is Semantics &&
+                w.properties.label == 'Loading your adventure',
+          ),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('SplashLoadingBar renders correct visual progress and shimmer', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(
-            body: Center(
-              child: SplashLoadingBar(
-                progress: 0.5,
-                shimmerProgress: 0.3,
-                width: 250,
-                height: 16,
+    testWidgets(
+      'SplashLoadingBar renders correct visual progress and shimmer',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: SplashLoadingBar(
+                  progress: 0.5,
+                  shimmerProgress: 0.3,
+                  width: 250,
+                  height: 16,
+                ),
               ),
             ),
           ),
-        ),
-      );
+        );
 
-      expect(find.byType(SplashLoadingBar), findsOneWidget);
-      final barFinder = find.byType(SplashLoadingBar);
-      expect(barFinder, findsOneWidget);
+        expect(find.byType(SplashLoadingBar), findsOneWidget);
+        final barFinder = find.byType(SplashLoadingBar);
+        expect(barFinder, findsOneWidget);
 
-      final barWidget = tester.widget<SplashLoadingBar>(barFinder);
-      expect(barWidget.progress, 0.5);
-      expect(barWidget.shimmerProgress, 0.3);
-      expect(barWidget.width, 250);
-      expect(barWidget.height, 16);
-    });
+        final barWidget = tester.widget<SplashLoadingBar>(barFinder);
+        expect(barWidget.progress, 0.5);
+        expect(barWidget.shimmerProgress, 0.3);
+        expect(barWidget.width, 250);
+        expect(barWidget.height, 16);
+      },
+    );
 
-    testWidgets('SplashScreen disposes all controllers and lifecycle observer cleanly', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: SplashScreen(),
-        ),
-      );
+    testWidgets(
+      'SplashScreen disposes all controllers and lifecycle observer cleanly',
+      (tester) async {
+        await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
 
-      await tester.pump(const Duration(milliseconds: 300));
+        await tester.pump(const Duration(milliseconds: 300));
 
-      // Replace with another widget to trigger dispose()
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(body: Text('Replaced')),
-        ),
-      );
+        // Replace with another widget to trigger dispose()
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: Text('Replaced'))),
+        );
 
-      await tester.pump();
-      expect(find.text('Replaced'), findsOneWidget);
-      expect(find.byType(SplashScreen), findsNothing);
-    });
+        await tester.pump();
+        expect(find.text('Replaced'), findsOneWidget);
+        expect(find.byType(SplashScreen), findsNothing);
+      },
+    );
 
     testWidgets('SplashScreen handles app lifecycle pause and resume safely', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: SplashScreen(),
-        ),
-      );
+      await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
 
       await tester.pump(const Duration(milliseconds: 200));
 
@@ -181,7 +182,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.byType(SplashScreen), findsOneWidget);
-      expect(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Loading your adventure'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Semantics && w.properties.label == 'Loading your adventure',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('SplashScreen respects accessibility reduced motion setting', (
@@ -190,9 +197,7 @@ void main() {
       await tester.pumpWidget(
         const MediaQuery(
           data: MediaQueryData(disableAnimations: true),
-          child: MaterialApp(
-            home: SplashScreen(),
-          ),
+          child: MaterialApp(home: SplashScreen()),
         ),
       );
 
@@ -202,113 +207,136 @@ void main() {
       expect(find.byType(SplashParticlesOverlay), findsNothing);
       expect(find.byType(SplashScreen), findsOneWidget);
       expect(find.byType(SplashLoadingBar), findsOneWidget);
-      expect(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Loading your adventure'), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Semantics && w.properties.label == 'Loading your adventure',
+        ),
+        findsOneWidget,
+      );
     });
   });
 
   group('Startup Routing Integration', () {
-    testWidgets('Unauthenticated user starts on splash and routes to login after splash duration', (
-      tester,
-    ) async {
-      await _pumpAppWithValues(tester, values: {});
+    testWidgets(
+      'Unauthenticated user starts on splash and routes to login after splash duration',
+      (tester) async {
+        await _pumpAppWithValues(tester, values: {});
 
-      // Initially on SplashScreen
-      expect(find.byType(SplashScreen), findsOneWidget);
-      expect(find.byWidgetPredicate((w) => w is Semantics && w.properties.label == 'Loading your adventure'), findsOneWidget);
+        // Initially on SplashScreen
+        expect(find.byType(SplashScreen), findsOneWidget);
+        expect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is Semantics &&
+                w.properties.label == 'Loading your adventure',
+          ),
+          findsOneWidget,
+        );
 
-      // Advance through splash minimum duration and settle
-      await tester.pump(const Duration(milliseconds: 2400));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pumpAndSettle();
+        // Advance through splash minimum duration and settle
+        await tester.pump(const Duration(milliseconds: 2400));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
 
-      // Now routed to Login screen
-      expect(find.byType(SplashScreen), findsNothing);
-      expect(find.text('Log in to continue your learning adventure.'), findsOneWidget);
-    });
+        // Now routed to Login screen
+        expect(find.byType(SplashScreen), findsNothing);
+        expect(
+          find.text('Log in to continue your learning adventure.'),
+          findsOneWidget,
+        );
+      },
+    );
 
-    testWidgets('Authenticated user with profile routes from splash to dashboard', (
-      tester,
-    ) async {
-      const completedProfile = UserProfileModel(
-        avatarId: 'robot',
-        classLevel: '12th',
-        board: 'Maharashtra State Board',
-        selectedSubjectIds: ['web-dev'],
-        profileSetupCompleted: true,
-        tutorialCompleted: true,
-        xp: 0,
-        level: 1,
-      );
+    testWidgets(
+      'Authenticated user with profile routes from splash to dashboard',
+      (tester) async {
+        const completedProfile = UserProfileModel(
+          avatarId: 'robot',
+          classLevel: '12th',
+          board: 'Maharashtra State Board',
+          selectedSubjectIds: ['web-dev'],
+          profileSetupCompleted: true,
+          tutorialCompleted: true,
+          xp: 0,
+          level: 1,
+        );
 
-      await _pumpAppWithValues(
-        tester,
-        values: {
-          'current_user_id': 'mock-user-0',
-          'selected_learning_path_id': 'web-dev',
-        },
-        profileDatasource: _CustomProfileMockDatasource(completedProfile),
-      );
+        await _pumpAppWithValues(
+          tester,
+          values: {
+            'current_user_id': 'mock-user-0',
+            'selected_learning_path_id': 'web-dev',
+          },
+          profileDatasource: _CustomProfileMockDatasource(completedProfile),
+        );
 
-      // Initially on SplashScreen
-      expect(find.byType(SplashScreen), findsOneWidget);
+        // Initially on SplashScreen
+        expect(find.byType(SplashScreen), findsOneWidget);
 
-      // Settle past splash minimum duration and let async data load
-      await tester.pump(const Duration(milliseconds: 2400));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pumpAndSettle();
+        // Settle past splash minimum duration and let async data load
+        await tester.pump(const Duration(milliseconds: 2400));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
 
-      // Splash is gone, Dashboard is visible
-      expect(find.byType(SplashScreen), findsNothing);
-      expect(find.text('CONTINUE LEARNING'), findsOneWidget);
-    });
+        // Splash is gone, Dashboard is visible
+        expect(find.byType(SplashScreen), findsNothing);
+        expect(find.text('CONTINUE LEARNING'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Authenticated user without profile setup routes to onboarding', (
-      tester,
-    ) async {
-      const incompleteProfile = UserProfileModel(
-        avatarId: 'default',
-        selectedSubjectIds: ['web-dev'],
-        profileSetupCompleted: false,
-        tutorialCompleted: false,
-        xp: 0,
-        level: 1,
-      );
+    testWidgets(
+      'Authenticated user without profile setup routes to onboarding',
+      (tester) async {
+        const incompleteProfile = UserProfileModel(
+          avatarId: 'default',
+          selectedSubjectIds: ['web-dev'],
+          profileSetupCompleted: false,
+          tutorialCompleted: false,
+          xp: 0,
+          level: 1,
+        );
 
-      await _pumpAppWithValues(
-        tester,
-        values: {
-          'current_user_id': 'mock-user-0',
-        },
-        profileDatasource: _CustomProfileMockDatasource(incompleteProfile),
-      );
+        await _pumpAppWithValues(
+          tester,
+          values: {'current_user_id': 'mock-user-0'},
+          profileDatasource: _CustomProfileMockDatasource(incompleteProfile),
+        );
 
-      expect(find.byType(SplashScreen), findsOneWidget);
+        expect(find.byType(SplashScreen), findsOneWidget);
 
-      await tester.pump(const Duration(milliseconds: 2400));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 2400));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
 
-      // Routed to Profile Setup
-      expect(find.byType(SplashScreen), findsNothing);
-      expect(find.text('Choose Your Avatar'), findsOneWidget);
-    });
+        // Routed to Profile Setup
+        expect(find.byType(SplashScreen), findsNothing);
+        expect(find.text('Choose Your Avatar'), findsOneWidget);
+      },
+    );
 
-    testWidgets('Splash is removed from navigation back stack once routed away', (
-      tester,
-    ) async {
-      await _pumpAppWithValues(tester, values: {});
+    testWidgets(
+      'Splash is removed from navigation back stack once routed away',
+      (tester) async {
+        await _pumpAppWithValues(tester, values: {});
 
-      await tester.pump(const Duration(milliseconds: 2400));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 2400));
+        await tester.pump(const Duration(seconds: 1));
+        await tester.pumpAndSettle();
 
-      // Verify on Login
-      expect(find.text('Log in to continue your learning adventure.'), findsOneWidget);
+        // Verify on Login
+        expect(
+          find.text('Log in to continue your learning adventure.'),
+          findsOneWidget,
+        );
 
-      // Back navigation should not return to splash
-      final navigatorState = tester.state<NavigatorState>(find.byType(Navigator).first);
-      expect(navigatorState.canPop(), isFalse);
-    });
+        // Back navigation should not return to splash
+        final navigatorState = tester.state<NavigatorState>(
+          find.byType(Navigator).first,
+        );
+        expect(navigatorState.canPop(), isFalse);
+      },
+    );
   });
 }

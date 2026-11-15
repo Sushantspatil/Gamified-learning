@@ -65,29 +65,32 @@ ApiClient _createApiClient(http.Client client) {
 class _FakeAuth extends AuthController {
   @override
   Future<AppUser?> build() async => const AppUser(
-        id: 'test-user',
-        email: 'test@skillverse.com',
-        displayName: 'Tester',
-      );
+    id: 'test-user',
+    email: 'test@skillverse.com',
+    displayName: 'Tester',
+  );
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Match the Following — DTOs & Serialization Contract', () {
-    test('CreateSessionRequestDto serializes game_mode=match_the_following, question_count=10, and no custom timer', () {
-      const dto = CreateSessionRequestDto(
-        topic: 'accounting',
-        gameMode: 'match_the_following',
-        questionCount: 10,
-      );
+    test(
+      'CreateSessionRequestDto serializes game_mode=match_the_following, question_count=10, and no custom timer',
+      () {
+        const dto = CreateSessionRequestDto(
+          topic: 'accounting',
+          gameMode: 'match_the_following',
+          questionCount: 10,
+        );
 
-      final json = dto.toJson();
-      expect(json['game_mode'], 'match_the_following');
-      expect(json['question_count'], 10);
-      expect(json['abandon_stale'], true);
-      expect(json.containsKey('time_limit_per_question_sec'), false);
-    });
+        final json = dto.toJson();
+        expect(json['game_mode'], 'match_the_following');
+        expect(json['question_count'], 10);
+        expect(json['abandon_stale'], true);
+        expect(json.containsKey('time_limit_per_question_sec'), false);
+      },
+    );
 
     test('SessionCreatedResponseDto parses boards list and board time limit', () {
       final json = {
@@ -110,12 +113,10 @@ void main() {
               {'id': 'p2_r', 'text': 'Nominal Account'},
               {'id': 'p1_r', 'text': 'Real Account'},
             ],
-            'solution_map': {
-              'p1_l': 'p1_r',
-              'p2_l': 'p2_r',
-            },
+            'solution_map': {'p1_l': 'p1_r', 'p2_l': 'p2_r'},
             'hint': 'Think about asset vs expense',
-            'explanation': 'Cash is an asset (real), Salary is expense (nominal).',
+            'explanation':
+                'Cash is an asset (real), Salary is expense (nominal).',
           },
         ],
       };
@@ -142,268 +143,271 @@ void main() {
       expect(board.solutionMap['p1_l'], 'p1_r');
       expect(board.solutionMap['p2_l'], 'p2_r');
       expect(board.hint, 'Think about asset vs expense');
-      expect(board.explanation, 'Cash is an asset (real), Salary is expense (nominal).');
+      expect(
+        board.explanation,
+        'Cash is an asset (real), Salary is expense (nominal).',
+      );
     });
 
-    test('MatchBoardAnswerSubmissionDto serializes board matches and timeout', () {
-      const submission = MatchBoardAnswerSubmissionDto(
-        questionCode: 'mtf_acc_001',
-        matches: {
-          'p1_l': 'p1_r',
-          'p2_l': 'p2_r',
-        },
-        mistakes: 1,
-        timeTakenMs: 14200,
-        isTimeout: false,
-      );
+    test(
+      'MatchBoardAnswerSubmissionDto serializes board matches and timeout',
+      () {
+        const submission = MatchBoardAnswerSubmissionDto(
+          questionCode: 'mtf_acc_001',
+          matches: {'p1_l': 'p1_r', 'p2_l': 'p2_r'},
+          mistakes: 1,
+          timeTakenMs: 14200,
+          isTimeout: false,
+        );
 
-      final json = submission.toJson();
-      expect(json['question_code'], 'mtf_acc_001');
-      expect(json['matches']['p1_l'], 'p1_r');
-      expect(json['matches']['p2_l'], 'p2_r');
-      expect(json['mistakes'], 1);
-      expect(json['time_taken_ms'], 14200);
-      expect(json.containsKey('is_timeout'), false);
+        final json = submission.toJson();
+        expect(json['question_code'], 'mtf_acc_001');
+        expect(json['matches']['p1_l'], 'p1_r');
+        expect(json['matches']['p2_l'], 'p2_r');
+        expect(json['mistakes'], 1);
+        expect(json['time_taken_ms'], 14200);
+        expect(json.containsKey('is_timeout'), false);
 
-      const timeoutSub = MatchBoardAnswerSubmissionDto(
-        questionCode: 'mtf_acc_002',
-        matches: {'p3_l': 'p3_r'},
-        mistakes: 2,
-        timeTakenMs: 25000,
-        isTimeout: true,
-      );
-      final timeoutJson = timeoutSub.toJson();
-      expect(timeoutJson['is_timeout'], true);
-    });
+        const timeoutSub = MatchBoardAnswerSubmissionDto(
+          questionCode: 'mtf_acc_002',
+          matches: {'p3_l': 'p3_r'},
+          mistakes: 2,
+          timeTakenMs: 25000,
+          isTimeout: true,
+        );
+        final timeoutJson = timeoutSub.toJson();
+        expect(timeoutJson['is_timeout'], true);
+      },
+    );
 
-    test('CompleteMatchTheFollowingRequestDto serializes session and boards list', () {
-      const requestDto = CompleteMatchTheFollowingRequestDto(
-        session: 'sess_batch_1',
-        boards: [
-          MatchBoardAnswerSubmissionDto(
-            questionCode: 'mtf_acc_001',
-            matches: {'p1_l': 'p1_r'},
-            mistakes: 0,
-            timeTakenMs: 12000,
-          ),
-        ],
-      );
+    test(
+      'CompleteMatchTheFollowingRequestDto serializes session and boards list',
+      () {
+        const requestDto = CompleteMatchTheFollowingRequestDto(
+          session: 'sess_batch_1',
+          boards: [
+            MatchBoardAnswerSubmissionDto(
+              questionCode: 'mtf_acc_001',
+              matches: {'p1_l': 'p1_r'},
+              mistakes: 0,
+              timeTakenMs: 12000,
+            ),
+          ],
+        );
 
-      final json = requestDto.toJson();
-      expect(json['session'], 'sess_batch_1');
-      final boardsList = json['boards'] as List<dynamic>;
-      expect(boardsList.length, 1);
-      expect(boardsList[0]['question_code'], 'mtf_acc_001');
-    });
+        final json = requestDto.toJson();
+        expect(json['session'], 'sess_batch_1');
+        final boardsList = json['boards'] as List<dynamic>;
+        expect(boardsList.length, 1);
+        expect(boardsList[0]['question_code'], 'mtf_acc_001');
+      },
+    );
 
-    test('CompleteMatchTheFollowingResponseDto parses rich results and score breakdown', () {
-      final json = {
-        'session': 'sess_batch_1',
-        'total_boards': 3,
-        'cleared_boards': 2,
-        'total_pairs_matched': 7,
-        'total_pairs_count': 8,
-        'total_mistakes': 1,
-        'accuracy_percentage': 87.5,
-        'final_score': 82,
-        'coins_awarded': 35,
-        'xp_awarded': 70,
-        'gems_awarded': 1,
-        'score_breakdown': {
-          'base_points': 70,
-          'flawless_bonus': 10,
-          'speed_bonus': 4,
-          'mistake_penalty': 2,
+    test(
+      'CompleteMatchTheFollowingResponseDto parses rich results and score breakdown',
+      () {
+        final json = {
+          'session': 'sess_batch_1',
+          'total_boards': 3,
+          'cleared_boards': 2,
+          'total_pairs_matched': 7,
+          'total_pairs_count': 8,
+          'total_mistakes': 1,
+          'accuracy_percentage': 87.5,
           'final_score': 82,
-        },
-        'coin_breakdown': {
-          'completion_coins': 20,
-          'correct_answer_coins': 15,
-        },
-        'xp_breakdown': {
-          'completion_xp': 40,
-          'correct_answer_xp': 30,
-        },
-        'level_up_reward': {
-          'coins': 50,
-          'gems': 1,
-        },
-        'level': {
-          'current': 3,
-          'did_level_up': true,
-          'experience': 210,
-          'next_level_exp': 300,
-        },
-        'streak': {
-          'current_streak': 5,
-          'today_completed': true,
-        },
-        'boards_review': [
-          {
-            'question_code': 'mtf_acc_001',
-            'prompt': 'Match accounts',
-            'pairs_matched': 4,
-            'total_pairs': 4,
-            'mistakes': 0,
-            'time_taken_ms': 18000,
-            'is_flawless': true,
-            'is_timeout': false,
-            'base_points': 40,
+          'coins_awarded': 35,
+          'xp_awarded': 70,
+          'gems_awarded': 1,
+          'score_breakdown': {
+            'base_points': 70,
             'flawless_bonus': 10,
-            'speed_bonus': 7,
-            'mistake_penalty': 0,
-            'total_board_score': 57,
-            'explanation': 'All accounts correctly classified.',
+            'speed_bonus': 4,
+            'mistake_penalty': 2,
+            'final_score': 82,
           },
-        ],
-      };
+          'coin_breakdown': {
+            'completion_coins': 20,
+            'correct_answer_coins': 15,
+          },
+          'xp_breakdown': {'completion_xp': 40, 'correct_answer_xp': 30},
+          'level_up_reward': {'coins': 50, 'gems': 1},
+          'level': {
+            'current': 3,
+            'did_level_up': true,
+            'experience': 210,
+            'next_level_exp': 300,
+          },
+          'streak': {'current_streak': 5, 'today_completed': true},
+          'boards_review': [
+            {
+              'question_code': 'mtf_acc_001',
+              'prompt': 'Match accounts',
+              'pairs_matched': 4,
+              'total_pairs': 4,
+              'mistakes': 0,
+              'time_taken_ms': 18000,
+              'is_flawless': true,
+              'is_timeout': false,
+              'base_points': 40,
+              'flawless_bonus': 10,
+              'speed_bonus': 7,
+              'mistake_penalty': 0,
+              'total_board_score': 57,
+              'explanation': 'All accounts correctly classified.',
+            },
+          ],
+        };
 
-      final dto = CompleteMatchTheFollowingResponseDto.fromJson(json);
-      expect(dto.session, 'sess_batch_1');
-      expect(dto.totalBoards, 3);
-      expect(dto.clearedBoards, 2);
-      expect(dto.totalPairsMatched, 7);
-      expect(dto.totalPairsCount, 8);
-      expect(dto.totalMistakes, 1);
-      expect(dto.accuracyPercentage, 87.5);
-      expect(dto.finalScore, 82);
-      expect(dto.coinsAwarded, 35);
-      expect(dto.xpAwarded, 70);
-      expect(dto.gemsAwarded, 1);
-      expect(dto.scoreBreakdown['base_points'], 70);
-      expect(dto.scoreBreakdown['mistake_penalty'], 2);
-      expect(dto.level?.didLevelUp, true);
-      expect(dto.level?.current, 3);
-      expect(dto.levelUpReward?.coins, 50);
-      expect(dto.boardsReview.length, 1);
+        final dto = CompleteMatchTheFollowingResponseDto.fromJson(json);
+        expect(dto.session, 'sess_batch_1');
+        expect(dto.totalBoards, 3);
+        expect(dto.clearedBoards, 2);
+        expect(dto.totalPairsMatched, 7);
+        expect(dto.totalPairsCount, 8);
+        expect(dto.totalMistakes, 1);
+        expect(dto.accuracyPercentage, 87.5);
+        expect(dto.finalScore, 82);
+        expect(dto.coinsAwarded, 35);
+        expect(dto.xpAwarded, 70);
+        expect(dto.gemsAwarded, 1);
+        expect(dto.scoreBreakdown['base_points'], 70);
+        expect(dto.scoreBreakdown['mistake_penalty'], 2);
+        expect(dto.level?.didLevelUp, true);
+        expect(dto.level?.current, 3);
+        expect(dto.levelUpReward?.coins, 50);
+        expect(dto.boardsReview.length, 1);
 
-      final review = dto.boardsReview[0];
-      expect(review.isFlawless, true);
-      expect(review.totalBoardScore, 57);
-      expect(review.speedBonus, 7);
-    });
+        final review = dto.boardsReview[0];
+        expect(review.isFlawless, true);
+        expect(review.totalBoardScore, 57);
+        expect(review.speedBonus, 7);
+      },
+    );
   });
 
   group('Match the Following — Remote Datasource Integration', () {
-    test('createSession sends game_mode=match_the_following and populates activeMatchBoards', () async {
-      final mockClient = MockClient((request) async {
-        if (request.url.path == '/api/v1/quiz/sessions/create') {
-          final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body['topic'], 'accounts');
-          expect(body['game_mode'], 'match_the_following');
-          expect(body['question_count'], 10);
+    test(
+      'createSession sends game_mode=match_the_following and populates activeMatchBoards',
+      () async {
+        final mockClient = MockClient((request) async {
+          if (request.url.path == '/api/v1/quiz/sessions/create') {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            expect(body['topic'], 'accounts');
+            expect(body['game_mode'], 'match_the_following');
+            expect(body['question_count'], 10);
 
-          return http.Response(
-            jsonEncode({
-              'session': 'sess_remote_mtf',
-              'topic': 'accounting',
-              'game_mode': 'match_the_following',
-              'total_questions': 1,
-              'time_limit_sec': 25,
-              'time_limit_per_question_sec': 25,
-              'boards': [
-                {
-                  'question_code': 'mtf_001',
-                  'prompt': 'Match terminology',
-                  'time_limit_sec': 25,
-                  'left_items': [
-                    {'id': 'l1', 'text': 'Asset'},
-                    {'id': 'l2', 'text': 'Liability'},
-                  ],
-                  'right_items': [
-                    {'id': 'r2', 'text': 'Debt'},
-                    {'id': 'r1', 'text': 'Property'},
-                  ],
-                  'solution_map': {
-                    'l1': 'r1',
-                    'l2': 'r2',
+            return http.Response(
+              jsonEncode({
+                'session': 'sess_remote_mtf',
+                'topic': 'accounting',
+                'game_mode': 'match_the_following',
+                'total_questions': 1,
+                'time_limit_sec': 25,
+                'time_limit_per_question_sec': 25,
+                'boards': [
+                  {
+                    'question_code': 'mtf_001',
+                    'prompt': 'Match terminology',
+                    'time_limit_sec': 25,
+                    'left_items': [
+                      {'id': 'l1', 'text': 'Asset'},
+                      {'id': 'l2', 'text': 'Liability'},
+                    ],
+                    'right_items': [
+                      {'id': 'r2', 'text': 'Debt'},
+                      {'id': 'r1', 'text': 'Property'},
+                    ],
+                    'solution_map': {'l1': 'r1', 'l2': 'r2'},
                   },
-                },
-              ],
-            }),
-            201,
-          );
-        }
-        return http.Response('Not found', 404);
-      });
+                ],
+              }),
+              201,
+            );
+          }
+          return http.Response('Not found', 404);
+        });
 
-      final apiClient = _createApiClient(mockClient);
-      final ds = QuizRemoteDatasource(apiClient: apiClient);
+        final apiClient = _createApiClient(mockClient);
+        final ds = QuizRemoteDatasource(apiClient: apiClient);
 
-      final sessionId = await ds.createSession(
-        topicId: 'accounting',
-        gameMode: 'match_the_following',
-        questionCount: 10,
-      );
+        final sessionId = await ds.createSession(
+          topicId: 'accounting',
+          gameMode: 'match_the_following',
+          questionCount: 10,
+        );
 
-      expect(sessionId, 'sess_remote_mtf');
-      expect(ds.activeMatchBoards?.length, 1);
-      expect(ds.activeMatchBoards?[0].questionCode, 'mtf_001');
-      expect(ds.activeMatchBoards?[0].solutionMap['l1'], 'r1');
-    });
+        expect(sessionId, 'sess_remote_mtf');
+        expect(ds.activeMatchBoards?.length, 1);
+        expect(ds.activeMatchBoards?[0].questionCode, 'mtf_001');
+        expect(ds.activeMatchBoards?[0].solutionMap['l1'], 'r1');
+      },
+    );
 
-    test('completeMatchTheFollowing posts batch answers to /api/v1/quiz/match-the-following/complete', () async {
-      var endpointCalled = false;
+    test(
+      'completeMatchTheFollowing posts batch answers to /api/v1/quiz/match-the-following/complete',
+      () async {
+        var endpointCalled = false;
 
-      final mockClient = MockClient((request) async {
-        if (request.url.path == '/api/v1/quiz/match-the-following/complete') {
-          endpointCalled = true;
-          final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body['session'], 'sess_remote_mtf');
-          final boards = body['boards'] as List<dynamic>;
-          expect(boards.length, 1);
-          expect(boards[0]['question_code'], 'mtf_001');
-          expect(boards[0]['matches']['l1'], 'r1');
-          expect(boards[0]['mistakes'], 0);
-          expect(boards[0]['time_taken_ms'], 12500);
+        final mockClient = MockClient((request) async {
+          if (request.url.path == '/api/v1/quiz/match-the-following/complete') {
+            endpointCalled = true;
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            expect(body['session'], 'sess_remote_mtf');
+            final boards = body['boards'] as List<dynamic>;
+            expect(boards.length, 1);
+            expect(boards[0]['question_code'], 'mtf_001');
+            expect(boards[0]['matches']['l1'], 'r1');
+            expect(boards[0]['mistakes'], 0);
+            expect(boards[0]['time_taken_ms'], 12500);
 
-          return http.Response(
-            jsonEncode({
-              'session': 'sess_remote_mtf',
-              'total_boards': 1,
-              'cleared_boards': 1,
-              'total_pairs_matched': 2,
-              'total_pairs_count': 2,
-              'total_mistakes': 0,
-              'accuracy_percentage': 100.0,
-              'final_score': 32,
-              'coins_awarded': 20,
-              'xp_awarded': 40,
-              'gems_awarded': 3,
-              'score_breakdown': {
-                'base_points': 20,
-                'flawless_bonus': 10,
-                'speed_bonus': 2,
-                'mistake_penalty': 0,
+            return http.Response(
+              jsonEncode({
+                'session': 'sess_remote_mtf',
+                'total_boards': 1,
+                'cleared_boards': 1,
+                'total_pairs_matched': 2,
+                'total_pairs_count': 2,
+                'total_mistakes': 0,
+                'accuracy_percentage': 100.0,
                 'final_score': 32,
-              },
-              'boards_review': [],
-            }),
-            200,
-          );
-        }
-        return http.Response('Not found', 404);
-      });
+                'coins_awarded': 20,
+                'xp_awarded': 40,
+                'gems_awarded': 3,
+                'score_breakdown': {
+                  'base_points': 20,
+                  'flawless_bonus': 10,
+                  'speed_bonus': 2,
+                  'mistake_penalty': 0,
+                  'final_score': 32,
+                },
+                'boards_review': [],
+              }),
+              200,
+            );
+          }
+          return http.Response('Not found', 404);
+        });
 
-      final apiClient = _createApiClient(mockClient);
-      final ds = QuizRemoteDatasource(apiClient: apiClient);
+        final apiClient = _createApiClient(mockClient);
+        final ds = QuizRemoteDatasource(apiClient: apiClient);
 
-      final response = await ds.completeMatchTheFollowing(
-        session: 'sess_remote_mtf',
-        boards: const [
-          MatchBoardAnswerSubmissionDto(
-            questionCode: 'mtf_001',
-            matches: {'l1': 'r1'},
-            mistakes: 0,
-            timeTakenMs: 12500,
-          ),
-        ],
-      );
+        final response = await ds.completeMatchTheFollowing(
+          session: 'sess_remote_mtf',
+          boards: const [
+            MatchBoardAnswerSubmissionDto(
+              questionCode: 'mtf_001',
+              matches: {'l1': 'r1'},
+              mistakes: 0,
+              timeTakenMs: 12500,
+            ),
+          ],
+        );
 
-      expect(endpointCalled, true);
-      expect(response.finalScore, 32);
-      expect(response.accuracyPercentage, 100.0);
-    });
+        expect(endpointCalled, true);
+        expect(response.finalScore, 32);
+        expect(response.accuracyPercentage, 100.0);
+      },
+    );
   });
 
   group('Match the Following — Controller Gameplay & Logic', () {
@@ -434,10 +438,7 @@ void main() {
                   {'id': 'b1_r2', 'text': 'Nominal'},
                   {'id': 'b1_r1', 'text': 'Real'},
                 ],
-                'solution_map': {
-                  'b1_l1': 'b1_r1',
-                  'b1_l2': 'b1_r2',
-                },
+                'solution_map': {'b1_l1': 'b1_r1', 'b1_l2': 'b1_r2'},
                 'hint': 'Cash is an asset.',
               },
               {
@@ -452,10 +453,7 @@ void main() {
                   {'id': 'b2_r2', 'text': 'Profit & Loss'},
                   {'id': 'b2_r1', 'text': 'Financial Position'},
                 ],
-                'solution_map': {
-                  'b2_l1': 'b2_r1',
-                  'b2_l2': 'b2_r2',
-                },
+                'solution_map': {'b2_l1': 'b2_r1', 'b2_l2': 'b2_r2'},
               },
             ],
           }),
@@ -554,65 +552,83 @@ void main() {
       container.dispose();
     });
 
-    test('initializes with upfront boards, solution_map, and 25-second timer', () async {
-      final state = await container.read(matchTheFollowingControllerProvider(request).future);
-      expect(state.sessionId, 'controller_mtf_sess_1');
-      expect(state.boards.length, 2);
-      expect(state.currentBoardIndex, 0);
-      expect(state.currentBoard?.questionCode, 'board_1');
-      expect(state.currentBoard?.timeLimitSec, 25);
-      expect(state.currentBoard?.solutionMap['b1_l1'], 'b1_r1');
-      expect(state.boardResolved, false);
-      expect(state.isCompleting, false);
-    });
+    test(
+      'initializes with upfront boards, solution_map, and 25-second timer',
+      () async {
+        final state = await container.read(
+          matchTheFollowingControllerProvider(request).future,
+        );
+        expect(state.sessionId, 'controller_mtf_sess_1');
+        expect(state.boards.length, 2);
+        expect(state.currentBoardIndex, 0);
+        expect(state.currentBoard?.questionCode, 'board_1');
+        expect(state.currentBoard?.timeLimitSec, 25);
+        expect(state.currentBoard?.solutionMap['b1_l1'], 'b1_r1');
+        expect(state.boardResolved, false);
+        expect(state.isCompleting, false);
+      },
+    );
 
-    test('board submission recording, mistake counting, and single-flight batch completion', () async {
-      await container.read(matchTheFollowingControllerProvider(request).future);
-      final controller = container.read(matchTheFollowingControllerProvider(request).notifier);
+    test(
+      'board submission recording, mistake counting, and single-flight batch completion',
+      () async {
+        await container.read(
+          matchTheFollowingControllerProvider(request).future,
+        );
+        final controller = container.read(
+          matchTheFollowingControllerProvider(request).notifier,
+        );
 
-      // 1. Submit Board 1 with 1 mistake
-      await controller.submitBoard(
-        matches: {'b1_l1': 'b1_r2', 'b1_l2': 'b1_r1'},
-        mistakes: 1,
-      );
+        // 1. Submit Board 1 with 1 mistake
+        await controller.submitBoard(
+          matches: {'b1_l1': 'b1_r2', 'b1_l2': 'b1_r1'},
+          mistakes: 1,
+        );
 
-      var state = container.read(matchTheFollowingControllerProvider(request)).value!;
+        var state = container
+            .read(matchTheFollowingControllerProvider(request))
+            .value!;
 
-      // Board 1 submission recorded
-      expect(state.boardSubmissions.length, 1);
-      expect(state.boardSubmissions[0].questionCode, 'board_1');
-      expect(state.boardSubmissions[0].matches.length, 2);
-      expect(state.boardSubmissions[0].mistakes, 1);
-      expect(state.boardSubmissions[0].isTimeout, false);
+        // Board 1 submission recorded
+        expect(state.boardSubmissions.length, 1);
+        expect(state.boardSubmissions[0].questionCode, 'board_1');
+        expect(state.boardSubmissions[0].matches.length, 2);
+        expect(state.boardSubmissions[0].mistakes, 1);
+        expect(state.boardSubmissions[0].isTimeout, false);
 
-      // Board 2 is now active!
-      expect(state.currentBoardIndex, 1);
-      expect(state.currentBoard?.questionCode, 'board_2');
-      expect(state.correctMatches.isEmpty, true);
+        // Board 2 is now active!
+        expect(state.currentBoardIndex, 1);
+        expect(state.currentBoard?.questionCode, 'board_2');
+        expect(state.correctMatches.isEmpty, true);
 
-      // An unfinished game never counts.
-      expect(container.read(rewardsProvider).chestProgress, 0);
-      // 2. Submit Board 2 with 0 mistakes
-      await controller.submitBoard(
-        matches: {'b2_l1': 'b2_r1', 'b2_l2': 'b2_r2'},
-        mistakes: 0,
-      );
+        // An unfinished game never counts.
+        expect(container.read(rewardsProvider).chestProgress, 0);
+        // 2. Submit Board 2 with 0 mistakes
+        await controller.submitBoard(
+          matches: {'b2_l1': 'b2_r1', 'b2_l2': 'b2_r2'},
+          mistakes: 0,
+        );
 
-      state = container.read(matchTheFollowingControllerProvider(request)).value!;
+        state = container
+            .read(matchTheFollowingControllerProvider(request))
+            .value!;
 
-      // Final board triggers single-flight batch completion!
-      expect(completeCallCount, 1);
-      expect(state.result != null, true);
-      expect(state.result?.finalScore, 68);
-      expect(state.result?.totalMistakes, 1);
-      expect(state.result?.boardsReview.length, 2);
-      // Chest Box: the finished game counted exactly once.
-      expect(container.read(rewardsProvider).chestProgress, 1);
-    });
+        // Final board triggers single-flight batch completion!
+        expect(completeCallCount, 1);
+        expect(state.result != null, true);
+        expect(state.result?.finalScore, 68);
+        expect(state.result?.totalMistakes, 1);
+        expect(state.result?.boardsReview.length, 2);
+        // Chest Box: the finished game counted exactly once.
+        expect(container.read(rewardsProvider).chestProgress, 1);
+      },
+    );
 
     test('timeout preserves partial matches and auto-advances', () async {
       await container.read(matchTheFollowingControllerProvider(request).future);
-      final controller = container.read(matchTheFollowingControllerProvider(request).notifier);
+      final controller = container.read(
+        matchTheFollowingControllerProvider(request).notifier,
+      );
 
       // Match 1 pair correctly on Board 1
       controller.selectLeft('b1_l1');
@@ -622,7 +638,9 @@ void main() {
       await controller.handleTimeout();
 
       await Future<void>.delayed(const Duration(milliseconds: 350));
-      final state = container.read(matchTheFollowingControllerProvider(request)).value!;
+      final state = container
+          .read(matchTheFollowingControllerProvider(request))
+          .value!;
 
       // Board 1 submission recorded with is_timeout=true and partial matches preserved
       expect(state.boardSubmissions.length, 1);
@@ -748,260 +766,308 @@ void main() {
       } catch (_) {}
     });
 
-    testWidgets('TEST 1 & 7 — delegates to MatchTheFollowingView and mounts connection layer', (tester) async {
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.darkTheme,
-            home: const MatchTheFollowingScreen(topicId: 'accounting'),
+    testWidgets(
+      'TEST 1 & 7 — delegates to MatchTheFollowingView and mounts connection layer',
+      (tester) async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: AppTheme.darkTheme,
+              home: const MatchTheFollowingScreen(topicId: 'accounting'),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(MatchTheFollowingView), findsOneWidget);
-      expect(find.byKey(const Key('match_connection_layer')), findsOneWidget);
-      expect(find.byKey(const Key('match_it_view')), findsOneWidget);
+        expect(find.byType(MatchTheFollowingView), findsOneWidget);
+        expect(find.byKey(const Key('match_connection_layer')), findsOneWidget);
+        expect(find.byKey(const Key('match_it_view')), findsOneWidget);
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      container.dispose();
-    });
+        await tester.pumpWidget(const SizedBox.shrink());
+        container.dispose();
+      },
+    );
 
-    testWidgets('TEST 2 & 3 — renders 4 backend pairs and preserves server right-item order without client shuffle', (tester) async {
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.darkTheme,
-            home: const MatchTheFollowingScreen(topicId: 'accounting'),
+    testWidgets(
+      'TEST 2 & 3 — renders 4 backend pairs and preserves server right-item order without client shuffle',
+      (tester) async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: AppTheme.darkTheme,
+              home: const MatchTheFollowingScreen(topicId: 'accounting'),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // All 4 left items present
-      expect(find.text('Cash A/C'), findsOneWidget);
-      expect(find.text('Wages A/C'), findsOneWidget);
-      expect(find.text('Capital A/C'), findsOneWidget);
-      expect(find.text('Bank Loan'), findsOneWidget);
+        // All 4 left items present
+        expect(find.text('Cash A/C'), findsOneWidget);
+        expect(find.text('Wages A/C'), findsOneWidget);
+        expect(find.text('Capital A/C'), findsOneWidget);
+        expect(find.text('Bank Loan'), findsOneWidget);
 
-      // All 4 right items present
-      expect(find.text('Personal Account'), findsOneWidget);
-      expect(find.text('Real Account'), findsOneWidget);
-      expect(find.text('Liability Account'), findsOneWidget);
-      expect(find.text('Nominal Account'), findsOneWidget);
+        // All 4 right items present
+        expect(find.text('Personal Account'), findsOneWidget);
+        expect(find.text('Real Account'), findsOneWidget);
+        expect(find.text('Liability Account'), findsOneWidget);
+        expect(find.text('Nominal Account'), findsOneWidget);
 
-      // Verify server order: R3 (Personal), R1 (Real), R4 (Liability), R2 (Nominal)
-      final r3Y = tester.getTopLeft(find.byKey(const Key('match-right-ui_r3'))).dy;
-      final r1Y = tester.getTopLeft(find.byKey(const Key('match-right-ui_r1'))).dy;
-      final r4Y = tester.getTopLeft(find.byKey(const Key('match-right-ui_r4'))).dy;
-      final r2Y = tester.getTopLeft(find.byKey(const Key('match-right-ui_r2'))).dy;
+        // Verify server order: R3 (Personal), R1 (Real), R4 (Liability), R2 (Nominal)
+        final r3Y = tester
+            .getTopLeft(find.byKey(const Key('match-right-ui_r3')))
+            .dy;
+        final r1Y = tester
+            .getTopLeft(find.byKey(const Key('match-right-ui_r1')))
+            .dy;
+        final r4Y = tester
+            .getTopLeft(find.byKey(const Key('match-right-ui_r4')))
+            .dy;
+        final r2Y = tester
+            .getTopLeft(find.byKey(const Key('match-right-ui_r2')))
+            .dy;
 
-      expect(r3Y, lessThan(r1Y));
-      expect(r1Y, lessThan(r4Y));
-      expect(r4Y, lessThan(r2Y));
+        expect(r3Y, lessThan(r1Y));
+        expect(r1Y, lessThan(r4Y));
+        expect(r4Y, lessThan(r2Y));
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      container.dispose();
-    });
+        await tester.pumpWidget(const SizedBox.shrink());
+        container.dispose();
+      },
+    );
 
-    testWidgets('TEST 4 — left card selection activates and remains interactive', (tester) async {
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.darkTheme,
-            home: const MatchTheFollowingScreen(topicId: 'accounting'),
+    testWidgets(
+      'TEST 4 — left card selection activates and remains interactive',
+      (tester) async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: AppTheme.darkTheme,
+              home: const MatchTheFollowingScreen(topicId: 'accounting'),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // Tap unmatched left card
-      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
-      await tester.pump(const Duration(milliseconds: 50));
+        // Tap unmatched left card
+        await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+        await tester.pump(const Duration(milliseconds: 50));
 
-      final stateAfterSelect = container.read(
-        matchTheFollowingControllerProvider(
-          const QuizSessionRequest(
-            topicId: 'accounting',
-            quizType: QuestionType.matchTheFollowing,
+        final stateAfterSelect = container
+            .read(
+              matchTheFollowingControllerProvider(
+                const QuizSessionRequest(
+                  topicId: 'accounting',
+                  quizType: QuestionType.matchTheFollowing,
+                ),
+              ),
+            )
+            .value!;
+        expect(stateAfterSelect.selectedLeftId, 'ui_l1');
+
+        // Tapping same card toggles selection off
+        await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        final stateAfterDeselect = container
+            .read(
+              matchTheFollowingControllerProvider(
+                const QuizSessionRequest(
+                  topicId: 'accounting',
+                  quizType: QuestionType.matchTheFollowing,
+                ),
+              ),
+            )
+            .value!;
+        expect(stateAfterDeselect.selectedLeftId, null);
+
+        // Bidirectional: tap right card first, then left card to connect
+        await tester.tap(find.byKey(const Key('match-right-ui_r1')));
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        expect(
+          find.textContaining(' matched'),
+          findsNothing,
+        ); // no running counter
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        container.dispose();
+      },
+    );
+
+    testWidgets(
+      'TEST 5 & 6 — wrong pair connects cleanly without instant error buzzer, can be changed, and validated on submit',
+      (tester) async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: AppTheme.darkTheme,
+              home: const MatchTheFollowingScreen(topicId: 'accounting'),
+            ),
           ),
-        ),
-      ).value!;
-      expect(stateAfterSelect.selectedLeftId, 'ui_l1');
+        );
+        await tester.pumpAndSettle();
 
-      // Tapping same card toggles selection off
-      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
-      await tester.pump(const Duration(milliseconds: 50));
+        // 1. Wrong Match: Left 1 (Cash) + Right 2 (Nominal)
+        // Connects without throwing error or rejecting selection
+        await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.byKey(const Key('match-right-ui_r2')));
+        await tester.pump(const Duration(milliseconds: 50));
 
-      final stateAfterDeselect = container.read(
-        matchTheFollowingControllerProvider(
-          const QuizSessionRequest(
-            topicId: 'accounting',
-            quizType: QuestionType.matchTheFollowing,
+        // Successfully connected as 1 pair without instant failure
+        expect(
+          find.textContaining(' matched'),
+          findsNothing,
+        ); // no running counter
+
+        // 2. Change pair: Tap Left 1 to disconnect/re-pair with Right 1 (Real)
+        await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.byKey(const Key('match-right-ui_r1')));
+        await tester.pump(const Duration(milliseconds: 50));
+
+        // Still 1 pair connected, now correctly updated
+        expect(
+          find.textContaining(' matched'),
+          findsNothing,
+        ); // no running counter
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        container.dispose();
+      },
+    );
+
+    testWidgets(
+      'TEST 9 — exit confirmation dialog opens, can continue or abandon session',
+      (tester) async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: AppTheme.darkTheme,
+              home: const MatchTheFollowingScreen(topicId: 'accounting'),
+            ),
           ),
-        ),
-      ).value!;
-      expect(stateAfterDeselect.selectedLeftId, null);
+        );
+        await tester.pumpAndSettle();
 
-      // Bidirectional: tap right card first, then left card to connect
-      await tester.tap(find.byKey(const Key('match-right-ui_r1')));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
-      await tester.pump(const Duration(milliseconds: 50));
+        // There is no on-screen X any more: the back gesture asks first.
+        expect(find.byIcon(Icons.close), findsNothing);
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
 
-      expect(find.textContaining(' matched'), findsNothing); // no running counter
+        // Exit confirmation dialog appears
+        expect(find.text('Quit Match It?'), findsOneWidget);
+        expect(find.text('Keep playing'), findsOneWidget);
+        expect(find.text('Quit'), findsOneWidget);
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      container.dispose();
-    });
+        // Keep playing
+        await tester.tap(find.text('Keep playing'));
+        await tester.pumpAndSettle();
 
-    testWidgets('TEST 5 & 6 — wrong pair connects cleanly without instant error buzzer, can be changed, and validated on submit', (tester) async {
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.darkTheme,
-            home: const MatchTheFollowingScreen(topicId: 'accounting'),
+        // Dialog is dismissed and game view remains mounted
+        expect(find.text('Quit Match It?'), findsNothing);
+        expect(find.byKey(const Key('match_it_view')), findsOneWidget);
+
+        // Back again, then Quit
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Quit'));
+        await tester.pumpAndSettle();
+
+        // Dialog is dismissed
+        expect(find.text('Quit Match It?'), findsNothing);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        container.dispose();
+      },
+    );
+
+    testWidgets(
+      'TEST 10 — completes all 4 pairs, submits the board, and displays backend results',
+      (tester) async {
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: AppTheme.darkTheme,
+              home: const MatchTheFollowingScreen(topicId: 'accounting'),
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      // 1. Wrong Match: Left 1 (Cash) + Right 2 (Nominal)
-      // Connects without throwing error or rejecting selection
-      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byKey(const Key('match-right-ui_r2')));
-      await tester.pump(const Duration(milliseconds: 50));
+        // Match Pair 1: ui_l1 -> ui_r1
+        await tester.tap(find.byKey(const Key('match-left-ui_l1')));
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.byKey(const Key('match-right-ui_r1')));
+        await tester.pump(const Duration(milliseconds: 50));
 
-      // Successfully connected as 1 pair without instant failure
-      expect(find.textContaining(' matched'), findsNothing); // no running counter
+        // Match Pair 2: ui_l2 -> ui_r2
+        await tester.tap(find.byKey(const Key('match-left-ui_l2')));
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.byKey(const Key('match-right-ui_r2')));
+        await tester.pump(const Duration(milliseconds: 50));
 
-      // 2. Change pair: Tap Left 1 to disconnect/re-pair with Right 1 (Real)
-      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byKey(const Key('match-right-ui_r1')));
-      await tester.pump(const Duration(milliseconds: 50));
+        // Match Pair 3: ui_l3 -> ui_r3
+        await tester.tap(find.byKey(const Key('match-left-ui_l3')));
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.byKey(const Key('match-right-ui_r3')));
+        await tester.pump(const Duration(milliseconds: 50));
 
-      // Still 1 pair connected, now correctly updated
-      expect(find.textContaining(' matched'), findsNothing); // no running counter
+        // Match Pair 4: ui_l4 -> ui_r4
+        await tester.tap(find.byKey(const Key('match-left-ui_l4')));
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.byKey(const Key('match-right-ui_r4')));
+        await tester.pump(const Duration(milliseconds: 50));
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      container.dispose();
-    });
+        expect(
+          find.textContaining(' matched'),
+          findsNothing,
+        ); // no running counter
 
-    testWidgets('TEST 9 — exit confirmation dialog opens, can continue or abandon session', (tester) async {
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.darkTheme,
-            home: const MatchTheFollowingScreen(topicId: 'accounting'),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        // The button is active. This is the only board, so it says Submit; it
+        // sends the board at once and shows no per-board right / wrong step.
+        await tester.ensureVisible(find.text('Submit'));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('match_analysis_summary')), findsNothing);
+        await tester.tap(find.text('Submit'));
 
-      // There is no on-screen X any more: the back gesture asks first.
-      expect(find.byIcon(Icons.close), findsNothing);
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
+        // Wait for board completion and API response
+        await tester.pump(const Duration(milliseconds: 350));
+        await tester.pumpAndSettle();
 
-      // Exit confirmation dialog appears
-      expect(find.text('Quit Match It?'), findsOneWidget);
-      expect(find.text('Keep playing'), findsOneWidget);
-      expect(find.text('Quit'), findsOneWidget);
+        // Results screen appears with authoritative values
+        expect(find.byKey(const Key('result_points')), findsOneWidget);
+        expect(find.text('35'), findsAtLeast(1));
+        expect(find.text('+45'), findsOneWidget);
+        expect(find.text('+20 Coins'), findsOneWidget);
+        expect(find.text('Review your boards'), findsOneWidget);
+        expect(find.text('Done'), findsOneWidget);
 
-      // Keep playing
-      await tester.tap(find.text('Keep playing'));
-      await tester.pumpAndSettle();
+        // The breakdown is behind "Score details".
+        await tester.tap(find.byKey(const Key('result_details_button')));
+        await tester.pumpAndSettle();
+        expect(find.text('Score Breakdown'), findsOneWidget);
+        expect(find.text('Base Points'), findsOneWidget);
+        await tester.tapAt(const Offset(10, 10)); // close the sheet
+        await tester.pumpAndSettle();
 
-      // Dialog is dismissed and game view remains mounted
-      expect(find.text('Quit Match It?'), findsNothing);
-      expect(find.byKey(const Key('match_it_view')), findsOneWidget);
+        // Back navigation on results screen does NOT show abandon dialog
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+        expect(find.text('Quit Match It?'), findsNothing);
 
-      // Back again, then Quit
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Quit'));
-      await tester.pumpAndSettle();
-
-      // Dialog is dismissed
-      expect(find.text('Quit Match It?'), findsNothing);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      container.dispose();
-    });
-
-    testWidgets('TEST 10 — completes all 4 pairs, submits the board, and displays backend results', (tester) async {
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: MaterialApp(
-            theme: AppTheme.darkTheme,
-            home: const MatchTheFollowingScreen(topicId: 'accounting'),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Match Pair 1: ui_l1 -> ui_r1
-      await tester.tap(find.byKey(const Key('match-left-ui_l1')));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byKey(const Key('match-right-ui_r1')));
-      await tester.pump(const Duration(milliseconds: 50));
-
-      // Match Pair 2: ui_l2 -> ui_r2
-      await tester.tap(find.byKey(const Key('match-left-ui_l2')));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byKey(const Key('match-right-ui_r2')));
-      await tester.pump(const Duration(milliseconds: 50));
-
-      // Match Pair 3: ui_l3 -> ui_r3
-      await tester.tap(find.byKey(const Key('match-left-ui_l3')));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byKey(const Key('match-right-ui_r3')));
-      await tester.pump(const Duration(milliseconds: 50));
-
-      // Match Pair 4: ui_l4 -> ui_r4
-      await tester.tap(find.byKey(const Key('match-left-ui_l4')));
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.byKey(const Key('match-right-ui_r4')));
-      await tester.pump(const Duration(milliseconds: 50));
-
-      expect(find.textContaining(' matched'), findsNothing); // no running counter
-
-      // The button is active. This is the only board, so it says Submit; it
-      // sends the board at once and shows no per-board right / wrong step.
-      await tester.ensureVisible(find.text('Submit'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('match_analysis_summary')), findsNothing);
-      await tester.tap(find.text('Submit'));
-
-      // Wait for board completion and API response
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.pumpAndSettle();
-
-      // Results screen appears with authoritative values
-      expect(find.text('Match the Following — Results'), findsOneWidget);
-      expect(find.text('Official Score'), findsOneWidget);
-      expect(find.text('35'), findsAtLeast(1));
-      expect(find.text('+45 XP'), findsOneWidget);
-      expect(find.text('+20 Coins'), findsOneWidget);
-      expect(find.text('Score Breakdown'), findsOneWidget);
-      expect(find.text('Base Points'), findsOneWidget);
-      expect(find.text('Done'), findsOneWidget);
-
-      // Back navigation on results screen does NOT show abandon dialog
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.text('Quit Match It?'), findsNothing);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      container.dispose();
-    });
+        await tester.pumpWidget(const SizedBox.shrink());
+        container.dispose();
+      },
+    );
   });
 }

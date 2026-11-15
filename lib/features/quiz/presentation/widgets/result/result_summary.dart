@@ -72,6 +72,9 @@ class ResultSummary extends StatelessWidget {
   final List<ResultTileData> tiles;
   final int coins;
 
+  /// Gems earned, shown next to the coins when above zero.
+  final int gems;
+
   /// "New personal best!" or nothing.
   final Widget? bestBadge;
 
@@ -86,6 +89,7 @@ class ResultSummary extends StatelessWidget {
     required this.points,
     required this.tiles,
     required this.coins,
+    this.gems = 0,
     this.maxPoints,
     this.playerName,
     this.eyebrow = 'ROUND COMPLETE',
@@ -198,7 +202,15 @@ class ResultSummary extends StatelessWidget {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        _CoinsChip(coins: coins),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            _CoinsChip(coins: coins),
+            if (gems > 0) _GemsChip(gems: gems),
+          ],
+        ),
       ],
     );
   }
@@ -409,6 +421,47 @@ class _CoinsChip extends StatelessWidget {
               value: coins,
               prefix: '+',
               suffix: ' Coins',
+              duration: const Duration(milliseconds: 800),
+              style: context.appTextStyles.labelLarge.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GemsChip extends StatelessWidget {
+  final int gems;
+
+  const _GemsChip({required this.gems});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = context.themeColors.secondary;
+    return DecoratedBox(
+      key: const Key('result_gems'),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.diamond_rounded, color: color, size: 22),
+            const SizedBox(width: AppSpacing.xs),
+            AnimatedCountText(
+              value: gems,
+              prefix: '+',
+              suffix: ' Gems',
               duration: const Duration(milliseconds: 800),
               style: context.appTextStyles.labelLarge.copyWith(
                 fontWeight: FontWeight.w900,

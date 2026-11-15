@@ -215,6 +215,7 @@ class _SortItOutScreenState extends ConsumerState<SortItOutScreen>
               if (session.result != null) {
                 return SortItOutResultView(
                   result: session.result!,
+                  cards: session.cards,
                   onDone: () => Navigator.of(context).pop(),
                   onPlayAgain: () =>
                       ref.invalidate(sortItOutControllerProvider(_request)),

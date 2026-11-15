@@ -757,13 +757,12 @@ void main() {
     await _sortCurrentCardTo(tester, 'credit');
     await tester.pumpAndSettle();
 
-    expect(find.text('Sort It Out — Results'), findsOneWidget);
-    expect(find.text('+143 XP'), findsOneWidget);
+    expect(find.byKey(const Key('result_headline')), findsOneWidget);
+    expect(find.text('+143'), findsOneWidget);
     expect(find.text('+10 Coins'), findsOneWidget);
-    expect(find.text('5 of 5 correct'), findsOneWidget);
-    expect(find.text('Answer review'), findsOneWidget);
-    await tester.ensureVisible(find.text('Play again'));
-    await tester.tap(find.text('Play again'));
+    expect(find.text('5 OF 5 SORTED RIGHT'), findsOneWidget);
+    expect(find.text('Review your cards'), findsOneWidget);
+    await _tapPlayAgainOnResult(tester);
     await _pumpFramesUntil(tester, find.text('1 / 5'));
     await _tapStartSortingIfShown(tester);
     await tester.pump();
@@ -785,12 +784,10 @@ void main() {
     await _sortCurrentCardTo(tester, 'credit');
     await _sortCurrentCardTo(tester, 'debit');
     await _sortCurrentCardTo(tester, 'debit');
-    expect(find.text('Sort It Out — Results'), findsOneWidget);
-    expect(find.text('0 of 5 correct'), findsOneWidget);
-    expect(find.text('Official Score'), findsOneWidget);
-    expect(find.text('+10 XP'), findsOneWidget);
-    await tester.ensureVisible(find.text('Play again'));
-    await tester.tap(find.text('Play again'));
+    expect(find.byKey(const Key('result_headline')), findsOneWidget);
+    expect(find.text('0 OF 5 SORTED RIGHT'), findsOneWidget);
+    expect(find.text('+10'), findsOneWidget);
+    await _tapPlayAgainOnResult(tester);
     await _pumpFramesUntil(tester, find.text('1 / 5'));
     await _tapStartSortingIfShown(tester);
     await tester.pump();
@@ -798,16 +795,18 @@ void main() {
     // so just let the clock run until the results appear.
     for (
       var i = 0;
-      i < 400 && find.text('Sort It Out — Results').evaluate().isEmpty;
+      i < 400 && find.byKey(const Key('result_headline')).evaluate().isEmpty;
       i++
     ) {
       await tester.pump(const Duration(milliseconds: 250));
     }
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('Sort It Out — Results'), findsOneWidget);
-    expect(find.text('0 of 5 correct'), findsOneWidget);
+    expect(find.byKey(const Key('result_headline')), findsOneWidget);
+    expect(find.text('0 OF 5 SORTED RIGHT'), findsOneWidget);
     // Unanswered cards are reviewed as timed out.
-    expect(find.textContaining("Time's Up"), findsWidgets);
+    await tester.tap(find.byKey(const Key('answer_strip_tap')));
+    await tester.pumpAndSettle();
+    expect(find.text("Time's up"), findsWidgets);
   });
 
   testWidgets(
@@ -883,6 +882,21 @@ Future<void> _tapStartSortingIfShown(WidgetTester tester) async {
 
 /// Advances time one frame at a time until [finder] shows up (at most about a
 /// second), so a game that starts by itself is looked at right at its start.
+/// On a result, goes past the progress screen (when there is one) and taps
+/// "Play again".
+Future<void> _tapPlayAgainOnResult(WidgetTester tester) async {
+  final next = find.byKey(const Key('result_primary'));
+  if (find
+      .descendant(of: next, matching: find.text('Continue'))
+      .evaluate()
+      .isNotEmpty) {
+    await tester.tap(next);
+    await tester.pumpAndSettle();
+  }
+  await tester.ensureVisible(find.text('Play again'));
+  await tester.tap(find.text('Play again'));
+}
+
 Future<void> _pumpFramesUntil(WidgetTester tester, Finder finder) async {
   for (var i = 0; i < 80 && finder.evaluate().isEmpty; i++) {
     await tester.pump(const Duration(milliseconds: 16));

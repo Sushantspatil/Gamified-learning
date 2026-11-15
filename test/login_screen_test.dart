@@ -12,10 +12,9 @@ import 'package:skillverse_app/features/authentication/presentation/providers/au
 import 'package:skillverse_app/features/authentication/presentation/screens/login_screen.dart';
 import 'package:skillverse_app/features/authentication/presentation/widgets/skillverse_login_hero.dart';
 
-Widget _createTestLoginApp({
-  GoRouter? customRouter,
-}) {
-  final router = customRouter ??
+Widget _createTestLoginApp({GoRouter? customRouter}) {
+  final router =
+      customRouter ??
       GoRouter(
         initialLocation: '/login',
         routes: [
@@ -36,10 +35,7 @@ Widget _createTestLoginApp({
         ],
       );
 
-  return MaterialApp.router(
-    routerConfig: router,
-    theme: AppTheme.darkTheme,
-  );
+  return MaterialApp.router(routerConfig: router, theme: AppTheme.darkTheme);
 }
 
 void main() {
@@ -52,175 +48,181 @@ void main() {
     storageService = await LocalStorageService.create();
   });
 
-  testWidgets('LoginScreen renders core UI elements correctly with character-only hero', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWithValue(storageService),
-          authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
-        ],
-        child: _createTestLoginApp(),
-      ),
-    );
+  testWidgets(
+    'LoginScreen renders core UI elements correctly with character-only hero',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWithValue(storageService),
+            authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
+          ],
+          child: _createTestLoginApp(),
+        ),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    expect(find.text('Welcome back'), findsOneWidget);
-    expect(find.text('Log in to continue your learning adventure.'), findsOneWidget);
-    expect(find.text('Email'), findsOneWidget);
-    expect(find.text('Password'), findsOneWidget);
-    expect(find.text('Log In'), findsOneWidget);
-    expect(find.text("Don't have an account? Sign up"), findsOneWidget);
+      expect(find.text('Welcome back'), findsOneWidget);
+      expect(
+        find.text('Log in to continue your learning adventure.'),
+        findsOneWidget,
+      );
+      expect(find.text('Email'), findsOneWidget);
+      expect(find.text('Password'), findsOneWidget);
+      expect(find.text('Log In'), findsOneWidget);
+      expect(find.text("Don't have an account? Sign up"), findsOneWidget);
 
-    // Verify character-only hero is used and full Splash artwork is NOT used in Login
-    expect(find.byType(SkillverseLoginHero), findsOneWidget);
-    expect(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName ==
-                'assets/images/auth/character_open.png',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName ==
-                'assets/images/splash/skillverse_splash.png',
-      ),
-      findsNothing,
-    );
-  });
+      // Verify character-only hero is used and full Splash artwork is NOT used in Login
+      expect(find.byType(SkillverseLoginHero), findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Image &&
+              w.image is AssetImage &&
+              (w.image as AssetImage).assetName ==
+                  'assets/images/auth/character_open.png',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Image &&
+              w.image is AssetImage &&
+              (w.image as AssetImage).assetName ==
+                  'assets/images/splash/skillverse_splash.png',
+        ),
+        findsNothing,
+      );
+    },
+  );
 
-  testWidgets('Character closes eyes when Password gains focus and reopens when unfocused', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWithValue(storageService),
-          authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
-        ],
-        child: _createTestLoginApp(),
-      ),
-    );
+  testWidgets(
+    'Character closes eyes when Password gains focus and reopens when unfocused',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWithValue(storageService),
+            authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
+          ],
+          child: _createTestLoginApp(),
+        ),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    final textFields = find.byType(TextFormField);
-    expect(textFields, findsNWidgets(2));
+      final textFields = find.byType(TextFormField);
+      expect(textFields, findsNWidgets(2));
 
-    // Initially open
-    expect(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName ==
-                'assets/images/auth/character_open.png',
-      ),
-      findsOneWidget,
-    );
+      // Initially open
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Image &&
+              w.image is AssetImage &&
+              (w.image as AssetImage).assetName ==
+                  'assets/images/auth/character_open.png',
+        ),
+        findsOneWidget,
+      );
 
-    // Tap Email field: character remains open
-    await tester.tap(textFields.first);
-    await tester.pumpAndSettle();
-    expect(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName ==
-                'assets/images/auth/character_open.png',
-      ),
-      findsOneWidget,
-    );
+      // Tap Email field: character remains open
+      await tester.tap(textFields.first);
+      await tester.pumpAndSettle();
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Image &&
+              w.image is AssetImage &&
+              (w.image as AssetImage).assetName ==
+                  'assets/images/auth/character_open.png',
+        ),
+        findsOneWidget,
+      );
 
-    // Tap Password field: character switches to eyes-closed state
-    await tester.tap(textFields.last);
-    await tester.pumpAndSettle();
-    expect(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName ==
-                'assets/images/auth/character_closed.png',
-      ),
-      findsOneWidget,
-    );
+      // Tap Password field: character switches to eyes-closed state
+      await tester.tap(textFields.last);
+      await tester.pumpAndSettle();
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Image &&
+              w.image is AssetImage &&
+              (w.image as AssetImage).assetName ==
+                  'assets/images/auth/character_closed.png',
+        ),
+        findsOneWidget,
+      );
 
-    // Tap Email field again: character reopens eyes
-    await tester.tap(textFields.first);
-    await tester.pumpAndSettle();
-    expect(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName ==
-                'assets/images/auth/character_open.png',
-      ),
-      findsOneWidget,
-    );
-  });
+      // Tap Email field again: character reopens eyes
+      await tester.tap(textFields.first);
+      await tester.pumpAndSettle();
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Image &&
+              w.image is AssetImage &&
+              (w.image as AssetImage).assetName ==
+                  'assets/images/auth/character_open.png',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
-  testWidgets('Password visibility toggle works without reopening character eyes while focused', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWithValue(storageService),
-          authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
-        ],
-        child: _createTestLoginApp(),
-      ),
-    );
+  testWidgets(
+    'Password visibility toggle works without reopening character eyes while focused',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWithValue(storageService),
+            authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
+          ],
+          child: _createTestLoginApp(),
+        ),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    final textFields = find.byType(TextFormField);
-    // Tap Password field to focus it
-    await tester.tap(textFields.last);
-    await tester.pumpAndSettle();
+      final textFields = find.byType(TextFormField);
+      // Tap Password field to focus it
+      await tester.tap(textFields.last);
+      await tester.pumpAndSettle();
 
-    expect(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName ==
-                'assets/images/auth/character_closed.png',
-      ),
-      findsOneWidget,
-    );
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Image &&
+              w.image is AssetImage &&
+              (w.image as AssetImage).assetName ==
+                  'assets/images/auth/character_closed.png',
+        ),
+        findsOneWidget,
+      );
 
-    // Tap Show Password button
-    final eyeButton = find.byTooltip('Show password');
-    expect(eyeButton, findsOneWidget);
-    await tester.tap(eyeButton);
-    await tester.pumpAndSettle();
+      // Tap Show Password button
+      final eyeButton = find.byTooltip('Show password');
+      expect(eyeButton, findsOneWidget);
+      await tester.tap(eyeButton);
+      await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Hide password'), findsOneWidget);
-    // Eyes still closed because password field retains focus
-    expect(
-      find.byWidgetPredicate(
-        (w) =>
-            w is Image &&
-            w.image is AssetImage &&
-            (w.image as AssetImage).assetName ==
-                'assets/images/auth/character_closed.png',
-      ),
-      findsOneWidget,
-    );
-  });
+      expect(find.byTooltip('Hide password'), findsOneWidget);
+      // Eyes still closed because password field retains focus
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Image &&
+              w.image is AssetImage &&
+              (w.image as AssetImage).assetName ==
+                  'assets/images/auth/character_closed.png',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('Email and password input fields accept text', (tester) async {
     await tester.pumpWidget(
@@ -247,7 +249,9 @@ void main() {
     expect(find.text('secret123'), findsOneWidget);
   });
 
-  testWidgets('Validation shows errors for empty or invalid inputs', (tester) async {
+  testWidgets('Validation shows errors for empty or invalid inputs', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -268,34 +272,35 @@ void main() {
     expect(find.text('Password must be at least 6 characters'), findsOneWidget);
   });
 
-  testWidgets('Login invokes existing auth controller and shows error on failure', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWithValue(storageService),
-          authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
-        ],
-        child: _createTestLoginApp(),
-      ),
-    );
+  testWidgets(
+    'Login invokes existing auth controller and shows error on failure',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWithValue(storageService),
+            authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
+          ],
+          child: _createTestLoginApp(),
+        ),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    final textFields = find.byType(TextFormField);
-    await tester.enterText(textFields.first, 'wrong@example.com');
-    await tester.enterText(textFields.last, 'wrongpass123');
+      final textFields = find.byType(TextFormField);
+      await tester.enterText(textFields.first, 'wrong@example.com');
+      await tester.enterText(textFields.last, 'wrongpass123');
 
-    await tester.tap(find.text('Log In'));
-    await tester.pump();
+      await tester.tap(find.text('Log In'));
+      await tester.pump();
 
-    // Wait for the mock delay
-    await tester.pump(const Duration(milliseconds: 700));
-    await tester.pumpAndSettle();
+      // Wait for the mock delay
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
 
-    expect(find.text('No account found for this email.'), findsOneWidget);
-  });
+      expect(find.text('No account found for this email.'), findsOneWidget);
+    },
+  );
 
   testWidgets('Sign Up link navigates to signup route', (tester) async {
     await tester.pumpWidget(
@@ -339,33 +344,34 @@ void main() {
     expect(find.text('Welcome back'), findsOneWidget);
   });
 
-  testWidgets('Small screen and keyboard viewInsets do not cause RenderFlex overflow', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(360, 640);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'Small screen and keyboard viewInsets do not cause RenderFlex overflow',
+    (tester) async {
+      tester.view.physicalSize = const Size(360, 640);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          localStorageServiceProvider.overrideWithValue(storageService),
-          authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
-        ],
-        child: _createTestLoginApp(),
-      ),
-    );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            localStorageServiceProvider.overrideWithValue(storageService),
+            authDatasourceProvider.overrideWithValue(AuthMockDatasource()),
+          ],
+          child: _createTestLoginApp(),
+        ),
+      );
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    // Simulate keyboard opening (bottom inset = 280)
-    tester.view.viewInsets = const FakeViewPadding(bottom: 280);
-    addTearDown(tester.view.resetViewInsets);
+      // Simulate keyboard opening (bottom inset = 280)
+      tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+      addTearDown(tester.view.resetViewInsets);
 
-    await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-    expect(tester.takeException(), isNull);
-    expect(find.text('Log In'), findsOneWidget);
-  });
+      expect(tester.takeException(), isNull);
+      expect(find.text('Log In'), findsOneWidget);
+    },
+  );
 }

@@ -9,7 +9,14 @@ import '../../../domain/result_answers.dart';
 /// Slides up from the bottom to show every question with the player's answer in
 /// red when it was wrong and the right answer in green. It opens on the wrong
 /// ones (the ones worth learning from) and can show all.
-Future<void> showAnswerReview(BuildContext context, List<ReviewItem> items) {
+Future<void> showAnswerReview(
+  BuildContext context,
+  List<ReviewItem> items, {
+  String title = 'Your answers',
+  String wrongLabel = 'Wrong',
+  String Function(int wrong, int right)? summary,
+  String? perfectText,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -19,8 +26,14 @@ Future<void> showAnswerReview(BuildContext context, List<ReviewItem> items) {
       initialChildSize: 0.85,
       minChildSize: 0.5,
       maxChildSize: 0.95,
-      builder: (context, controller) =>
-          AnswerReview(items: items, controller: controller),
+      builder: (context, controller) => AnswerReview(
+        items: items,
+        controller: controller,
+        title: title,
+        wrongLabel: wrongLabel,
+        summary: summary,
+        perfectText: perfectText,
+      ),
     ),
   );
 }
@@ -29,10 +42,26 @@ class AnswerReview extends StatefulWidget {
   final List<ReviewItem> items;
   final ScrollController controller;
 
+  /// "Your answers", "Your boards"...
+  final String title;
+
+  /// The filter for the ones that did not go well: "Wrong", "Needs work"...
+  final String wrongLabel;
+
+  /// The line under the title, from the number wrong and the number right.
+  final String Function(int wrong, int right)? summary;
+
+  /// The line when nothing was wrong.
+  final String? perfectText;
+
   const AnswerReview({
     super.key,
     required this.items,
     required this.controller,
+    this.title = 'Your answers',
+    this.wrongLabel = 'Wrong',
+    this.summary,
+    this.perfectText,
   });
 
   @override
@@ -62,14 +91,15 @@ class _AnswerReviewState extends State<AnswerReview> {
       ),
       children: [
         Text(
-          'Your answers',
+          widget.title,
           style: styles.titleLarge.copyWith(fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           wrong == 0
-              ? 'Every answer was right. Perfect!'
-              : '$wrong wrong, ${widget.items.length - wrong} right',
+              ? (widget.perfectText ?? 'Every answer was right. Perfect!')
+              : (widget.summary?.call(wrong, widget.items.length - wrong) ??
+                    '$wrong wrong, ${widget.items.length - wrong} right'),
           style: styles.bodyMedium.copyWith(color: colors.textSecondary),
         ),
         if (wrong > 0) ...[
@@ -79,7 +109,7 @@ class _AnswerReviewState extends State<AnswerReview> {
             children: [
               ChoiceChip(
                 key: const Key('review_filter_wrong'),
-                label: Text('Wrong ($wrong)'),
+                label: Text('${widget.wrongLabel} ($wrong)'),
                 selected: _onlyWrong,
                 onSelected: (_) => setState(() => _onlyWrong = true),
               ),
@@ -155,19 +185,34 @@ class _ReviewCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
-              if (!item.isCorrect)
+              if (item.detail != null)
+                _DetailLine(text: item.detail!, right: item.isCorrect),
+              if (!item.isCorrect && item.correctAnswer.isNotEmpty)
                 _AnswerLine(
                   key: const Key('review_your_answer'),
                   right: false,
                   label: 'Your answer',
                   text: item.yourAnswer ?? 'No answer',
                 ),
-              _AnswerLine(
-                key: const Key('review_correct_answer'),
-                right: true,
-                label: item.isCorrect ? 'Your answer' : 'Correct answer',
-                text: item.correctAnswer,
-              ),
+              if (item.correctAnswer.isNotEmpty)
+                _AnswerLine(
+                  key: const Key('review_correct_answer'),
+                  right: true,
+                  label: item.isCorrect ? 'Your answer' : 'Correct answer',
+                  text: item.correctAnswer,
+                ),
+              if (item.explanation != null && item.explanation!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(
+                    item.explanation!,
+                    key: const Key('review_explanation'),
+                    style: styles.bodySmall.copyWith(
+                      color: colors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -230,6 +275,51 @@ class _AnswerLine extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A single line of how it went, for items without one right answer.
+class _DetailLine extends StatelessWidget {
+  final String text;
+  final bool right;
+
+  const _DetailLine({required this.text, required this.right});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.themeColors;
+    final color = right ? colors.success : colors.error;
+    return Container(
+      key: const Key('review_detail'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: AppSpacing.xs),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            right ? Icons.check_circle_rounded : Icons.cancel_rounded,
+            color: color,
+            size: 22,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: context.appTextStyles.bodyMedium.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

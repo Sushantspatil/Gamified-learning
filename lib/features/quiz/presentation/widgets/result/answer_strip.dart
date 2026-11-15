@@ -13,7 +13,15 @@ class AnswerStrip extends StatelessWidget {
   final List<bool> flags;
   final VoidCallback? onTap;
 
-  const AnswerStrip({super.key, required this.flags, this.onTap});
+  /// The invitation to open the review: "Review your answers", "Review your boards"...
+  final String reviewLabel;
+
+  const AnswerStrip({
+    super.key,
+    required this.flags,
+    this.onTap,
+    this.reviewLabel = 'Review your answers',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +52,7 @@ class AnswerStrip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Review your answers',
+                reviewLabel,
                 style: styles.labelLarge.copyWith(
                   color: colors.primary,
                   fontWeight: FontWeight.w800,
