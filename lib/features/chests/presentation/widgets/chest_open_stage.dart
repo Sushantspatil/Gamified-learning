@@ -125,9 +125,11 @@ class _ChestOpenStageState extends ConsumerState<ChestOpenStage>
             SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  // As large as the screen allows, but never taller than ~300.
+                  // As large as the screen allows, but not taller than 260: the
+                  // artwork is only ~250 pixels, so drawing it larger than that
+                  // on a phone only makes it soft.
                   final height = math.min(
-                    300.0,
+                    260.0,
                     math.min(
                       constraints.maxHeight * 0.36,
                       constraints.maxWidth * 0.78 / style.aspectRatio,

@@ -243,7 +243,7 @@ class ChestArt extends StatelessWidget {
       style.frameAsset(ChestFrame.closed),
       height: height,
       fit: BoxFit.contain,
-      filterQuality: FilterQuality.medium,
+      filterQuality: FilterQuality.high,
       excludeFromSemantics: true,
       errorBuilder: (_, _, _) => SizedBox(height: height),
     );
