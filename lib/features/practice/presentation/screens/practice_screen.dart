@@ -254,6 +254,9 @@ class _PlaySetupScreenState extends ConsumerState<PlaySetupScreen> {
   }
 
   String _resolveUserFriendlyError(Object error, QuestionType mode) {
+    if (error is AppException && error.code == '402') {
+      return 'This topic is part of a topic pack. Unlock it in Shop › Gems & Pass.';
+    }
     if (error is AuthException) {
       return 'Your session has expired. Please log in again.';
     }

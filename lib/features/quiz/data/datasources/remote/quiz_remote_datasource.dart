@@ -371,6 +371,32 @@ class QuizRemoteDatasource implements QuizDatasource {
     );
   }
 
+  /// Uses 50:50 on a question of the active game. The server charges it (a
+  /// free token first if the player has one, otherwise coins) and returns
+  /// the two options to hide; a retry is never charged twice. Throws an
+  /// [AppException] on failure (code '402' when the player cannot pay).
+  Future<List<String>> useFiftyFifty(
+    String questionId, {
+    String? payWith,
+  }) async {
+    final session = _backendSessionId;
+    if (session == null) {
+      throw const ServerException('There is no game in progress');
+    }
+    final data = await _apiClient.post(
+      ApiEndpoints.quizFiftyFifty,
+      body: FiftyFiftyRequestDto(
+        session: session,
+        question: questionId,
+        payWith: payWith,
+      ).toJson(),
+    );
+    if (data is! Map<String, dynamic>) {
+      throw const ServerException('Unexpected response from the server');
+    }
+    return FiftyFiftyResponseDto.fromJson(data).hiddenOptions;
+  }
+
   /// Request the two incorrect options to hide for 50:50 power-up.
   Future<List<String>?> applyFiftyFifty(String questionId) async {
     if (_backendSessionId == null) return null;

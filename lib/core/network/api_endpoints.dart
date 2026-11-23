@@ -50,6 +50,23 @@ class ApiEndpoints {
   static const String walletDebit = '/wallet/debit';
   static const String walletTransactions = '/wallet/transactions';
 
+  // Google Play Billing (verified on the server; the app never grants anything)
+  static const String billingProducts = '/billing/products';
+  static const String billingAccountId = '/billing/account-id';
+  static const String billingVerify = '/billing/verify';
+  static const String billingEntitlements = '/billing/entitlements';
+  static const String passMonthlyGems = '/pass/monthly-gems';
+
+  // Rewarded ads (paid only after Google's signed server-side callback)
+  static const String adsConfig = '/ads/config';
+  static const String adsRewards = '/ads/rewards';
+  static String adsReward(String id) => '/ads/rewards/$id';
+  static String adsRewardDevComplete(String id) =>
+      '/ads/rewards/$id/dev-complete';
+
+  // Power-ups charged on the server (prices and token balances)
+  static const String powerUps = '/power-ups';
+
   // Spin wheel
   static const String spinWheelSegments = '/spin-wheel/segments';
   static const String spinWheelStatus = '/spin-wheel/status';

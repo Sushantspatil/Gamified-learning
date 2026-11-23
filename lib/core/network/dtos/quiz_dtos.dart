@@ -183,18 +183,44 @@ class FiftyFiftyRequestDto {
   final String session;
   final String question;
 
-  const FiftyFiftyRequestDto({required this.session, required this.question});
+  /// 'coins', 'token', or null: a token if the player has one, else coins.
+  /// The server sets the price and charges it; the app never debits.
+  final String? payWith;
 
-  Map<String, dynamic> toJson() => {'session': session, 'question': question};
+  const FiftyFiftyRequestDto({
+    required this.session,
+    required this.question,
+    this.payWith,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'session': session,
+    'question': question,
+    if (payWith != null) 'pay_with': payWith,
+  };
 }
 
 class FiftyFiftyResponseDto {
   final String question;
   final List<String> hiddenOptions;
 
+  /// How the server charged it ('coins' or 'token') and what it cost.
+  final String paidWith;
+  final int cost;
+
+  /// True when this question's 50:50 was already paid (a retry).
+  final bool alreadyApplied;
+  final int? coinsBalance;
+  final int? tokensLeft;
+
   const FiftyFiftyResponseDto({
     required this.question,
     required this.hiddenOptions,
+    this.paidWith = '',
+    this.cost = 0,
+    this.alreadyApplied = false,
+    this.coinsBalance,
+    this.tokensLeft,
   });
 
   factory FiftyFiftyResponseDto.fromJson(Map<String, dynamic> json) {
@@ -204,6 +230,11 @@ class FiftyFiftyResponseDto {
       hiddenOptions: list is List
           ? list.map((e) => e.toString()).toList()
           : const [],
+      paidWith: json['paid_with'] as String? ?? '',
+      cost: (json['cost'] as num?)?.toInt() ?? 0,
+      alreadyApplied: json['already_applied'] as bool? ?? false,
+      coinsBalance: (json['coins_balance'] as num?)?.toInt(),
+      tokensLeft: (json['tokens_left'] as num?)?.toInt(),
     );
   }
 }

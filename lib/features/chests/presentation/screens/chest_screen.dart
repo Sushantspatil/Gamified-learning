@@ -10,6 +10,7 @@ import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
+import '../../../monetization/presentation/widgets/ad_reward_widgets.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../../../rewards/domain/rewards_models.dart';
 import '../../../rewards/presentation/widgets/coin_balance_chip.dart';
@@ -126,6 +127,10 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 _TrackCard(state: state),
+                const SizedBox(height: AppSpacing.md),
+                // A bonus chest for an opt-in rewarded ad (paid by the server
+                // after Google confirms the ad); hidden when ads are off.
+                const AdChestCard(),
                 const SizedBox(height: AppSpacing.md),
                 Text(
                   'Your chests',

@@ -12,6 +12,7 @@ import '../../../authentication/presentation/providers/auth_providers.dart';
 import '../../../profile/presentation/providers/profile_providers.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../wallet/presentation/providers/wallet_providers.dart';
+import '../../../monetization/presentation/providers/monetization_providers.dart';
 import '../../../daily_missions/presentation/providers/daily_mission_providers.dart';
 import '../../data/datasources/remote/sudden_death_remote_datasource.dart';
 import '../../data/datasources/remote/sudden_death_socket_client.dart';
@@ -447,6 +448,7 @@ class SuddenDeathController
         }
         if (serverAcceptedPaidPowerUp) {
           ref.invalidate(walletControllerProvider);
+          ref.invalidate(powerUpsStatusProvider);
         }
       case WsPowerUpResultEvent(:final payload):
         final current = state.valueOrNull;
@@ -468,6 +470,7 @@ class SuddenDeathController
             '+5 confirmed: remaining_time_ms=${payload.remainingTimeMs}',
           );
           ref.invalidate(walletControllerProvider);
+          ref.invalidate(powerUpsStatusProvider);
         }
       case WsAnswerResultEvent(:final payload):
         _debugLog('incoming frame type: answer_result');
@@ -504,6 +507,7 @@ class SuddenDeathController
         if (payload.isSkipped) {
           _debugLog('skip confirmed: ${payload.question}');
           ref.invalidate(walletControllerProvider);
+          ref.invalidate(powerUpsStatusProvider);
         }
       case WsGameOverEvent(:final payload):
         _debugLog('incoming frame type: game_over');
@@ -533,6 +537,7 @@ class SuddenDeathController
           );
           ref.invalidate(profileControllerProvider);
           ref.invalidate(walletControllerProvider);
+          ref.invalidate(powerUpsStatusProvider);
           ref.invalidate(dailyMissionsControllerProvider);
           _answerRequestTimer?.cancel();
           _answerRequestTimer = null;

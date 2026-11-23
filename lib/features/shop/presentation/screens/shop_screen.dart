@@ -10,6 +10,7 @@ import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
 import '../../../character3d/presentation/character_glow.dart';
+import '../../../monetization/presentation/widgets/store_section.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../../../rewards/data/rewards_catalog.dart';
 import '../../../rewards/domain/rewards_models.dart';
@@ -18,7 +19,9 @@ import '../../../rewards/presentation/widgets/coin_balance_chip.dart';
 enum _ShopTab {
   avatars('Avatars', Icons.face_retouching_natural_rounded),
   frames('Profile Frames', Icons.account_circle_outlined),
-  powerUps('Power-ups', Icons.bolt_rounded);
+  powerUps('Power-ups', Icons.bolt_rounded),
+  // Real-money products (Google Play) and free rewards for opt-in ads.
+  store('Gems & Pass', Icons.diamond_rounded);
 
   final String label;
   final IconData icon;
@@ -49,6 +52,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     _ShopTab.avatars => RewardsCatalog.avatars,
     _ShopTab.frames => RewardsCatalog.frames,
     _ShopTab.powerUps => RewardsCatalog.powerUps,
+    _ShopTab.store => const <ShopProduct>[],
   };
 
   @override
@@ -127,7 +131,7 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
     final state = ref.watch(rewardsProvider);
     final products = _products;
     final scale = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.4);
-    final showStage = _tab != _ShopTab.powerUps;
+    final showStage = _tab != _ShopTab.powerUps && _tab != _ShopTab.store;
 
     return Scaffold(
       appBar: AppBar(
@@ -198,38 +202,49 @@ class _ShopScreenState extends ConsumerState<ShopScreen> {
                     ),
                   ),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    0,
-                    AppSpacing.md,
-                    AppSpacing.xl,
-                  ),
-                  sliver: SliverGrid(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: AppSpacing.ms,
-                      crossAxisSpacing: AppSpacing.ms,
-                      mainAxisExtent: 212 * scale,
+                if (_tab == _ShopTab.store)
+                  const SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      0,
+                      AppSpacing.md,
+                      AppSpacing.xl,
                     ),
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      final product = products[index];
-                      return _ProductCard(
-                        key: ValueKey(product.id),
-                        product: product,
-                        state: state,
-                        selected:
-                            product.id == _previewAvatarId ||
-                            product.id == _previewFrameId,
-                        onSelect: () => _preview(product),
-                        onBuy: () => _buy(product),
-                        onEquip: () => ref
-                            .read(rewardsProvider.notifier)
-                            .equip(product.id),
-                      );
-                    }, childCount: products.length),
+                    sliver: SliverToBoxAdapter(child: StoreSection()),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      0,
+                      AppSpacing.md,
+                      AppSpacing.xl,
+                    ),
+                    sliver: SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: AppSpacing.ms,
+                        crossAxisSpacing: AppSpacing.ms,
+                        mainAxisExtent: 212 * scale,
+                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final product = products[index];
+                        return _ProductCard(
+                          key: ValueKey(product.id),
+                          product: product,
+                          state: state,
+                          selected:
+                              product.id == _previewAvatarId ||
+                              product.id == _previewFrameId,
+                          onSelect: () => _preview(product),
+                          onBuy: () => _buy(product),
+                          onEquip: () => ref
+                              .read(rewardsProvider.notifier)
+                              .equip(product.id),
+                        );
+                      }, childCount: products.length),
+                    ),
                   ),
-                ),
               ],
             ),
           ),

@@ -9,6 +9,7 @@ import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/audio/audio_providers.dart';
 import '../../../../core/audio/game_sound.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/game_header.dart';
@@ -16,6 +17,7 @@ import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
 import '../../../rewards/application/rewards_controller.dart';
 import '../../../rewards/domain/rewards_models.dart';
+import '../../../wallet/presentation/providers/wallet_providers.dart';
 import 'game_power_up_bar.dart';
 import '../../../character/application/character_controller.dart';
 import '../../../character/presentation/character_providers.dart';
@@ -35,6 +37,12 @@ class McqQuestionView extends ConsumerStatefulWidget {
   final VoidCallback onExit;
   final void Function(Answer answer) onSubmit;
 
+  /// Set for a live backend game: 50:50 is then paid on the server (a free
+  /// token first, else coins) and the server picks the options to hide. It
+  /// returns the option ids to hide and throws an [AppException] on failure.
+  /// Without it (offline/preview games) 50:50 works locally as before.
+  final Future<List<String>> Function(String questionId)? onServerFiftyFifty;
+
   const McqQuestionView({
     super.key,
     required this.question,
@@ -45,6 +53,7 @@ class McqQuestionView extends ConsumerStatefulWidget {
     required this.energy,
     required this.onExit,
     required this.onSubmit,
+    this.onServerFiftyFifty,
   });
 
   @override
@@ -151,6 +160,67 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
         _selectedOptionId = null;
       }
     });
+  }
+
+  bool _fiftyFiftyPending = false;
+
+  /// 50:50 charged on the server. Never hides the correct answer, even if a
+  /// response were wrong, and does nothing more if the player cannot pay.
+  Future<void> _useServerFiftyFifty() async {
+    final call = widget.onServerFiftyFifty;
+    if (call == null ||
+        _isSubmitted ||
+        _isFiftyFiftyUsed ||
+        _fiftyFiftyPending) {
+      return;
+    }
+    setState(() => _fiftyFiftyPending = true);
+    final question = widget.question;
+    try {
+      final hidden = {
+        for (final id in await call(question.id)) id.toLowerCase(),
+      };
+      if (!mounted || widget.question.id != question.id) return;
+      final toHide = {
+        for (final option in question.options)
+          if (hidden.contains(option.id.toLowerCase()) &&
+              option.id != question.correctOptionId)
+            option.id,
+      };
+      if (toHide.isEmpty) {
+        _showPowerUpMessage('Could not use 50:50. Please try again.');
+        return;
+      }
+      ref.read(gameAudioServiceProvider).play(GameSound.powerUp);
+      setState(() {
+        _isFiftyFiftyUsed = true;
+        _hiddenOptionIds = {..._hiddenOptionIds, ...toHide};
+        if (_selectedOptionId != null &&
+            _hiddenOptionIds.contains(_selectedOptionId)) {
+          _selectedOptionId = null;
+        }
+      });
+      ref.invalidate(walletControllerProvider); // the server took the coins
+    } on AppException catch (e) {
+      if (!mounted) return;
+      _showPowerUpMessage(
+        e.code == '402'
+            ? 'Not enough coins for 50:50. Free tokens are in Shop › Gems & Pass.'
+            : 'Could not use 50:50. Please try again.',
+      );
+    } catch (_) {
+      if (mounted) {
+        _showPowerUpMessage('Could not use 50:50. Please try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _fiftyFiftyPending = false);
+    }
+  }
+
+  void _showPowerUpMessage(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showHint() {
@@ -397,11 +467,19 @@ class _McqQuestionViewState extends ConsumerState<McqQuestionView>
                                 GamePowerUpAction(
                                   id: '50-50',
                                   label: '50:50',
-                                  description: 'Remove two wrong answers.',
+                                  description: widget.onServerFiftyFifty != null
+                                      ? 'Remove two wrong answers. Uses a free 50:50 token first if you have one.'
+                                      : 'Remove two wrong answers.',
                                   coinCost: 20,
                                   icon: Icons.filter_2,
                                   isUsed: _isFiftyFiftyUsed,
-                                  onUse: _useFiftyFifty,
+                                  isDisabled: _fiftyFiftyPending,
+                                  // Live games: the server charges (never the app).
+                                  isPurchaseServerManaged:
+                                      widget.onServerFiftyFifty != null,
+                                  onUse: widget.onServerFiftyFifty != null
+                                      ? _useServerFiftyFifty
+                                      : _useFiftyFifty,
                                 ),
                                 GamePowerUpAction(
                                   id: 'hint',

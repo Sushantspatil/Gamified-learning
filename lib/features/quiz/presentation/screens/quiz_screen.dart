@@ -14,6 +14,7 @@ import '../../../../shared/widgets/quit_game_dialog.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../questions/domain/entities/answer.dart';
 import '../../../questions/domain/entities/question.dart';
+import '../../data/datasources/remote/quiz_remote_datasource.dart';
 import '../providers/quiz_providers.dart';
 import '../providers/quiz_session_view_state.dart';
 import '../widgets/match_the_following_view.dart';
@@ -249,6 +250,7 @@ class QuizScreen extends ConsumerWidget {
                     energy: wallet?.gems ?? 0,
                     onExit: () => Navigator.of(context).maybePop(),
                     onSubmit: handleAnswer,
+                    onServerFiftyFifty: _serverFiftyFifty(ref),
                   ),
                 );
               }
@@ -391,4 +393,17 @@ class _QuizProgressHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+/// For a live backend game, 50:50 is charged by the server; offline and
+/// preview games keep the local behaviour.
+Future<List<String>> Function(String questionId)? _serverFiftyFifty(
+  WidgetRef ref,
+) {
+  final datasource = ref.read(quizDatasourceProvider);
+  if (datasource is! QuizRemoteDatasource ||
+      datasource.activeSessionId == null) {
+    return null;
+  }
+  return (questionId) => datasource.useFiftyFifty(questionId);
 }

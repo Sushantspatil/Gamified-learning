@@ -30,6 +30,13 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // AdMob app id (rewarded ads). Release builds pass the real one:
+        //   flutter build appbundle -PADMOB_APP_ID=ca-app-pub-XXXXXXXX~YYYYYYYY
+        // (or put ADMOB_APP_ID in ~/.gradle/gradle.properties). Without it the
+        // public Google test app id is used, which only ever serves test ads.
+        manifestPlaceholders["admobAppId"] =
+            (project.findProperty("ADMOB_APP_ID") as String?)
+                ?: "ca-app-pub-3940256099942544~3347511713"
     }
 
     buildTypes {
