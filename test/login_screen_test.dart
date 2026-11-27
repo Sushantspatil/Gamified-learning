@@ -7,7 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skillverse_app/app/theme/app_theme.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
-import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
+import 'mocks/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
 import 'package:skillverse_app/features/authentication/presentation/screens/login_screen.dart';
 import 'package:skillverse_app/features/authentication/presentation/widgets/skillverse_login_hero.dart';

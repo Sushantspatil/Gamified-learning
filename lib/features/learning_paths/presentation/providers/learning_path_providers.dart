@@ -1,48 +1,46 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/network/network_providers.dart';
 import '../../../../core/providers/core_providers.dart';
+import '../../../authentication/presentation/providers/auth_providers.dart';
+import '../../data/datasources/catalog_learning_path_datasource.dart';
 import '../../data/datasources/learning_path_datasource.dart';
-import '../../data/models/learning_path_model.dart';
+import '../../data/datasources/remote/subject_catalog_remote_datasource.dart';
 import '../../data/repositories/learning_path_repository_impl.dart';
 import '../../domain/entities/learning_path.dart';
+import '../../domain/entities/subject_catalog.dart';
 import '../../domain/repositories/learning_path_repository.dart';
 
-/// Backend-supported learning path binding.
-final learningPathDatasourceProvider = Provider<LearningPathDatasource>((ref) {
-  return const BackendLearningPathDatasource();
+/// Reads `GET /subjects` (tests override this).
+final subjectCatalogDatasourceProvider = Provider<SubjectCatalogDatasource>((
+  ref,
+) {
+  return SubjectCatalogRemoteDatasource(
+    apiClient: ref.watch(apiClientProvider),
+  );
 });
 
-class BackendLearningPathDatasource implements LearningPathDatasource {
-  const BackendLearningPathDatasource();
+/// The database's subjects, loaded once per signed-in player (a topic pack
+/// unlocks per player, so a new sign-in loads it again).
+final subjectCatalogRepositoryProvider = Provider<SubjectCatalogRepository>((
+  ref,
+) {
+  ref.watch(authControllerProvider.select((auth) => auth.valueOrNull?.id));
+  return SubjectCatalogRepository(ref.watch(subjectCatalogDatasourceProvider));
+});
 
-  @override
-  Future<List<LearningPathModel>> getLearningPaths() async {
-    return const [
-      LearningPathModel(
-        id: 'accounting',
-        title: 'Book-Keeping & Accountancy',
-        description: 'Questions are loaded from the deployed backend.',
-        difficulty: LearningPathDifficulty.beginner,
-        topicCount: 1,
-      ),
-      LearningPathModel(
-        id: 'maths',
-        title: 'Mathematics',
-        description: 'Questions are loaded from the deployed backend.',
-        difficulty: LearningPathDifficulty.beginner,
-        topicCount: 1,
-      ),
-      LearningPathModel(
-        id: 'mental-maths',
-        title: 'Mental Maths',
-        description:
-            'Quick sums: addition, subtraction, multiplication and division.',
-        difficulty: LearningPathDifficulty.beginner,
-        topicCount: 3,
-      ),
-    ];
-  }
-}
+final subjectCatalogProvider = FutureProvider<List<SubjectCatalog>>((ref) {
+  return ref.watch(subjectCatalogRepositoryProvider).load();
+});
+
+/// Learning paths are the subjects in the server's database.
+final learningPathDatasourceProvider = Provider<LearningPathDatasource>((ref) {
+  // Read at call time so this binding (and the saved selection that depends
+  // on it) is not rebuilt on every sign-in.
+  return CatalogLearningPathDatasource(
+    () => ref.read(subjectCatalogRepositoryProvider),
+  );
+});
 
 final learningPathRepositoryProvider = Provider<LearningPathRepository>((ref) {
   return LearningPathRepositoryImpl(
@@ -53,6 +51,7 @@ final learningPathRepositoryProvider = Provider<LearningPathRepository>((ref) {
 
 /// The catalog of selectable learning paths.
 final learningPathsProvider = FutureProvider<List<LearningPath>>((ref) {
+  ref.watch(subjectCatalogRepositoryProvider); // reload after a new sign-in
   return ref.watch(learningPathRepositoryProvider).getLearningPaths();
 });
 

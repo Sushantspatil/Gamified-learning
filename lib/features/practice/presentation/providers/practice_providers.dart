@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/backend_topic_mapper.dart';
+import '../../../learning_paths/domain/entities/subject_catalog.dart';
+import '../../../learning_paths/presentation/providers/learning_path_providers.dart';
 import '../../../questions/domain/entities/question.dart';
 
 /// Models whether a specific game mode is enabled for a given topic
@@ -70,8 +72,39 @@ final gameModeAvailabilityProvider =
         };
       }
 
-      // Backend subjects seeded for all 4 game modes (MCQ, Sudden Death, Sort It Out,
-      // Match the Following): Accounts and Mental Maths.
+      // Topics built from the server's catalog: a mode is open only when that
+      // chapter (or the whole subject) has questions for it in the database.
+      final catalogRef = parseCatalogTopicId(topicId);
+      if (catalogRef != null) {
+        final subjects = ref.watch(subjectCatalogProvider).valueOrNull;
+        SubjectCatalog? subject;
+        for (final s in subjects ?? const <SubjectCatalog>[]) {
+          if (s.code == catalogRef.subjectCode) subject = s;
+        }
+        final chapterNo = catalogRef.chapterNo;
+        final chapter = chapterNo == null ? null : subject?.chapter(chapterNo);
+        int countFor(QuestionType mode) {
+          if (subject == null) return 0;
+          return chapterNo == null
+              ? subject.countFor(mode.backendGameMode)
+              : chapter?.countFor(mode.backendGameMode) ?? 0;
+        }
+
+        return {
+          for (final mode in practicePlayableModes)
+            mode: GameModeAvailability(
+              mode: mode,
+              isEnabled: countFor(mode) > 0,
+              reason: subjects == null
+                  ? 'Loading subjects...'
+                  : countFor(mode) > 0
+                  ? null
+                  : 'No ${mode.label} questions for this chapter yet',
+            ),
+        };
+      }
+
+      // Older topic ids (Accounts and Mental Maths levels).
       final isSupported = isBackendPlayableTopic(topicId);
 
       return {

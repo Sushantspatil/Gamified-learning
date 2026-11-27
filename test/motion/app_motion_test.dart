@@ -10,7 +10,7 @@ import 'package:skillverse_app/features/splash/presentation/screens/splash_scree
 import 'package:skillverse_app/features/splash/presentation/widgets/splash_particles.dart';
 import 'package:skillverse_app/features/authentication/presentation/screens/login_screen.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
-import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
+import '../mocks/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/quiz/presentation/widgets/quiz_celebration_overlay.dart';
 
 void main() {

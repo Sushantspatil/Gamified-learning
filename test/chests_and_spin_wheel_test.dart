@@ -1,9 +1,9 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skillverse_app/features/chests/data/datasources/mock/chest_mock_datasource.dart';
+import 'mocks/chest_mock_datasource.dart';
 import 'package:skillverse_app/features/chests/domain/entities/chest_type.dart';
-import 'package:skillverse_app/features/spin_wheel/data/datasources/mock/spin_wheel_mock_datasource.dart';
+import 'mocks/spin_wheel_mock_datasource.dart';
 
 void main() {
   group('ChestMockDatasource', () {

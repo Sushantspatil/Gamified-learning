@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skillverse_app/features/questions/data/datasources/mock/question_mock_datasource.dart';
+import 'mocks/question_mock_datasource.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
 
 void main() {

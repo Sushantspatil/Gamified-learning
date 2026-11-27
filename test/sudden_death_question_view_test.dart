@@ -10,7 +10,7 @@ import 'package:skillverse_app/features/quiz/presentation/widgets/sudden_death_q
 
 const _question = SuddenDeathQuestion(
   id: 'sudden-1',
-  topicId: 'web-dev-chapter-1-topic-1',
+  topicId: 'accounting-chapter-1-topic-1',
   prompt: 'Which tag creates a paragraph?',
   points: 15,
   options: [
@@ -24,7 +24,7 @@ const _question = SuddenDeathQuestion(
 
 const _nextQuestion = SuddenDeathQuestion(
   id: 'sudden-2',
-  topicId: 'web-dev-chapter-1-topic-1',
+  topicId: 'accounting-chapter-1-topic-1',
   prompt: 'Which tag creates a link?',
   points: 15,
   options: [

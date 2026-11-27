@@ -1,7 +1,7 @@
 import '../models/user_profile_model.dart';
 
-/// Implemented today by [ProfileMockDatasource]. Swap for a Firestore-backed
-/// implementation (users collection) later. Coin/gem/XP balances read here
+/// Implemented by `ProfileRemoteDatasource` (the backend); tests use a mock
+/// from `test/mocks/`. Coin/gem/XP balances read here
 /// must eventually be treated as server-authoritative — see wallet/economy
 /// stage — this datasource is not where balances get mutated once a real
 /// backend exists.

@@ -1,7 +1,7 @@
 import '../../domain/entities/question.dart';
 
-/// Implemented today by [QuestionMockDatasource]. Swap for a Firestore-backed
-/// implementation (questions collection) later.
+/// Implemented by `QuestionRemoteDatasource` (the backend). Tests use a mock
+/// from `test/mocks/`.
 abstract class QuestionDatasource {
   Future<List<Question>> getQuestionsForTopic(String topicId);
 

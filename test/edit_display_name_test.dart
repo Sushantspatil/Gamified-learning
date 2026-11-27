@@ -6,9 +6,9 @@ import 'package:skillverse_app/app/theme/app_theme.dart';
 import 'package:skillverse_app/core/errors/app_exception.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
-import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
+import 'mocks/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
-import 'package:skillverse_app/features/profile/data/datasources/mock/profile_mock_datasource.dart';
+import 'mocks/profile_mock_datasource.dart';
 import 'package:skillverse_app/features/profile/presentation/providers/profile_providers.dart';
 import 'package:skillverse_app/features/profile/presentation/screens/edit_profile_screen.dart';
 

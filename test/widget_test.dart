@@ -12,32 +12,32 @@ import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/shared/widgets/app_button.dart';
 import 'package:skillverse_app/features/analytics/data/analytics_service.dart';
-import 'package:skillverse_app/features/leaderboard/data/datasources/mock/leaderboard_mock_datasource.dart';
+import 'mocks/leaderboard_mock_datasource.dart';
 import 'package:skillverse_app/features/leaderboard/presentation/providers/leaderboard_providers.dart';
-import 'package:skillverse_app/features/cosmetics/data/datasources/mock/cosmetics_mock_datasource.dart';
+import 'mocks/cosmetics_mock_datasource.dart';
 import 'package:skillverse_app/features/cosmetics/presentation/providers/cosmetics_providers.dart';
 import 'package:skillverse_app/features/analytics/presentation/analytics_providers.dart';
-import 'package:skillverse_app/features/daily_missions/data/datasources/mock/daily_mission_mock_datasource.dart';
+import 'mocks/daily_mission_mock_datasource.dart';
 import 'package:skillverse_app/features/daily_missions/presentation/providers/daily_mission_providers.dart';
 import 'package:skillverse_app/features/practice/presentation/providers/practice_providers.dart';
 import 'package:skillverse_app/features/streaks/data/datasources/remote/streak_rewards_remote_datasource.dart';
 import 'package:skillverse_app/features/streaks/domain/entities/streak_rewards.dart';
 import 'package:skillverse_app/features/streaks/presentation/providers/streak_rewards_providers.dart';
-import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
+import 'mocks/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
-import 'package:skillverse_app/features/questions/data/datasources/mock/question_mock_datasource.dart';
+import 'mocks/question_mock_datasource.dart';
 import 'package:skillverse_app/features/questions/presentation/providers/question_providers.dart';
-import 'package:skillverse_app/features/quiz/data/datasources/mock/quiz_mock_datasource.dart';
+import 'mocks/quiz_mock_datasource.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/quiz_providers.dart';
-import 'package:skillverse_app/features/chapters/data/datasources/mock/chapter_mock_datasource.dart';
+import 'mocks/chapter_mock_datasource.dart';
 import 'package:skillverse_app/features/chapters/presentation/providers/chapter_providers.dart';
-import 'package:skillverse_app/features/learning_paths/data/datasources/mock/learning_path_mock_datasource.dart';
+import 'mocks/learning_path_mock_datasource.dart';
 import 'package:skillverse_app/features/learning_paths/presentation/providers/learning_path_providers.dart';
-import 'package:skillverse_app/features/profile/data/datasources/mock/profile_mock_datasource.dart';
+import 'mocks/profile_mock_datasource.dart';
 import 'package:skillverse_app/features/profile/presentation/providers/profile_providers.dart';
-import 'package:skillverse_app/features/streaks/data/datasources/mock/streak_mock_datasource.dart';
+import 'mocks/streak_mock_datasource.dart';
 import 'package:skillverse_app/features/streaks/presentation/providers/streak_providers.dart';
-import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock_datasource.dart';
+import 'mocks/wallet_mock_datasource.dart';
 import 'package:skillverse_app/features/wallet/data/models/wallet_balance_model.dart';
 import 'package:skillverse_app/features/wallet/presentation/providers/wallet_providers.dart';
 
@@ -83,7 +83,7 @@ Future<void> _pumpAppWithInitialValues(
     ProviderScope(
       overrides: [
         localStorageServiceProvider.overrideWithValue(storageService),
-        // These flows play the mock "Web Development" topic. The real rule only
+        // These flows play the mock "Book-Keeping & Accountancy" topic. The real rule only
         // opens the subjects seeded on the server (Accounts, Mental Maths), so
         // here every game is open.
         gameModeAvailabilityProvider.overrideWith(
@@ -171,7 +171,7 @@ Future<void> _completeOnboarding(WidgetTester tester) async {
   await tester.pumpAndSettle();
 
   expect(find.text('Select Your Subjects'), findsOneWidget);
-  await tester.tap(find.text('Web Development'));
+  await tester.tap(find.text('Book-Keeping & Accountancy'));
   await tester.pumpAndSettle();
   await tester.tap(find.text('Next'));
   await tester.pumpAndSettle();
@@ -198,9 +198,9 @@ Future<void> _openPracticeMode(WidgetTester tester, String modeLabel) async {
   await tester.pumpAndSettle();
   // The setup form is taller than a phone screen: scroll each control into view.
   for (final (dropdown, option) in [
-    ('play-subject-dropdown', 'Web Development'),
-    ('play-chapter-dropdown', 'HTML Foundations'),
-    ('play-topic-dropdown', 'Tags & Elements'),
+    ('play-subject-dropdown', 'Book-Keeping & Accountancy'),
+    ('play-chapter-dropdown', 'Introduction to Book-keeping'),
+    ('play-topic-dropdown', 'Meaning & Definition'),
   ]) {
     final field = find.byKey(Key(dropdown));
     await tester.ensureVisible(field);
@@ -332,8 +332,8 @@ void main() {
     expect(find.text('CONTINUE LEARNING'), findsOneWidget);
     expect(find.text('Class 12th - Maharashtra State Board'), findsOneWidget);
     // The home screen shows the chosen subject in more than one place.
-    expect(find.text('Web Development'), findsWidgets);
-    expect(find.textContaining('HTML Foundations'), findsWidgets);
+    expect(find.text('Book-Keeping & Accountancy'), findsWidgets);
+    expect(find.textContaining('Introduction to Book-keeping'), findsWidgets);
   });
 
   testWidgets('profile setup validates details and subject selection', (
@@ -372,7 +372,7 @@ void main() {
     );
     expect(subjectsNext.onPressed, isNull);
 
-    await tester.tap(find.text('Web Development'));
+    await tester.tap(find.text('Book-Keeping & Accountancy'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
@@ -380,7 +380,7 @@ void main() {
     expect(find.text('Confirm Your Profile'), findsOneWidget);
     expect(find.text('11th'), findsOneWidget);
     expect(find.text('Maharashtra State Board'), findsOneWidget);
-    expect(find.text('Web Development'), findsOneWidget);
+    expect(find.text('Book-Keeping & Accountancy'), findsOneWidget);
   });
 
   testWidgets('tutorial skip completes onboarding and opens dashboard', (
@@ -397,7 +397,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Web Development'));
+    await tester.tap(find.text('Book-Keeping & Accountancy'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
@@ -418,12 +418,12 @@ void main() {
   ) async {
     await _pumpAppWithInitialValues(tester, {
       'current_user_id': 'mock-user-0',
-      'selected_learning_path_id': 'web-dev',
+      'selected_learning_path_id': 'accounting',
       'profile_mock-user-0': jsonEncode({
         'avatarId': 'robot',
         'classLevel': '12th',
         'board': 'Maharashtra State Board',
-        'selectedSubjectIds': ['web-dev'],
+        'selectedSubjectIds': ['accounting'],
         'profileSetupCompleted': true,
         'tutorialCompleted': true,
         'xp': 0,
@@ -597,12 +597,12 @@ void main() {
 
     await tester.tap(find.byTooltip('Subjects'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Web Development'));
+    await tester.tap(find.text('Book-Keeping & Accountancy'));
     await tester.pumpAndSettle();
 
     // One screen: the chapter and its topics, no extra Learn/Topics steps.
-    expect(find.text('HTML Foundations'), findsOneWidget);
-    expect(find.text('Tags & Elements'), findsOneWidget);
+    expect(find.text('Introduction to Book-keeping'), findsOneWidget);
+    expect(find.text('Meaning & Definition'), findsOneWidget);
   });
 
   testWidgets('Subjects flow stays focused on learning', (tester) async {
@@ -612,10 +612,10 @@ void main() {
 
     await tester.tap(find.byTooltip('Subjects'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Web Development'));
+    await tester.tap(find.text('Book-Keeping & Accountancy'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Tags & Elements'), findsOneWidget);
+    expect(find.text('Meaning & Definition'), findsOneWidget);
     expect(find.byKey(const Key('subject-play-card')), findsNothing);
     expect(find.byKey(const Key('game_power_up_bar')), findsNothing);
   });
@@ -629,9 +629,9 @@ void main() {
 
     await tester.tap(find.byTooltip('Subjects'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Web Development'));
+    await tester.tap(find.text('Book-Keeping & Accountancy'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Tags & Elements'));
+    await tester.tap(find.text('Meaning & Definition'));
     await tester.pumpAndSettle();
 
     expect(find.text('Notes'), findsOneWidget);
@@ -651,7 +651,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('play-subject-dropdown')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Web Development').last);
+    await tester.tap(find.text('Book-Keeping & Accountancy').last);
     await tester.pumpAndSettle();
 
     await tester.ensureVisible(find.byKey(const Key('play-start-button')));
@@ -665,15 +665,15 @@ void main() {
 
     await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('HTML Foundations').last);
+    await tester.tap(find.text('Introduction to Book-keeping').last);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('play-topic-dropdown')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Tags & Elements'), findsWidgets);
+    expect(find.text('Meaning & Definition'), findsWidgets);
     expect(find.text('Selectors'), findsNothing);
 
-    await tester.tap(find.text('Tags & Elements').last);
+    await tester.tap(find.text('Meaning & Definition').last);
     await tester.pumpAndSettle();
     await tester.ensureVisible(
       find.byKey(const Key('play-mode-matching')).first,
@@ -826,7 +826,7 @@ void main() {
       expect(find.text('Ada'), findsWidgets);
       expect(find.text('ada@example.com'), findsOneWidget);
       expect(find.text('Class 12th - Maharashtra State Board'), findsOneWidget);
-      expect(find.text('Web Development'), findsWidgets);
+      expect(find.text('Book-Keeping & Accountancy'), findsWidgets);
       expect(find.text('Coins'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Edit Profile'));

@@ -23,29 +23,6 @@ import '../../../profile/presentation/providers/profile_providers.dart';
 
 const _classLevels = ['11th', '12th'];
 const _boards = ['Maharashtra State Board'];
-const _backendLearningPaths = [
-  LearningPath(
-    id: 'accounting',
-    title: 'Book-Keeping & Accountancy',
-    description: 'Available from the deployed backend.',
-    difficulty: LearningPathDifficulty.beginner,
-    topicCount: 1,
-  ),
-  LearningPath(
-    id: 'maths',
-    title: 'Mathematics',
-    description: 'Available from the deployed backend.',
-    difficulty: LearningPathDifficulty.beginner,
-    topicCount: 1,
-  ),
-  LearningPath(
-    id: 'web-dev',
-    title: 'Web Development',
-    description: 'HTML, CSS, and modern web foundations.',
-    difficulty: LearningPathDifficulty.beginner,
-    topicCount: 3,
-  ),
-];
 
 class ProfileSetupScreen extends ConsumerStatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -110,7 +87,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             Expanded(
               child: SingleChildScrollView(
                 padding: AppSpacing.horizontalMd,
-                child: _stepContent(_backendLearningPaths),
+                // Subjects come from the server's database.
+                child: _stepContent(
+                  ref.watch(learningPathsProvider).valueOrNull ??
+                      const <LearningPath>[],
+                ),
               ),
             ),
             Padding(

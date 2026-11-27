@@ -7,18 +7,18 @@ import 'package:skillverse_app/app/theme/app_theme.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/core/storage/storage_keys.dart';
-import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
+import 'mocks/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
-import 'package:skillverse_app/features/chapters/data/datasources/mock/chapter_mock_datasource.dart';
+import 'mocks/chapter_mock_datasource.dart';
 import 'package:skillverse_app/features/chapters/presentation/providers/chapter_providers.dart';
 import 'package:skillverse_app/features/dashboard/presentation/screens/dashboard_screen.dart';
-import 'package:skillverse_app/features/learning_paths/data/datasources/mock/learning_path_mock_datasource.dart';
+import 'mocks/learning_path_mock_datasource.dart';
 import 'package:skillverse_app/features/learning_paths/presentation/providers/learning_path_providers.dart';
-import 'package:skillverse_app/features/profile/data/datasources/mock/profile_mock_datasource.dart';
+import 'mocks/profile_mock_datasource.dart';
 import 'package:skillverse_app/features/profile/presentation/providers/profile_providers.dart';
-import 'package:skillverse_app/features/streaks/data/datasources/mock/streak_mock_datasource.dart';
+import 'mocks/streak_mock_datasource.dart';
 import 'package:skillverse_app/features/streaks/presentation/providers/streak_providers.dart';
-import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock_datasource.dart';
+import 'mocks/wallet_mock_datasource.dart';
 import 'package:skillverse_app/features/wallet/presentation/providers/wallet_providers.dart';
 
 /// The dashboard lays out at phone sizes (also with large text) without

@@ -21,7 +21,7 @@ import 'package:skillverse_app/features/quiz/presentation/widgets/result/result_
 import 'package:skillverse_app/features/streaks/data/datasources/remote/streak_rewards_remote_datasource.dart';
 import 'package:skillverse_app/features/streaks/domain/entities/streak_rewards.dart';
 import 'package:skillverse_app/features/streaks/presentation/providers/streak_rewards_providers.dart';
-import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock_datasource.dart';
+import 'mocks/wallet_mock_datasource.dart';
 import 'package:skillverse_app/features/wallet/presentation/providers/wallet_providers.dart';
 
 QuizResult _game({

@@ -4,14 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
-import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
+import 'mocks/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
-import 'package:skillverse_app/features/questions/data/datasources/mock/question_mock_datasource.dart';
+import 'mocks/question_mock_datasource.dart';
 import 'package:skillverse_app/features/questions/presentation/providers/question_providers.dart';
-import 'package:skillverse_app/features/quiz/data/datasources/mock/quiz_mock_datasource.dart';
+import 'mocks/quiz_mock_datasource.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/quiz_providers.dart';
-import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock_datasource.dart';
+import 'mocks/wallet_mock_datasource.dart';
 import 'package:skillverse_app/features/wallet/domain/entities/currency_type.dart';
 import 'package:skillverse_app/features/wallet/presentation/providers/wallet_providers.dart';
 

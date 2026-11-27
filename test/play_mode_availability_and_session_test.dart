@@ -14,13 +14,17 @@ import 'package:skillverse_app/core/network/backend_topic_mapper.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
 import 'package:skillverse_app/core/storage/storage_keys.dart';
+import 'package:skillverse_app/features/chapters/data/datasources/catalog_chapter_datasource.dart';
 import 'package:skillverse_app/features/chapters/data/datasources/chapter_datasource.dart';
 import 'package:skillverse_app/features/chapters/data/models/chapter_model.dart';
 import 'package:skillverse_app/features/chapters/data/models/topic_model.dart';
 import 'package:skillverse_app/features/chapters/presentation/providers/chapter_providers.dart';
+import 'package:skillverse_app/features/learning_paths/data/datasources/catalog_learning_path_datasource.dart';
 import 'package:skillverse_app/features/learning_paths/data/datasources/learning_path_datasource.dart';
+import 'package:skillverse_app/features/learning_paths/data/datasources/remote/subject_catalog_remote_datasource.dart';
 import 'package:skillverse_app/features/learning_paths/data/models/learning_path_model.dart';
 import 'package:skillverse_app/features/learning_paths/domain/entities/learning_path.dart';
+import 'package:skillverse_app/features/learning_paths/domain/entities/subject_catalog.dart';
 import 'package:skillverse_app/features/learning_paths/presentation/providers/learning_path_providers.dart';
 import 'package:skillverse_app/features/practice/presentation/providers/practice_providers.dart';
 import 'package:skillverse_app/features/practice/presentation/screens/practice_screen.dart';
@@ -286,148 +290,152 @@ void main() {
     );
   });
 
-  group('BackendChapterDatasource & LearningPathDatasource Catalog Tests', () {
-    test(
-      'BackendLearningPathDatasource returns all expected learning paths',
-      () async {
-        const ds = BackendLearningPathDatasource();
-        final paths = await ds.getLearningPaths();
-        final pathIds = paths.map((p) => p.id).toSet();
+  group('Subjects, chapters and topics from the database (GET /subjects)', () {
+    // Shaped like the real catalog (SkillVerse-SQL_Migration seeds/sql).
+    final fake = _FakeSubjectCatalogDatasource(_dbCatalog());
+    SubjectCatalogRepository repo() => SubjectCatalogRepository(fake);
 
-        expect(pathIds, contains('accounting'));
-        expect(pathIds, contains('maths'));
-        expect(pathIds, contains('mental-maths'));
-      },
-    );
+    test('every subject with questions is listed, in database order', () async {
+      final paths = await CatalogLearningPathDatasource(
+        repo,
+      ).getLearningPaths();
+      expect(paths.map((p) => p.id).toList(), [
+        'accounting', // older app ids kept for saved selections
+        'economics',
+        'maths',
+        'maths2',
+        'mental-maths',
+      ]);
+      expect(paths.map((p) => p.title).toList(), [
+        'Book-Keeping and Accountancy',
+        'Economics',
+        'Mathematics & Statistics Part 1',
+        'Mathematics & Statistics Part 2',
+        'Mental Maths',
+      ]);
+      expect(paths[2].description, contains('MCQ · Sort It Out'));
+    });
 
-    test(
-      'BackendChapterDatasource returns chapters and topics for all supported paths',
-      () async {
-        const ds = BackendChapterDatasource();
+    test('a subject lists "All chapters" and then its real chapters', () async {
+      final ds = CatalogChapterDatasource(repo);
+      final chapters = await ds.getChapters('accounting');
+      expect(chapters.map((c) => c.title).toList(), [
+        CatalogChapterDatasource.allChaptersTitle,
+        'Introduction to Book-keeping and Accountancy',
+        'Ledger',
+        'Single Entry System',
+      ]);
+      // Backend subject codes work as well as the app's ids.
+      expect(await ds.getChapters('accounts'), chapters);
 
-        // Accounting
-        final accountingChapters = await ds.getChapters('accounting');
-        expect(accountingChapters, isNotEmpty);
-        expect(accountingChapters.first.id, 'accounting-basics');
-        final accountingTopics = await ds.getTopics(
-          accountingChapters.first.id,
+      final ledger = await ds.getTopics(chapters[2].id);
+      expect(ledger.single.id, 'accounts--ch4');
+      final all = await ds.getTopics(chapters.first.id);
+      expect(all.single.id, 'accounts--all');
+
+      final mental = await ds.getChapters('mental-maths');
+      expect(mental.last.title, 'Mixed: All Operations');
+      expect(
+        (await ds.getTopics(mental.last.id)).single.id,
+        'mental_maths--ch4',
+      );
+    });
+
+    test('subjects that are not in the database have no chapters', () async {
+      final ds = CatalogChapterDatasource(repo);
+      for (final removed in const [
+        'web-dev',
+        'data-science',
+        'ai-ml',
+        'cybersecurity',
+      ]) {
+        expect(await ds.getChapters(removed), isEmpty, reason: removed);
+      }
+    });
+
+    test('a topic id sends its subject and chapter to the server', () {
+      expect(mapToBackendTopicId('maths2--ch7'), 'maths2');
+      expect(backendChapterNoForTopic('maths2--ch7'), 7);
+      expect(mapToBackendTopicId('mental_maths--all'), 'mental_maths');
+      expect(backendChapterNoForTopic('mental_maths--all'), isNull);
+      expect(mapToBackendTopicId('economics--ch10'), 'economics');
+      // Older ids still work.
+      expect(backendChapterNoForTopic('mental-maths-hard'), 3);
+      expect(mapToBackendTopicId('accounting'), 'accounts');
+    });
+
+    test('only modes with questions in the database are open', () async {
+      final container = ProviderContainer(
+        overrides: [subjectCatalogDatasourceProvider.overrideWithValue(fake)],
+      );
+      addTearDown(container.dispose);
+      await container.read(subjectCatalogProvider.future);
+
+      Map<QuestionType, bool> open(String topicId) => {
+        for (final e
+            in container.read(gameModeAvailabilityProvider(topicId)).entries)
+          e.key: e.value.isEnabled,
+      };
+
+      expect(open('maths1--ch1'), {
+        QuestionType.mcq: true,
+        QuestionType.matchTheFollowing: false,
+        QuestionType.sortItRight: true,
+        QuestionType.suddenDeath: false,
+      });
+      expect(open('accounts--ch4')[QuestionType.matchTheFollowing], isFalse);
+      expect(open('accounts--all')[QuestionType.matchTheFollowing], isTrue);
+      expect(open('economics--all')[QuestionType.suddenDeath], isTrue);
+      expect(open('economics--all')[QuestionType.matchTheFollowing], isFalse);
+      expect(open('mental_maths--ch4')[QuestionType.mcq], isFalse);
+      expect(open('mental_maths--ch4')[QuestionType.sortItRight], isTrue);
+      final sd = container.read(
+        gameModeAvailabilityProvider('maths1--ch1'),
+      )[QuestionType.suddenDeath]!;
+      expect(sd.reason, contains('No Sudden Death questions'));
+    });
+
+    test('GET /subjects is parsed and a failed load is retried', () async {
+      var calls = 0;
+      final client = MockClient((request) async {
+        expect(request.url.path, endsWith('/subjects'));
+        calls++;
+        if (calls == 1) return http.Response('oops', 500);
+        return http.Response(
+          jsonEncode({
+            'success': true,
+            'data': [
+              {
+                'topic_id': 'economics',
+                'name': 'Economics',
+                'grade': 11,
+                'locked': true,
+                'pack_product_ids': ['pack_eco'],
+                'chapters': [
+                  {
+                    'chapter_no': 2,
+                    'title': 'Money',
+                    'counts': {'mcq': 55, 'sort_it_out': 26},
+                  },
+                ],
+              },
+            ],
+          }),
+          200,
         );
-        expect(accountingTopics, isNotEmpty);
-        expect(accountingTopics.first.id, 'accounting');
-
-        // Maths (and aliases)
-        for (final mathAlias in ['maths', 'math', 'maths1']) {
-          final mathChapters = await ds.getChapters(mathAlias);
-          expect(
-            mathChapters,
-            isNotEmpty,
-            reason: 'Failed for alias: $mathAlias',
-          );
-          expect(mathChapters.first.id, 'maths-basics');
-          final mathTopics = await ds.getTopics(mathChapters.first.id);
-          expect(mathTopics, isNotEmpty);
-          expect(mathTopics.first.id, 'maths');
-        }
-
-        // Mental Maths
-        final mentalChapters = await ds.getChapters('mental-maths');
-        expect(mentalChapters, isNotEmpty);
-        expect(mentalChapters.first.id, 'mental-maths-levels');
-        final mentalTopics = await ds.getTopics(mentalChapters.first.id);
-        expect(mentalTopics.length, 3);
-        expect(
-          mentalTopics.map((t) => t.id),
-          containsAll([
-            'mental-maths-easy',
-            'mental-maths-medium',
-            'mental-maths-hard',
-          ]),
-        );
-      },
-    );
-
-    test(
-      'BackendChapterDatasource falls back to mock chapters for other paths',
-      () async {
-        const ds = BackendChapterDatasource();
-        final webChapters = await ds.getChapters('web-dev');
-        expect(webChapters, isNotEmpty);
-        final topics = await ds.getTopics(webChapters.first.id);
-        expect(topics, isNotEmpty);
-      },
-    );
-  });
-
-  group('BackendChapterDatasource & LearningPathDatasource Catalog Tests', () {
-    test(
-      'BackendLearningPathDatasource returns all expected learning paths',
-      () async {
-        const ds = BackendLearningPathDatasource();
-        final paths = await ds.getLearningPaths();
-        final pathIds = paths.map((p) => p.id).toSet();
-
-        expect(pathIds, contains('accounting'));
-        expect(pathIds, contains('maths'));
-        expect(pathIds, contains('mental-maths'));
-      },
-    );
-
-    test(
-      'BackendChapterDatasource returns chapters and topics for all supported paths',
-      () async {
-        const ds = BackendChapterDatasource();
-
-        // Accounting
-        final accountingChapters = await ds.getChapters('accounting');
-        expect(accountingChapters, isNotEmpty);
-        expect(accountingChapters.first.id, 'accounting-basics');
-        final accountingTopics = await ds.getTopics(
-          accountingChapters.first.id,
-        );
-        expect(accountingTopics, isNotEmpty);
-        expect(accountingTopics.first.id, 'accounting');
-
-        // Maths (and aliases)
-        for (final mathAlias in ['maths', 'math', 'maths1']) {
-          final mathChapters = await ds.getChapters(mathAlias);
-          expect(
-            mathChapters,
-            isNotEmpty,
-            reason: 'Failed for alias: $mathAlias',
-          );
-          expect(mathChapters.first.id, 'maths-basics');
-          final mathTopics = await ds.getTopics(mathChapters.first.id);
-          expect(mathTopics, isNotEmpty);
-          expect(mathTopics.first.id, 'maths');
-        }
-
-        // Mental Maths
-        final mentalChapters = await ds.getChapters('mental-maths');
-        expect(mentalChapters, isNotEmpty);
-        expect(mentalChapters.first.id, 'mental-maths-levels');
-        final mentalTopics = await ds.getTopics(mentalChapters.first.id);
-        expect(mentalTopics.length, 3);
-        expect(
-          mentalTopics.map((t) => t.id),
-          containsAll([
-            'mental-maths-easy',
-            'mental-maths-medium',
-            'mental-maths-hard',
-          ]),
-        );
-      },
-    );
-
-    test(
-      'BackendChapterDatasource falls back to mock chapters for other paths',
-      () async {
-        const ds = BackendChapterDatasource();
-        final webChapters = await ds.getChapters('web-dev');
-        expect(webChapters, isNotEmpty);
-        final topics = await ds.getTopics(webChapters.first.id);
-        expect(topics, isNotEmpty);
-      },
-    );
+      });
+      final repository = SubjectCatalogRepository(
+        SubjectCatalogRemoteDatasource(apiClient: _catalogApi(client)),
+      );
+      await expectLater(repository.load(), throwsA(anything));
+      final subjects = await repository.load();
+      expect(calls, 2);
+      final eco = subjects.single;
+      expect(eco.code, 'economics');
+      expect(eco.locked, isTrue);
+      expect(eco.chapter(2)!.countFor('mcq'), 55);
+      expect(eco.chapter(2)!.countFor('match_the_following'), 0);
+    });
   });
 
   group('Play Setup Screen — UI & Interaction Tests', () {
@@ -609,13 +617,15 @@ void main() {
     );
 
     testWidgets(
-      'Backend chapters and topics are selectable for Mathematics and Mental Maths in Play mode',
+      'Every database subject and chapter can be picked in Play mode',
       (tester) async {
         setWindowSize(tester);
-        final fakeStorage = _FakeLocalStorage();
         final container = ProviderContainer(
           overrides: [
-            localStorageServiceProvider.overrideWithValue(fakeStorage),
+            localStorageServiceProvider.overrideWithValue(_FakeLocalStorage()),
+            subjectCatalogDatasourceProvider.overrideWithValue(
+              _FakeSubjectCatalogDatasource(_dbCatalog()),
+            ),
           ],
         );
         addTearDown(container.dispose);
@@ -623,102 +633,34 @@ void main() {
         await tester.pumpWidget(buildPlayScreen(container: container));
         await tester.pumpAndSettle();
 
-        // 1. Select Subject: Mathematics
         await tester.tap(find.byKey(const Key('play-subject-dropdown')));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Mathematics').last);
+        for (final name in const [
+          'Book-Keeping and Accountancy',
+          'Economics',
+          'Mathematics & Statistics Part 1',
+          'Mathematics & Statistics Part 2',
+          'Mental Maths',
+        ]) {
+          expect(find.text(name), findsWidgets, reason: name);
+        }
+        expect(find.text('Nothing seeded yet'), findsNothing);
+        await tester.tap(find.text('Mathematics & Statistics Part 2').last);
         await tester.pumpAndSettle();
 
-        // 2. Select Chapter: Mathematics
         await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Mathematics').last);
+        expect(find.text('All chapters (mixed)'), findsWidgets);
+        await tester.tap(find.text('Probability').last);
         await tester.pumpAndSettle();
 
-        // 3. Select Topic: Mathematics Quiz
-        await tester.tap(find.byKey(const Key('play-topic-dropdown')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Mathematics Quiz').last);
-        await tester.pumpAndSettle();
-
+        // One topic per chapter: picked automatically.
         expect(find.text('Select a topic first'), findsNothing);
-
-        // Now switch to Mental Maths
-        await tester.tap(find.byKey(const Key('play-subject-dropdown')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Mental Maths').last);
-        await tester.pumpAndSettle();
-
-        // Chapter: Mental Maths
-        await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Mental Maths').last);
-        await tester.pumpAndSettle();
-
-        // Topic: Easy
-        await tester.tap(find.byKey(const Key('play-topic-dropdown')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Easy: Addition & Subtraction').last);
-        await tester.pumpAndSettle();
-
-        expect(find.text('Select a topic first'), findsNothing);
-      },
-    );
-
-    testWidgets(
-      'Backend chapters and topics are selectable for Mathematics and Mental Maths in Play mode',
-      (tester) async {
-        setWindowSize(tester);
-        final fakeStorage = _FakeLocalStorage();
-        final container = ProviderContainer(
-          overrides: [
-            localStorageServiceProvider.overrideWithValue(fakeStorage),
-          ],
+        final open = container.read(
+          gameModeAvailabilityProvider('maths2--ch7'),
         );
-        addTearDown(container.dispose);
-
-        await tester.pumpWidget(buildPlayScreen(container: container));
-        await tester.pumpAndSettle();
-
-        // 1. Select Subject: Mathematics
-        await tester.tap(find.byKey(const Key('play-subject-dropdown')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Mathematics').last);
-        await tester.pumpAndSettle();
-
-        // 2. Select Chapter: Mathematics
-        await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Mathematics').last);
-        await tester.pumpAndSettle();
-
-        // 3. Select Topic: Mathematics Quiz
-        await tester.tap(find.byKey(const Key('play-topic-dropdown')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Mathematics Quiz').last);
-        await tester.pumpAndSettle();
-
-        expect(find.text('Select a topic first'), findsNothing);
-
-        // Now switch to Mental Maths
-        await tester.tap(find.byKey(const Key('play-subject-dropdown')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Mental Maths').last);
-        await tester.pumpAndSettle();
-
-        // Chapter: Mental Maths
-        await tester.tap(find.byKey(const Key('play-chapter-dropdown')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Mental Maths').last);
-        await tester.pumpAndSettle();
-
-        // Topic: Easy
-        await tester.tap(find.byKey(const Key('play-topic-dropdown')));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Easy: Addition & Subtraction').last);
-        await tester.pumpAndSettle();
-
-        expect(find.text('Select a topic first'), findsNothing);
+        expect(open[QuestionType.mcq]!.isEnabled, isTrue);
+        expect(open[QuestionType.suddenDeath]!.isEnabled, isFalse);
       },
     );
 
@@ -1311,3 +1253,67 @@ void main() {
     );
   });
 }
+
+class _FakeSubjectCatalogDatasource implements SubjectCatalogDatasource {
+  final List<SubjectCatalog> subjects;
+  _FakeSubjectCatalogDatasource(this.subjects);
+
+  @override
+  Future<List<SubjectCatalog>> getSubjects() async => subjects;
+}
+
+/// MCQ, Sudden Death, Sort It Out items, Match pairs.
+Map<String, int> _c(int mcq, int sd, int sort, int match) => {
+  if (mcq > 0) 'mcq': mcq,
+  if (sd > 0) 'sudden_death': sd,
+  if (sort > 0) 'sort_it_out': sort,
+  if (match > 0) 'match_the_following': match,
+};
+
+SubjectCatalog _subject(
+  String code,
+  String name,
+  Map<int, (String, Map<String, int>)> chapters,
+) => SubjectCatalog(
+  code: code,
+  name: name,
+  grade: 11,
+  chapters: [
+    for (final e in chapters.entries)
+      CatalogChapter(chapterNo: e.key, title: e.value.$1, counts: e.value.$2),
+  ],
+);
+
+ApiClient _catalogApi(http.Client client) => ApiClient(
+  config: const ApiConfig(baseUrl: 'http://localhost:8080/api/v1'),
+  storage: _FakeLocalStorage(),
+  httpClient: client,
+);
+
+/// Shaped like the real catalog (SkillVerse-SQL_Migration seeds/sql).
+List<SubjectCatalog> _dbCatalog() => [
+  _subject('accounts', 'Book-Keeping and Accountancy', {
+    1: ('Introduction to Book-keeping and Accountancy', _c(85, 21, 84, 24)),
+    4: ('Ledger', _c(60, 24, 36, 0)),
+    10: ('Single Entry System', _c(60, 17, 29, 0)),
+  }),
+  _subject('economics', 'Economics', {
+    1: ('Basic Concepts in Economics', _c(80, 30, 53, 0)),
+    2: ('Money', _c(55, 17, 26, 0)),
+  }),
+  _subject('maths1', 'Mathematics & Statistics Part 1', {
+    1: ('Sets and Relations', _c(272, 0, 152, 0)),
+    2: ('Functions', _c(158, 0, 144, 0)),
+  }),
+  _subject('maths2', 'Mathematics & Statistics Part 2', {
+    3: ('Skewness', _c(134, 0, 78, 0)),
+    7: ('Probability', _c(208, 0, 72, 0)),
+  }),
+  _subject('mental_maths', 'Mental Maths', {
+    1: ('Easy: Addition & Subtraction', _c(162, 162, 324, 162)),
+    4: ('Mixed: All Operations', _c(0, 0, 1200, 1200)),
+  }),
+  _subject('empty_subject', 'Nothing seeded yet', {
+    1: ('Chapter 1', _c(0, 0, 0, 0)),
+  }),
+];

@@ -1,8 +1,8 @@
 import '../models/chapter_model.dart';
 import '../models/topic_model.dart';
 
-/// Implemented today by [ChapterMockDatasource]. Swap for a Firestore-backed
-/// implementation (chapters/topics collections) later.
+/// Implemented by `CatalogChapterDatasource` (the server's `GET /subjects`).
+/// Tests use a mock from `test/mocks/`.
 abstract class ChapterDatasource {
   Future<List<ChapterModel>> getChapters(String learningPathId);
 

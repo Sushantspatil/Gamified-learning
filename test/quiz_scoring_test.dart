@@ -2,8 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
 import 'package:skillverse_app/features/questions/domain/entities/answer_evaluation.dart';
 import 'package:skillverse_app/features/questions/domain/entities/question.dart';
-import 'package:skillverse_app/features/questions/data/datasources/mock/question_mock_datasource.dart';
-import 'package:skillverse_app/features/quiz/data/datasources/mock/quiz_mock_datasource.dart';
+import 'mocks/question_mock_datasource.dart';
+import 'mocks/quiz_mock_datasource.dart';
 import 'package:skillverse_app/features/quiz/domain/entities/question_answer_record.dart';
 import 'package:skillverse_app/features/quiz/domain/entities/quiz_session.dart';
 

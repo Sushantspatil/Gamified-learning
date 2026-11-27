@@ -6,26 +6,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skillverse_app/app/app.dart';
 import 'package:skillverse_app/core/providers/core_providers.dart';
 import 'package:skillverse_app/core/storage/local_storage_service.dart';
-import 'package:skillverse_app/features/authentication/data/datasources/mock/auth_mock_datasource.dart';
+import 'mocks/auth_mock_datasource.dart';
 import 'package:skillverse_app/features/authentication/presentation/providers/auth_providers.dart';
-import 'package:skillverse_app/features/chapters/data/datasources/mock/chapter_mock_datasource.dart';
+import 'mocks/chapter_mock_datasource.dart';
 import 'package:skillverse_app/features/chapters/presentation/providers/chapter_providers.dart';
-import 'package:skillverse_app/features/learning_paths/data/datasources/mock/learning_path_mock_datasource.dart';
+import 'mocks/learning_path_mock_datasource.dart';
 import 'package:skillverse_app/features/learning_paths/presentation/providers/learning_path_providers.dart';
-import 'package:skillverse_app/features/profile/data/datasources/mock/profile_mock_datasource.dart';
+import 'mocks/profile_mock_datasource.dart';
 import 'package:skillverse_app/features/profile/data/datasources/profile_datasource.dart';
 import 'package:skillverse_app/features/profile/data/models/user_profile_model.dart';
 import 'package:skillverse_app/features/profile/presentation/providers/profile_providers.dart';
-import 'package:skillverse_app/features/questions/data/datasources/mock/question_mock_datasource.dart';
+import 'mocks/question_mock_datasource.dart';
 import 'package:skillverse_app/features/questions/presentation/providers/question_providers.dart';
-import 'package:skillverse_app/features/quiz/data/datasources/mock/quiz_mock_datasource.dart';
+import 'mocks/quiz_mock_datasource.dart';
 import 'package:skillverse_app/features/quiz/presentation/providers/quiz_providers.dart';
 import 'package:skillverse_app/features/splash/presentation/screens/splash_screen.dart';
 import 'package:skillverse_app/features/splash/presentation/widgets/splash_loading_bar.dart';
 import 'package:skillverse_app/features/splash/presentation/widgets/splash_particles.dart';
-import 'package:skillverse_app/features/streaks/data/datasources/mock/streak_mock_datasource.dart';
+import 'mocks/streak_mock_datasource.dart';
 import 'package:skillverse_app/features/streaks/presentation/providers/streak_providers.dart';
-import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock_datasource.dart';
+import 'mocks/wallet_mock_datasource.dart';
 import 'package:skillverse_app/features/wallet/presentation/providers/wallet_providers.dart';
 
 class _CustomProfileMockDatasource extends ProfileMockDatasource {
@@ -255,7 +255,7 @@ void main() {
           avatarId: 'robot',
           classLevel: '12th',
           board: 'Maharashtra State Board',
-          selectedSubjectIds: ['web-dev'],
+          selectedSubjectIds: ['accounting'],
           profileSetupCompleted: true,
           tutorialCompleted: true,
           xp: 0,
@@ -266,7 +266,7 @@ void main() {
           tester,
           values: {
             'current_user_id': 'mock-user-0',
-            'selected_learning_path_id': 'web-dev',
+            'selected_learning_path_id': 'accounting',
           },
           profileDatasource: _CustomProfileMockDatasource(completedProfile),
         );
@@ -291,7 +291,7 @@ void main() {
       (tester) async {
         const incompleteProfile = UserProfileModel(
           avatarId: 'default',
-          selectedSubjectIds: ['web-dev'],
+          selectedSubjectIds: ['accounting'],
           profileSetupCompleted: false,
           tutorialCompleted: false,
           xp: 0,

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:skillverse_app/features/wallet/data/datasources/mock/wallet_mock_datasource.dart';
+import 'mocks/wallet_mock_datasource.dart';
 import 'package:skillverse_app/features/wallet/domain/entities/currency_type.dart';
 import 'package:skillverse_app/features/wallet/domain/entities/wallet_transaction.dart';
 

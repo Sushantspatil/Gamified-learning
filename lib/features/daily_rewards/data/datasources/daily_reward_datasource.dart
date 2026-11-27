@@ -1,7 +1,7 @@
 import '../models/daily_reward_model.dart';
 
-/// Implemented today by [DailyRewardMockDatasource]. Swap for a
-/// Firestore-backed implementation later.
+/// The app binds `EmptyDailyRewardDatasource`; tests use a mock from
+/// `test/mocks/`.
 abstract class DailyRewardDatasource {
   Future<DailyRewardModel> getTodayReward(String userId, int streakDay);
 

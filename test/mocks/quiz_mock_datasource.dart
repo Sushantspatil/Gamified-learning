@@ -1,0 +1,302 @@
+import 'package:skillverse_app/features/questions/domain/entities/answer.dart';
+import 'package:skillverse_app/features/questions/domain/entities/answer_evaluation.dart';
+import 'package:skillverse_app/features/questions/domain/entities/question.dart';
+import 'package:skillverse_app/features/quiz/domain/entities/quiz_result.dart';
+import 'package:skillverse_app/features/quiz/domain/entities/quiz_session.dart';
+import 'package:skillverse_app/features/quiz/data/datasources/quiz_datasource.dart';
+
+const _completionXp = 20;
+const _correctAnswerXp = 5;
+const _perfectBonusXp = 10;
+const _completionCoins = 10;
+const _accuracyBonusCoins = 5;
+const _mcqCorrectAnswerPoints = 10;
+const _mcqCompletionXp = 10;
+const _mcqCorrectAnswerXp = 5;
+const _mcqPerfectBonusXp = 15;
+const _mcqCompletionCoins = 5;
+const _mcqCorrectAnswerCoins = 2;
+const _mcqPerfectBonusCoins = 10;
+
+/// MOCK DATA — this is the ONLY place scoring math happens. Replace the
+/// binding in quiz_providers.dart with a datasource that calls a Cloud
+/// Function once scores must be server-authoritative; nothing above this
+/// layer (controller, widgets) needs to change when that happens.
+class QuizMockDatasource implements QuizDatasource {
+  @override
+  Future<AnswerEvaluation> evaluateAnswer(
+    Question question,
+    Answer answer,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    return switch ((question, answer)) {
+      (McqQuestion q, McqAnswer a) => _evaluateOptionBased(
+        q.correctOptionId,
+        a.selectedOptionId,
+        _mcqCorrectAnswerPoints,
+      ),
+      (SuddenDeathQuestion q, SuddenDeathAnswer a) => _evaluateOptionBased(
+        q.correctOptionId,
+        a.selectedOptionId,
+        q.points,
+      ),
+      (MatchTheFollowingQuestion q, MatchTheFollowingAnswer a) =>
+        _evaluateMatch(q, a),
+      (SortItRightQuestion q, SortAnswer a) => _evaluateSort(q, a),
+      _ => const AnswerEvaluation(isCorrect: false, pointsEarned: 0),
+    };
+  }
+
+  AnswerEvaluation _evaluateOptionBased(
+    String correctOptionId,
+    String selectedOptionId,
+    int points,
+  ) {
+    final isCorrect = correctOptionId == selectedOptionId;
+    return AnswerEvaluation(
+      isCorrect: isCorrect,
+      pointsEarned: isCorrect ? points : 0,
+    );
+  }
+
+  AnswerEvaluation _evaluateMatch(
+    MatchTheFollowingQuestion question,
+    MatchTheFollowingAnswer answer,
+  ) {
+    var correctPairs = 0;
+    for (final pair in question.pairs) {
+      if (answer.matchedPairIds[pair.id] == pair.id) correctPairs++;
+    }
+    final isFullyCorrect =
+        question.pairs.isNotEmpty && correctPairs == question.pairs.length;
+    final pointsEarned = question.pairs.isEmpty
+        ? 0
+        : (question.points * correctPairs / question.pairs.length).round();
+    return AnswerEvaluation(
+      isCorrect: isFullyCorrect,
+      pointsEarned: pointsEarned,
+    );
+  }
+
+  AnswerEvaluation _evaluateSort(
+    SortItRightQuestion question,
+    SortAnswer answer,
+  ) {
+    final correctPositions = _correctSortItems(question, answer);
+    final isFullyCorrect =
+        question.itemsInOrder.isNotEmpty &&
+        correctPositions == question.itemsInOrder.length &&
+        (question.hasCategories
+            ? answer.selectedSides.length == question.itemsInOrder.length
+            : answer.orderedItems.length == question.itemsInOrder.length);
+    final pointsEarned = question.itemsInOrder.isEmpty
+        ? 0
+        : (question.points * correctPositions / question.itemsInOrder.length)
+              .round();
+    return AnswerEvaluation(
+      isCorrect: isFullyCorrect,
+      pointsEarned: pointsEarned,
+    );
+  }
+
+  int _correctSortItems(SortItRightQuestion question, SortAnswer answer) {
+    if (question.hasCategories) {
+      var correct = 0;
+      for (var i = 0; i < question.correctSides.length; i++) {
+        if (i < answer.selectedSides.length &&
+            answer.selectedSides[i] == question.correctSides[i]) {
+          correct++;
+        }
+      }
+      return correct;
+    }
+    var correctPositions = 0;
+    final comparableLength =
+        question.itemsInOrder.length < answer.orderedItems.length
+        ? question.itemsInOrder.length
+        : answer.orderedItems.length;
+    for (var i = 0; i < comparableLength; i++) {
+      if (question.itemsInOrder[i] == answer.orderedItems[i]) {
+        correctPositions++;
+      }
+    }
+    return correctPositions;
+  }
+
+  @override
+  Future<QuizResult> submitSession(QuizSession session) async {
+    await Future.delayed(const Duration(milliseconds: 400));
+
+    var earned = 0;
+    var max = 0;
+    for (final record in session.answeredRecords) {
+      earned += record.evaluation.pointsEarned;
+      max += record.question.points;
+    }
+    for (final question in session.questions.skip(
+      session.answeredRecords.length,
+    )) {
+      max += question.points;
+    }
+
+    final metric = _metricForSession(session);
+    final isMcq = session.quizType == QuestionType.mcq;
+    if (isMcq) {
+      earned = metric.correct * _mcqCorrectAnswerPoints;
+      max = metric.total * _mcqCorrectAnswerPoints;
+    }
+    final streakCount = session.quizType == QuestionType.suddenDeath
+        ? metric.correct
+        : 0;
+    final completedAt = session.completedAt;
+    final perfect = metric.total > 0 && metric.correct == metric.total;
+    final accuracy = metric.total == 0 ? 0 : metric.correct / metric.total;
+    final xpBreakdown = isMcq
+        ? [
+            const RewardBreakdownItem(
+              key: 'completion_xp',
+              amount: _mcqCompletionXp,
+            ),
+            RewardBreakdownItem(
+              key: 'correct_answer_xp',
+              amount: metric.correct * _mcqCorrectAnswerXp,
+            ),
+            RewardBreakdownItem(
+              key: 'perfect_bonus_xp',
+              amount: perfect ? _mcqPerfectBonusXp : 0,
+            ),
+          ]
+        : [
+            const RewardBreakdownItem(
+              key: 'completion_xp',
+              amount: _completionXp,
+            ),
+            RewardBreakdownItem(
+              key: 'correct_answer_xp',
+              amount: metric.correct * _correctAnswerXp,
+            ),
+            RewardBreakdownItem(
+              key: 'perfect_bonus_xp',
+              amount: perfect ? _perfectBonusXp : 0,
+            ),
+          ];
+    final coinBreakdown = isMcq
+        ? [
+            const RewardBreakdownItem(
+              key: 'completion_coins',
+              amount: _mcqCompletionCoins,
+            ),
+            RewardBreakdownItem(
+              key: 'correct_answer_coins',
+              amount: metric.correct * _mcqCorrectAnswerCoins,
+            ),
+            RewardBreakdownItem(
+              key: 'perfect_bonus_coins',
+              amount: perfect ? _mcqPerfectBonusCoins : 0,
+            ),
+          ]
+        : [
+            const RewardBreakdownItem(
+              key: 'completion_coins',
+              amount: _completionCoins,
+            ),
+            RewardBreakdownItem(
+              key: 'accuracy_bonus_coins',
+              amount: accuracy >= .8 ? _accuracyBonusCoins : 0,
+            ),
+          ];
+    final xp = xpBreakdown.fold(0, (sum, item) => sum + item.amount);
+    final coins = coinBreakdown.fold(0, (sum, item) => sum + item.amount);
+
+    return QuizResult(
+      sessionId: session.id,
+      userId: session.userId,
+      subjectId: session.subjectId,
+      chapterId: session.chapterId,
+      topicId: session.topicId,
+      quizType: session.quizType,
+      score: Score(
+        earnedPoints: earned,
+        maxPoints: max,
+        correctCount: metric.correct,
+        totalCount: metric.total,
+      ),
+      records: session.answeredRecords,
+      endedEarly: session.endedEarly,
+      streakCount: streakCount,
+      xpAwarded: xp,
+      coinsAwarded: coins,
+      rewardBreakdown: QuizRewardBreakdown(
+        score: [
+          RewardBreakdownItem(key: 'correct_answer_points', amount: earned),
+          const RewardBreakdownItem(key: 'bonus_points', amount: 0),
+        ],
+        xp: xpBreakdown,
+        coins: coinBreakdown,
+      ),
+      timeTaken: completedAt.difference(session.startedAt),
+      createdAt: completedAt,
+    );
+  }
+
+  ({int correct, int total}) _metricForSession(QuizSession session) {
+    return switch (session.quizType) {
+      QuestionType.mcq => _questionMetric(session),
+      QuestionType.suddenDeath => _questionMetric(session),
+      QuestionType.matchTheFollowing => _matchMetric(session),
+      QuestionType.sortItRight => _sortMetric(session),
+    };
+  }
+
+  ({int correct, int total}) _questionMetric(QuizSession session) {
+    var correct = 0;
+    for (final record in session.answeredRecords) {
+      if (record.evaluation.isCorrect) correct++;
+    }
+    return (correct: correct, total: session.questions.length);
+  }
+
+  ({int correct, int total}) _matchMetric(QuizSession session) {
+    var correct = 0;
+    var total = 0;
+    for (final record in session.answeredRecords) {
+      final question = record.question;
+      final answer = record.answer;
+      if (question is! MatchTheFollowingQuestion ||
+          answer is! MatchTheFollowingAnswer) {
+        continue;
+      }
+      total += question.pairs.length;
+      for (final pair in question.pairs) {
+        if (answer.matchedPairIds[pair.id] == pair.id) correct++;
+      }
+    }
+    for (final question in session.questions.skip(
+      session.answeredRecords.length,
+    )) {
+      if (question is MatchTheFollowingQuestion) total += question.pairs.length;
+    }
+    return (correct: correct, total: total);
+  }
+
+  ({int correct, int total}) _sortMetric(QuizSession session) {
+    var correct = 0;
+    var total = 0;
+    for (final record in session.answeredRecords) {
+      final question = record.question;
+      final answer = record.answer;
+      if (question is! SortItRightQuestion || answer is! SortAnswer) continue;
+      total += question.itemsInOrder.length;
+      correct += _correctSortItems(question, answer);
+    }
+    for (final question in session.questions.skip(
+      session.answeredRecords.length,
+    )) {
+      if (question is SortItRightQuestion) {
+        total += question.itemsInOrder.length;
+      }
+    }
+    return (correct: correct, total: total);
+  }
+}

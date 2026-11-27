@@ -1,7 +1,7 @@
 import '../models/cosmetic_item_model.dart';
 
-/// Implemented today by [CosmeticsMockDatasource]. Swap for a
-/// Firestore-backed implementation (cosmetics collection) later.
+/// The app binds `EmptyCosmeticsDatasource`; tests use a mock from
+/// `test/mocks/`.
 abstract class CosmeticsDatasource {
   Future<List<CosmeticItemModel>> getCatalog();
 
