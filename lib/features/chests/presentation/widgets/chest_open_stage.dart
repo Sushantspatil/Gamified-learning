@@ -19,6 +19,7 @@ import '../../../character3d/presentation/character_3d_view.dart';
 import '../../../character3d/presentation/equipped_cosmetics.dart';
 import '../chest_style.dart';
 import 'chest_open_view.dart';
+import 'chest_rive_view.dart';
 
 /// Shows the large, centred "opening" view for [tier]: the chest plays its
 /// full animation on a dark stage, then the reward appears under it.
@@ -150,12 +151,20 @@ class _ChestOpenStageState extends ConsumerState<ChestOpenStage>
                             ),
                           ),
                           SizedBox(height: height * 0.10),
-                          ChestOpenView(
-                            key: const Key('chest_stage_chest'),
+                          // The Rive animation when this chest has one,
+                          // else the picture film.
+                          ChestRiveView(
                             style: style,
                             progress: _open,
                             height: height,
                             reduceMotion: AppMotion.reduceMotion(context),
+                            fallback: ChestOpenView(
+                              key: const Key('chest_stage_chest'),
+                              style: style,
+                              progress: _open,
+                              height: height,
+                              reduceMotion: AppMotion.reduceMotion(context),
+                            ),
                           ),
                           SizedBox(height: height * 0.10),
                           AnimatedSwitcher(

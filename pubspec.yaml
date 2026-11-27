@@ -48,6 +48,7 @@ dependencies:
   in_app_purchase: 3.3.1
   google_mobile_ads: 9.2.0
   in_app_purchase_android: 0.5.5
+  rive: 0.14.11
 
 dev_dependencies:
   flutter_test:
@@ -81,6 +82,8 @@ flutter:
     - assets/chests/galaxy/
     - assets/chests/golden/
     - assets/chests/cyber/
+    # Rive chest openings: golden.riv, cyber.riv, galaxy.riv (docs/chest-rive-guide.md).
+    - assets/chests/rive/
     - assets/icons/
     - assets/animations/
     - assets/fonts/
