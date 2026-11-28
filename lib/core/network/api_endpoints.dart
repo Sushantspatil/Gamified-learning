@@ -28,7 +28,8 @@ class ApiEndpoints {
   static const String profileSetupOptions = '/profile/setup-options';
 
   // Quiz, Topics & Gameplay
-  static String topicQuestions(String topicId) => '/topics/$topicId/questions';
+  static String topicQuestions(String topicId) =>
+      '/topics/${Uri.encodeComponent(topicId)}/questions';
   static const String subjects = '/subjects';
   static const String quizCreateSession = '/quiz/sessions/create';
   static const String quizEvaluateAnswer = '/quiz/answers/evaluate';
@@ -60,9 +61,10 @@ class ApiEndpoints {
   // Rewarded ads (paid only after Google's signed server-side callback)
   static const String adsConfig = '/ads/config';
   static const String adsRewards = '/ads/rewards';
-  static String adsReward(String id) => '/ads/rewards/$id';
+  static String adsReward(String id) =>
+      '/ads/rewards/${Uri.encodeComponent(id)}';
   static String adsRewardDevComplete(String id) =>
-      '/ads/rewards/$id/dev-complete';
+      '/ads/rewards/${Uri.encodeComponent(id)}/dev-complete';
 
   // Power-ups charged on the server (prices and token balances)
   static const String powerUps = '/power-ups';

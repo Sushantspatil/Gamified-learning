@@ -6,6 +6,10 @@ on:
       - main
   workflow_dispatch:
 
+# The build only reads the repository and uploads an artifact.
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build Flutter APK
@@ -31,7 +35,7 @@ jobs:
           channel: 'stable'
 
       - name: Install dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Configure backend URL
         run: |

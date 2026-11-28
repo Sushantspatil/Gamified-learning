@@ -9,7 +9,20 @@ import 'package:skillverse_app/features/authentication/data/datasources/remote/a
 import 'package:skillverse_app/features/quiz/data/datasources/remote/sudden_death_remote_datasource.dart';
 import 'package:skillverse_app/features/quiz/data/models/sudden_death_ws_dto.dart';
 
+/// Credentials come from the command line, never from the repository:
+/// flutter test test/live_railway_sd_test.dart --dart-define=LIVE_TEST_EMAIL=... --dart-define=LIVE_TEST_PASSWORD=...
+const _liveEmail = String.fromEnvironment('LIVE_TEST_EMAIL');
+const _livePassword = String.fromEnvironment('LIVE_TEST_PASSWORD');
+
 void main() {
+  if (_liveEmail.isEmpty || _livePassword.isEmpty) {
+    test(
+      'live backend test',
+      () {},
+      skip: 'Set LIVE_TEST_EMAIL and LIVE_TEST_PASSWORD to run.',
+    );
+    return;
+  }
   test('Live Railway Sudden Death WebSocket Test', () async {
     SharedPreferences.setMockInitialValues({});
     final storage = await LocalStorageService.create();
@@ -29,8 +42,8 @@ void main() {
 
     // 1. Login
     final user = await authRemote.login(
-      email: 'player@example.com',
-      password: 'secretpassword123',
+      email: _liveEmail,
+      password: _livePassword,
     );
     print('Logged in client: ${user.id} (${user.email})');
 

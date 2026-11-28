@@ -25,6 +25,12 @@ class _Account implements WalletDatasource {
   bool offline = false;
   final List<String> log = [];
 
+  /// Every accepted request: (user, reason, reference id).
+  final List<(String, String, String?)> calls = [];
+
+  /// Apply the next credit, then fail as if the response was lost.
+  bool loseNextResponse = false;
+
   _Account({required this.coins, required this.gems});
 
   @override
@@ -54,6 +60,7 @@ class _Account implements WalletDatasource {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   }) async {
     if (offline) throw const NetworkException();
     if (currency == CurrencyType.coins) {
@@ -62,6 +69,11 @@ class _Account implements WalletDatasource {
       gems += amount;
     }
     log.add('+$amount ${currency.name} $reason');
+    calls.add((userId, reason, referenceId));
+    if (loseNextResponse) {
+      loseNextResponse = false;
+      throw const NetworkException();
+    }
     return _entry(
       userId,
       currency,
@@ -77,6 +89,7 @@ class _Account implements WalletDatasource {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   }) async {
     if (offline) throw const NetworkException();
     final have = currency == CurrencyType.coins ? coins : gems;
@@ -87,6 +100,7 @@ class _Account implements WalletDatasource {
       gems -= amount;
     }
     log.add('-$amount ${currency.name} $reason');
+    calls.add((userId, reason, referenceId));
     return _entry(userId, currency, TransactionDirection.debit, amount, reason);
   }
 
@@ -100,6 +114,17 @@ class _SignedIn extends AuthController {
   @override
   Future<AppUser?> build() async =>
       const AppUser(id: 'u1', email: 'a@b.c', displayName: 'Ada');
+}
+
+/// Signed in as whoever the test says; starts as u1.
+class _Switchable extends AuthController {
+  @override
+  Future<AppUser?> build() async =>
+      const AppUser(id: 'u1', email: 'a@b.c', displayName: 'Ada');
+
+  void signInAs(String? id) => state = AsyncData(
+    id == null ? null : AppUser(id: id, email: '$id@b.c', displayName: id),
+  );
 }
 
 class _FixedRandom implements math.Random {
@@ -253,4 +278,91 @@ void main() {
     expect(account.coins, 50); // the account refused to go negative
     expect(container.read(rewardsProvider).coins, 50);
   });
+
+  test(
+    'a retried credit keeps its reference id; each entry has its own',
+    () async {
+      final account = _Account(coins: 3165, gems: 237);
+      final container = await start(account);
+      final rewards = container.read(rewardsProvider.notifier);
+
+      // Applied by the account, but the answer is lost: it will be sent again.
+      account.loseNextResponse = true;
+      rewards.startSpin();
+      rewards.completeSpin();
+      await _settle();
+      container.invalidate(walletControllerProvider);
+      await _settle();
+
+      final spins = account.calls.where((c) => c.$2 == 'spin_wheel').toList();
+      expect(spins, hasLength(2));
+      expect(spins.first.$3, isNotNull);
+      expect(spins.first.$3!.length, lessThanOrEqualTo(64));
+      expect(spins.last.$3, spins.first.$3); // same id: the server can dedupe
+
+      rewards.purchase('avatar-scholar');
+      await _settle();
+      final shop = account.calls.last;
+      expect(shop.$2, 'shop_avatar-scholar');
+      expect(shop.$3, isNot(spins.first.$3));
+    },
+  );
+
+  test('a chest whose price is refused pays no prize', () async {
+    final account = _Account(coins: 3165, gems: 237);
+    final container = await start(account, random: 5);
+    // Spent elsewhere: the phone still thinks 3165, the account has 50.
+    account.coins = 50;
+
+    final result = container
+        .read(rewardsProvider.notifier)
+        .forceOpenChest(ChestTier.golden); // costs 200
+    expect(result.status, ChestOpenStatus.opened);
+    await _settle();
+
+    expect(account.log, isEmpty); // debit refused, prize never sent
+    expect(account.coins, 50);
+    expect(container.read(rewardsProvider).coins, 50);
+  });
+
+  test(
+    "one account's queued spend is never sent under another account",
+    () async {
+      final account = _Account(coins: 3165, gems: 237)..offline = true;
+      final container = ProviderContainer(
+        overrides: [
+          localStorageServiceProvider.overrideWithValue(storage),
+          authControllerProvider.overrideWith(_Switchable.new),
+          walletDatasourceProvider.overrideWithValue(account),
+          rewardsRandomProvider.overrideWithValue(_FixedRandom(9)),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.listen(rewardsProvider, (_, _) {});
+      container.listen(walletControllerProvider, (_, _) {});
+      await _settle();
+      final auth =
+          container.read(authControllerProvider.notifier) as _Switchable;
+
+      // u1 buys while offline: the debit waits in the queue.
+      container.read(rewardsProvider.notifier).purchase('avatar-scholar');
+      await _settle();
+      expect(account.calls, isEmpty);
+
+      // u1 signs out and u2 signs in with a working connection.
+      auth.signInAs(null);
+      await _settle();
+      account.offline = false;
+      auth.signInAs('u2');
+      await _settle();
+      expect(account.calls, isEmpty); // nothing charged to u2
+      expect(container.read(rewardsProvider).coins, 3165); // u2's own balance
+
+      // u1 comes back: their spend is sent under their own account.
+      auth.signInAs('u1');
+      await _settle();
+      expect(account.calls.single.$1, 'u1');
+      expect(account.calls.single.$2, 'shop_avatar-scholar');
+    },
+  );
 }

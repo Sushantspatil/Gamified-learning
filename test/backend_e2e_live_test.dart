@@ -18,7 +18,20 @@ import 'package:skillverse_app/features/quiz/data/models/sudden_death_ws_dto.dar
 import 'package:skillverse_app/features/wallet/data/datasources/remote/wallet_remote_datasource.dart';
 import 'package:skillverse_app/features/wallet/domain/entities/currency_type.dart';
 
+/// Credentials come from the command line, never from the repository:
+/// flutter test test/backend_e2e_live_test.dart --dart-define=LIVE_TEST_EMAIL=... --dart-define=LIVE_TEST_PASSWORD=...
+const _liveEmail = String.fromEnvironment('LIVE_TEST_EMAIL');
+const _livePassword = String.fromEnvironment('LIVE_TEST_PASSWORD');
+
 void main() {
+  if (_liveEmail.isEmpty || _livePassword.isEmpty) {
+    test(
+      'live backend test',
+      () {},
+      skip: 'Set LIVE_TEST_EMAIL and LIVE_TEST_PASSWORD to run.',
+    );
+    return;
+  }
   group('Live Go Backend & Flutter End-to-End Integration', () {
     late LocalStorageService storage;
     late ApiConfig config;
@@ -61,12 +74,12 @@ void main() {
       () async {
         // 1. Live login against running backend
         final user = await authRemote.login(
-          email: 'player@example.com',
-          password: 'secretpassword123',
+          email: _liveEmail,
+          password: _livePassword,
         );
 
         expect(user.id, isNotEmpty);
-        expect(user.email, 'player@example.com');
+        expect(user.email, _liveEmail);
         expect(user.displayName, isNotEmpty);
 
         // 2. Token persistence verified
@@ -78,7 +91,7 @@ void main() {
         final verifiedUser = await authRemote.getUserById(user.id);
         expect(verifiedUser, isNotNull);
         expect(verifiedUser!.id, user.id);
-        expect(verifiedUser.email, 'player@example.com');
+        expect(verifiedUser.email, _liveEmail);
       },
     );
 
@@ -133,10 +146,7 @@ void main() {
       'Live MCQ Quiz lifecycle: fetch questions, create session, evaluate answer, and complete',
       () async {
         // 1. Authenticate to populate Bearer token
-        await authRemote.login(
-          email: 'player@example.com',
-          password: 'secretpassword123',
-        );
+        await authRemote.login(email: _liveEmail, password: _livePassword);
 
         // 2. Fetch live questions from PostgreSQL
         final questions = await questionRemote.getQuestionsForTopicAndType(
@@ -239,8 +249,8 @@ void main() {
       'Live Profile lifecycle: fetch profile, update avatar, and complete setup',
       () async {
         final user = await authRemote.login(
-          email: 'player@example.com',
-          password: 'secretpassword123',
+          email: _liveEmail,
+          password: _livePassword,
         );
 
         final initialProfile = await profileRemote.getProfile(user.id);
@@ -269,8 +279,8 @@ void main() {
       'Live Wallet lifecycle: check balance, credit, debit, and fetch transactions',
       () async {
         final user = await authRemote.login(
-          email: 'player@example.com',
-          password: 'secretpassword123',
+          email: _liveEmail,
+          password: _livePassword,
         );
 
         final initialBalance = await walletRemote.getBalance(user.id);
@@ -305,8 +315,8 @@ void main() {
       () async {
         // 1. Authenticate user
         final user = await authRemote.login(
-          email: 'player@example.com',
-          password: 'secretpassword123',
+          email: _liveEmail,
+          password: _livePassword,
         );
         expect(user.id, isNotEmpty);
 

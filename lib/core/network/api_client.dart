@@ -241,6 +241,52 @@ class ApiClient {
       return response;
     }
 
+    // One refresh at a time per session: concurrent 401s share it.
+    var inFlight = _refreshInFlight;
+    if (inFlight == null || _refreshingWith != refreshToken) {
+      final started = _requestNewTokens(refreshToken);
+      _refreshInFlight = inFlight = started;
+      _refreshingWith = refreshToken;
+      started.whenComplete(() {
+        if (identical(_refreshInFlight, started)) {
+          _refreshInFlight = null;
+          _refreshingWith = null;
+        }
+      }).ignore();
+    }
+    final tokens = await inFlight;
+
+    // The session may have changed while the refresh was in flight (logout,
+    // or another account signed in on this device). Its result belongs to
+    // the old session, so it must not overwrite or clear the current one.
+    final current = _storage.getString(StorageKeys.refreshToken);
+    final rotatedByUs = tokens?.refreshToken;
+    final sameSession =
+        current == refreshToken ||
+        (rotatedByUs != null && current == rotatedByUs);
+    if (!sameSession) return response;
+
+    if (tokens == null) {
+      await _clearSession();
+      return response;
+    }
+
+    await _storage.setString(StorageKeys.authToken, tokens.accessToken);
+    final rotated = tokens.refreshToken;
+    if (rotated != null && rotated.isNotEmpty && rotated != current) {
+      await _storage.setString(StorageKeys.refreshToken, rotated);
+    }
+    return retry();
+  }
+
+  Future<({String accessToken, String? refreshToken})?>? _refreshInFlight;
+  String? _refreshingWith;
+
+  /// Exchanges [refreshToken] for a new access token (and a rotated refresh
+  /// token if the server sends one). Returns null when the server refuses.
+  Future<({String accessToken, String? refreshToken})?> _requestNewTokens(
+    String refreshToken,
+  ) async {
     final refreshResponse = await _httpClient
         .post(
           _buildUri(ApiEndpoints.refresh),
@@ -253,24 +299,21 @@ class ApiClient {
         .timeout(_config.timeout);
 
     if (refreshResponse.statusCode < 200 || refreshResponse.statusCode >= 300) {
-      await _clearSession();
-      return response;
+      return null;
     }
 
     final decoded = jsonDecode(utf8.decode(refreshResponse.bodyBytes));
     final payload = decoded is Map<String, dynamic> && decoded['data'] is Map
         ? Map<String, dynamic>.from(decoded['data'] as Map)
         : decoded;
-    final accessToken = payload is Map<String, dynamic>
-        ? payload['accessToken'] as String?
-        : null;
-    if (accessToken == null || accessToken.isEmpty) {
-      await _clearSession();
-      return response;
-    }
-
-    await _storage.setString(StorageKeys.authToken, accessToken);
-    return retry();
+    if (payload is! Map<String, dynamic>) return null;
+    final accessToken = payload['accessToken'];
+    if (accessToken is! String || accessToken.isEmpty) return null;
+    final rotated = payload['refreshToken'];
+    return (
+      accessToken: accessToken,
+      refreshToken: rotated is String && rotated.isNotEmpty ? rotated : null,
+    );
   }
 
   Future<void> _clearSession() async {

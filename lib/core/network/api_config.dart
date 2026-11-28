@@ -11,11 +11,16 @@ class ApiConfig {
   });
 
   /// Check whether the URL refers to a local development host.
+  ///
+  /// Compares the exact host, so a host that merely contains one of these
+  /// names (for example `localhost.example.com`) still gets https.
   static bool isLocalUrl(String url) {
-    final lower = url.toLowerCase();
-    return lower.contains('localhost') ||
-        lower.contains('127.0.0.1') ||
-        lower.contains('10.0.2.2');
+    var rest = url.trim().toLowerCase();
+    final scheme = rest.indexOf('://');
+    if (scheme >= 0) rest = rest.substring(scheme + 3);
+    final end = rest.indexOf(RegExp(r'[/:?#]'));
+    final host = end >= 0 ? rest.substring(0, end) : rest;
+    return host == 'localhost' || host == '127.0.0.1' || host == '10.0.2.2';
   }
 
   /// The root host URL without the /api/v1 suffix.

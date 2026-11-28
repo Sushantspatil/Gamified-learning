@@ -22,6 +22,16 @@ final rewardsClockProvider = Provider<DateTime Function()>((ref) {
 
 final rewardsRandomProvider = Provider<Random>((ref) => Random());
 
+/// A random id for one wallet operation, sent as its `reference_id` so a
+/// retry after a lost response can be recognised as the same operation.
+String _newOpId() {
+  final random = Random.secure();
+  return List.generate(
+    16,
+    (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+  ).join();
+}
+
 /// One coin or gem movement waiting to be sent to the account.
 class _WalletOp {
   final CurrencyType currency;
@@ -30,12 +40,34 @@ class _WalletOp {
   final int amount;
   final String reason;
 
-  const _WalletOp(this.currency, this.amount, this.reason);
+  /// Stable id, kept across retries (sent as `reference_id`).
+  final String id;
+
+  /// The account that earned or spent it. Only that account sends it, so a
+  /// queue left behind at logout is never paid to or charged to someone else.
+  /// Null only for entries saved by an older app version.
+  final String? owner;
+
+  /// Entries that belong together (a chest's price and its prize). When the
+  /// price is refused, the rest of the group is dropped, not paid.
+  final String? group;
+
+  _WalletOp(
+    this.currency,
+    this.amount,
+    this.reason, {
+    String? id,
+    this.owner,
+    this.group,
+  }) : id = id ?? _newOpId();
 
   Map<String, Object> toJson() => {
     'c': currency == CurrencyType.coins ? 'coins' : 'gems',
     'a': amount,
     'r': reason,
+    'i': id,
+    'u': ?owner,
+    'g': ?group,
   };
 
   static _WalletOp? fromJson(Object? json) {
@@ -43,12 +75,21 @@ class _WalletOp {
     final amount = json['a'];
     final reason = json['r'];
     if (amount is! int || amount == 0 || reason is! String) return null;
+    final id = json['i'];
+    final owner = json['u'];
+    final group = json['g'];
     return _WalletOp(
       json['c'] == 'gems' ? CurrencyType.gems : CurrencyType.coins,
       amount,
       reason,
+      id: id is String && id.isNotEmpty && id.length <= 64 ? id : null,
+      owner: owner is String ? owner : null,
+      group: group is String ? group : null,
     );
   }
+
+  /// Whether [userId] may send (and count) this entry.
+  bool belongsTo(String? userId) => owner == null || owner == userId;
 }
 
 /// The single place that changes coins, spins, chest progress and the
@@ -70,11 +111,14 @@ class RewardsController extends Notifier<RewardsState> {
   bool _disposed = false;
 
   /// Whether the coins are the account's (someone is signed in).
-  bool get _walletLive {
+  bool get _walletLive => _currentUserId != null;
+
+  /// The signed-in account, or null.
+  String? get _currentUserId {
     try {
-      return ref.read(authControllerProvider).valueOrNull != null;
+      return ref.read(authControllerProvider).valueOrNull?.id;
     } catch (_) {
-      return false;
+      return null;
     }
   }
 
@@ -137,8 +181,9 @@ class RewardsController extends Notifier<RewardsState> {
   // ---- The account (wallet) -----------------------------------------------
 
   int _fromWallet(int accountBalance, CurrencyType currency) {
+    final userId = _currentUserId;
     final waiting = _outbox
-        .where((op) => op.currency == currency)
+        .where((op) => op.currency == currency && op.belongsTo(userId))
         .fold<int>(0, (sum, op) => sum + op.amount);
     return max(0, accountBalance + waiting);
   }
@@ -175,17 +220,28 @@ class RewardsController extends Notifier<RewardsState> {
 
   /// Queues a win (positive) or a spend (negative) for the account. Does
   /// nothing when nobody is signed in: then coins stay on this phone only.
-  void _enqueue(CurrencyType currency, int amount, String reason) {
-    if (amount == 0 || !_walletLive) return;
-    _outbox.add(_WalletOp(currency, amount, reason));
+  void _enqueue(
+    CurrencyType currency,
+    int amount,
+    String reason, {
+    String? group,
+  }) {
+    final userId = _currentUserId;
+    if (amount == 0 || userId == null) return;
+    _outbox.add(
+      _WalletOp(currency, amount, reason, owner: userId, group: group),
+    );
     _saveOutbox();
     Future.microtask(_flushOutbox);
   }
 
-  /// Sends the queue to the account, oldest first. A network or server
-  /// problem stops it (it is tried again the next time the balance loads);
-  /// a refusal drops that one entry. Afterwards the balance is re-read, so
-  /// what is shown is what the account really has.
+  /// Sends this account's queue to the account, oldest first. Entries of
+  /// another account stay queued for when that account signs in again. A
+  /// network or server problem stops it (it is tried again, with the same
+  /// `reference_id`, the next time the balance loads); a refusal drops that
+  /// entry, and a refused price also drops the prize it was paying for.
+  /// Afterwards the balance is re-read, so what is shown is what the account
+  /// really has.
   Future<void> _flushOutbox() async {
     if (_flushing || _disposed || _outbox.isEmpty || !_walletLive) return;
     final user = ref.read(authControllerProvider).valueOrNull;
@@ -194,8 +250,14 @@ class RewardsController extends Notifier<RewardsState> {
     var sentAny = false;
     try {
       final repository = ref.read(walletRepositoryProvider);
-      while (_outbox.isNotEmpty && !_disposed) {
-        final op = _outbox.first;
+      var index = 0;
+      while (index < _outbox.length && !_disposed) {
+        final op = _outbox[index];
+        if (!op.belongsTo(user.id)) {
+          index++; // another account's entry: never sent under this one
+          continue;
+        }
+        var refused = false;
         try {
           if (op.amount > 0) {
             await repository.credit(
@@ -203,6 +265,7 @@ class RewardsController extends Notifier<RewardsState> {
               currency: op.currency,
               amount: op.amount,
               reason: op.reason,
+              referenceId: op.id,
             );
           } else {
             await repository.debit(
@@ -210,17 +273,23 @@ class RewardsController extends Notifier<RewardsState> {
               currency: op.currency,
               amount: -op.amount,
               reason: op.reason,
+              referenceId: op.id,
             );
           }
         } on ValidationException {
           // Refused (for instance not enough funds): drop it; the re-read
           // below puts the true balance on screen.
+          refused = true;
         } on NotFoundException {
-          // Same: nothing to retry.
+          refused = true; // same: nothing to retry
         } catch (_) {
           break; // offline or a server hiccup: keep it for later
         }
-        _outbox.removeAt(0);
+        _outbox.removeAt(index);
+        if (refused && op.amount < 0 && op.group != null) {
+          // The price was not paid, so its prize is not paid either.
+          _outbox.removeWhere((other) => other.group == op.group);
+        }
         sentAny = true;
         _saveOutbox();
       }
@@ -378,10 +447,27 @@ class RewardsController extends Notifier<RewardsState> {
         next = next.copyWith(gems: next.gems + gems);
     }
     _commit(next);
-    // The price and the prize go to the account as two entries.
-    _enqueue(CurrencyType.coins, -price, 'chest_open_${tier.name}');
-    _enqueue(CurrencyType.coins, coinsWon, 'chest_reward_${tier.name}');
-    _enqueue(CurrencyType.gems, gemsWon, 'chest_reward_${tier.name}');
+    // The price and the prize go to the account as one group: if the price
+    // is refused, the prize is dropped too.
+    final group = _newOpId();
+    _enqueue(
+      CurrencyType.coins,
+      -price,
+      'chest_open_${tier.name}',
+      group: group,
+    );
+    _enqueue(
+      CurrencyType.coins,
+      coinsWon,
+      'chest_reward_${tier.name}',
+      group: group,
+    );
+    _enqueue(
+      CurrencyType.gems,
+      gemsWon,
+      'chest_reward_${tier.name}',
+      group: group,
+    );
     return ChestOpenResult(ChestOpenStatus.opened, reward);
   }
 

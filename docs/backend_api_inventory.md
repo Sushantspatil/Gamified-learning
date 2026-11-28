@@ -22,7 +22,7 @@ The backend wraps successful responses as `{ "success": true, "message": "...", 
 | Update display name | `AuthRemoteDatasource` | `PUT /api/v1/profile` with `{name}` | updated profile | Bearer | Integrated |
 | Forgot/change password | No complete frontend integration | Several `/api/v1/auth/forgot-password*` and `/api/v1/change-password-*` routes | See backend DTOs | Mixed | Backend available; frontend integration missing |
 
-Demo seed login: `player@example.com` / `secretpassword123`.
+Demo seed login: shared with developers outside the repository. Never commit credentials, and the seed account must not exist on any deployed backend.
 
 ## Profile, Dashboard, Wallet, And Streak
 

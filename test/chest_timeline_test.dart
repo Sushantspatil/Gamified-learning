@@ -42,9 +42,9 @@ void main() {
     test('between the cuts exactly one picture shows', () {
       for (final entry in {
         0.05: ChestFrame.closed,
-        0.31: ChestFrame.opening,
-        0.56: ChestFrame.burst,
-        0.85: ChestFrame.opened,
+        0.26: ChestFrame.opening,
+        0.38: ChestFrame.burst,
+        0.80: ChestFrame.opened,
       }.entries) {
         for (final f in ChestFrame.values) {
           expect(
@@ -80,9 +80,9 @@ void main() {
         last = index;
       }
       expect(ChestTimeline.dominantFrame(0), ChestFrame.closed);
-      expect(ChestTimeline.dominantFrame(0.3), ChestFrame.opening);
-      expect(ChestTimeline.dominantFrame(0.5), ChestFrame.burst);
-      expect(ChestTimeline.dominantFrame(0.9), ChestFrame.opened);
+      expect(ChestTimeline.dominantFrame(0.26), ChestFrame.opening);
+      expect(ChestTimeline.dominantFrame(0.38), ChestFrame.burst);
+      expect(ChestTimeline.dominantFrame(0.80), ChestFrame.opened);
     });
   });
 
@@ -94,9 +94,7 @@ void main() {
       expect(burst, greaterThan(unlock));
       expect(burst, closeTo(1, 0.02));
       expect(ChestTimeline.flash(0.05), lessThan(0.01));
-      expect(ChestTimeline.flash(0.31), lessThan(0.01));
-      expect(ChestTimeline.flash(0.56), lessThan(0.05));
-      expect(ChestTimeline.flash(0.95), lessThan(0.01));
+      expect(ChestTimeline.flash(0.80), lessThan(0.01));
     });
 
     test('stays within 0..1 all the way through', () {
@@ -139,8 +137,8 @@ void main() {
         var atUnlock = 1.0, atBurst = 1.0, smallest = 1.0;
         for (final t in times) {
           final s = ChestTimeline.scale(t);
-          if (t >= 0.2 && t < 0.4) atUnlock = s > atUnlock ? s : atUnlock;
-          if (t >= 0.42 && t < 0.7) atBurst = s > atBurst ? s : atBurst;
+          if (t >= 0.18 && t < 0.28) atUnlock = s > atUnlock ? s : atUnlock;
+          if (t >= 0.28 && t < 0.44) atBurst = s > atBurst ? s : atBurst;
           smallest = s < smallest ? s : smallest;
         }
         expect(atUnlock, greaterThan(1.02));
@@ -152,8 +150,8 @@ void main() {
 
     test('the chest rises as the lid cracks, then comes back down', () {
       expect(ChestTimeline.lift(0), 0);
-      expect(ChestTimeline.lift(0.35), lessThan(0)); // negative is up
-      expect(ChestTimeline.lift(0.35), greaterThan(-0.05));
+      expect(ChestTimeline.lift(0.26), lessThan(0)); // negative is up
+      expect(ChestTimeline.lift(0.26), greaterThan(-0.05));
       expect(ChestTimeline.lift(1), closeTo(0, 1e-9));
     });
   });

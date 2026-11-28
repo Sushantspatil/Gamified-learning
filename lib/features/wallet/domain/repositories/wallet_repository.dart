@@ -15,6 +15,7 @@ abstract class WalletRepository {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   });
 
   /// Throws a ValidationException if the balance is insufficient.
@@ -23,6 +24,7 @@ abstract class WalletRepository {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   });
 
   Future<List<WalletTransaction>> getTransactionHistory(String userId);

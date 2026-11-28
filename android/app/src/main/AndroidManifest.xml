@@ -7,7 +7,12 @@
         android:label="skillverse_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
-        android:usesCleartextTraffic="true">
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
+        <!-- Backup and device transfer are off: the login tokens live in app
+             storage and must not be copied off the device. Cleartext (http)
+             is allowed only in debug/profile builds, for a local backend. -->
         <!-- AdMob app id, set per build in android/app/build.gradle.kts. -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
@@ -29,6 +34,11 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- The app has no deep links: other apps must not be able to open
+                 an internal screen (e.g. a game) by sending an intent. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"/>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

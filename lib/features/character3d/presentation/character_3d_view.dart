@@ -239,6 +239,16 @@ class Character3dView extends StatefulWidget {
   State<Character3dView> createState() => _Character3dViewState();
 }
 
+/// Whether [url] is the bundled character page (or a blank page), the only
+/// documents the character WebView may show.
+bool _isBundledPage(String url) {
+  if (url == 'about:blank') return true;
+  final uri = Uri.tryParse(url);
+  if (uri == null || uri.hasQuery || uri.hasFragment) return false;
+  return uri.scheme == 'file' &&
+      uri.path.endsWith('/${Character3dView.assetPath}');
+}
+
 class _Character3dViewState extends State<Character3dView>
     with WidgetsBindingObserver {
   WebViewController? _controller;
@@ -335,11 +345,10 @@ class _Character3dViewState extends State<Character3dView>
         ..addJavaScriptChannel('CharacterBridge', onMessageReceived: _onMessage)
         ..setNavigationDelegate(
           NavigationDelegate(
-            // The page never navigates; refuse anything that tries to.
-            onNavigationRequest: (request) =>
-                request.url.startsWith('file:') ||
-                    request.url.startsWith('about:') ||
-                    request.url.startsWith('data:')
+            // The page never navigates: only the bundled page itself (and a
+            // blank page) may load, so no other document can ever reach the
+            // CharacterBridge channel.
+            onNavigationRequest: (request) => _isBundledPage(request.url)
                 ? NavigationDecision.navigate
                 : NavigationDecision.prevent,
             onWebResourceError: (error) {

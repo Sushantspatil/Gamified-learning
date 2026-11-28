@@ -19,12 +19,14 @@ class WalletRepositoryImpl implements WalletRepository {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   }) {
     return _datasource.credit(
       userId: userId,
       currency: currency,
       amount: amount,
       reason: reason,
+      referenceId: referenceId,
     );
   }
 
@@ -34,12 +36,14 @@ class WalletRepositoryImpl implements WalletRepository {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   }) {
     return _datasource.debit(
       userId: userId,
       currency: currency,
       amount: amount,
       reason: reason,
+      referenceId: referenceId,
     );
   }
 

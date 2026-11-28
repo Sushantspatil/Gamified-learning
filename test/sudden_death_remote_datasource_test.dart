@@ -164,7 +164,7 @@ void main() {
     });
 
     test(
-      'connect uses token from storage and constructs valid ws URI',
+      'connect requires a stored token but never puts it in the URI',
       () async {
         await storage.setString(StorageKeys.authToken, 'jwt-token-xyz');
 
@@ -191,9 +191,15 @@ void main() {
           socketClient.connectedUri!.queryParameters['session_id'],
           'sess-test-888',
         );
+        // The bearer token travels only in the Authorization header: a URL
+        // ends up in server and proxy logs.
         expect(
-          socketClient.connectedUri!.queryParameters['token'],
-          'jwt-token-xyz',
+          socketClient.connectedUri!.queryParameters,
+          isNot(contains('token')),
+        );
+        expect(
+          socketClient.connectedUri.toString(),
+          isNot(contains('jwt-token-xyz')),
         );
       },
     );

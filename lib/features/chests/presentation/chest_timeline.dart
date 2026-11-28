@@ -5,30 +5,28 @@ import 'chest_style.dart';
 /// The timing of a chest opening, as plain functions of the progress `t`
 /// (0 closed .. 1 fully open). Nothing here draws; [ChestOpenView] reads it.
 ///
-/// A chest has four pictures (closed, opening, burst, opened) and no pictures in
-/// between, so the opening is a short film cut in three places:
+/// Designed so that once the crate starts opening, it opens directly and
+/// smoothly in a fluid, continuous motion rather than stepping frame by frame:
 ///
-///   0.00 - 0.20  the chest rattles harder and harder (the lock is giving way)
-///   0.20         the lock breaks: a flash, cut to "opening"
-///   0.20 - 0.42  the lid is cracked, light leaks out, the chest rises
-///   0.42         the energy bursts: a bigger flash, cut to "burst"
-///   0.42 - 0.70  the burst, the chest pops and settles
-///   0.70         cut to "opened", the final resting picture
+///   0.00 - 0.20  the chest rattles and squashes in anticipation
+///   0.20         the lock snaps: bright flash, lid cracks open ("opening")
+///   0.20 - 0.32  the lid swings upward smoothly, energy builds
+///   0.32         the energy bursts: radiant flash, lid wide open ("burst")
+///   0.32 - 0.44  continuous fluid transition to "opened"
+///   0.44 - 1.00  the chest is fully opened, bathed in glowing rays and particles
 ///
-/// Each cut is a very short dissolve (about 90 ms of a 2.6 s opening) hidden
-/// by the flash. The incoming picture fades in *over* the outgoing one, which
-/// stays fully opaque until it is covered, so the chest never turns see-through
-/// halfway between two pictures.
+/// Each transition is smoothed with a generous dissolve covered by the light
+/// flash so the lid opening flows continuously without awkward static holds.
 class ChestTimeline {
   ChestTimeline._();
 
   /// Where the three cuts happen.
   static const double unlock = 0.20;
-  static const double burst = 0.42;
-  static const double settle = 0.70;
+  static const double burst = 0.32;
+  static const double settle = 0.44;
 
   /// How long each cut takes, as a share of the whole opening.
-  static const double dissolve = 0.035;
+  static const double dissolve = 0.07;
 
   static double _clamp01(double v) => v.clamp(0.0, 1.0);
 
@@ -68,11 +66,11 @@ class ChestTimeline {
     return math.exp(-x * x);
   }
 
-  /// The flash of light that hides each cut: small when the lock breaks, large
-  /// when the energy bursts, a soft one as the chest settles. 0..1.
+  /// The flash of light that hides each cut: energetic flash at the unlock,
+  /// peak radiant flash at the burst, and a warm settling glow. 0..1.
   static double flash(double t) => math.max(
-    0.55 * _pulse(t, unlock, 0.028),
-    math.max(1.0 * _pulse(t, burst, 0.035), 0.35 * _pulse(t, settle, 0.03)),
+    0.60 * _pulse(t, unlock, 0.032),
+    math.max(1.0 * _pulse(t, burst, 0.045), 0.40 * _pulse(t, settle, 0.035)),
   );
 
   /// How hard the chest rattles, -1..1 (the sign is the direction). It builds
@@ -100,17 +98,17 @@ class ChestTimeline {
 
     final squashed = 0.035 * squash(t);
     return 1 +
-        punch(unlock, 0.045, 0.14) +
-        punch(burst, 0.085, 0.24) +
-        punch(settle, 0.02, 0.12) -
+        punch(unlock, 0.05, 0.12) +
+        punch(burst, 0.085, 0.18) +
+        punch(settle, 0.025, 0.12) -
         squashed;
   }
 
   /// How high the chest rises, as a share of its height (negative is up): it
   /// lifts a little as the lid cracks, falls back at the burst.
   static double lift(double t) {
-    final rise = _smooth((t - unlock) / 0.12);
+    final rise = _smooth((t - unlock) / 0.10);
     final fall = _smooth((t - burst) / 0.12);
-    return -0.03 * rise * (1 - fall);
+    return -0.035 * rise * (1 - fall);
   }
 }

@@ -12,6 +12,7 @@ abstract class WalletDatasource {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   });
 
   Future<WalletTransactionModel> debit({
@@ -19,6 +20,7 @@ abstract class WalletDatasource {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   });
 
   Future<List<WalletTransactionModel>> getTransactionHistory(String userId);

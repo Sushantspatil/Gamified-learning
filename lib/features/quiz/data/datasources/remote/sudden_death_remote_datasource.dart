@@ -191,8 +191,10 @@ class SuddenDeathRemoteDatasource {
     activeSessionId = sessionId;
 
     final wsBase = _apiConfig.gameWsUrl;
+    // The bearer token is never put in a URL (URLs end up in server and proxy
+    // logs); requests carry it in the Authorization header instead.
     final wsUri = Uri.parse(
-      '$wsBase?session_id=${Uri.encodeQueryComponent(sessionId)}&token=${Uri.encodeQueryComponent(token)}',
+      '$wsBase?session_id=${Uri.encodeQueryComponent(sessionId)}',
     );
 
     if (kDebugMode) {

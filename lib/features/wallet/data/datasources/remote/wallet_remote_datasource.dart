@@ -30,12 +30,14 @@ class WalletRemoteDatasource implements WalletDatasource {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   }) async {
     final currencyStr = currency == CurrencyType.coins ? 'coins' : 'gems';
     final requestDto = WalletCreditRequestDto(
       currency: currencyStr,
       amount: amount,
       reason: reason,
+      referenceId: referenceId,
     );
     final data = await _apiClient.post(
       ApiEndpoints.walletCredit,
@@ -67,12 +69,14 @@ class WalletRemoteDatasource implements WalletDatasource {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   }) async {
     final currencyStr = currency == CurrencyType.coins ? 'coins' : 'gems';
     final requestDto = WalletDebitRequestDto(
       currency: currencyStr,
       amount: amount,
       reason: reason,
+      referenceId: referenceId,
     );
     final data = await _apiClient.post(
       ApiEndpoints.walletDebit,

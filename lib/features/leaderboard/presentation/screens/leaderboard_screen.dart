@@ -588,10 +588,9 @@ class _PodiumPlace extends StatelessWidget {
       2 => 64.0,
       _ => 50.0,
     };
-    final hasNetworkAvatar =
-        entry.avatarUrl != null &&
-        (entry.avatarUrl!.startsWith('http://') ||
-            entry.avatarUrl!.startsWith('https://'));
+    // Avatars are always drawn from the bundled catalog. A URL in another
+    // player's profile is never fetched, so one player cannot make every
+    // viewer's device load an address they chose.
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -615,18 +614,13 @@ class _PodiumPlace extends StatelessWidget {
           child: CircleAvatar(
             radius: radius,
             backgroundColor: colors.surfaceElevated,
-            backgroundImage: hasNetworkAvatar
-                ? NetworkImage(entry.avatarUrl!)
-                : null,
-            child: hasNetworkAvatar
-                ? null
-                : Icon(
-                    AvatarCatalog.iconFor(
-                      entry.avatarId.isNotEmpty ? entry.avatarId : 'user',
-                    ),
-                    size: radius * 0.9,
-                    color: colors.primary,
-                  ),
+            child: Icon(
+              AvatarCatalog.iconFor(
+                entry.avatarId.isNotEmpty ? entry.avatarId : 'user',
+              ),
+              size: radius * 0.9,
+              color: colors.primary,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.xs),

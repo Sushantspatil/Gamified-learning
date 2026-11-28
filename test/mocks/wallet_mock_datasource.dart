@@ -35,6 +35,7 @@ class WalletMockDatasource implements WalletDatasource {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   }) async {
     await Future.delayed(const Duration(milliseconds: 200));
     final current = _balanceFor(userId);
@@ -62,6 +63,7 @@ class WalletMockDatasource implements WalletDatasource {
     required CurrencyType currency,
     required int amount,
     required String reason,
+    String? referenceId,
   }) async {
     await Future.delayed(const Duration(milliseconds: 200));
     final current = _balanceFor(userId);
