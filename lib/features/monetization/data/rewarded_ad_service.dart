@@ -24,6 +24,12 @@ abstract class RewardedAdService {
     required String ssvUserId,
     required String ssvCustomData,
   });
+
+  /// Whether the player's region requires a way to change ad consent.
+  Future<bool> privacyOptionsRequired(AdRequestPolicy policy);
+
+  /// Opens Google's ad privacy choices form.
+  Future<void> showPrivacyOptions();
 }
 
 /// Used where rewarded ads are not supported (tests, web, desktop).
@@ -37,10 +43,57 @@ class UnavailableRewardedAdService implements RewardedAdService {
     required String ssvUserId,
     required String ssvCustomData,
   }) async => RewardedAdOutcome.unavailable;
+
+  @override
+  Future<bool> privacyOptionsRequired(AdRequestPolicy policy) async => false;
+
+  @override
+  Future<void> showPrivacyOptions() async {}
 }
 
 class GoogleRewardedAdService implements RewardedAdService {
   Future<bool>? _ready;
+
+  Future<void> _updateConsentInfo(AdRequestPolicy policy) {
+    final done = Completer<void>();
+    ConsentInformation.instance.requestConsentInfoUpdate(
+      ConsentRequestParameters(
+        tagForUnderAgeOfConsent: policy.ageTreatment != 'unspecified',
+      ),
+      () {
+        if (!done.isCompleted) done.complete();
+      },
+      (_) {
+        if (!done.isCompleted) done.complete();
+      },
+    );
+    return done.future.timeout(const Duration(seconds: 15), onTimeout: () {});
+  }
+
+  @override
+  Future<bool> privacyOptionsRequired(AdRequestPolicy policy) async {
+    try {
+      await _updateConsentInfo(policy);
+      return await ConsentInformation.instance
+              .getPrivacyOptionsRequirementStatus() ==
+          PrivacyOptionsRequirementStatus.required;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<void> showPrivacyOptions() async {
+    try {
+      final done = Completer<void>();
+      await ConsentForm.showPrivacyOptionsForm((_) {
+        if (!done.isCompleted) done.complete();
+      });
+      await done.future;
+    } catch (_) {
+      // Nothing to show here; the player can try again.
+    }
+  }
 
   /// Consent (Google UMP), age treatment and SDK start, once per app run.
   Future<bool> _prepare(AdRequestPolicy policy) => _ready ??= () async {

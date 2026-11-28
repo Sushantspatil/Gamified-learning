@@ -64,6 +64,9 @@ class ApiEndpoints {
   static String adsRewardDevComplete(String id) =>
       '/ads/rewards/$id/dev-complete';
 
+  // Account deletion (Google Play requires it in-app); password-confirmed.
+  static const String profileDelete = '/profile/delete';
+
   // Power-ups charged on the server (prices and token balances)
   static const String powerUps = '/power-ups';
 

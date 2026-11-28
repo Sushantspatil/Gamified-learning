@@ -9,6 +9,7 @@ import '../../data/store_billing_service.dart';
 import '../../domain/monetization_models.dart';
 import '../providers/monetization_providers.dart';
 import 'ad_reward_widgets.dart';
+import 'external_links.dart';
 
 /// The "Gems & Pass" tab of the Shop: the Quiz Pass, gem packs and topic
 /// packs (bought through Google Play and granted by the server), and free
@@ -99,11 +100,19 @@ class _StoreSectionState extends ConsumerState<StoreSection> {
           ),
           Text(
             'Payments are made through Google Play. Purchases are added to your '
-            'account only after the server confirms them with Google.',
+            'account only after the server confirms them with Google. Prices '
+            'include taxes where applicable.',
             textAlign: TextAlign.center,
             style: styles.labelSmall.copyWith(color: colors.textMuted),
           ),
         ],
+        Center(
+          child: TextButton(
+            key: const Key('privacy_policy_link'),
+            onPressed: () => openExternalLink(context, privacyPolicyUri(ref)),
+            child: const Text('Privacy policy'),
+          ),
+        ),
       ],
     );
   }
@@ -256,11 +265,16 @@ class _QuizPassCard extends ConsumerWidget {
               ),
             ],
             const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Manage or cancel any time in Google Play › Payments & subscriptions.',
-              style: styles.labelSmall.copyWith(color: colors.textMuted),
+            OutlinedButton.icon(
+              key: const Key('manage_subscription'),
+              onPressed: () => openExternalLink(
+                context,
+                playSubscriptionsUri(product?.id ?? 'quiz_pass'),
+              ),
+              icon: const Icon(Icons.open_in_new_rounded, size: 18),
+              label: const Text('Manage or cancel in Google Play'),
             ),
-          ] else
+          ] else ...[
             Wrap(
               spacing: AppSpacing.sm,
               runSpacing: AppSpacing.sm,
@@ -277,6 +291,17 @@ class _QuizPassCard extends ConsumerWidget {
                   ),
               ],
             ),
+            const SizedBox(height: AppSpacing.sm),
+            // Play subscriptions policy: state the terms before purchase.
+            Text(
+              'Billed every month or year at the price shown. Renews '
+              'automatically until you cancel. Cancel any time in Google Play '
+              '› Payments & subscriptions; you keep the perks until the end '
+              'of the period you paid for.',
+              key: const Key('quiz_pass_terms'),
+              style: styles.labelSmall.copyWith(color: colors.textMuted),
+            ),
+          ],
         ],
       ),
     );

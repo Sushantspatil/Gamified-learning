@@ -74,6 +74,18 @@ final powerUpsStatusProvider = FutureProvider.autoDispose<PowerUpsStatus>((
   return ref.watch(monetizationDatasourceProvider).powerUps();
 });
 
+/// True when the player's region requires an "ad privacy choices" entry
+/// point (Google UMP, e.g. EEA/UK).
+final adPrivacyOptionsRequiredProvider = FutureProvider.autoDispose<bool>((
+  ref,
+) async {
+  final config = await ref.watch(adsConfigProvider.future);
+  if (!config.rewardedAdsEnabled) return false;
+  return ref
+      .watch(rewardedAdServiceProvider)
+      .privacyOptionsRequired(config.policy);
+});
+
 /// Re-reads every balance and entitlement after the server changed them.
 void refreshMonetization(Ref ref) {
   ref.invalidate(

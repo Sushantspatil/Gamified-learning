@@ -8,6 +8,7 @@ import '../../../../app/theme/app_spacing.dart';
 import '../../../../app/theme/app_theme_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/audio/audio_providers.dart';
+import '../../../../core/errors/app_exception.dart';
 import '../../../../core/providers/core_providers.dart';
 import '../../../../core/storage/local_storage_service.dart';
 import '../../../../shared/widgets/app_button.dart';
@@ -16,6 +17,9 @@ import '../../../../shared/widgets/app_pressable.dart';
 import '../../../../shared/widgets/game_scaffold.dart';
 import '../../../../shared/widgets/theme_mode_menu.dart';
 import '../../../authentication/presentation/providers/auth_providers.dart';
+import '../../../monetization/presentation/providers/monetization_providers.dart';
+import '../../../monetization/presentation/widgets/external_links.dart';
+import '../../data/account_deletion_datasource.dart';
 import '../../../character3d/presentation/character_3d_view.dart';
 import '../../../cosmetics/presentation/cosmetic_color_catalog.dart';
 import '../../../cosmetics/presentation/providers/cosmetics_providers.dart';
@@ -107,6 +111,134 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (confirmed != true || !mounted) return;
     await ref.read(authControllerProvider.notifier).logout();
     if (mounted) context.go(RouteNames.login);
+  }
+
+  /// Google Play requires in-app account deletion. Confirmed with the
+  /// password; warns that a Quiz Pass is not cancelled by this.
+  Future<void> _deleteAccount() async {
+    // Ask the server directly so the Quiz Pass warning is never missed.
+    var isPremium = false;
+    try {
+      isPremium =
+          (await ref
+                  .read(monetizationDatasourceProvider)
+                  .entitlements()
+                  .timeout(const Duration(seconds: 5)))
+              .isPremium;
+    } catch (_) {
+      // Offline: the dialog still deletes; the warning is a courtesy.
+    }
+    if (!mounted) return;
+    final password = TextEditingController();
+    String? error;
+    var busy = false;
+    final deleted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Delete your account?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'This permanently deletes your account, progress, streaks, '
+                  'coins, gems, power-ups and purchase history. It cannot be undone.',
+                ),
+                if (isPremium) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  const Text(
+                    'Your Quiz Pass is not cancelled by this. Cancel it in Google '
+                    'Play › Payments & subscriptions to stop future charges.',
+                  ),
+                  TextButton(
+                    onPressed: () => openExternalLink(
+                      context,
+                      playSubscriptionsUri('quiz_pass'),
+                    ),
+                    child: const Text('Open Google Play subscriptions'),
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.sm),
+                TextField(
+                  key: const Key('delete_account_password'),
+                  controller: password,
+                  obscureText: true,
+                  autofillHints: const [AutofillHints.password],
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    errorText: error,
+                  ),
+                  onChanged: (_) => setDialogState(() => error = null),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: busy ? null : () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              key: const Key('confirm_delete_account'),
+              style: FilledButton.styleFrom(
+                backgroundColor: context.themeColors.error,
+              ),
+              onPressed: busy
+                  ? null
+                  : () async {
+                      if (password.text.isEmpty) {
+                        setDialogState(() => error = 'Enter your password');
+                        return;
+                      }
+                      setDialogState(() => busy = true);
+                      try {
+                        await ref
+                            .read(accountDeletionDatasourceProvider)
+                            .deleteAccount(password.text);
+                        if (context.mounted) Navigator.of(context).pop(true);
+                      } on AuthException catch (e) {
+                        setDialogState(() {
+                          busy = false;
+                          error = e.code == 'forbidden'
+                              ? 'Incorrect password'
+                              : e.message;
+                        });
+                      } on AppException catch (e) {
+                        setDialogState(() {
+                          busy = false;
+                          error = e.message;
+                        });
+                      } catch (_) {
+                        setDialogState(() {
+                          busy = false;
+                          error =
+                              'Could not delete the account. Please try again.';
+                        });
+                      }
+                    },
+              child: const Text('Delete account'),
+            ),
+          ],
+        ),
+      ),
+    );
+    password.dispose();
+    if (deleted != true || !mounted) return;
+    // The account is gone: sign out locally even though the server's logout
+    // call can no longer succeed.
+    try {
+      await ref.read(authControllerProvider.notifier).logout();
+    } catch (_) {
+      ref.invalidate(authControllerProvider);
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Your account and its data were deleted.')),
+    );
+    context.go(RouteNames.login);
   }
 
   @override
@@ -279,6 +411,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         'Logout',
                         style: context.appTextStyles.labelLarge.copyWith(
                           color: colors.error,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: TextButton(
+                      key: const Key('delete_account'),
+                      onPressed: _deleteAccount,
+                      child: Text(
+                        'Delete account',
+                        style: context.appTextStyles.labelSmall.copyWith(
+                          color: colors.textMuted,
                         ),
                       ),
                     ),

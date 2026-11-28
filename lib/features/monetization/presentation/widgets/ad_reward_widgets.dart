@@ -183,13 +183,61 @@ class FreeRewardsCard extends ConsumerWidget {
             AdPlacements.addTime,
             AdPlacements.skip,
           ])
-            if (config.placement(id) != null)
+            if (config.placement(id) != null) ...[
               AdRewardTile(
                 placement: id,
                 config: config,
                 tokensHeld: tokens.tokens(id),
               ),
+              if (id == AdPlacements.adChest)
+                ChestOddsText(odds: config.chestOdds),
+            ],
+          const AdPrivacyChoicesButton(),
         ],
+      ),
+    );
+  }
+}
+
+/// The ad chest's chances, shown before opening it.
+class ChestOddsText extends StatelessWidget {
+  final List<ChestOdds> odds;
+
+  const ChestOddsText({super.key, required this.odds});
+
+  @override
+  Widget build(BuildContext context) {
+    if (odds.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Text(
+        'Chances: ${chestOddsText(odds)}',
+        key: const Key('ad_chest_odds'),
+        style: context.appTextStyles.labelSmall.copyWith(
+          color: context.themeColors.textMuted,
+        ),
+      ),
+    );
+  }
+}
+
+/// Lets players in regions that require it (EEA, UK) change their ad consent.
+class AdPrivacyChoicesButton extends ConsumerWidget {
+  const AdPrivacyChoicesButton({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final required =
+        ref.watch(adPrivacyOptionsRequiredProvider).valueOrNull ?? false;
+    if (!required) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        key: const Key('ad_privacy_choices'),
+        onPressed: () =>
+            ref.read(rewardedAdServiceProvider).showPrivacyOptions(),
+        icon: const Icon(Icons.privacy_tip_outlined, size: 18),
+        label: const Text('Ad privacy choices'),
       ),
     );
   }
@@ -213,6 +261,7 @@ class AdChestCard extends ConsumerWidget {
         children: [
           Text('Free ad chest', style: styles.titleLarge),
           AdRewardTile(placement: AdPlacements.adChest, config: config),
+          ChestOddsText(odds: config.chestOdds),
         ],
       ),
     );

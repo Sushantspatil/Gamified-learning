@@ -20,6 +20,7 @@ import 'package:skillverse_app/features/monetization/data/store_billing_service.
 import 'package:skillverse_app/features/monetization/domain/monetization_models.dart';
 import 'package:skillverse_app/features/monetization/presentation/providers/monetization_providers.dart';
 import 'package:skillverse_app/features/monetization/presentation/widgets/store_section.dart';
+import 'package:skillverse_app/features/profile/data/account_deletion_datasource.dart';
 import 'package:skillverse_app/features/quiz/data/datasources/remote/quiz_remote_datasource.dart';
 
 class _SignedIn extends AuthController {
@@ -58,6 +59,7 @@ class _FakeBackend implements MonetizationDatasource {
   AdsConfig config = const AdsConfig(
     rewardedAdsEnabled: true,
     androidAdUnitId: 'ca-app-pub-1/2',
+    chestOdds: [ChestOdds(currency: 'coins', amount: 20, percent: 100)],
     placements: [
       AdPlacement(
         id: 'ad_chest',
@@ -198,6 +200,16 @@ class _FakeAds implements RewardedAdService {
     this.policy = policy;
     return outcome;
   }
+
+  bool privacyRequired = false;
+  int privacyShown = 0;
+
+  @override
+  Future<bool> privacyOptionsRequired(AdRequestPolicy policy) async =>
+      privacyRequired;
+
+  @override
+  Future<void> showPrivacyOptions() async => privacyShown++;
 }
 
 ProviderContainer _container(
@@ -530,6 +542,22 @@ void main() {
       },
     );
 
+    test('ad chest odds are parsed and shown as text', () {
+      final cfg = AdsConfig.fromJson({
+        'rewarded_ads_enabled': true,
+        'chest_odds': [
+          {'currency': 'coins', 'amount': 20, 'percent': 40},
+          {'currency': 'fifty_fifty', 'amount': 1, 'percent': 10},
+          {'currency': 'gems', 'amount': 3, 'percent': 5.5},
+        ],
+      });
+      expect(cfg.chestOdds, hasLength(3));
+      expect(
+        chestOddsText(cfg.chestOdds),
+        '40% 20 coins · 10% 1 × 50:50 · 5.5% 3 gems',
+      );
+    });
+
     test('a missing ad policy falls back to the most protective settings', () {
       final p = AdRequestPolicy.fromJson(const {});
       expect(p.nonPersonalized, isTrue);
@@ -601,6 +629,44 @@ void main() {
     });
   });
 
+  group('AccountDeletionDatasource', () {
+    setUp(() => SharedPreferences.setMockInitialValues({}));
+
+    test('sends the password and maps a wrong password to forbidden', () async {
+      final storage = await LocalStorageService.create();
+      var status = 200;
+      Map<String, dynamic>? body;
+      String? path;
+      final api = ApiClient(
+        config: const ApiConfig(baseUrl: 'https://example.test/api/v1'),
+        storage: storage,
+        httpClient: MockClient((request) async {
+          path = request.url.path;
+          body = jsonDecode(request.body) as Map<String, dynamic>;
+          return http.Response(
+            jsonEncode({
+              'success': status == 200,
+              'message': status == 200 ? 'deleted' : 'incorrect password',
+            }),
+            status,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      final ds = AccountDeletionDatasource(api);
+      await ds.deleteAccount('secret pw');
+      expect(path, '/api/v1/profile/delete');
+      expect(body, {'password': 'secret pw'});
+      status = 403;
+      await expectLater(
+        ds.deleteAccount('wrong'),
+        throwsA(
+          isA<AuthException>().having((e) => e.code, 'code', 'forbidden'),
+        ),
+      );
+    });
+  });
+
   testWidgets(
     'Store tab shows Play prices and buys with the server account id',
     (tester) async {
@@ -632,6 +698,15 @@ void main() {
         findsOneWidget,
         reason: 'the ad chest is offered, only on tap',
       );
+      // Play policy: subscription terms before purchase, a privacy policy
+      // link, and the odds of the randomised ad chest.
+      expect(find.byKey(const Key('quiz_pass_terms')), findsOneWidget);
+      expect(
+        find.textContaining('Renews automatically until you cancel'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('privacy_policy_link')), findsOneWidget);
+      expect(find.byKey(const Key('ad_chest_odds')), findsOneWidget);
       await tester.tap(find.text('₹49'));
       await tester.pumpAndSettle();
       expect(store.bought, ['gems_110']);

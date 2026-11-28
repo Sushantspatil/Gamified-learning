@@ -193,6 +193,33 @@ class AdPlacement {
   );
 }
 
+/// One ad chest prize and its chance (shown before opening: Play requires
+/// the odds of randomised rewards to be disclosed).
+@immutable
+class ChestOdds {
+  final String currency;
+  final int amount;
+  final double percent;
+
+  const ChestOdds({
+    required this.currency,
+    required this.amount,
+    required this.percent,
+  });
+
+  factory ChestOdds.fromJson(Map<String, dynamic> json) => ChestOdds(
+    currency: json['currency'] as String? ?? '',
+    amount: (json['amount'] as num?)?.toInt() ?? 0,
+    percent: (json['percent'] as num?)?.toDouble() ?? 0,
+  );
+}
+
+/// "40% 20 coins · 30% 40 coins · …" for display.
+String chestOddsText(List<ChestOdds> odds) => [
+  for (final o in odds)
+    '${o.percent % 1 == 0 ? o.percent.toStringAsFixed(0) : o.percent.toStringAsFixed(1)}% ${rewardLabel(o.currency, o.amount)}',
+].join(' · ');
+
 @immutable
 class AdsConfig {
   final bool rewardedAdsEnabled;
@@ -202,6 +229,7 @@ class AdsConfig {
   final AdRequestPolicy policy;
   final List<AdPlacement> placements;
   final int remainingToday;
+  final List<ChestOdds> chestOdds;
 
   const AdsConfig({
     this.rewardedAdsEnabled = false,
@@ -211,6 +239,7 @@ class AdsConfig {
     this.policy = const AdRequestPolicy(),
     this.placements = const [],
     this.remainingToday = 0,
+    this.chestOdds = const [],
   });
 
   static const off = AdsConfig();
@@ -243,6 +272,12 @@ class AdsConfig {
             ]
           : const [],
       remainingToday: (json['remaining_today'] as num?)?.toInt() ?? 0,
+      chestOdds: json['chest_odds'] is List
+          ? [
+              for (final o in json['chest_odds'] as List)
+                if (o is Map<String, dynamic>) ChestOdds.fromJson(o),
+            ]
+          : const [],
     );
   }
 }
