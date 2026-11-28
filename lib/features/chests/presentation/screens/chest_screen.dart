@@ -18,6 +18,7 @@ import '../chest_style.dart';
 import '../widgets/chest_hero.dart';
 import '../widgets/chest_open_stage.dart';
 import '../widgets/chest_progress_track.dart';
+import '../widgets/chest_rive_view.dart';
 
 class ChestScreen extends ConsumerStatefulWidget {
   const ChestScreen({super.key});
@@ -37,7 +38,9 @@ class _ChestScreenState extends ConsumerState<ChestScreen> {
     super.didChangeDependencies();
     if (_precached) return;
     _precached = true;
-    // Decode every frame now so nothing pops in while a chest is opening.
+    // Read the Rive openings and decode every frame now, so nothing pops in
+    // while a chest is opening.
+    precacheChestRive();
     for (final style in ChestStyle.values) {
       for (final frame in ChestFrame.values) {
         precacheImage(

@@ -327,10 +327,12 @@ void main() {
     });
 
     group('opening view', () {
-      // The chest opens for 2.6s; the reward is shown the frame after that.
+      // Up to 0.8s waiting for the Rive file, then the chest opens for 3.6s;
+      // the reward is shown the frame after that.
       Future<void> openAndReveal(WidgetTester tester) async {
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 3000));
+        await tester.pump(const Duration(milliseconds: 900));
+        await tester.pump(const Duration(milliseconds: 3700));
         await tester.pump(const Duration(milliseconds: 100));
       }
 

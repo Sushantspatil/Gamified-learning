@@ -2,12 +2,12 @@
     <!--
         Golden chest opening for SkillVerse (assets/chests/rive/golden.riv).
         756 x 738, transparent. Plays once on load (Entry -> Open) and holds
-        on the open chest. 2.4 s; the app shows the reward at 2.6 s and draws
+        on the open chest. 3.3 s (144 frames at speed 0.72); the app shows the reward at 3.6 s and draws
         its own glow, rays and particles behind this artboard.
 
         Cut times match lib/features/chests/presentation/chest_timeline.dart
-        (2.6 s opening): lock breaks 0.52 s (frame 31), burst 0.83 s (frame
-        50), settles open 1.14 s (frame 68).
+        (3.6 s opening): lock breaks 0.72 s (frame 31), burst 1.15 s (frame
+        50), settles open 1.57 s (frame 68).
 
         Draw order: the first sibling draws on top.
     -->
@@ -45,7 +45,7 @@
             </StateMachineLayer>
         </StateMachine>
 
-        <LinearAnimation loopValue="oneShot" duration="144" name="Open" id="0:80">
+        <LinearAnimation loopValue="oneShot" duration="144" speed="0.7222222" name="Open" id="0:80">
             <!-- Rattle: harder and harder until the lock breaks. -->
             <KeyedObject objectId="0:20">
                 <KeyedProperty property="rotation">

@@ -57,7 +57,7 @@ class ChestOpenStage extends ConsumerStatefulWidget {
 
 class _ChestOpenStageState extends ConsumerState<ChestOpenStage>
     with SingleTickerProviderStateMixin {
-  static const Duration _openDuration = Duration(milliseconds: 2600);
+  static const Duration _openDuration = Duration(milliseconds: 3600);
 
   late final AnimationController _open = AnimationController(vsync: this);
   ChestOpenResult? _result;
@@ -77,10 +77,14 @@ class _ChestOpenStageState extends ConsumerState<ChestOpenStage>
     _started = true;
     final reduce = AppMotion.reduceMotion(context);
     _open.duration = reduce ? const Duration(milliseconds: 300) : _openDuration;
-    _run();
+    _run(reduce);
   }
 
-  Future<void> _run() async {
+  Future<void> _run(bool reduce) async {
+    // Give the Rive animation (preloaded by the chest screen) a moment, so
+    // the opening does not start on the picture film while it loads.
+    if (!reduce) await chestRiveReady(_style);
+    if (!mounted) return;
     await _open.forward(from: 0);
     if (!mounted) return; // closed early: nothing was charged or paid
     final rewards = ref.read(rewardsProvider.notifier);

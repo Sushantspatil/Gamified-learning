@@ -53,6 +53,61 @@ class ChestRiveView extends StatefulWidget {
 /// Loaded files, shared by every opening (a file is read once per app run).
 final Map<String, Future<rive.File?>> _files = {};
 
+/// The native Rive runtime, started once; `false` where it cannot run.
+Future<bool>? _native;
+
+/// The Rive file of [style], read once and shared; null when the chest has no
+/// file or it cannot be read. Never throws.
+Future<rive.File?> _fileFor(ChestStyle style, AssetBundle bundle) async {
+  final path = chestRiveAsset(style);
+  try {
+    final manifest = await AssetManifest.loadFromAssetBundle(bundle);
+    if (!manifest.listAssets().contains(path)) return null; // not made yet
+  } catch (_) {
+    return null;
+  }
+  return _files[path] ??= _readFile(path, bundle);
+}
+
+Future<rive.File?> _readFile(String path, AssetBundle bundle) async {
+  try {
+    final ready = await (_native ??= rive.RiveNative.init().catchError(
+      (Object _) => false,
+    ));
+    if (!ready) return null;
+    return await rive.File.asset(
+      path,
+      riveFactory: rive.Factory.rive,
+      bundle: bundle,
+    );
+  } catch (error) {
+    debugPrint('Chest Rive file $path could not be read: $error');
+    return null;
+  }
+}
+
+/// Starts reading every chest's Rive file in the background, so an opening
+/// can play it from its first frame. Call it when the chest screen opens.
+void precacheChestRive({AssetBundle? bundle}) {
+  for (final style in ChestStyle.values) {
+    _fileFor(style, bundle ?? rootBundle);
+  }
+}
+
+/// Waits, at most [timeout], for [style]'s Rive file, so the opening does not
+/// start on the picture film while the file is still loading. Never throws.
+Future<void> chestRiveReady(
+  ChestStyle style, {
+  AssetBundle? bundle,
+  Duration timeout = const Duration(milliseconds: 800),
+}) async {
+  try {
+    await _fileFor(style, bundle ?? rootBundle).timeout(timeout);
+  } catch (_) {
+    // Too slow or unreadable: the opening plays the picture film.
+  }
+}
+
 /// Too far into the opening to switch from the picture film to Rive without
 /// a visible jump: the rest of this opening stays on the film.
 const double _latestSwitch = 0.12;
@@ -78,11 +133,7 @@ class _ChestRiveViewState extends State<ChestRiveView> {
 
   Future<void> _load() async {
     try {
-      final bundle = widget.bundle ?? rootBundle;
-      final path = chestRiveAsset(widget.style);
-      final manifest = await AssetManifest.loadFromAssetBundle(bundle);
-      if (!manifest.listAssets().contains(path)) return; // not made yet
-      final file = await (_files[path] ??= _readFile(path, bundle));
+      final file = await _fileFor(widget.style, widget.bundle ?? rootBundle);
       if (file == null || !mounted) return;
       if (widget.progress.value > _latestSwitch) return;
       final controller = rive.RiveWidgetController(file);
@@ -112,21 +163,6 @@ class _ChestRiveViewState extends State<ChestRiveView> {
     if (_progressProperty == null) {
       // ignore: deprecated_member_use
       _progressInput = controller.stateMachine.number('progress');
-    }
-  }
-
-  static Future<rive.File?> _readFile(String path, AssetBundle bundle) async {
-    try {
-      if (!await rive.RiveNative.init()) return null;
-      return await rive.File.asset(
-        path,
-        riveFactory: rive.Factory.rive,
-        bundle: bundle,
-      );
-    } catch (error) {
-      debugPrint('Chest Rive file $path could not be read: $error');
-      _files.remove(path); // try again next time
-      return null;
     }
   }
 
