@@ -50,7 +50,7 @@ Backend contract and security model: `../GamifiedQuizApp_digitalHQ/docs/monetiza
    - **Privacy policy:** `https://quiz-api-50046981183.development.catalystappsail.in/privacy`. The text is a draft, so have it reviewed and set `SUPPORT_EMAIL` on the backend first.
    - **App access:** "All or some functionality is restricted". Give the reviewers a working test login (email and password).
    - **Ads:** "Yes, my app contains ads".
-   - **Advertising ID:** "No". The app removes the `AD_ID` permission.
+   - **Advertising ID:** "No". The app removes the `AD_ID` permission and the Privacy Sandbox ad permissions (`ACCESS_ADSERVICES_*`).
    - **Target audience and content:** choose the age groups honestly. If they include **under 13**, the Families policy applies: set `ADS_AGE_TREATMENT=child` on the backend and keep the ad settings in step 6.
    - **Content rating questionnaire:** declare in-app purchases and rewarded ads, and that random rewards (chests, spin wheel) cannot be bought with real money.
    - **Data safety:** collected data:
