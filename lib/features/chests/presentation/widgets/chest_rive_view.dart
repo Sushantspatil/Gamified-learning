@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:rive/rive.dart' as rive;
 
 import '../chest_style.dart';
+import 'chest_effects_painter.dart';
 
 /// Where a chest's Rive animation lives (see docs/chest-rive-guide.md).
 String chestRiveAsset(ChestStyle style) =>
@@ -166,11 +167,52 @@ class _ChestRiveViewState extends State<ChestRiveView> {
   Widget build(BuildContext context) {
     final controller = _controller;
     if (!_useRive || controller == null) return widget.fallback;
-    return SizedBox(
+    return ChestRiveFrame(
       key: const Key('chest_rive_view'),
-      width: widget.height * widget.style.aspectRatio,
+      style: widget.style,
+      progress: widget.progress,
       height: widget.height,
       child: rive.RiveWidget(controller: controller, fit: rive.Fit.contain),
+    );
+  }
+}
+
+/// The Rive chest with the app's own light drawn behind it: the same glow,
+/// rays and particles as the picture film ([ChestEffectsPainter]), so a Rive
+/// file only has to animate the chest itself.
+class ChestRiveFrame extends StatelessWidget {
+  final ChestStyle style;
+  final Animation<double> progress;
+  final double height;
+  final Widget child;
+
+  const ChestRiveFrame({
+    super.key,
+    required this.style,
+    required this.progress,
+    required this.height,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: height * style.aspectRatio,
+      height: height,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned.fill(
+            child: RepaintBoundary(
+              child: CustomPaint(
+                key: const Key('chest_rive_effects'),
+                painter: ChestEffectsPainter(style: style, progress: progress),
+              ),
+            ),
+          ),
+          Positioned.fill(child: child),
+        ],
+      ),
     );
   }
 }

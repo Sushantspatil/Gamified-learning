@@ -5,6 +5,12 @@ in the Rive editor, with no coding. The app is already set up: when a file is
 in `assets/chests/rive/`, that chest plays it; a chest without a file keeps
 today's picture animation.
 
+> **Already made with the Rive CLI:** `design/rive/{golden,cyber,galaxy}` hold
+> finished scenes for all three chests. `design/rive/README.md` shows how to
+> build the `.riv` files from them. This guide is only needed to redo them by
+> hand in the editor. Note the artboard sizes differ: Golden 756 × 738,
+> Cyber 774 × 774, Galaxy 747 × 783 (each chest's picture size).
+
 Rive changes its editor often. If a button below looks different, the official
 docs have the current screens: https://rive.app/docs
 
@@ -67,6 +73,12 @@ Stay in **Design Mode** while setting up (toggle with the **Mode Toggle** in the
 toolbar, or press **Tab**).
 
 ## Step 3: add simple light effects (Design Mode)
+
+**Only `flash` is needed.** The app already draws its own glow, rays and
+particles behind the Rive chest (the same ones as the picture animation),
+timed to the opening. So in Rive, make `flash` and skip `glow`, `rays` and
+`sparkles` (and their rows in the Step 4 table). Add them only if you want
+extra light on top of the app's.
 
 Draw these with Rive's shape tools, behind and in front of the chest:
 

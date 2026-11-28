@@ -56,3 +56,6 @@ app.*.map.json
 key.properties
 google-services.json
 GoogleService-Info.plist
+
+# Rive CLI build output (the .riv files are published into assets/chests/rive/).
+design/rive/*/build/

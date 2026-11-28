@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skillverse_app/features/chests/presentation/chest_style.dart';
+import 'package:skillverse_app/features/chests/presentation/widgets/chest_effects_painter.dart';
 import 'package:skillverse_app/features/chests/presentation/widgets/chest_rive_view.dart';
 
 /// A bundle whose asset list says the golden chest has a Rive file, whose
@@ -87,6 +88,48 @@ void main() {
     await pumpView(tester, bundle: _Bundle(riv: junk));
     expect(find.byKey(const Key('film')), findsOneWidget);
     expect(find.byKey(const Key('chest_rive_view')), findsNothing);
+  });
+
+  testWidgets('the Rive chest gets the app light effects behind it', (
+    tester,
+  ) async {
+    final progress = AnimationController(
+      vsync: const TestVSync(),
+      duration: const Duration(milliseconds: 100),
+    );
+    addTearDown(progress.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: ChestRiveFrame(
+            style: ChestStyle.golden,
+            progress: progress,
+            height: 200,
+            child: const SizedBox(key: Key('rive')),
+          ),
+        ),
+      ),
+    );
+    progress.value = 0.5;
+    await tester.pump();
+
+    final effects = find.byKey(const Key('chest_rive_effects'));
+    expect(effects, findsOneWidget);
+    expect(
+      tester.widget<CustomPaint>(effects).painter,
+      isA<ChestEffectsPainter>(),
+    );
+    // The effects sit behind the chest, which is the last (top) layer.
+    final stack = tester.widget<Stack>(
+      find.descendant(
+        of: find.byType(ChestRiveFrame),
+        matching: find.byType(Stack),
+      ),
+    );
+    final top = stack.children.last as Positioned;
+    expect((top.child as SizedBox).key, const Key('rive'));
+    expect(tester.getSize(find.byType(ChestRiveFrame)).height, 200);
+    expect(tester.takeException(), isNull);
   });
 
   test('each chest has its own file name', () {

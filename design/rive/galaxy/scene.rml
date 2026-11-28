@@ -1,0 +1,159 @@
+<Rive version="1" kind="fragment">
+    <!--
+        Galaxy chest opening for SkillVerse (assets/chests/rive/galaxy.riv).
+        747 x 783, transparent. Plays once on load (Entry -> Open) and holds
+        on the open chest. 2.4 s; the app shows the reward at 2.6 s and draws
+        its own glow, rays and particles behind this artboard.
+
+        Cut times match lib/features/chests/presentation/chest_timeline.dart
+        (2.6 s opening): lock breaks 0.52 s (frame 31), burst 0.83 s (frame
+        50), settles open 1.14 s (frame 68).
+
+        Draw order: the first sibling draws on top.
+    -->
+    <Artboard defaultStateMachineId="0:90" styleId="0:5" width="747" height="783" name="Chest" id="0:2">
+        <LayoutComponentStyle name="Artboard Style" id="0:5"/>
+        <!-- White flash in front of the chest, hiding each picture change. -->
+        <Shape x="373.5" y="282" opacity="0" name="flash" id="0:10">
+            <Ellipse width="900" height="900" originX="0.5" originY="0.5" name="Path"/>
+            <Fill name="Fill">
+                <RadialGradient startX="0" startY="0" endX="450" endY="0" name="Gradient">
+                    <GradientStop colorValue="FFFFFFFF" position="0"/>
+                    <GradientStop colorValue="B3EAD9FF" position="0.35"/>
+                    <GradientStop colorValue="00C9A8FF" position="1"/>
+                </RadialGradient>
+            </Fill>
+        </Shape>
+
+        <!-- The chest. Pivot at the bottom centre, so it squashes and bounces
+             from the floor. Pictures are 747 x 783, centred on (373.5, 391.5). -->
+        <Node x="373.5" y="765" name="chest" id="0:20">
+            <Image x="0" y="-373.5" opacity="0" assetId="0:64" name="opened" id="0:24"/>
+            <Image x="0" y="-373.5" opacity="0" assetId="0:63" name="burst" id="0:23"/>
+            <Image x="0" y="-373.5" opacity="0" assetId="0:62" name="opening" id="0:22"/>
+            <Image x="0" y="-373.5" assetId="0:61" name="closed" id="0:21"/>
+        </Node>
+
+        <StateMachine name="State Machine 1" id="0:90">
+            <StateMachineLayer name="Layer 1" id="0:91">
+                <EntryState x="0" y="0">
+                    <StateTransition stateToId="0:92"/>
+                </EntryState>
+                <AnimationState x="200" y="0" animationId="0:80" id="0:92"/>
+                <AnyState x="0" y="-120"/>
+                <ExitState x="400" y="0"/>
+            </StateMachineLayer>
+        </StateMachine>
+
+        <LinearAnimation loopValue="oneShot" duration="144" name="Open" id="0:80">
+            <!-- Rattle: harder and harder until the lock breaks. -->
+            <KeyedObject objectId="0:20">
+                <KeyedProperty property="rotation">
+                    <KeyFrameDouble frame="0" value="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="5" value="-0.03" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="10" value="0.035" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="15" value="-0.045" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="19" value="0.05" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="23" value="-0.06" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="27" value="0.065" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="31" value="0" interpolationType="linear"/>
+                </KeyedProperty>
+                <!-- Squash, jump, land, then a punch at the burst and a small
+                     one as it settles. -->
+                <KeyedProperty property="scaleX">
+                    <KeyFrameDouble frame="0" value="1" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="22" value="1" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="31" value="1.07" interpolationType="cubic"><CubicEaseInterpolator x1="0.2" y1="0" x2="0.4" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="38" value="0.95" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="46" value="1" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="50" value="1.1" interpolationType="cubic"><CubicEaseInterpolator x1="0" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="62" value="1" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="70" value="1.04" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="80" value="1" interpolationType="linear"/>
+                </KeyedProperty>
+                <KeyedProperty property="scaleY">
+                    <KeyFrameDouble frame="0" value="1" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="22" value="1" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="31" value="0.9" interpolationType="cubic"><CubicEaseInterpolator x1="0.2" y1="0" x2="0.4" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="38" value="1.08" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="46" value="1" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="50" value="1.1" interpolationType="cubic"><CubicEaseInterpolator x1="0" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="62" value="1" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="70" value="1.04" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="80" value="1" interpolationType="linear"/>
+                </KeyedProperty>
+                <KeyedProperty property="y">
+                    <KeyFrameDouble frame="0" value="765" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="31" value="765" interpolationType="cubic"><CubicEaseInterpolator x1="0" y1="0" x2="0.4" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="39" value="740" interpolationType="cubic"><CubicEaseInterpolator x1="0.6" y1="0" x2="1" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="46" value="765" interpolationType="linear"/>
+                </KeyedProperty>
+            </KeyedObject>
+
+            <!-- Picture changes: each new picture fades in over the old one,
+                 which stays solid until covered, then is dropped. -->
+            <KeyedObject objectId="0:22">
+                <KeyedProperty property="opacity">
+                    <KeyFrameDouble frame="0" value="0" interpolationType="hold"/>
+                    <KeyFrameDouble frame="31" value="0" interpolationType="linear"/>
+                    <KeyFrameDouble frame="35" value="1" interpolationType="hold"/>
+                    <KeyFrameDouble frame="53" value="0" interpolationType="hold"/>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:21">
+                <KeyedProperty property="opacity">
+                    <KeyFrameDouble frame="0" value="1" interpolationType="hold"/>
+                    <KeyFrameDouble frame="36" value="0" interpolationType="hold"/>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:23">
+                <KeyedProperty property="opacity">
+                    <KeyFrameDouble frame="0" value="0" interpolationType="hold"/>
+                    <KeyFrameDouble frame="48" value="0" interpolationType="linear"/>
+                    <KeyFrameDouble frame="52" value="1" interpolationType="hold"/>
+                    <KeyFrameDouble frame="72" value="0" interpolationType="hold"/>
+                </KeyedProperty>
+            </KeyedObject>
+            <KeyedObject objectId="0:24">
+                <KeyedProperty property="opacity">
+                    <KeyFrameDouble frame="0" value="0" interpolationType="hold"/>
+                    <KeyFrameDouble frame="66" value="0" interpolationType="linear"/>
+                    <KeyFrameDouble frame="71" value="1" interpolationType="hold"/>
+                </KeyedProperty>
+            </KeyedObject>
+
+            <!-- Flashes: small at the lock, big at the burst, soft at the settle. -->
+            <KeyedObject objectId="0:10">
+                <KeyedProperty property="opacity">
+                    <KeyFrameDouble frame="0" value="0" interpolationType="hold"/>
+                    <KeyFrameDouble frame="29" value="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="33" value="0.55" interpolationType="cubic"><CubicEaseInterpolator x1="0" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="41" value="0" interpolationType="hold"/>
+                    <KeyFrameDouble frame="47" value="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="51" value="0.9" interpolationType="cubic"><CubicEaseInterpolator x1="0" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="63" value="0" interpolationType="hold"/>
+                    <KeyFrameDouble frame="66" value="0" interpolationType="cubic"><CubicEaseInterpolator x1="0.42" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="69" value="0.35" interpolationType="cubic"><CubicEaseInterpolator x1="0" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="80" value="0" interpolationType="hold"/>
+                </KeyedProperty>
+                <KeyedProperty property="scaleX">
+                    <KeyFrameDouble frame="0" value="0.6" interpolationType="hold"/>
+                    <KeyFrameDouble frame="47" value="0.6" interpolationType="cubic"><CubicEaseInterpolator x1="0" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="63" value="1.15" interpolationType="hold"/>
+                    <KeyFrameDouble frame="64" value="0.7" interpolationType="hold"/>
+                </KeyedProperty>
+                <KeyedProperty property="scaleY">
+                    <KeyFrameDouble frame="0" value="0.6" interpolationType="hold"/>
+                    <KeyFrameDouble frame="47" value="0.6" interpolationType="cubic"><CubicEaseInterpolator x1="0" y1="0" x2="0.58" y2="1"/></KeyFrameDouble>
+                    <KeyFrameDouble frame="63" value="1.15" interpolationType="hold"/>
+                    <KeyFrameDouble frame="64" value="0.7" interpolationType="hold"/>
+                </KeyedProperty>
+            </KeyedObject>
+        </LinearAnimation>
+    </Artboard>
+
+    <ImageAsset file="closed.png" name="closed" id="0:61"/>
+    <ImageAsset file="opening.png" name="opening" id="0:62"/>
+    <ImageAsset file="burst.png" name="burst" id="0:63"/>
+    <ImageAsset file="opened.png" name="opened" id="0:64"/>
+</Rive>

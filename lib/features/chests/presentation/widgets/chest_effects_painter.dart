@@ -45,9 +45,9 @@ class ChestEffectsPainter extends CustomPainter {
     final origin = Offset(size.width / 2, h * 0.36);
 
     // Glow builds as the lid lifts, peaks in the burst, then settles.
-    final build = _ramp(t, 0.10, 0.32);
-    final burst = math.sin(_ramp(t, 0.24, 0.62) * math.pi); // 0..1..0
-    final linger = _ramp(t, 0.44, 0.70);
+    final build = _ramp(t, 0.10, 0.42);
+    final burst = math.sin(_ramp(t, 0.38, 0.78) * math.pi); // 0..1..0
+    final linger = _ramp(t, 0.72, 0.85);
     final glow = math.max(build * 0.55, math.max(burst, linger * 0.65));
 
     _glow(canvas, origin, h, glow);
@@ -131,7 +131,7 @@ class ChestEffectsPainter extends CustomPainter {
     double burst,
     double linger,
   ) {
-    final ring = _ramp(t, 0.28, 0.60);
+    final ring = _ramp(t, 0.40, 0.70);
     if (ring > 0 && ring < 1) {
       c.drawCircle(
         o,
@@ -242,7 +242,7 @@ class ChestEffectsPainter extends CustomPainter {
     final show = math.max(burst, linger * 0.7);
     // Digital pulse rings.
     for (var k = 0; k < 3; k++) {
-      final p = _ramp(t, 0.28 + k * 0.06, 0.58 + k * 0.06);
+      final p = _ramp(t, 0.36 + k * 0.08, 0.70 + k * 0.08);
       if (p <= 0 || p >= 1) continue;
       final r = h * (0.1 + 0.55 * p);
       final rect = Rect.fromCenter(center: o, width: r * 2, height: r * 1.3);
