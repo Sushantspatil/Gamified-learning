@@ -8,12 +8,29 @@ Backend contract and security model: `../GamifiedQuizApp_digitalHQ/docs/monetiza
 
 ## 1. Accounts (one-time)
 
-1. **Google Play Console** (play.google.com/console): pay the one-time $25 fee and verify your identity.
-   - An **organization account** needs a D-U-N-S number.
-   - A **personal account** must run a **closed test with at least 12 testers for 14 days in a row** before it can apply for production. Plan for this.
-2. **Payments profile:** Play Console › Settings › Payments profile. Add the bank account and tax details (PAN/GST in India). You cannot sell in-app products without it.
-3. **AdMob:** sign in at admob.google.com with the same Google account and set up Payments (bank and tax details).
-4. **Google Cloud project** (console.cloud.google.com), for the purchase-verification service account and Pub/Sub.
+1. **The Google account that will own the app:**
+   - Turn on 2-Step Verification and add a recovery phone and email.
+   - Teammates get their own access later in Play Console › Users and permissions. Never share this account's password.
+2. **Google Play Console** (play.google.com/console/signup): you must be 18 or older. Pay the one-time $25 fee and verify your identity. Choose the account type first:
+   - **Personal account:**
+     - Your legal name and address come from the payments profile and must match your ID.
+     - Google Play shows your legal name, country and email. Because the app sells gems and the Quiz Pass, it also shows **your full address**.
+     - You must run a **closed test with at least 12 testers for 14 days in a row** before you can apply for production. Plan for this.
+   - **Organization account:**
+     - Needs a **D-U-N-S number**. It is free from Dun & Bradstreet but can take up to 30 days.
+     - Also needs the organization's website and phone number, and an ID for the person signing up.
+     - Google Play shows the organization's name, address, phone, email and D-U-N-S number.
+     - The 12-tester rule applies to personal accounts only.
+   - **Trader status** (EEA and UK law): every new account declares it at sign-up.
+     - Selling in-app items to players in the EEA or UK generally makes you a trader.
+     - From 1 March 2027, a personal trader account also shows its phone number.
+     - If the app isn't distributed in the EEA or UK, you can declare non-trader.
+   - **Verification:**
+     - The contact email, contact phone and developer email are each confirmed with a one-time code.
+     - Payments profile verification can take up to five days.
+3. **Payments profile:** Play Console › Settings › Payments profile. Add the bank account and tax details (PAN/GST in India). You cannot sell in-app products without it.
+4. **AdMob:** sign in at admob.google.com with the same Google account and set up Payments (bank and tax details).
+5. **Google Cloud project** (console.cloud.google.com), for the purchase-verification service account and Pub/Sub.
 
 ## 2. Release signing (once, then keep it safe)
 
