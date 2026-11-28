@@ -140,9 +140,13 @@ class MatchTheFollowingResultView extends StatelessWidget {
             ),
       earnedXp: result.xpAwarded,
       leveledUp: leveledUp,
-      shareMessage: shareMessage(
-        modeName: 'Match the Following',
-        score: result.finalScore,
+      share: ShareResult(
+        mode: ShareMode.match,
+        points: result.finalScore,
+        correct: result.totalPairsMatched,
+        total: result.totalPairsCount,
+        accuracy: accuracy,
+        time: time > Duration.zero ? time : null,
       ),
       onDone: onDone,
       onPlayAgain: onPlayAgain,

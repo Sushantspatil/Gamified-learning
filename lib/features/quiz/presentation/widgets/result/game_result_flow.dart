@@ -32,8 +32,8 @@ class GameResultFlow extends StatefulWidget {
   final int earnedXp;
   final bool leveledUp;
 
-  /// The text sent by the share button.
-  final String shareMessage;
+  /// What the share button shares (the card and its message).
+  final ShareResult share;
 
   /// Opens the "Score details" sheet; null hides the button.
   final void Function(BuildContext context)? onDetails;
@@ -48,7 +48,7 @@ class GameResultFlow extends StatefulWidget {
     required this.summary,
     required this.earnedXp,
     required this.leveledUp,
-    required this.shareMessage,
+    required this.share,
     required this.onDone,
     this.levelProgress,
     this.onDetails,
@@ -113,24 +113,30 @@ class _GameResultFlowState extends State<GameResultFlow> {
                   ),
                 ),
               ),
-              ResultActionBar(
-                primaryLabel: goToProgress
-                    ? 'Continue'
-                    : canReplay
-                    ? 'Play again'
-                    : 'Done',
-                primaryIcon: goToProgress || !canReplay
-                    ? null
-                    : Icons.replay_rounded,
-                onPrimary: goToProgress
-                    ? () => setState(() => _showProgress = true)
-                    : (canReplay ? widget.onPlayAgain! : widget.onDone),
-                secondaryLabel: !goToProgress && canReplay ? 'Done' : null,
-                onSecondary: widget.onDone,
-                onShare: () => shareText(widget.shareMessage),
-                onDetails: widget.onDetails == null
-                    ? null
-                    : () => widget.onDetails!(context),
+              WithPlayerName(
+                builder: (playerName) => ResultActionBar(
+                  primaryLabel: goToProgress
+                      ? 'Continue'
+                      : canReplay
+                      ? 'Play again'
+                      : 'Done',
+                  primaryIcon: goToProgress || !canReplay
+                      ? null
+                      : Icons.replay_rounded,
+                  onPrimary: goToProgress
+                      ? () => setState(() => _showProgress = true)
+                      : (canReplay ? widget.onPlayAgain! : widget.onDone),
+                  secondaryLabel: !goToProgress && canReplay ? 'Done' : null,
+                  onSecondary: widget.onDone,
+                  onShare: () => showShareResultSheet(
+                    context,
+                    result: widget.share,
+                    playerName: playerName,
+                  ),
+                  onDetails: widget.onDetails == null
+                      ? null
+                      : () => widget.onDetails!(context),
+                ),
               ),
             ],
           );

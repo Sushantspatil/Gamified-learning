@@ -41,11 +41,11 @@ class QuizResultView extends StatelessWidget {
   String get _modeKey =>
       result.endedEarly ? 'sudden_death' : result.quizType.name;
 
-  String get _shareModeName => result.endedEarly
-      ? 'Sudden Death'
+  ShareMode get _shareMode => result.endedEarly
+      ? ShareMode.suddenDeath
       : result.quizType == QuestionType.sortItRight
-      ? 'Sort It Out'
-      : 'the MCQ Quiz';
+      ? ShareMode.sortItOut
+      : ShareMode.mcq;
 
   @override
   Widget build(BuildContext context) {
@@ -145,10 +145,13 @@ class QuizResultView extends StatelessWidget {
       levelProgress: result.levelProgress,
       earnedXp: xp,
       leveledUp: leveledUp,
-      shareMessage: shareMessage(
-        modeName: _shareModeName,
-        score: score.earnedPoints,
-        maxScore: score.maxPoints,
+      share: ShareResult(
+        mode: _shareMode,
+        points: score.earnedPoints,
+        correct: score.correctCount,
+        total: result.endedEarly ? 0 : score.totalCount,
+        accuracy: result.accuracy,
+        time: result.timeTaken,
       ),
       onDone: onDone,
       onPlayAgain: onPlayAgain,

@@ -142,9 +142,13 @@ class SortItOutResultView extends StatelessWidget {
             ),
       earnedXp: result.xpAwarded,
       leveledUp: result.didLevelUp || result.levelUpReward != null,
-      shareMessage: shareMessage(
-        modeName: 'Sort It Out',
-        score: result.finalScore,
+      share: ShareResult(
+        mode: ShareMode.sortItOut,
+        points: result.finalScore,
+        correct: result.correctCount,
+        total: result.totalQuestions,
+        accuracy: accuracy,
+        time: time > Duration.zero ? time : null,
       ),
       onDone: onDone,
       onPlayAgain: onPlayAgain,

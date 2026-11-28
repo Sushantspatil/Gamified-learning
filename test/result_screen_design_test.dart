@@ -369,6 +369,19 @@ void main() {
       expect(find.byKey(const Key('result_details_button')), findsOneWidget);
     });
 
+    testWidgets('share opens a preview of the card with share buttons', (
+      tester,
+    ) async {
+      await _show(tester, _game(correct: 5));
+      await tester.tap(find.byKey(const Key('result_share')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('share_result_sheet')), findsOneWidget);
+      expect(find.byType(ResultShareCard), findsOneWidget);
+      expect(find.byKey(const Key('share_result_card')), findsOneWidget);
+      expect(find.byKey(const Key('share_result_text')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('score details opens the breakdown in a sheet', (tester) async {
       await _show(tester, _game(correct: 5));
       await tester.tap(find.byKey(const Key('result_details_button')));
@@ -621,22 +634,109 @@ void main() {
   });
 
   group('the share message', () {
-    test('names the score and the mode', () {
+    ShareResult r(
+      ShareMode mode, {
+      int correct = 8,
+      int total = 10,
+      double? accuracy,
+    }) => ShareResult(
+      mode: mode,
+      points: 80,
+      correct: correct,
+      total: total,
+      accuracy: accuracy ?? (total == 0 ? 0 : correct / total),
+    );
+
+    test('fits the result and always ends with the download link', () {
+      final perfect = shareMessage(r(ShareMode.mcq, correct: 10));
+      expect(perfect, startsWith('Perfect score! 🏆 10/10 in MCQ Quiz'));
+
+      final great = shareMessage(r(ShareMode.sortItOut));
+      expect(great, startsWith('I scored 8/10 in Sort It Out'));
+      expect(great, contains('Can you beat me?'));
+
+      final good = shareMessage(r(ShareMode.match, correct: 6));
+      expect(good, contains('Think you can do better?'));
+
+      final low = shareMessage(r(ShareMode.mcq, correct: 2));
+      expect(low, startsWith('I’m levelling up my Commerce skills'));
+
+      for (final m in [perfect, great, good, low]) {
+        expect(m, endsWith(playStoreUrl));
+        expect(m, contains('Class 11 & 12'));
+      }
+    });
+
+    test('Sudden Death counts the questions survived', () {
       expect(
-        shareMessage(modeName: 'the MCQ Quiz', score: 30, maxScore: 100),
-        'I scored 30/100 in the MCQ Quiz on SkillVerse! Can you beat me?',
+        shareMessage(r(ShareMode.suddenDeath, correct: 12, total: 0)),
+        startsWith('I survived 12 questions in Sudden Death'),
+      );
+      expect(
+        shareMessage(r(ShareMode.suddenDeath, correct: 1, total: 0)),
+        startsWith('I survived 1 question in Sudden Death'),
+      );
+      expect(
+        shareMessage(r(ShareMode.suddenDeath, correct: 0, total: 0)),
+        startsWith('I just tried Sudden Death'),
       );
     });
 
-    test('no maximum is left out', () {
+    test('the card headline and challenge follow the score', () {
+      expect(r(ShareMode.mcq, correct: 10).headline, 'PERFECT SCORE');
+      expect(r(ShareMode.mcq).headline, 'GREAT GAME');
+      expect(r(ShareMode.mcq, correct: 5).headline, 'GOOD GAME');
+      expect(r(ShareMode.mcq, correct: 1).headline, 'LEVELLING UP');
       expect(
-        shareMessage(modeName: 'Sudden Death', score: 70),
-        'I scored 70 in Sudden Death on SkillVerse! Can you beat me?',
+        r(ShareMode.suddenDeath, correct: 12, total: 0).headline,
+        'UNSTOPPABLE',
       );
       expect(
-        shareMessage(modeName: 'x', score: 5, maxScore: 0),
-        'I scored 5 in x on SkillVerse! Can you beat me?',
+        r(ShareMode.mcq, correct: 10).challenge,
+        'Bet you can’t match it!',
+      );
+      expect(
+        r(ShareMode.suddenDeath, correct: 3, total: 0).challenge,
+        'Can you last longer?',
       );
     });
+  });
+
+  group('the share card', () {
+    for (final mode in ShareMode.values) {
+      testWidgets('${mode.name} fits its 9:16 picture with a long name', (
+        tester,
+      ) async {
+        tester.view.physicalSize = const Size(1080, 2400);
+        tester.view.devicePixelRatio = 3;
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: Center(
+                child: ResultShareCard(
+                  playerName: 'Venkataramanan Subramaniam',
+                  result: ShareResult(
+                    mode: mode,
+                    points: 123456,
+                    correct: 9,
+                    total: mode == ShareMode.suddenDeath ? 0 : 10,
+                    accuracy: 0.9,
+                    time: const Duration(minutes: 12, seconds: 5),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+        expect(
+          tester.getSize(find.byType(ResultShareCard)),
+          ResultShareCard.size,
+        );
+        expect(find.text('123456'), findsOneWidget);
+      });
+    }
   });
 }
